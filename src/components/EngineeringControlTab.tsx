@@ -116,7 +116,11 @@ export const EngineeringControlTab: React.FC<EngineeringControlTabProps> = ({
   onTssrUpdated,
   onNavigateToVistoria,
 }) => {
-  const isAdmin = effectiveRole === 'ADM';
+  const isAdmin =
+    effectiveRole === 'ADM' ||
+    effectiveRole === 'Coordenador Geral' ||
+    effectiveRole === 'Coordenador Engenharia';
+  const isExecutor = effectiveRole === 'Executor';
 
   // Active Engineering Tab (starts on "TSSR TIM Nokia")
   const [activeSubTab, setActiveSubTab] = useState<'TSSR TIM Nokia'>('TSSR TIM Nokia');
@@ -759,7 +763,7 @@ export const EngineeringControlTab: React.FC<EngineeringControlTabProps> = ({
         onClick={(e) => e.stopPropagation()}
       >
         <span>Nenhum arquivo</span>
-        {onNavigateToVistoria && (
+        {!isExecutor && onNavigateToVistoria && (
           <button
             type="button"
             onClick={() => onNavigateToVistoria(row.siteId)}
@@ -2506,18 +2510,31 @@ export const EngineeringControlTab: React.FC<EngineeringControlTabProps> = ({
                   <span className="text-[11px] font-bold uppercase tracking-wider text-[#223585]">
                     Colunas Automáticas do Sistema (Vistoria)
                   </span>
-                  {onNavigateToVistoria && (
+                  {isExecutor ? (
                     <button
                       type="button"
                       onClick={() => {
-                        const sid = selectedRow.siteId;
                         setSelectedRowId(null);
-                        onNavigateToVistoria(sid);
+                        setOpenProjectFolderType('TSSR');
                       }}
-                      className="px-2.5 py-1 bg-[#223585] hover:bg-[#1b2a6b] text-white rounded-md text-[11px] font-semibold cursor-pointer"
+                      className="px-2.5 py-1 bg-purple-600 hover:bg-purple-700 text-white rounded-md text-[11px] font-semibold cursor-pointer"
                     >
-                      Enviar / Atualizar Arquivo na Vistoria
+                      Subir TSSR (Engenharia)
                     </button>
+                  ) : (
+                    onNavigateToVistoria && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const sid = selectedRow.siteId;
+                          setSelectedRowId(null);
+                          onNavigateToVistoria(sid);
+                        }}
+                        className="px-2.5 py-1 bg-[#223585] hover:bg-[#1b2a6b] text-white rounded-md text-[11px] font-semibold cursor-pointer"
+                      >
+                        Enviar / Atualizar Arquivo na Vistoria
+                      </button>
+                    )
                   )}
                 </div>
 

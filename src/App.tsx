@@ -62,6 +62,11 @@ import {
   CONTROLE_GERAL_COLUMNS,
   CONTROLE_CANCELADOS_COLUMNS,
   EQUIPES_COLUMNS,
+  AmetaNotification,
+  isOwnerAdmUser,
+  hasFullSpreadsheetAccess,
+  isEngineeringCoordinatorRole,
+  canUserAccessVendor,
 } from './types/telecom';
 import { INITIAL_SITES, INITIAL_SHEETS } from './data/initialSites';
 import { AuthGate } from './components/AuthGate';
@@ -76,6 +81,8 @@ import { EricssonVistoriaTab } from './components/EricssonVistoriaTab';
 import { EricssonEngenhariaTab } from './components/EricssonEngenhariaTab';
 import { computeEricssonSiteCounters } from './utils/ericssonSpreadsheetUtils';
 import { AdminAccessPanel } from './components/AdminAccessPanel';
+import { NotificationBellDropdown } from './components/NotificationBellDropdown';
+import { OwnerPermissionsModal } from './components/OwnerPermissionsModal';
 import {
   InteractiveSpreadsheetChart,
   ChartCategoryFilter,
@@ -157,7 +164,12 @@ export default function App() {
   const [ericssonSheetMeta, setEricssonSheetMeta] = useState<EricssonSheetMeta | undefined>(
     undefined
   );
+  const [ericssonFolders, setEricssonFolders] = useState<EngineeringFolder[]>([]);
+  const [ericssonFiles, setEricssonFiles] = useState<EngineeringFile[]>([]);
   const [ericssonUsers, setEricssonUsers] = useState<AmetaUser[]>([]);
+  const [notifications, setNotifications] = useState<AmetaNotification[]>([]);
+  const [serverDuplaEmailsMap, setServerDuplaEmailsMap] = useState<Record<string, string[]>>({});
+  const [ownerPermissionsModalOpen, setOwnerPermissionsModalOpen] = useState<boolean>(false);
   const [ericssonVistoriaFocus, setEricssonVistoriaFocus] = useState<{
     folderId?: string;
     fileId?: string;
@@ -297,8 +309,20 @@ export default function App() {
       if (payload.ericssonSheetMeta) {
         setEricssonSheetMeta(payload.ericssonSheetMeta as EricssonSheetMeta);
       }
+      if (Array.isArray(payload.ericssonFolders)) {
+        setEricssonFolders(payload.ericssonFolders as EngineeringFolder[]);
+      }
+      if (Array.isArray(payload.ericssonFiles)) {
+        setEricssonFiles(payload.ericssonFiles as EngineeringFile[]);
+      }
       if (Array.isArray(payload.ericssonUsers)) {
         setEricssonUsers(payload.ericssonUsers as AmetaUser[]);
+      }
+      if (Array.isArray(payload.notifications)) {
+        setNotifications(payload.notifications as AmetaNotification[]);
+      }
+      if (payload.duplaEmailsMap && typeof payload.duplaEmailsMap === 'object') {
+        setServerDuplaEmailsMap(payload.duplaEmailsMap as Record<string, string[]>);
       }
       if (Array.isArray(payload.users)) {
         const nextUsers = payload.users as AmetaUser[];
@@ -401,9 +425,9 @@ export default function App() {
     };
   }, [showToast]);
 
-  // Listen for direct Ctrl+V anywhere on the workspace
+  // Listen for direct Ctrl+V anywhere on the workspace (Nokia only)
   useEffect(() => {
-    if (!user) return;
+    if (!user || activeVendor !== 'NOKIA') return;
 
     const handleGlobalPaste = (e: ClipboardEvent) => {
       const target = e.target as HTMLElement | null;
@@ -428,7 +452,7 @@ export default function App() {
 
     window.addEventListener('paste', handleGlobalPaste);
     return () => window.removeEventListener('paste', handleGlobalPaste);
-  }, [user]);
+  }, [user, activeVendor]);
 
   // Allow exiting Fullscreen Spreadsheet mode with Escape key
   useEffect(() => {
@@ -484,9 +508,10 @@ export default function App() {
     setActiveSheetName(vendor === 'NOKIA' ? 'Controle Geral' : 'ALL');
     if (
       vendor === 'ERICSSON' &&
-      activeTopTab !== 'sites' &&
-      activeTopTab !== 'engenharia' &&
-      activeTopTab !== 'vistoria'
+      (activeTopTab === 'novo_site' ||
+        activeTopTab === 'importar' ||
+        activeTopTab === 'colar' ||
+        activeTopTab === 'exportar')
     ) {
       setActiveTopTab('sites');
     }
@@ -509,22 +534,49 @@ export default function App() {
     [ericssonRows]
   );
 
-  // Sync logged-in user's role if updated in the users list
+  // Sync logged-in user's role if updated in the users list (only Rafael Araújo is ADM Dono)
+  const isOwnerAdm = isOwnerAdmUser(user?.email);
+
   const realUserRole: UserRole = useMemo(() => {
     if (!user) return 'Vistoriador';
-    const fromServer = users.find((u) => u.email.toLowerCase() === user.email.toLowerCase());
+    if (isOwnerAdmUser(user.email)) return 'ADM';
+    const fromNokia = users.find((u) => u.email.toLowerCase() === user.email.toLowerCase());
+    const fromEric = ericssonUsers.find(
+      (u) => u.email.toLowerCase() === user.email.toLowerCase()
+    );
+    const fromServer = fromNokia || fromEric;
     if (fromServer) {
-      return normalizeUserRole(fromServer.role);
+      return normalizeUserRole(fromServer.role, user.email);
     }
-    if (user.email.toLowerCase() === 'rafael.araujo@ameta.com.br') return 'ADM';
-    return normalizeUserRole(user.role);
-  }, [user, users]);
+    return normalizeUserRole(user.role, user.email);
+  }, [user, users, ericssonUsers]);
 
-  const isRealAdmin = realUserRole === 'ADM';
+  const isRealAdmin = isOwnerAdm || realUserRole === 'ADM';
   const activeTargetUser: AmetaUser | null = simulatedTargetUser || user;
   const effectiveRole: UserRole = simulatedTargetUser
-    ? normalizeUserRole(simulatedTargetUser.role)
+    ? normalizeUserRole(simulatedTargetUser.role, simulatedTargetUser.email)
     : realUserRole;
+
+  const canSeeFullSpreadsheets = hasFullSpreadsheetAccess(effectiveRole);
+  const isEngCoordinator = isEngineeringCoordinatorRole(effectiveRole);
+  const canSeeSitesTab = !isEngCoordinator;
+  const canSeeEngenhariaTab =
+    effectiveRole === 'ADM' ||
+    effectiveRole === 'Coordenador Geral' ||
+    effectiveRole === 'Coordenador Engenharia';
+
+  const canAccessNokia = canUserAccessVendor(activeTargetUser, 'NOKIA');
+  const canAccessEricsson = canUserAccessVendor(activeTargetUser, 'ERICSSON');
+
+  // Automatically enforce platform scope when user/simulated user is bound to NOKIA or ERICSSON
+  useEffect(() => {
+    if (!activeTargetUser) return;
+    if (!canAccessNokia && canAccessEricsson && activeVendor !== 'ERICSSON') {
+      setActiveVendor('ERICSSON');
+    } else if (!canAccessEricsson && canAccessNokia && activeVendor !== 'NOKIA') {
+      setActiveVendor('NOKIA');
+    }
+  }, [activeTargetUser, canAccessNokia, canAccessEricsson, activeVendor]);
 
   const testUserAccount = useMemo<AmetaUser>(() => {
     const found = users.find(
@@ -552,33 +604,48 @@ export default function App() {
     return [testUserAccount, ...nonAdm];
   }, [users, testUserAccount]);
 
-  // Unified list of Duplas / Equipes Executantes (editable by ADM, canonicalized so variations of Magno/Mateus/Gilvan/Oglio are unified)
+  // Unified list of Duplas / Equipes Executantes shared between TIM/Nokia and Ericsson
   const equipesDuplas = useMemo<string[]>(() => {
     const set = new Set<string>();
     customDuplas.forEach((d) => {
       const c = getCanonicalDuplaName(d) || d.trim();
       if (c) set.add(c);
     });
-    assignableUsersList.forEach((u) => {
-      if (
-        u.equipe &&
-        u.equipe.trim() &&
-        u.equipe !== 'Ameta Telecom' &&
-        u.equipe !== 'Campo / Engenharia' &&
-        u.equipe !== 'Coordenação / ADM' &&
-        u.equipe !== 'Equipe de Teste'
-      ) {
-        const c = getCanonicalDuplaName(u.equipe);
-        if (c) set.add(c);
-      }
-    });
+    const addFromUserList = (list: AmetaUser[]) => {
+      list.forEach((u) => {
+        if (
+          u.equipe &&
+          u.equipe.trim() &&
+          u.equipe !== 'Ameta Telecom' &&
+          u.equipe !== 'Campo / Engenharia' &&
+          u.equipe !== 'Coordenação / ADM' &&
+          !u.equipe.startsWith('Coordenação') &&
+          u.equipe !== 'Equipe de Teste'
+        ) {
+          const c = getCanonicalDuplaName(u.equipe) || u.equipe.trim();
+          if (c) set.add(c);
+        }
+      });
+    };
+    addFromUserList(assignableUsersList);
+    addFromUserList(ericssonUsers);
+
     sites.forEach((s) => {
       const eq = (getCellValueForColumn(s, 'EQUIPE EXECUTANTE') || s.equipeParceira || '').trim();
       const canon = getCanonicalDuplaName(eq);
       if (canon) set.add(canon);
     });
+
+    ericssonRows.forEach((r) => {
+      const eq = (r.equipe || r.fields?.['EQUIPE'] || '').trim();
+      if (eq && eq !== '—' && eq !== '-') {
+        const canon = getCanonicalDuplaName(eq) || eq;
+        if (canon) set.add(canon);
+      }
+    });
+
     return Array.from(set);
-  }, [customDuplas, assignableUsersList, sites]);
+  }, [customDuplas, assignableUsersList, ericssonUsers, sites, ericssonRows]);
 
   const saveCustomDuplas = (nextList: string[]) => {
     setCustomDuplas(nextList);
@@ -654,13 +721,28 @@ export default function App() {
 
   const resolvedTopTab: WorkspaceTopTab = useMemo(() => {
     if (isRaFunctionTab && (!isRealAdmin || simulatedTargetUser)) {
-      return 'sites';
+      return isEngCoordinator ? 'engenharia' : 'sites';
     }
-    if (activeTopTab === 'engenharia' && effectiveRole === 'Vistoriador') {
+    // Coordenador Engenharia sees ONLY Engenharia and Vistoria
+    if (isEngCoordinator && activeTopTab === 'sites') {
+      return 'engenharia';
+    }
+    // Executor and Vistoriador see ONLY Sites (demanded to them) and Vistoria
+    if (
+      activeTopTab === 'engenharia' &&
+      (effectiveRole === 'Vistoriador' || effectiveRole === 'Executor')
+    ) {
       return 'vistoria';
     }
     return activeTopTab;
-  }, [isRealAdmin, simulatedTargetUser, activeTopTab, isRaFunctionTab, effectiveRole]);
+  }, [
+    isRealAdmin,
+    simulatedTargetUser,
+    activeTopTab,
+    isRaFunctionTab,
+    effectiveRole,
+    isEngCoordinator,
+  ]);
 
   // Vendor-specific sheets and sites
   const vendorSheets = useMemo(
@@ -683,11 +765,11 @@ export default function App() {
   );
 
   // Per-User Responsible Demand Filtering:
-  // - Non-ADM users (or ADM testing a user like "Usuário Teste") ONLY see sites explicitly assigned to them
-  // - ADM sees all sites by default, or can open the hidden tab "Demanda por Responsável" to filter by any responsible
+  // - Executors and Vistoriadores ONLY see sites explicitly demanded/assigned to them
+  // - ADM and Coordenador Geral see all sites by default
   const vendorSites = useMemo(() => {
     if (!activeTargetUser) return allVendorSites;
-    if (effectiveRole !== 'ADM') {
+    if (!canSeeFullSpreadsheets && !isEngCoordinator) {
       return allVendorSites.filter(
         (s) => s.sheetName === 'Equipes' || doesSiteMatchResponsible(s, activeTargetUser)
       );
@@ -698,7 +780,13 @@ export default function App() {
       );
     }
     return allVendorSites;
-  }, [allVendorSites, activeTargetUser, effectiveRole, responsavelDemandFilter]);
+  }, [
+    allVendorSites,
+    activeTargetUser,
+    canSeeFullSpreadsheets,
+    isEngCoordinator,
+    responsavelDemandFilter,
+  ]);
 
   // Base pools by sheet for quick counts on the filter buttons
   const rawControleGeralPool = useMemo(
@@ -2462,7 +2550,12 @@ export default function App() {
     const allVendor = engineeringFiles.filter(
       (f) => f.vendor === activeVendor && !blockedFolderIds.has(f.folderId)
     );
-    if (effectiveRole !== 'ADM' && activeTargetUser) {
+    if (
+      effectiveRole !== 'ADM' &&
+      effectiveRole !== 'Coordenador Geral' &&
+      effectiveRole !== 'Coordenador Engenharia' &&
+      activeTargetUser
+    ) {
       return allVendor.filter((fl) => {
         const folder = allFolders.find((fd) => fd.id === fl.folderId);
         return doesDocumentMatchResponsible(fl, folder, activeTargetUser);
@@ -2495,364 +2588,753 @@ export default function App() {
           - Navegação enxuta à esquerda (Logo + Vendor + Sites / Engenharia)
           - Barra de Ações Secundária agrupada à direita + Menu completo no RA
          ===================================================================== */}
-      <header className="sticky top-0 z-30 bg-white border-b border-slate-200 px-4 sm:px-5 py-2.5 flex flex-wrap items-center justify-between gap-x-3 gap-y-2 shadow-2xs">
-        {/* Left: Ameta Logo + Vendor Switcher + Main Navigation Tabs + Active RA Function Tab */}
-        <div className="flex flex-wrap items-center gap-2.5 sm:gap-3.5 shrink-0">
-          <button
-            type="button"
-            onClick={() => setActiveTopTab('sites')}
-            className="cursor-pointer text-left shrink-0"
-          >
-            <AmetaLogo size="sm" theme="light" />
-          </button>
-
-          {/* Vendor Pill Switcher (Ameta Navy & Teal) */}
-          <div className="flex items-center p-0.5 bg-[#F0F3FB] border border-blue-200/70 rounded-lg shrink-0">
-            <button
-              type="button"
-              onClick={() => handleSwitchVendor('NOKIA')}
-              className={`px-2.5 py-1 text-[11px] font-bold rounded-md transition-colors cursor-pointer ${
-                activeVendor === 'NOKIA'
-                  ? 'bg-[#223585] text-white shadow-2xs'
-                  : 'text-slate-600 hover:text-[#223585]'
-              }`}
-            >
-              NOKIA
-            </button>
-            <button
-              type="button"
-              onClick={() => handleSwitchVendor('ERICSSON')}
-              className={`px-2.5 py-1 text-[11px] font-bold rounded-md transition-colors cursor-pointer ${
-                activeVendor === 'ERICSSON'
-                  ? 'bg-[#1E8E8D] text-white shadow-2xs'
-                  : 'text-slate-600 hover:text-[#1E8E8D]'
-              }`}
-            >
-              ERICSSON
-            </button>
-          </div>
-
-          {/* Horizontal Navigation Tabs */}
-          <nav className="flex items-center gap-1 text-xs font-medium shrink-0">
+      <header className="sticky top-0 z-30 bg-white border-b border-slate-200 px-3 sm:px-5 py-2.5 shadow-xs space-y-2.5">
+        {/* Top Row: Logo + Desktop Vendor Switcher + Desktop Nav + Right Action Buttons */}
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2.5 sm:gap-3.5 min-w-0">
             <button
               type="button"
               onClick={() => setActiveTopTab('sites')}
-              className={`px-2.5 sm:px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${
-                resolvedTopTab === 'sites'
-                  ? 'bg-[#223585]/10 text-[#223585] font-bold border border-[#223585]/25'
-                  : 'text-slate-600 hover:text-[#223585] hover:bg-slate-50'
-              }`}
+              className="cursor-pointer text-left shrink-0"
             >
-              <FolderKanban className="w-3.5 h-3.5 text-[#223585] shrink-0" />
-              <span>
-                {activeVendor === 'ERICSSON'
-                  ? 'Sites'
-                  : effectiveRole === 'ADM'
-                  ? 'Sites'
-                  : 'Minha Demanda'}
-              </span>
-              <span className="font-mono text-[11px] text-slate-500 tabular-nums">
-                (
-                {activeVendor === 'ERICSSON'
-                  ? ericssonSiteCounters.totalSites
-                  : filteredControleGeralSites.length}
-                )
-              </span>
-              {activeVendor === 'NOKIA' && countNovos > 0 && (
-                <span className="px-1.5 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-bold rounded-full tabular-nums">
-                  +{countNovos}
-                </span>
-              )}
+              <AmetaLogo size="sm" theme="light" />
             </button>
 
-            {effectiveRole !== 'Vistoriador' && (
+            {/* Desktop Vendor Pill Switcher */}
+            <div className="hidden lg:flex items-center p-0.5 bg-[#F0F3FB] border border-blue-200/70 rounded-lg shrink-0">
+              {canAccessNokia && (
+                <button
+                  type="button"
+                  onClick={() => handleSwitchVendor('NOKIA')}
+                  className={`px-2.5 py-1 text-[11px] font-bold rounded-md transition-colors cursor-pointer ${
+                    activeVendor === 'NOKIA'
+                      ? 'bg-[#223585] text-white shadow-2xs'
+                      : 'text-slate-600 hover:text-[#223585]'
+                  }`}
+                >
+                  TIM / NOKIA
+                </button>
+              )}
+              {canAccessEricsson && (
+                <button
+                  type="button"
+                  onClick={() => handleSwitchVendor('ERICSSON')}
+                  className={`px-2.5 py-1 text-[11px] font-bold rounded-md transition-colors cursor-pointer ${
+                    activeVendor === 'ERICSSON'
+                      ? 'bg-[#1E8E8D] text-white shadow-2xs'
+                      : 'text-slate-600 hover:text-[#1E8E8D]'
+                  }`}
+                >
+                  ERICSSON
+                </button>
+              )}
+            </div>
+
+            {/* Desktop Horizontal Navigation Tabs */}
+            <nav className="hidden lg:flex items-center gap-1 text-xs font-medium shrink-0">
+              {canSeeSitesTab && (
+                <button
+                  type="button"
+                  onClick={() => setActiveTopTab('sites')}
+                  className={`px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${
+                    resolvedTopTab === 'sites'
+                      ? 'bg-[#223585]/10 text-[#223585] font-bold border border-[#223585]/25'
+                      : 'text-slate-600 hover:text-[#223585] hover:bg-slate-50'
+                  }`}
+                >
+                  <FolderKanban className="w-3.5 h-3.5 text-[#223585] shrink-0" />
+                  <span>
+                    {activeVendor === 'ERICSSON'
+                      ? canSeeFullSpreadsheets
+                        ? 'Sites'
+                        : 'Meus Sites Demandados'
+                      : canSeeFullSpreadsheets
+                      ? 'Sites (Planilhas)'
+                      : 'Meus Sites Demandados'}
+                  </span>
+                  <span className="font-mono text-[11px] text-slate-500 tabular-nums">
+                    (
+                    {activeVendor === 'ERICSSON'
+                      ? ericssonSiteCounters.totalSites
+                      : filteredControleGeralSites.length}
+                    )
+                  </span>
+                  {activeVendor === 'NOKIA' && countNovos > 0 && (
+                    <span className="px-1.5 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-bold rounded-full tabular-nums">
+                      +{countNovos}
+                    </span>
+                  )}
+                </button>
+              )}
+
+              {canSeeEngenhariaTab && (
+                <button
+                  type="button"
+                  onClick={() => setActiveTopTab('engenharia')}
+                  className={`px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${
+                    resolvedTopTab === 'engenharia'
+                      ? 'bg-[#1E8E8D]/10 text-[#1E8E8D] font-bold border border-[#1E8E8D]/30'
+                      : 'text-slate-600 hover:text-[#1E8E8D] hover:bg-slate-50'
+                  }`}
+                >
+                  <FileSpreadsheet className="w-3.5 h-3.5 text-[#1E8E8D] shrink-0" />
+                  <span>Engenharia</span>
+                  <span className="font-mono text-[11px] text-slate-500 tabular-nums">
+                    ({activeVendor === 'ERICSSON' ? ericssonRows.length : tssrRows.length})
+                  </span>
+                </button>
+              )}
+
+              <button
+                type="button"
+                onClick={() => setActiveTopTab('vistoria')}
+                className={`px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${
+                  resolvedTopTab === 'vistoria'
+                    ? 'bg-blue-600/10 text-blue-700 font-bold border border-blue-600/30'
+                    : 'text-slate-600 hover:text-blue-700 hover:bg-slate-50'
+                }`}
+              >
+                <FolderOpen className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                <span>{effectiveRole === 'Executor' ? 'Subir TSSR' : 'Vistoria'}</span>
+                <span className="font-mono text-[11px] text-slate-500 tabular-nums">
+                  (
+                  {activeVendor === 'ERICSSON'
+                    ? ericssonFiles.length
+                    : vendorEngineeringFilesCount}
+                  )
+                </span>
+              </button>
+
+              {isRealAdmin && !simulatedTargetUser && (
+                <button
+                  type="button"
+                  onClick={() => setActiveTopTab('duplas')}
+                  className={`px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${
+                    resolvedTopTab === 'duplas'
+                      ? 'bg-slate-900 text-white font-bold shadow-2xs'
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                  }`}
+                >
+                  <Users
+                    className={`w-3.5 h-3.5 shrink-0 ${
+                      resolvedTopTab === 'duplas' ? 'text-blue-400' : 'text-[#223585]'
+                    }`}
+                  />
+                  <span>Duplas & Demanda</span>
+                  <span
+                    className={`font-mono text-[11px] tabular-nums ${
+                      resolvedTopTab === 'duplas' ? 'text-slate-300' : 'text-slate-500'
+                    }`}
+                  >
+                    ({equipesDuplas.length})
+                  </span>
+                </button>
+              )}
+
+              {isRealAdmin &&
+                resolvedTopTab !== 'sites' &&
+                resolvedTopTab !== 'engenharia' &&
+                resolvedTopTab !== 'vistoria' && (
+                <div className="flex items-center gap-1 pl-1 ml-1 border-l border-slate-200">
+                  <span className="px-2.5 py-1.5 rounded-lg bg-slate-900 text-white font-semibold flex items-center gap-2 text-xs shadow-2xs">
+                    <span>
+                      {resolvedTopTab === 'duplas' && 'Aba: Duplas & Demanda'}
+                      {resolvedTopTab === 'perfis' && 'Aba: Perfis & Acessos'}
+                      {resolvedTopTab === 'novo_site' && 'Aba: + Novo Site'}
+                      {resolvedTopTab === 'importar' && 'Aba: Importar / OneDrive'}
+                      {resolvedTopTab === 'colar' && 'Aba: Colar Ctrl+V'}
+                      {resolvedTopTab === 'exportar' && 'Aba: Exportar Planilha'}
+                      {resolvedTopTab === 'simular' && 'Aba: Simular Visão'}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setActiveTopTab('sites')}
+                      className="p-0.5 rounded hover:bg-slate-700 text-slate-300 hover:text-white cursor-pointer"
+                      title="Fechar aba e voltar para Sites"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </span>
+                </div>
+              )}
+            </nav>
+          </div>
+
+          {/* Right: Role Badge + Notification Bell + ADM Dono Button + RA Menu */}
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-slate-100 border border-slate-200 text-[10px] sm:text-[11px] font-bold text-slate-700">
+              <ShieldCheck className="w-3.5 h-3.5 text-[#223585] shrink-0" />
+              <span className="truncate max-w-[95px] sm:max-w-none">{effectiveRole}</span>
+            </span>
+
+            <NotificationBellDropdown
+              notifications={notifications}
+              effectiveUser={activeTargetUser}
+              realUser={user}
+              activeVendor={activeVendor}
+              onNotificationsUpdated={(next) => setNotifications(next)}
+              onNavigateToContext={(notif) => {
+                if (notif.vendor && canUserAccessVendor(activeTargetUser, notif.vendor)) {
+                  setActiveVendor(notif.vendor);
+                }
+                if (
+                  notif.type === 'VISTORIA_OK_PASTA' ||
+                  notif.type === 'TSSR_ENVIADO_EXECUTOR'
+                ) {
+                  setActiveTopTab(canSeeEngenhariaTab ? 'engenharia' : 'vistoria');
+                } else if (
+                  notif.type === 'SITE_DEMANDADO_EXECUTOR' ||
+                  notif.type === 'EXECUTOR_ATUALIZOU_EQUIPE'
+                ) {
+                  setActiveTopTab(canSeeSitesTab ? 'sites' : 'vistoria');
+                }
+              }}
+            />
+
+            {isOwnerAdm && (
+              <button
+                type="button"
+                onClick={() => setOwnerPermissionsModalOpen(true)}
+                className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs shadow-sm transition-colors cursor-pointer"
+                title="Painel Exclusivo ADM Dono — Escolher cargos e liberar permissões"
+              >
+                <ShieldCheck className="w-3.5 h-3.5" />
+                <span>Liberar Permissões (ADM Dono)</span>
+              </button>
+            )}
+
+            {isRealAdmin ? (
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setIsRaMenuOpen((prev) => !prev)}
+                  className={`flex items-center gap-1.5 p-1 pr-2 rounded-full border transition-colors cursor-pointer ${
+                    isRaMenuOpen || (resolvedTopTab !== 'sites' && resolvedTopTab !== 'engenharia')
+                      ? 'bg-slate-900 text-white border-slate-900'
+                      : 'bg-white hover:bg-slate-100 text-slate-700 border-slate-200'
+                  }`}
+                  title="Menu RA — Abrir função em outra aba"
+                >
+                  <div className="w-7 h-7 rounded-full bg-slate-900 text-white text-[11px] font-bold flex items-center justify-center select-none ring-1 ring-white/20">
+                    {userInitials}
+                  </div>
+                  <ChevronDown className="w-3.5 h-3.5 opacity-80" />
+                </button>
+
+                {isRaMenuOpen && (
+                  <>
+                    <div
+                      className="fixed inset-0 z-40 bg-slate-900/20 sm:bg-transparent"
+                      onClick={() => setIsRaMenuOpen(false)}
+                    />
+                    <div className="fixed inset-x-3 top-14 sm:inset-x-auto sm:top-auto sm:absolute sm:right-0 sm:mt-1.5 sm:w-60 bg-white border border-slate-200 rounded-2xl sm:rounded-xl shadow-2xl py-2 z-50 text-xs max-h-[80vh] overflow-y-auto">
+                      <div className="px-3.5 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400 border-b border-slate-100 flex items-center justify-between">
+                        <span>Funções RA (Abrir Aba)</span>
+                        <button
+                          type="button"
+                          onClick={() => setIsRaMenuOpen(false)}
+                          className="sm:hidden p-1 text-slate-400 hover:text-slate-700"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+
+                      {isOwnerAdm && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsRaMenuOpen(false);
+                            setOwnerPermissionsModalOpen(true);
+                          }}
+                          className="w-full px-3.5 py-2.5 sm:py-2 text-left flex items-center justify-between bg-amber-50 hover:bg-amber-100 text-amber-900 font-bold border-b border-amber-200/70 cursor-pointer"
+                        >
+                          <span className="flex items-center gap-2">
+                            <ShieldCheck className="w-4 h-4 text-amber-600" />
+                            <span>Painel ADM Dono (Liberar)</span>
+                          </span>
+                          <span className="text-[9px] font-black uppercase bg-amber-200/80 px-1.5 py-0.5 rounded">
+                            DONO
+                          </span>
+                        </button>
+                      )}
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsRaMenuOpen(false);
+                          setActiveTopTab('duplas');
+                        }}
+                        className={`w-full px-3.5 py-2.5 sm:py-1.5 text-left flex items-center justify-between hover:bg-slate-50 cursor-pointer ${
+                          resolvedTopTab === 'duplas' ? 'bg-blue-50/70 text-blue-700 font-semibold' : 'text-slate-700'
+                        }`}
+                      >
+                        <span className="flex items-center gap-2">
+                          <Users className="w-4 h-4 text-blue-600" />
+                          <span>Duplas & Demanda</span>
+                        </span>
+                        <span className="text-[10px] font-mono text-slate-400">{equipesDuplas.length}</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsRaMenuOpen(false);
+                          setActiveTopTab('perfis');
+                        }}
+                        className={`w-full px-3.5 py-2.5 sm:py-1.5 text-left flex items-center justify-between hover:bg-slate-50 cursor-pointer ${
+                          resolvedTopTab === 'perfis' ? 'bg-blue-50/70 text-blue-700 font-semibold' : 'text-slate-700'
+                        }`}
+                      >
+                        <span className="flex items-center gap-2">
+                          <ShieldCheck className="w-4 h-4 text-slate-600" />
+                          <span>Perfis & Acessos</span>
+                        </span>
+                        <span className="text-[10px] font-mono text-slate-400">{users.length}</span>
+                      </button>
+
+                      <div className="my-1 border-t border-slate-100" />
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsRaMenuOpen(false);
+                          setActiveTopTab('novo_site');
+                        }}
+                        className={`w-full px-3.5 py-2.5 sm:py-1.5 text-left flex items-center gap-2 hover:bg-slate-50 cursor-pointer ${
+                          resolvedTopTab === 'novo_site' ? 'bg-blue-50/70 text-blue-700 font-semibold' : 'text-slate-700'
+                        }`}
+                      >
+                        <Plus className="w-4 h-4 text-blue-600" />
+                        <span>+ Novo Site</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsRaMenuOpen(false);
+                          setBulkInitialTab('onedrive');
+                          setActiveTopTab('importar');
+                        }}
+                        className={`w-full px-3.5 py-2.5 sm:py-1.5 text-left flex items-center gap-2 hover:bg-slate-50 cursor-pointer ${
+                          resolvedTopTab === 'importar' ? 'bg-blue-50/70 text-blue-700 font-semibold' : 'text-slate-700'
+                        }`}
+                      >
+                        <CloudDownload className="w-4 h-4 text-blue-600" />
+                        <span>Importar / OneDrive</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsRaMenuOpen(false);
+                          setPastedShortcutText('');
+                          setBulkInitialTab('paste');
+                          setActiveTopTab('colar');
+                        }}
+                        className={`w-full px-3.5 py-2.5 sm:py-1.5 text-left flex items-center gap-2 hover:bg-slate-50 cursor-pointer ${
+                          resolvedTopTab === 'colar' ? 'bg-blue-50/70 text-blue-700 font-semibold' : 'text-slate-700'
+                        }`}
+                      >
+                        <ClipboardPaste className="w-4 h-4 text-slate-600" />
+                        <span>Colar Ctrl+V</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsRaMenuOpen(false);
+                          setActiveTopTab('exportar');
+                        }}
+                        className={`w-full px-3.5 py-2.5 sm:py-1.5 text-left flex items-center gap-2 hover:bg-slate-50 cursor-pointer ${
+                          resolvedTopTab === 'exportar' ? 'bg-blue-50/70 text-blue-700 font-semibold' : 'text-slate-700'
+                        }`}
+                      >
+                        <Download className="w-4 h-4 text-emerald-600" />
+                        <span>Exportar Planilha</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsRaMenuOpen(false);
+                          setActiveTopTab('simular');
+                        }}
+                        className={`w-full px-3.5 py-2.5 sm:py-1.5 text-left flex items-center gap-2 hover:bg-slate-50 cursor-pointer ${
+                          resolvedTopTab === 'simular' ? 'bg-blue-50/70 text-blue-700 font-semibold' : 'text-slate-700'
+                        }`}
+                      >
+                        <Eye className="w-4 h-4 text-slate-600" />
+                        <span>Ver como (Simular)</span>
+                      </button>
+
+                      <div className="my-1 border-t border-slate-100" />
+                      <div className="px-3.5 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                        Teste Rápido de Perfil
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const coordGeral =
+                            (activeVendor === 'ERICSSON'
+                              ? ericssonUsers.find((u) => u.role === 'Coordenador Geral')
+                              : users.find((u) => u.role === 'Coordenador Geral')) || {
+                              id: 'sim-coord-geral',
+                              name: `Coordenador Geral (${activeVendor})`,
+                              email:
+                                activeVendor === 'ERICSSON'
+                                  ? 'coord.geral.ericsson@ameta.com.br'
+                                  : 'coord.geral.tim@ameta.com.br',
+                              role: 'Coordenador Geral' as UserRole,
+                              assignedPlatform: activeVendor,
+                              equipe: `Coordenação Geral ${activeVendor}`,
+                              emailVerified: true,
+                              createdAt: '',
+                            };
+                          setIsRaMenuOpen(false);
+                          setSimulatedTargetUser(coordGeral);
+                          setActiveTopTab('sites');
+                          showToast(`Simulando Coordenador Geral (${activeVendor}): vê todas as planilhas`);
+                        }}
+                        className="w-full px-3.5 py-2 sm:py-1.5 text-left flex items-center justify-between hover:bg-indigo-50 text-indigo-800 font-medium cursor-pointer"
+                      >
+                        <span>Testar Coordenador Geral</span>
+                        <span className="text-[10px] font-mono bg-indigo-100 px-1.5 py-0.5 rounded">
+                          Todas Plan.
+                        </span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const coordEng =
+                            (activeVendor === 'ERICSSON'
+                              ? ericssonUsers.find((u) => u.role === 'Coordenador Engenharia')
+                              : users.find((u) => u.role === 'Coordenador Engenharia')) || {
+                              id: 'sim-coord-eng',
+                              name: `Coordenador Engenharia (${activeVendor})`,
+                              email:
+                                activeVendor === 'ERICSSON'
+                                  ? 'coord.engenharia.ericsson@ameta.com.br'
+                                  : 'coord.engenharia.tim@ameta.com.br',
+                              role: 'Coordenador Engenharia' as UserRole,
+                              assignedPlatform: activeVendor,
+                              equipe: `Coordenação Engenharia ${activeVendor}`,
+                              emailVerified: true,
+                              createdAt: '',
+                            };
+                          setIsRaMenuOpen(false);
+                          setSimulatedTargetUser(coordEng);
+                          setActiveTopTab('engenharia');
+                          showToast(
+                            `Simulando Coordenador Engenharia (${activeVendor}): vê apenas Engenharia e Vistoria`
+                          );
+                        }}
+                        className="w-full px-3.5 py-2 sm:py-1.5 text-left flex items-center justify-between hover:bg-purple-50 text-purple-800 font-medium cursor-pointer"
+                      >
+                        <span>Testar Coord. Engenharia</span>
+                        <span className="text-[10px] font-mono bg-purple-100 px-1.5 py-0.5 rounded">
+                          Eng + Vist
+                        </span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const vist =
+                            users.find((u) => u.email.toLowerCase() === 'teste@ameta.com.br') ||
+                            users.find((u) => u.role === 'Vistoriador');
+                          setIsRaMenuOpen(false);
+                          if (vist) {
+                            setSimulatedTargetUser(vist);
+                            setActiveTopTab('sites');
+                            showToast(`Testando perfil Vistoriador: ${vist.name}`);
+                          }
+                        }}
+                        className="w-full px-3.5 py-2 sm:py-1.5 text-left flex items-center justify-between hover:bg-amber-50 text-amber-800 font-medium cursor-pointer"
+                      >
+                        <span>Testar Vistoriador</span>
+                        <span className="text-[10px] font-mono bg-amber-100 px-1.5 py-0.5 rounded">
+                          Vistoria
+                        </span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const exec =
+                            users.find(
+                              (u) => u.email.toLowerCase() === 'executor.teste@ameta.com.br'
+                            ) || users.find((u) => u.role === 'Executor');
+                          setIsRaMenuOpen(false);
+                          if (exec) {
+                            setSimulatedTargetUser(exec);
+                            setActiveTopTab('sites');
+                            showToast(`Testando perfil Executor: ${exec.name}`);
+                          }
+                        }}
+                        className="w-full px-3.5 py-2 sm:py-1.5 text-left flex items-center justify-between hover:bg-blue-50 text-blue-700 font-medium cursor-pointer"
+                      >
+                        <span>Testar Executor</span>
+                        <span className="text-[10px] font-mono bg-blue-100 px-1.5 py-0.5 rounded">
+                          Só TSSR
+                        </span>
+                      </button>
+
+                      <div className="my-1 border-t border-slate-100" />
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsRaMenuOpen(false);
+                          handleLogout();
+                        }}
+                        className="w-full px-3.5 py-2.5 sm:py-1.5 text-left flex items-center gap-2 text-red-600 hover:bg-red-50 cursor-pointer font-medium"
+                      >
+                        <LogOut className="w-4 h-4" />
+                        <span>Sair</span>
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#F3F4F6] hover:bg-red-50 text-slate-700 hover:text-red-600 text-xs font-medium transition-colors cursor-pointer"
+                title="Sair da Conta"
+              >
+                <div className="w-7 h-7 rounded-full bg-slate-900 text-white text-[11px] font-bold flex items-center justify-center">
+                  {userInitials}
+                </div>
+                <span className="hidden sm:inline">Sair</span>
+                <LogOut className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* ===================================================================
+            PAINEL DE OPÇÕES BEM APARENTES NO MOBILE / TABLET (lg:hidden)
+            - Botões grandes, legíveis e em grade 100% visível sem precisar esconder
+           =================================================================== */}
+        <div className="lg:hidden space-y-2 pt-1.5 border-t border-slate-100">
+          {/* 1. Seletor Grande de Sistema (TIM / NOKIA vs ERICSSON) */}
+          {(canAccessNokia && canAccessEricsson) && (
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => handleSwitchVendor('NOKIA')}
+                className={`py-2.5 px-3 rounded-xl text-xs font-black uppercase tracking-wide flex items-center justify-center gap-2 border-2 transition-all cursor-pointer ${
+                  activeVendor === 'NOKIA'
+                    ? 'bg-[#223585] border-[#223585] text-white shadow-sm'
+                    : 'bg-slate-50 border-slate-200 text-slate-700 hover:border-[#223585]'
+                }`}
+              >
+                <span>TIM / NOKIA</span>
+                {activeVendor === 'NOKIA' && (
+                  <span className="px-1.5 py-0.5 rounded bg-white/20 text-[10px]">ATIVO</span>
+                )}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleSwitchVendor('ERICSSON')}
+                className={`py-2.5 px-3 rounded-xl text-xs font-black uppercase tracking-wide flex items-center justify-center gap-2 border-2 transition-all cursor-pointer ${
+                  activeVendor === 'ERICSSON'
+                    ? 'bg-[#1E8E8D] border-[#1E8E8D] text-white shadow-sm'
+                    : 'bg-slate-50 border-slate-200 text-slate-700 hover:border-[#1E8E8D]'
+                }`}
+              >
+                <span>ERICSSON</span>
+                {activeVendor === 'ERICSSON' && (
+                  <span className="px-1.5 py-0.5 rounded bg-white/20 text-[10px]">ATIVO</span>
+                )}
+              </button>
+            </div>
+          )}
+
+          {/* 2. Grade de Opções Principais Bem Aparentes (2 colunas, botões grandes) */}
+          <div className="grid grid-cols-2 gap-2">
+            {canSeeSitesTab && (
+              <button
+                type="button"
+                onClick={() => setActiveTopTab('sites')}
+                className={`p-2.5 rounded-xl border-2 text-left flex items-center justify-between gap-2 transition-all cursor-pointer ${
+                  resolvedTopTab === 'sites'
+                    ? 'bg-[#223585] border-[#223585] text-white shadow-sm'
+                    : 'bg-white border-slate-200 text-slate-800 hover:border-[#223585]'
+                }`}
+              >
+                <div className="flex items-center gap-2 min-w-0">
+                  <FolderKanban
+                    className={`w-4 h-4 shrink-0 ${
+                      resolvedTopTab === 'sites' ? 'text-white' : 'text-[#223585]'
+                    }`}
+                  />
+                  <span className="text-xs font-extrabold truncate">
+                    {canSeeFullSpreadsheets ? 'Sites (Planilha)' : 'Meus Sites'}
+                  </span>
+                </div>
+                <span
+                  className={`px-1.5 py-0.5 rounded-md font-mono text-[11px] font-bold shrink-0 ${
+                    resolvedTopTab === 'sites'
+                      ? 'bg-white/20 text-white'
+                      : 'bg-slate-100 text-slate-700'
+                  }`}
+                >
+                  {activeVendor === 'ERICSSON'
+                    ? ericssonSiteCounters.totalSites
+                    : filteredControleGeralSites.length}
+                </span>
+              </button>
+            )}
+
+            {canSeeEngenhariaTab && (
               <button
                 type="button"
                 onClick={() => setActiveTopTab('engenharia')}
-                className={`px-2.5 sm:px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${
+                className={`p-2.5 rounded-xl border-2 text-left flex items-center justify-between gap-2 transition-all cursor-pointer ${
                   resolvedTopTab === 'engenharia'
-                    ? 'bg-[#1E8E8D]/10 text-[#1E8E8D] font-bold border border-[#1E8E8D]/30'
-                    : 'text-slate-600 hover:text-[#1E8E8D] hover:bg-slate-50'
+                    ? 'bg-[#1E8E8D] border-[#1E8E8D] text-white shadow-sm'
+                    : 'bg-white border-slate-200 text-slate-800 hover:border-[#1E8E8D]'
                 }`}
               >
-                <FileSpreadsheet className="w-3.5 h-3.5 text-[#1E8E8D] shrink-0" />
-                <span>Engenharia</span>
-                {activeVendor === 'NOKIA' && (
-                  <span className="font-mono text-[11px] text-slate-500 tabular-nums">
-                    ({tssrRows.length})
-                  </span>
-                )}
+                <div className="flex items-center gap-2 min-w-0">
+                  <FileSpreadsheet
+                    className={`w-4 h-4 shrink-0 ${
+                      resolvedTopTab === 'engenharia' ? 'text-white' : 'text-[#1E8E8D]'
+                    }`}
+                  />
+                  <span className="text-xs font-extrabold truncate">Engenharia</span>
+                </div>
+                <span
+                  className={`px-1.5 py-0.5 rounded-md font-mono text-[11px] font-bold shrink-0 ${
+                    resolvedTopTab === 'engenharia'
+                      ? 'bg-white/20 text-white'
+                      : 'bg-slate-100 text-slate-700'
+                  }`}
+                >
+                  {activeVendor === 'ERICSSON' ? ericssonRows.length : tssrRows.length}
+                </span>
               </button>
             )}
 
             <button
               type="button"
               onClick={() => setActiveTopTab('vistoria')}
-              className={`px-2.5 sm:px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${
+              className={`p-2.5 rounded-xl border-2 text-left flex items-center justify-between gap-2 transition-all cursor-pointer ${
                 resolvedTopTab === 'vistoria'
-                  ? 'bg-blue-600/10 text-blue-700 font-bold border border-blue-600/30'
-                  : 'text-slate-600 hover:text-blue-700 hover:bg-slate-50'
+                  ? effectiveRole === 'Executor'
+                    ? 'bg-purple-700 border-purple-700 text-white shadow-sm'
+                    : 'bg-blue-600 border-blue-600 text-white shadow-sm'
+                  : 'bg-white border-slate-200 text-slate-800 hover:border-blue-600'
               }`}
             >
-              <FolderOpen className="w-3.5 h-3.5 text-blue-600 shrink-0" />
-              <span>Vistoria</span>
-              <span className="font-mono text-[11px] text-slate-500 tabular-nums">
-                (
+              <div className="flex items-center gap-2 min-w-0">
+                <FolderOpen
+                  className={`w-4 h-4 shrink-0 ${
+                    resolvedTopTab === 'vistoria'
+                      ? 'text-white'
+                      : effectiveRole === 'Executor'
+                      ? 'text-purple-600'
+                      : 'text-blue-600'
+                  }`}
+                />
+                <span className="text-xs font-extrabold truncate">
+                  {effectiveRole === 'Executor' ? 'Subir TSSR' : 'Subir Vistoria'}
+                </span>
+              </div>
+              <span
+                className={`px-1.5 py-0.5 rounded-md font-mono text-[11px] font-bold shrink-0 ${
+                  resolvedTopTab === 'vistoria'
+                    ? 'bg-white/20 text-white'
+                    : 'bg-slate-100 text-slate-700'
+                }`}
+              >
                 {activeVendor === 'ERICSSON'
-                  ? ericssonSiteCounters.vistoriaEntregueSites
+                  ? ericssonFiles.length
                   : vendorEngineeringFilesCount}
-                )
               </span>
             </button>
 
-            {/* Active Tab Indicator when an RA function tab is opened */}
-            {isRealAdmin &&
-              resolvedTopTab !== 'sites' &&
-              resolvedTopTab !== 'engenharia' &&
-              resolvedTopTab !== 'vistoria' && (
-              <div className="flex items-center gap-1 pl-1 ml-1 border-l border-slate-200">
-                <span className="px-2.5 py-1.5 rounded-lg bg-slate-900 text-white font-semibold flex items-center gap-2 text-xs shadow-2xs">
-                  <span>
-                    {resolvedTopTab === 'duplas' && 'Aba: Duplas & Demanda'}
-                    {resolvedTopTab === 'perfis' && 'Aba: Perfis & Acessos'}
-                    {resolvedTopTab === 'novo_site' && 'Aba: + Novo Site'}
-                    {resolvedTopTab === 'importar' && 'Aba: Importar / OneDrive'}
-                    {resolvedTopTab === 'colar' && 'Aba: Colar Ctrl+V'}
-                    {resolvedTopTab === 'exportar' && 'Aba: Exportar Planilha'}
-                    {resolvedTopTab === 'simular' && 'Aba: Simular Visão'}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => setActiveTopTab('sites')}
-                    className="p-0.5 rounded hover:bg-slate-700 text-slate-300 hover:text-white cursor-pointer"
-                    title="Fechar aba e voltar para Sites"
-                  >
-                    <X className="w-3 h-3" />
-                  </button>
-                </span>
-              </div>
-            )}
-          </nav>
-        </div>
-
-        {/* Right: Small Compact RA Menu (abre outra aba para cada função solicitada dentro dele) */}
-        <div className="flex items-center gap-2 shrink-0 ml-auto">
-          {isRealAdmin ? (
-            <div className="relative">
+            {isRealAdmin && !simulatedTargetUser && (
               <button
                 type="button"
-                onClick={() => setIsRaMenuOpen((prev) => !prev)}
-                className={`flex items-center gap-1.5 p-1 pr-2 rounded-full border transition-colors cursor-pointer ${
-                  isRaMenuOpen || (resolvedTopTab !== 'sites' && resolvedTopTab !== 'engenharia')
-                    ? 'bg-slate-900 text-white border-slate-900'
-                    : 'bg-white hover:bg-slate-100 text-slate-700 border-slate-200'
+                onClick={() => setActiveTopTab('duplas')}
+                className={`p-2.5 rounded-xl border-2 text-left flex items-center justify-between gap-2 transition-all cursor-pointer ${
+                  resolvedTopTab === 'duplas'
+                    ? 'bg-slate-900 border-slate-900 text-white shadow-sm'
+                    : 'bg-amber-50/80 border-amber-300 text-slate-900 hover:border-slate-900'
                 }`}
-                title="Menu RA — Abrir função em outra aba"
               >
-                <div className="w-7 h-7 rounded-full bg-slate-900 text-white text-[11px] font-bold flex items-center justify-center select-none ring-1 ring-white/20">
-                  {userInitials}
+                <div className="flex items-center gap-2 min-w-0">
+                  <Users
+                    className={`w-4 h-4 shrink-0 ${
+                      resolvedTopTab === 'duplas' ? 'text-amber-400' : 'text-amber-600'
+                    }`}
+                  />
+                  <span className="text-xs font-extrabold truncate">Demandar / Duplas</span>
                 </div>
-                <ChevronDown className="w-3.5 h-3.5 opacity-80" />
+                <span
+                  className={`px-1.5 py-0.5 rounded-md font-mono text-[11px] font-bold shrink-0 ${
+                    resolvedTopTab === 'duplas'
+                      ? 'bg-white/20 text-white'
+                      : 'bg-amber-200/70 text-amber-950'
+                  }`}
+                >
+                  {equipesDuplas.length}
+                </span>
+              </button>
+            )}
+          </div>
+
+          {/* 3. Barra Adicional de Opções ADM Bem Aparentes no Mobile */}
+          {isRealAdmin && !simulatedTargetUser && (
+            <div className="grid grid-cols-3 gap-1.5">
+              <button
+                type="button"
+                onClick={() => setActiveTopTab('perfis')}
+                className={`py-2 px-2 rounded-lg border text-[11px] font-bold flex items-center justify-center gap-1.5 cursor-pointer ${
+                  resolvedTopTab === 'perfis'
+                    ? 'bg-slate-900 border-slate-900 text-white'
+                    : 'bg-slate-50 border-slate-200 text-slate-800'
+                }`}
+              >
+                <ShieldCheck className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                <span className="truncate">Perfis ({users.length})</span>
               </button>
 
-              {isRaMenuOpen && (
-                <>
-                  <div
-                    className="fixed inset-0 z-40"
-                    onClick={() => setIsRaMenuOpen(false)}
-                  />
-                  <div className="absolute right-0 mt-1.5 w-52 bg-white border border-slate-200 rounded-xl shadow-lg py-1.5 z-50 text-xs">
-                    <div className="px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400 border-b border-slate-100">
-                      Funções RA (Abrir Aba)
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsRaMenuOpen(false);
-                        setActiveTopTab('duplas');
-                      }}
-                      className={`w-full px-3 py-1.5 text-left flex items-center justify-between hover:bg-slate-50 cursor-pointer ${
-                        resolvedTopTab === 'duplas' ? 'bg-blue-50/70 text-blue-700 font-semibold' : 'text-slate-700'
-                      }`}
-                    >
-                      <span className="flex items-center gap-2">
-                        <Users className="w-3.5 h-3.5 text-blue-600" />
-                        <span>Duplas & Demanda</span>
-                      </span>
-                      <span className="text-[10px] font-mono text-slate-400">{equipesDuplas.length}</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsRaMenuOpen(false);
-                        setActiveTopTab('perfis');
-                      }}
-                      className={`w-full px-3 py-1.5 text-left flex items-center justify-between hover:bg-slate-50 cursor-pointer ${
-                        resolvedTopTab === 'perfis' ? 'bg-blue-50/70 text-blue-700 font-semibold' : 'text-slate-700'
-                      }`}
-                    >
-                      <span className="flex items-center gap-2">
-                        <ShieldCheck className="w-3.5 h-3.5 text-slate-600" />
-                        <span>Perfis & Acessos</span>
-                      </span>
-                      <span className="text-[10px] font-mono text-slate-400">{users.length}</span>
-                    </button>
-
-                    <div className="my-1 border-t border-slate-100" />
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsRaMenuOpen(false);
-                        setActiveTopTab('novo_site');
-                      }}
-                      className={`w-full px-3 py-1.5 text-left flex items-center gap-2 hover:bg-slate-50 cursor-pointer ${
-                        resolvedTopTab === 'novo_site' ? 'bg-blue-50/70 text-blue-700 font-semibold' : 'text-slate-700'
-                      }`}
-                    >
-                      <Plus className="w-3.5 h-3.5 text-blue-600" />
-                      <span>+ Novo Site</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsRaMenuOpen(false);
-                        setBulkInitialTab('onedrive');
-                        setActiveTopTab('importar');
-                      }}
-                      className={`w-full px-3 py-1.5 text-left flex items-center gap-2 hover:bg-slate-50 cursor-pointer ${
-                        resolvedTopTab === 'importar' ? 'bg-blue-50/70 text-blue-700 font-semibold' : 'text-slate-700'
-                      }`}
-                    >
-                      <CloudDownload className="w-3.5 h-3.5 text-blue-600" />
-                      <span>Importar / OneDrive</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsRaMenuOpen(false);
-                        setPastedShortcutText('');
-                        setBulkInitialTab('paste');
-                        setActiveTopTab('colar');
-                      }}
-                      className={`w-full px-3 py-1.5 text-left flex items-center gap-2 hover:bg-slate-50 cursor-pointer ${
-                        resolvedTopTab === 'colar' ? 'bg-blue-50/70 text-blue-700 font-semibold' : 'text-slate-700'
-                      }`}
-                    >
-                      <ClipboardPaste className="w-3.5 h-3.5 text-slate-600" />
-                      <span>Colar Ctrl+V</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsRaMenuOpen(false);
-                        setActiveTopTab('exportar');
-                      }}
-                      className={`w-full px-3 py-1.5 text-left flex items-center gap-2 hover:bg-slate-50 cursor-pointer ${
-                        resolvedTopTab === 'exportar' ? 'bg-blue-50/70 text-blue-700 font-semibold' : 'text-slate-700'
-                      }`}
-                    >
-                      <Download className="w-3.5 h-3.5 text-emerald-600" />
-                      <span>Exportar Planilha</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsRaMenuOpen(false);
-                        setActiveTopTab('simular');
-                      }}
-                      className={`w-full px-3 py-1.5 text-left flex items-center gap-2 hover:bg-slate-50 cursor-pointer ${
-                        resolvedTopTab === 'simular' ? 'bg-blue-50/70 text-blue-700 font-semibold' : 'text-slate-700'
-                      }`}
-                    >
-                      <Eye className="w-3.5 h-3.5 text-slate-600" />
-                      <span>Ver como (Simular)</span>
-                    </button>
-
-                    <div className="my-1 border-t border-slate-100" />
-                    <div className="px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                      Teste Rápido de Perfil
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const vist =
-                          users.find((u) => u.email.toLowerCase() === 'teste@ameta.com.br') ||
-                          users.find((u) => u.role === 'Vistoriador');
-                        setIsRaMenuOpen(false);
-                        if (vist) {
-                          setSimulatedTargetUser(vist);
-                          setActiveTopTab('sites');
-                          showToast(`Testando perfil Vistoriador: ${vist.name}`);
-                        }
-                      }}
-                      className="w-full px-3 py-1.5 text-left flex items-center justify-between hover:bg-amber-50 text-amber-800 font-medium cursor-pointer"
-                    >
-                      <span>Testar Vistoriador</span>
-                      <span className="text-[10px] font-mono bg-amber-100 px-1.5 py-0.5 rounded">
-                        8 col
-                      </span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const exec =
-                          users.find(
-                            (u) => u.email.toLowerCase() === 'executor.teste@ameta.com.br'
-                          ) || users.find((u) => u.role === 'Executor');
-                        setIsRaMenuOpen(false);
-                        if (exec) {
-                          setSimulatedTargetUser(exec);
-                          setActiveTopTab('sites');
-                          showToast(`Testando perfil Executor: ${exec.name}`);
-                        }
-                      }}
-                      className="w-full px-3 py-1.5 text-left flex items-center justify-between hover:bg-blue-50 text-blue-700 font-medium cursor-pointer"
-                    >
-                      <span>Testar Executor</span>
-                      <span className="text-[10px] font-mono bg-blue-100 px-1.5 py-0.5 rounded">
-                        Executor
-                      </span>
-                    </button>
-
-                    <div className="my-1 border-t border-slate-100" />
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsRaMenuOpen(false);
-                        handleLogout();
-                      }}
-                      className="w-full px-3 py-1.5 text-left flex items-center gap-2 text-red-600 hover:bg-red-50 cursor-pointer font-medium"
-                    >
-                      <LogOut className="w-3.5 h-3.5" />
-                      <span>Sair</span>
-                    </button>
-                  </div>
-                </>
+              {isOwnerAdm ? (
+                <button
+                  type="button"
+                  onClick={() => setOwnerPermissionsModalOpen(true)}
+                  className="py-2 px-2 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 text-[11px] font-black flex items-center justify-center gap-1 cursor-pointer shadow-2xs"
+                >
+                  <ShieldCheck className="w-3.5 h-3.5 shrink-0" />
+                  <span className="truncate">Permissões</span>
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setActiveTopTab('novo_site')}
+                  className="py-2 px-2 rounded-lg bg-slate-50 border border-slate-200 text-slate-800 text-[11px] font-bold flex items-center justify-center gap-1 cursor-pointer"
+                >
+                  <Plus className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                  <span className="truncate">+ Novo Site</span>
+                </button>
               )}
+
+              <button
+                type="button"
+                onClick={() => setIsRaMenuOpen(true)}
+                className="py-2 px-2 rounded-lg bg-slate-900 text-white text-[11px] font-bold flex items-center justify-center gap-1 cursor-pointer"
+              >
+                <span>+ Mais Opções</span>
+                <ChevronDown className="w-3.5 h-3.5 shrink-0" />
+              </button>
             </div>
-          ) : (
-            <button
-              type="button"
-              onClick={handleLogout}
-              className="flex items-center gap-2 px-2.5 py-1 rounded-full bg-[#F3F4F6] hover:bg-red-50 text-slate-700 hover:text-red-600 text-xs font-medium transition-colors cursor-pointer"
-              title="Sair da Conta"
-            >
-              <div className="w-7 h-7 rounded-full bg-slate-900 text-white text-[11px] font-bold flex items-center justify-center">
-                {userInitials}
-              </div>
-              <span>Sair</span>
-              <LogOut className="w-3.5 h-3.5" />
-            </button>
           )}
         </div>
       </header>
@@ -2869,18 +3351,20 @@ export default function App() {
             </span>
           </div>
           <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setActiveTopTab('sites')}
-              className={`px-2.5 py-1 rounded text-[11px] font-semibold cursor-pointer ${
-                resolvedTopTab === 'sites'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-slate-800 hover:bg-slate-700 text-slate-200'
-              }`}
-            >
-              Sites ({rawControleGeralPool.length})
-            </button>
-            {effectiveRole !== 'Vistoriador' && (
+            {canSeeSitesTab && (
+              <button
+                type="button"
+                onClick={() => setActiveTopTab('sites')}
+                className={`px-2.5 py-1 rounded text-[11px] font-semibold cursor-pointer ${
+                  resolvedTopTab === 'sites'
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-slate-800 hover:bg-slate-700 text-slate-200'
+                }`}
+              >
+                Sites ({rawControleGeralPool.length})
+              </button>
+            )}
+            {canSeeEngenhariaTab && (
               <button
                 type="button"
                 onClick={() => setActiveTopTab('engenharia')}
@@ -2890,7 +3374,7 @@ export default function App() {
                     : 'bg-slate-800 hover:bg-slate-700 text-slate-200'
                 }`}
               >
-                Engenharia ({tssrRows.length})
+                Engenharia ({activeVendor === 'ERICSSON' ? ericssonRows.length : tssrRows.length})
               </button>
             )}
             <button
@@ -2917,8 +3401,8 @@ export default function App() {
 
       {/* Live Toast */}
       {liveToast && (
-        <div className="fixed bottom-5 right-5 z-40 bg-slate-900 text-white px-4 py-3 rounded-xl shadow-lg flex items-center gap-2.5 text-xs">
-          <RefreshCw className="w-4 h-4 text-blue-400 animate-spin" />
+        <div className="fixed bottom-16 sm:bottom-5 right-3 left-3 sm:left-auto sm:right-5 z-40 bg-slate-900 text-white px-4 py-3 rounded-xl shadow-lg flex items-center gap-2.5 text-xs">
+          <RefreshCw className="w-4 h-4 text-blue-400 animate-spin shrink-0" />
           <span>{liveToast}</span>
         </div>
       )}
@@ -2927,7 +3411,7 @@ export default function App() {
           MAIN WORKSPACE CONTENT
          ===================================================================== */}
       <main
-        className={`flex-1 w-full mx-auto px-6 py-5 space-y-3 ${
+        className={`flex-1 w-full mx-auto px-2.5 sm:px-6 py-3 sm:py-5 pb-20 sm:pb-5 space-y-3 ${
           resolvedTopTab === 'engenharia' ? 'max-w-full' : 'max-w-[1800px]'
         }`}
       >
@@ -2936,10 +3420,9 @@ export default function App() {
            =================================================================== */}
         {activeVendor === 'ERICSSON' && (
           <>
-            {(resolvedTopTab === 'sites' ||
-              (resolvedTopTab !== 'engenharia' && resolvedTopTab !== 'vistoria')) && (
+            {canSeeSitesTab && resolvedTopTab === 'sites' && (
               <EricssonSitesTab
-                user={user}
+                user={activeTargetUser || user}
                 effectiveRole={effectiveRole}
                 rows={ericssonRows}
                 sheetMeta={ericssonSheetMeta || null}
@@ -2947,7 +3430,7 @@ export default function App() {
                 onUpdated={(nextRows, nextMeta, toastMsg, nextFiles) => {
                   setEricssonRows(nextRows);
                   if (nextMeta) setEricssonSheetMeta(nextMeta);
-                  if (Array.isArray(nextFiles)) setEngineeringFiles(nextFiles);
+                  if (Array.isArray(nextFiles)) setEricssonFiles(nextFiles);
                   if (toastMsg) showToast(toastMsg);
                 }}
                 onEricssonUsersUpdated={(nextUsers, toastMsg) => {
@@ -2958,19 +3441,22 @@ export default function App() {
                   setEricssonVistoriaFocus({ folderId, fileId, fileName });
                   setActiveTopTab('vistoria');
                 }}
+                onOpenDuplasDemanda={
+                  isRealAdmin ? () => setActiveTopTab('duplas') : undefined
+                }
               />
             )}
 
-            {resolvedTopTab === 'engenharia' && effectiveRole !== 'Vistoriador' && (
+            {resolvedTopTab === 'engenharia' && canSeeEngenhariaTab && (
               <EricssonEngenhariaTab
-                user={user}
+                user={activeTargetUser || user}
                 effectiveRole={effectiveRole}
                 rows={ericssonRows}
                 sheetMeta={ericssonSheetMeta || null}
                 onUpdated={(nextRows, nextMeta, toastMsg, nextFiles) => {
                   setEricssonRows(nextRows);
                   if (nextMeta) setEricssonSheetMeta(nextMeta);
-                  if (Array.isArray(nextFiles)) setEngineeringFiles(nextFiles);
+                  if (Array.isArray(nextFiles)) setEricssonFiles(nextFiles);
                   if (toastMsg) showToast(toastMsg);
                 }}
                 onOpenFileInVistoriaFolder={(folderId, fileId, fileName) => {
@@ -2982,12 +3468,12 @@ export default function App() {
 
             {resolvedTopTab === 'vistoria' && (
               <EricssonVistoriaTab
-                user={user}
+                user={activeTargetUser || user}
                 effectiveRole={effectiveRole}
                 rows={ericssonRows}
                 sheetMeta={ericssonSheetMeta || null}
-                folders={engineeringFolders}
-                files={engineeringFiles}
+                folders={ericssonFolders}
+                files={ericssonFiles}
                 focusedFolderId={ericssonVistoriaFocus?.folderId || null}
                 focusedFileId={ericssonVistoriaFocus?.fileId || null}
                 focusedFileName={ericssonVistoriaFocus?.fileName || null}
@@ -2995,12 +3481,12 @@ export default function App() {
                 onUpdated={(nextRows, nextMeta, toastMsg, nextFolders, nextFiles) => {
                   setEricssonRows(nextRows);
                   if (nextMeta) setEricssonSheetMeta(nextMeta);
-                  if (Array.isArray(nextFolders)) setEngineeringFolders(nextFolders);
-                  if (Array.isArray(nextFiles)) setEngineeringFiles(nextFiles);
+                  if (Array.isArray(nextFolders)) setEricssonFolders(nextFolders);
+                  if (Array.isArray(nextFiles)) setEricssonFiles(nextFiles);
                   if (toastMsg) showToast(toastMsg);
                 }}
                 onOpenSitesTab={
-                  effectiveRole !== 'Vistoriador' ? () => setActiveTopTab('sites') : undefined
+                  canSeeSitesTab ? () => setActiveTopTab('sites') : undefined
                 }
               />
             )}
@@ -3010,9 +3496,9 @@ export default function App() {
         {/* -------------------------------------------------------------------
             SISTEMA DA NOKIA (INALTERADO) — TAB 1: SITES
            ------------------------------------------------------------------- */}
-        {activeVendor === 'NOKIA' && resolvedTopTab === 'sites' && (
+        {activeVendor === 'NOKIA' && resolvedTopTab === 'sites' && canSeeSitesTab && (
           <>
-            {effectiveRole === 'ADM' && (
+            {canSeeFullSpreadsheets && (
               <InteractiveSpreadsheetChart
                 sites={rawControleGeralPool}
                 users={users}
@@ -3320,7 +3806,7 @@ export default function App() {
                 <div className="px-5 py-3 bg-[#F3F4F6]/80 border-b border-slate-200 space-y-2.5">
                   <div className="flex flex-wrap items-center gap-2">
                     {/* Unified Smart Search Bar */}
-                    <div className="relative flex-1 min-w-[280px]">
+                    <div className="relative flex-1 min-w-full sm:min-w-[280px]">
                       <div className="flex items-center bg-white border border-slate-200 rounded-lg px-3 py-1.5 focus-within:border-blue-600 transition-colors shadow-2xs">
                         <Search className="w-4 h-4 text-slate-400 mr-2 shrink-0" />
                         <input
@@ -3420,7 +3906,7 @@ export default function App() {
                           />
                           <div
                             onClick={(e) => e.stopPropagation()}
-                            className="absolute left-0 top-full mt-1.5 w-80 bg-white border border-slate-200 rounded-xl shadow-xl p-3.5 z-50 space-y-3"
+                            className="absolute left-0 top-full mt-1.5 w-[calc(100vw-2rem)] max-w-xs sm:w-80 bg-white border border-slate-200 rounded-xl shadow-xl p-3.5 z-50 space-y-3"
                           >
                             <div className="flex items-center justify-between border-b border-slate-100 pb-2">
                               <span className="text-xs font-bold text-slate-800">
@@ -4092,7 +4578,7 @@ export default function App() {
            ------------------------------------------------------------------- */}
         {activeVendor === 'NOKIA' &&
           resolvedTopTab === 'engenharia' &&
-          effectiveRole !== 'Vistoriador' && (
+          canSeeEngenhariaTab && (
           <EngineeringControlTab
             user={user}
             effectiveRole={effectiveRole}
@@ -4152,16 +4638,15 @@ export default function App() {
             }}
             onSelectSiteId={(id) => setSelectedSiteId(id)}
             onOpenTssrTab={
-              effectiveRole !== 'Vistoriador' ? () => setActiveTopTab('engenharia') : undefined
+              canSeeEngenhariaTab ? () => setActiveTopTab('engenharia') : undefined
             }
           />
         )}
 
         {/* -------------------------------------------------------------------
-            ABAS INDIVIDUAIS DO MENU RA (CADA FUNÇÃO SOLICITADA ABRE EM SUA PRÓPRIA ABA)
+            ABAS INDIVIDUAIS DO MENU RA (MESMAS REGRAS EM NOKIA E ERICSSON)
            ------------------------------------------------------------------- */}
-        {activeVendor === 'NOKIA' &&
-          isRealAdmin &&
+        {isRealAdmin &&
           resolvedTopTab !== 'sites' &&
           resolvedTopTab !== 'engenharia' &&
           resolvedTopTab !== 'vistoria' && (
@@ -4170,16 +4655,20 @@ export default function App() {
               <div className="bg-white border border-slate-200 rounded-xl px-4 py-2.5 flex flex-wrap items-center justify-between gap-2 shadow-2xs">
                 <div className="flex flex-wrap items-center gap-1.5">
                   <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mr-1">
-                    Abas do RA:
+                    Abas do RA ({activeVendor === 'ERICSSON' ? 'Ericsson' : 'TIM / Nokia'}):
                   </span>
                   {(
                     [
                       { id: 'duplas', label: 'Duplas & Demanda' },
                       { id: 'perfis', label: 'Perfis & Acessos' },
-                      { id: 'novo_site', label: '+ Novo Site' },
-                      { id: 'importar', label: 'Importar / OneDrive' },
-                      { id: 'colar', label: 'Colar Ctrl+V' },
-                      { id: 'exportar', label: 'Exportar Planilha' },
+                      ...(activeVendor === 'NOKIA'
+                        ? [
+                            { id: 'novo_site' as const, label: '+ Novo Site' },
+                            { id: 'importar' as const, label: 'Importar / OneDrive' },
+                            { id: 'colar' as const, label: 'Colar Ctrl+V' },
+                            { id: 'exportar' as const, label: 'Exportar Planilha' },
+                          ]
+                        : []),
                       { id: 'simular', label: 'Ver como (Simular)' },
                     ] as const
                   ).map((tabItem) => (
@@ -4215,11 +4704,14 @@ export default function App() {
                 </button>
               </div>
 
-              {/* ABA 0 DO RA: DUPLAS & DEMANDA (INTERATIVO VINCULADO COM E-MAIL DE PERFIL) */}
+              {/* ABA 0 DO RA: DUPLAS & DEMANDA (SISTEMA IGUAL EM NOKIA E EM ERICSSON, MUDANDO APENAS AS INFORMAÇÕES DA PLATAFORMA ATIVA) */}
               {resolvedTopTab === 'duplas' && (
                 <DuplasInteractiveView
-                  sites={allVendorSites}
+                  sites={sites}
+                  ericssonRows={ericssonRows}
                   users={users}
+                  ericssonUsers={ericssonUsers}
+                  serverDuplaEmailsMap={serverDuplaEmailsMap}
                   activeVendor={activeVendor}
                   equipesDuplas={equipesDuplas}
                   onAddDupla={(name) => {
@@ -4228,7 +4720,11 @@ export default function App() {
                     if (!customDuplas.some((d) => d.toLowerCase() === clean.toLowerCase())) {
                       saveCustomDuplas([clean, ...customDuplas]);
                     }
-                    showToast(`Dupla "${clean}" criada com sucesso!`);
+                    showToast(
+                      `Dupla "${clean}" criada no sistema ${
+                        activeVendor === 'ERICSSON' ? 'Ericsson' : 'TIM / Nokia'
+                      }!`
+                    );
                   }}
                   onRenameDupla={async (oldName, newName) => {
                     const clean = newName.trim();
@@ -4243,13 +4739,14 @@ export default function App() {
                         body: JSON.stringify({
                           renameFrom: oldName,
                           renameTo: clean,
-                          vendor: activeVendor,
                         }),
                       });
                       if (res.ok) {
                         const data = await res.json();
                         if (Array.isArray(data.sites)) setSites(data.sites);
+                        if (Array.isArray(data.ericssonRows)) setEricssonRows(data.ericssonRows);
                         if (Array.isArray(data.users)) setUsers(data.users);
+                        if (Array.isArray(data.ericssonUsers)) setEricssonUsers(data.ericssonUsers);
                       }
                     } catch {
                       // ignore offline error
@@ -4257,7 +4754,7 @@ export default function App() {
                     showToast(`Dupla renomeada de "${oldName}" para "${clean}".`);
                   }}
                   onDeleteDupla={(name) => handleDeleteDupla(name)}
-                  onAssignSitesToDupla={async (siteIds, duplaName, linkedEmails) => {
+                  onAssignSitesToDupla={async (siteIds, duplaName, linkedEmails, targetVendor) => {
                     const res = await fetch('/api/sites/assign-responsible', {
                       method: 'POST',
                       headers: { 'Content-Type': 'application/json' },
@@ -4265,61 +4762,106 @@ export default function App() {
                         siteTokens: siteIds,
                         responsibleName: duplaName,
                         linkedEmails,
-                        vendor: activeVendor,
+                        vendor: targetVendor,
                       }),
                     });
                     if (res.ok) {
                       const data = await res.json();
                       if (Array.isArray(data.sites)) setSites(data.sites);
+                      if (Array.isArray(data.ericssonRows)) setEricssonRows(data.ericssonRows);
                       if (Array.isArray(data.users)) setUsers(data.users);
+                      if (Array.isArray(data.ericssonUsers)) setEricssonUsers(data.ericssonUsers);
+                      if (Array.isArray(data.notifications)) setNotifications(data.notifications);
                       showToast(
-                        `${data.updatedCount || siteIds.length} site(s) enviados para a dupla "${duplaName}"!`
+                        `${data.updatedCount || siteIds.length} site(s) ${
+                          targetVendor === 'ERICSSON' ? 'Ericsson' : 'TIM/Nokia'
+                        } enviados para a dupla "${duplaName}"!`
                       );
                     }
                   }}
-                  onUnassignSitesFromDupla={async (siteIds, duplaName) => {
+                  onUnassignSitesFromDupla={async (siteIds, duplaName, targetVendor) => {
                     const tokenSet = new Set(
                       siteIds.map((t) => String(t || '').trim().toUpperCase()).filter(Boolean)
                     );
-                    setSites((prev) =>
-                      prev.map((s) => {
-                        if (s.vendor !== activeVendor) return s;
-                        if (
-                          !tokenSet.has(s.id.toUpperCase()) &&
-                          !tokenSet.has(s.siteId.trim().toUpperCase())
-                        ) {
-                          return s;
-                        }
-                        return {
-                          ...s,
-                          equipeParceira: '',
-                          responsavelCampo: '',
-                          customFields: {
-                            ...(s.customFields || {}),
-                            'EQUIPE EXECUTANTE': '',
-                            Executor: '',
-                            Responsável: '',
-                            'E-MAIL DUPLA': '',
-                          },
-                        };
-                      })
-                    );
+                    if (targetVendor === 'ERICSSON') {
+                      setEricssonRows((prev) =>
+                        prev.map((r) => {
+                          if (!tokenSet.has(r.id.toUpperCase())) return r;
+                          return {
+                            ...r,
+                            equipe: '',
+                            fields: {
+                              ...(r.fields || {}),
+                              EQUIPE: '',
+                              'E-MAIL DUPLA': '',
+                            },
+                          };
+                        })
+                      );
+                    } else {
+                      setSites((prev) =>
+                        prev.map((s) => {
+                          if (s.vendor !== targetVendor) return s;
+                          if (
+                            !tokenSet.has(s.id.toUpperCase()) &&
+                            !tokenSet.has(s.siteId.trim().toUpperCase())
+                          ) {
+                            return s;
+                          }
+                          return {
+                            ...s,
+                            equipeParceira: '',
+                            responsavelCampo: '',
+                            customFields: {
+                              ...(s.customFields || {}),
+                              'EQUIPE EXECUTANTE': '',
+                              Executor: '',
+                              Responsável: '',
+                              'E-MAIL DUPLA': '',
+                            },
+                          };
+                        })
+                      );
+                    }
                     const res = await fetch('/api/sites/assign-responsible', {
                       method: 'POST',
                       headers: { 'Content-Type': 'application/json' },
                       body: JSON.stringify({
                         unassignSiteTokens: siteIds,
-                        vendor: activeVendor,
+                        vendor: targetVendor,
                       }),
                     });
                     if (res.ok) {
                       const data = await res.json();
                       if (Array.isArray(data.sites)) setSites(data.sites);
-                      showToast(`Site removido da demanda de "${duplaName}".`);
+                      if (Array.isArray(data.ericssonRows)) setEricssonRows(data.ericssonRows);
+                      showToast(
+                        `Site ${
+                          targetVendor === 'ERICSSON' ? 'Ericsson' : 'TIM/Nokia'
+                        } removido da demanda de "${duplaName}".`
+                      );
                     }
                   }}
-                  onClearDuplaSites={async (duplaName, siteIdsToClear) => {
-                    await handleBulkAssignSitesResponsible('', '', duplaName, siteIdsToClear);
+                  onClearDuplaSites={async (duplaName, siteIdsToClear, targetVendor) => {
+                    const res = await fetch('/api/sites/assign-responsible', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({
+                        clearAllForResponsible: duplaName,
+                        unassignSiteTokens: siteIdsToClear,
+                        vendor: targetVendor,
+                      }),
+                    });
+                    if (res.ok) {
+                      const data = await res.json();
+                      if (Array.isArray(data.sites)) setSites(data.sites);
+                      if (Array.isArray(data.ericssonRows)) setEricssonRows(data.ericssonRows);
+                      showToast(
+                        `Todos os sites ${
+                          targetVendor === 'ERICSSON' ? 'Ericsson' : 'TIM/Nokia'
+                        } de "${duplaName}" foram desvinculados.`
+                      );
+                    }
                   }}
                   onLinkEmailsToDupla={async (duplaName, emails) => {
                     try {
@@ -4334,7 +4876,12 @@ export default function App() {
                       if (res.ok) {
                         const data = await res.json();
                         if (Array.isArray(data.users)) setUsers(data.users);
+                        if (Array.isArray(data.ericssonUsers)) setEricssonUsers(data.ericssonUsers);
+                        if (data.duplaEmailsMap && typeof data.duplaEmailsMap === 'object') {
+                          setServerDuplaEmailsMap(data.duplaEmailsMap);
+                        }
                         if (Array.isArray(data.sites)) setSites(data.sites);
+                        if (Array.isArray(data.ericssonRows)) setEricssonRows(data.ericssonRows);
                         showToast(
                           `E-mail(s) de perfil vinculado(s) à dupla "${duplaName}" com sucesso!`
                         );
@@ -4343,10 +4890,15 @@ export default function App() {
                       // ignore offline error
                     }
                   }}
-                  onSimulateDuplaView={(targetUser) => {
+                  onSimulateDuplaView={(targetUser, targetVendor) => {
+                    setActiveVendor(targetVendor);
                     setSimulatedTargetUser(targetUser);
                     setActiveTopTab('sites');
-                    showToast(`Visualizando sistema como "${targetUser.name}" (${targetUser.email})`);
+                    showToast(
+                      `Visualizando ${
+                        targetVendor === 'ERICSSON' ? 'Ericsson' : 'TIM/Nokia'
+                      } como "${targetUser.name}" (${targetUser.email})`
+                    );
                   }}
                   onOpenSiteDrawer={(id) => setSelectedSiteId(id)}
                 />
@@ -4761,6 +5313,121 @@ export default function App() {
         onClose={() => setNewSiteModalOpen(false)}
         onCreateSite={handleCreateSite}
       />
+
+      {/* Exclusive ADM Dono Permissions & Role Release Modal */}
+      <OwnerPermissionsModal
+        isOpen={ownerPermissionsModalOpen}
+        onClose={() => setOwnerPermissionsModalOpen(false)}
+        ownerUser={user}
+        nokiaUsers={users}
+        ericssonUsers={ericssonUsers}
+        availableNokiaEquipes={equipesDuplas}
+        availableEricssonEquipes={Array.from(
+          new Set(
+            ericssonRows
+              .map((r) => (r.equipe || r.fields?.['EQUIPE'] || '').trim())
+              .filter(Boolean)
+          )
+        )}
+        onPermissionsUpdated={(nextNokia, nextEricsson, nextNotifs, toastMsg) => {
+          setUsers(nextNokia);
+          setEricssonUsers(nextEricsson);
+          setNotifications(nextNotifs);
+          if (toastMsg) showToast(toastMsg);
+        }}
+        onSimulateUser={(simUser) => {
+          setSimulatedTargetUser(simUser);
+          if (simUser.assignedPlatform === 'ERICSSON') {
+            setActiveVendor('ERICSSON');
+          } else if (simUser.assignedPlatform === 'NOKIA') {
+            setActiveVendor('NOKIA');
+          }
+          if (simUser.role === 'Coordenador Engenharia') {
+            setActiveTopTab('engenharia');
+          } else {
+            setActiveTopTab('sites');
+          }
+          showToast(`Simulando visão de ${simUser.name} (${simUser.role})`);
+        }}
+      />
+
+      {/* Mobile Bottom Quick Navigation Bar */}
+      <nav className="sm:hidden fixed bottom-0 inset-x-0 z-30 bg-white/95 backdrop-blur-md border-t border-slate-200 px-1.5 py-1.5 flex items-center justify-around shadow-lg">
+        {canSeeSitesTab && (
+          <button
+            type="button"
+            onClick={() => setActiveTopTab('sites')}
+            className={`flex-1 py-1 px-1 rounded-lg flex flex-col items-center justify-center gap-0.5 text-[10px] font-bold transition-colors cursor-pointer ${
+              resolvedTopTab === 'sites'
+                ? 'text-[#223585] bg-[#223585]/10'
+                : 'text-slate-500 hover:text-slate-900'
+            }`}
+          >
+            <FolderKanban className="w-4 h-4" />
+            <span className="truncate max-w-[72px]">Sites</span>
+          </button>
+        )}
+
+        {canSeeEngenhariaTab && (
+          <button
+            type="button"
+            onClick={() => setActiveTopTab('engenharia')}
+            className={`flex-1 py-1 px-1 rounded-lg flex flex-col items-center justify-center gap-0.5 text-[10px] font-bold transition-colors cursor-pointer ${
+              resolvedTopTab === 'engenharia'
+                ? 'text-[#1E8E8D] bg-[#1E8E8D]/10'
+                : 'text-slate-500 hover:text-slate-900'
+            }`}
+          >
+            <FileSpreadsheet className="w-4 h-4" />
+            <span className="truncate max-w-[72px]">Engenharia</span>
+          </button>
+        )}
+
+        <button
+          type="button"
+          onClick={() => setActiveTopTab('vistoria')}
+          className={`flex-1 py-1 px-1 rounded-lg flex flex-col items-center justify-center gap-0.5 text-[10px] font-bold transition-colors cursor-pointer ${
+            resolvedTopTab === 'vistoria'
+              ? 'text-blue-700 bg-blue-600/10'
+              : 'text-slate-500 hover:text-slate-900'
+          }`}
+        >
+          <FolderOpen className="w-4 h-4" />
+          <span className="truncate max-w-[80px]">
+            {effectiveRole === 'Executor' ? 'Subir TSSR' : 'Vistoria'}
+          </span>
+        </button>
+
+        {isRealAdmin && !simulatedTargetUser && (
+          <button
+            type="button"
+            onClick={() => setActiveTopTab('duplas')}
+            className={`flex-1 py-1 px-1 rounded-lg flex flex-col items-center justify-center gap-0.5 text-[10px] font-bold transition-colors cursor-pointer ${
+              resolvedTopTab === 'duplas'
+                ? 'text-white bg-slate-900'
+                : 'text-slate-500 hover:text-slate-900'
+            }`}
+          >
+            <Users className="w-4 h-4" />
+            <span className="truncate max-w-[72px]">Duplas</span>
+          </button>
+        )}
+
+        {isRealAdmin && (
+          <button
+            type="button"
+            onClick={() => setIsRaMenuOpen((prev) => !prev)}
+            className={`flex-1 py-1 px-1 rounded-lg flex flex-col items-center justify-center gap-0.5 text-[10px] font-bold transition-colors cursor-pointer ${
+              isRaMenuOpen
+                ? 'text-amber-700 bg-amber-100'
+                : 'text-slate-500 hover:text-slate-900'
+            }`}
+          >
+            <ShieldCheck className="w-4 h-4" />
+            <span className="truncate max-w-[72px]">Menu RA</span>
+          </button>
+        )}
+      </nav>
     </div>
   );
 }

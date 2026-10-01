@@ -18,7 +18,7 @@ import {
   UserCheck,
   Link2,
 } from 'lucide-react';
-import { TelecomSite, AmetaUser, VendorType } from '../types/telecom';
+import { TelecomSite, AmetaUser, VendorType, EricssonRow } from '../types/telecom';
 import {
   getCellValueForColumn,
   doesSiteMatchEquipe,
@@ -37,7 +37,10 @@ const STORAGE_DUPLA_EMAILS_KEY = 'ameta_dupla_emails_map_v1';
 
 interface DuplasInteractiveViewProps {
   sites: TelecomSite[];
+  ericssonRows?: EricssonRow[];
   users: AmetaUser[];
+  ericssonUsers?: AmetaUser[];
+  serverDuplaEmailsMap?: Record<string, string[]>;
   activeVendor: VendorType;
   equipesDuplas: string[];
   onAddDupla: (name: string) => void;
@@ -46,18 +49,78 @@ interface DuplasInteractiveViewProps {
   onAssignSitesToDupla: (
     siteIds: string[],
     duplaName: string,
-    linkedEmails: string[]
+    linkedEmails: string[],
+    targetVendor: VendorType
   ) => Promise<void>;
-  onUnassignSitesFromDupla: (siteIds: string[], duplaName: string) => Promise<void>;
-  onClearDuplaSites: (duplaName: string, siteIdsToClear: string[]) => Promise<void>;
+  onUnassignSitesFromDupla: (
+    siteIds: string[],
+    duplaName: string,
+    targetVendor: VendorType
+  ) => Promise<void>;
+  onClearDuplaSites: (
+    duplaName: string,
+    siteIdsToClear: string[],
+    targetVendor: VendorType
+  ) => Promise<void>;
   onLinkEmailsToDupla: (duplaName: string, emails: string[]) => Promise<void>;
-  onSimulateDuplaView: (targetUser: AmetaUser) => void;
+  onSimulateDuplaView: (targetUser: AmetaUser, targetVendor: VendorType) => void;
   onOpenSiteDrawer: (siteId: string) => void;
+}
+
+function doesEricssonRowMatchDupla(
+  row: EricssonRow,
+  duplaName: string,
+  linkedEmails: string[]
+): boolean {
+  const rawEq = (row.equipe || row.fields?.['EQUIPE'] || '').trim();
+  if (!rawEq || rawEq === '—' || rawEq === '-') return false;
+
+  const canonRowEq = normalizeAccents(getCanonicalDuplaName(rawEq) || rawEq);
+  const canonTarget = normalizeAccents(getCanonicalDuplaName(duplaName) || duplaName);
+  if (canonRowEq && canonTarget && canonRowEq === canonTarget) {
+    return true;
+  }
+  if (normalizeAccents(rawEq) === normalizeAccents(duplaName)) {
+    return true;
+  }
+
+  const rowEmails = (row.fields?.['E-MAIL DUPLA'] || '').toLowerCase();
+  if (rowEmails && linkedEmails.some((em) => rowEmails.includes(em.toLowerCase()))) {
+    return true;
+  }
+  return false;
+}
+
+function isEricssonRowFeito(row: EricssonRow): boolean {
+  if (row.siteAVistoriaStatus === 'Entregue' || row.siteBVistoriaStatus === 'Entregue') {
+    return true;
+  }
+  const stA = (row.statusA || row.fields?.['Status A'] || '').toUpperCase();
+  const stB = (row.statusB || row.fields?.['Status B'] || '').toUpperCase();
+  return (
+    stA.includes('CONCLU') ||
+    stA.includes('INSTALAD') ||
+    stA.includes('ENTREGUE') ||
+    stB.includes('CONCLU') ||
+    stB.includes('INSTALAD')
+  );
+}
+
+function isEricssonRowNotaPendente(row: EricssonRow): boolean {
+  const fatLos = (row.fields?.['Liberação de Faturamento LoS'] || '').trim().toUpperCase();
+  const fatTssr = (row.fields?.['Liberação de Faturamento TSSR'] || '').trim().toUpperCase();
+  if (isEricssonRowFeito(row) && (!fatLos || fatLos.includes('PEND'))) {
+    return true;
+  }
+  return fatLos.includes('PEND') || fatTssr.includes('PEND');
 }
 
 export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = ({
   sites,
+  ericssonRows = [],
   users,
+  ericssonUsers = [],
+  serverDuplaEmailsMap,
   activeVendor,
   equipesDuplas,
   onAddDupla,
@@ -71,7 +134,7 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = ({
   onOpenSiteDrawer,
 }) => {
   const [selectedDupla, setSelectedDupla] = useState<string>(
-    equipesDuplas[0] || 'Usuário Teste'
+    equipesDuplas[0] || 'Magno / Gilvan'
   );
   const [duplaSearch, setDuplaSearch] = useState<string>('');
   const [newDuplaName, setNewDuplaName] = useState<string>('');
@@ -80,7 +143,25 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = ({
   const [editingDupla, setEditingDupla] = useState<string | null>(null);
   const [editingDuplaValue, setEditingDuplaValue] = useState<string>('');
 
-  // Local + persisted map of Dupla -> linked profile emails
+  // Combined unique registered profiles across TIM/Nokia and Ericsson
+  const allRegisteredUsers = useMemo<AmetaUser[]>(() => {
+    const byEmail = new Map<string, AmetaUser>();
+    users.forEach((u) => {
+      const em = (u.email || '').trim().toLowerCase();
+      if (em) byEmail.set(em, u);
+    });
+    ericssonUsers.forEach((u) => {
+      const em = (u.email || '').trim().toLowerCase();
+      if (em && !byEmail.has(em)) {
+        byEmail.set(em, u);
+      }
+    });
+    return Array.from(byEmail.values()).sort((a, b) =>
+      a.name.localeCompare(b.name, 'pt-BR')
+    );
+  }, [users, ericssonUsers]);
+
+  // Local + server persisted map of Dupla -> linked profile emails
   const [duplaEmailsMap, setDuplaEmailsMap] = useState<Record<string, string[]>>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_DUPLA_EMAILS_KEY);
@@ -94,9 +175,36 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = ({
     return {};
   });
 
-  // Email linking controls
+  // Merge serverDuplaEmailsMap whenever received from backend
+  useEffect(() => {
+    if (serverDuplaEmailsMap && Object.keys(serverDuplaEmailsMap).length > 0) {
+      setDuplaEmailsMap((prev) => {
+        const merged = { ...prev, ...serverDuplaEmailsMap };
+        try {
+          localStorage.setItem(STORAGE_DUPLA_EMAILS_KEY, JSON.stringify(merged));
+        } catch {
+          // ignore
+        }
+        return merged;
+      });
+    }
+  }, [serverDuplaEmailsMap]);
+
+  // Email linking controls (only from registered profiles, with search filter)
   const [selectedUserEmailToLink, setSelectedUserEmailToLink] = useState<string>('');
-  const [customEmailInput, setCustomEmailInput] = useState<string>('');
+  const [emailSearchQuery, setEmailSearchQuery] = useState<string>('');
+  const [isLinkingEmail, setIsLinkingEmail] = useState<boolean>(false);
+
+  const filteredRegisteredUsers = useMemo(() => {
+    const q = normalizeAccents(emailSearchQuery.trim().toLowerCase());
+    if (!q) return allRegisteredUsers;
+    return allRegisteredUsers.filter((u) => {
+      const hay = normalizeAccents(
+        `${u.name || ''} ${u.email || ''} ${u.role || ''} ${u.equipe || ''}`.toLowerCase()
+      );
+      return hay.includes(q);
+    });
+  }, [allRegisteredUsers, emailSearchQuery]);
 
   // Site picker controls (left column of workspace)
   const [sitePickerSearch, setSitePickerSearch] = useState<string>('');
@@ -107,6 +215,9 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = ({
   const [selectedSiteIds, setSelectedSiteIds] = useState<string[]>([]);
   const [isAssigning, setIsAssigning] = useState<boolean>(false);
   const [isClearing, setIsClearing] = useState<boolean>(false);
+  const [mobileSection, setMobileSection] = useState<'ALL' | 'DUPLAS' | 'DEMANDAR' | 'VINCULADOS'>(
+    'ALL'
+  );
 
   // Assigned sites search (right column of workspace)
   const [assignedSearch, setAssignedSearch] = useState<string>('');
@@ -117,37 +228,39 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = ({
     }
   }, [equipesDuplas, selectedDupla]);
 
-  // Compute effective linked profile emails for any Dupla (synced with server users.equipe + explicit custom emails)
-  const getLinkedEmailsForDupla = (duplaName: string): string[] => {
-    const emailSet = new Set<string>();
-    const canonDupla = normalizeAccents(getCanonicalDuplaName(duplaName) || duplaName);
+  // Reset selected checkboxes and UF filter when switching platform in the top header
+  useEffect(() => {
+    setSelectedSiteIds([]);
+    setSitePickerUf('ALL');
+  }, [activeVendor]);
 
-    users.forEach((u) => {
-      const uCanonEq = normalizeAccents(getCanonicalDuplaName(u.equipe || '') || u.equipe || '');
+  // Compute effective linked profile emails for any Dupla
+  const getLinkedEmailsForDupla = (duplaName: string): string[] => {
+    const canonRaw = getCanonicalDuplaName(duplaName) || duplaName.trim();
+    const canonDupla = normalizeAccents(canonRaw);
+
+    const hasExplicitKey = duplaName in duplaEmailsMap || canonRaw in duplaEmailsMap;
+    const emailSet = new Set<string>();
+
+    if (hasExplicitKey) {
+      const explicitList =
+        duplaEmailsMap[duplaName] ?? duplaEmailsMap[canonRaw] ?? [];
+      explicitList.forEach((e) => {
+        if (e && e.trim()) {
+          emailSet.add(e.trim().toLowerCase());
+        }
+      });
+      return Array.from(emailSet);
+    }
+
+    allRegisteredUsers.forEach((u) => {
+      const uCanonEq = normalizeAccents(
+        getCanonicalDuplaName(u.equipe || '') || u.equipe || ''
+      );
       if (uCanonEq && uCanonEq === canonDupla) {
         emailSet.add(u.email.trim().toLowerCase());
       }
     });
-
-    if (duplaName in duplaEmailsMap) {
-      const explicit = duplaEmailsMap[duplaName] || [];
-      explicit.forEach((e) => {
-        if (e && e.trim()) {
-          const cleanEmail = e.trim().toLowerCase();
-          const regUser = users.find((u) => u.email.trim().toLowerCase() === cleanEmail);
-          if (!regUser) {
-            emailSet.add(cleanEmail);
-          } else {
-            const regEq = normalizeAccents(
-              getCanonicalDuplaName(regUser.equipe || '') || regUser.equipe || ''
-            );
-            if (regEq === canonDupla) {
-              emailSet.add(cleanEmail);
-            }
-          }
-        }
-      });
-    }
 
     return Array.from(emailSet);
   };
@@ -155,16 +268,18 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = ({
   const activeDuplaLinkedEmails = useMemo(
     () => getLinkedEmailsForDupla(selectedDupla),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [selectedDupla, duplaEmailsMap, users]
+    [selectedDupla, duplaEmailsMap, allRegisteredUsers]
   );
 
   const saveDuplaEmails = async (duplaName: string, nextEmails: string[]) => {
     const cleanEmails = Array.from(
       new Set(nextEmails.map((e) => e.trim().toLowerCase()).filter(Boolean))
     );
+    const canonRaw = getCanonicalDuplaName(duplaName) || duplaName.trim();
     const nextMap = {
       ...duplaEmailsMap,
       [duplaName]: cleanEmails,
+      [canonRaw]: cleanEmails,
     };
     setDuplaEmailsMap(nextMap);
     try {
@@ -172,18 +287,21 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = ({
     } catch {
       // ignore storage errors
     }
-    await onLinkEmailsToDupla(duplaName, cleanEmails);
+    setIsLinkingEmail(true);
+    try {
+      await onLinkEmailsToDupla(duplaName, cleanEmails);
+    } finally {
+      setIsLinkingEmail(false);
+    }
   };
 
   const handleAddEmailLink = async (emailRaw: string) => {
-    const clean = emailRaw.trim().toLowerCase();
+    const clean = (emailRaw || '').trim().toLowerCase();
     if (!clean || !clean.includes('@')) return;
     const current = getLinkedEmailsForDupla(selectedDupla);
-    if (!current.includes(clean)) {
-      await saveDuplaEmails(selectedDupla, [...current, clean]);
-    }
+    const nextList = current.includes(clean) ? current : [...current, clean];
     setSelectedUserEmailToLink('');
-    setCustomEmailInput('');
+    await saveDuplaEmails(selectedDupla, nextList);
   };
 
   const handleRemoveEmailLink = async (emailToRemove: string) => {
@@ -193,13 +311,16 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = ({
     await saveDuplaEmails(selectedDupla, current);
   };
 
-  // Active vendor Controle Geral sites
-  const controleGeralSites = useMemo(
+  // Nokia Controle Geral sites
+  const nokiaControleGeralSites = useMemo(
     () =>
-      sites.filter((s) =>
-        activeVendor === 'NOKIA' ? s.sheetName === 'Controle Geral' : !isSiteCancelado(s)
+      sites.filter(
+        (s) =>
+          s.vendor === 'NOKIA' &&
+          s.sheetName === 'Controle Geral' &&
+          !isSiteCancelado(s)
       ),
-    [sites, activeVendor]
+    [sites]
   );
 
   // Filtered Duplas in the left sidebar
@@ -211,12 +332,12 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = ({
       return d.toLowerCase().includes(q) || emails.includes(q);
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [equipesDuplas, duplaSearch, duplaEmailsMap, users]);
+  }, [equipesDuplas, duplaSearch, duplaEmailsMap, allRegisteredUsers]);
 
-  // Unified helper so left sidebar and right panel always compute the exact same sites for a Dupla
-  const getSitesForDupla = (duplaName: string): TelecomSite[] => {
+  // Nokia sites for a given Dupla
+  const getNokiaSitesForDupla = (duplaName: string): TelecomSite[] => {
     const linkedEmails = getLinkedEmailsForDupla(duplaName);
-    const matched = controleGeralSites.filter((s) => {
+    const matched = nokiaControleGeralSites.filter((s) => {
       if (doesSiteMatchEquipe(s, duplaName)) return true;
       if (doesSiteMatchResponsible(s, duplaName)) return true;
       return linkedEmails.some((em) =>
@@ -226,35 +347,64 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = ({
     return sortSitesParaFazerFirst(matched);
   };
 
-  // Sites currently assigned to selectedDupla (sorted: 1º Sites a Fazer -> 2º Sites Feitos)
-  const assignedSitesForSelectedDupla = useMemo(
-    () => getSitesForDupla(selectedDupla),
+  // Ericsson rows for a given Dupla
+  const getEricssonRowsForDupla = (duplaName: string): EricssonRow[] => {
+    const linkedEmails = getLinkedEmailsForDupla(duplaName);
+    return ericssonRows.filter((row) =>
+      doesEricssonRowMatchDupla(row, duplaName, linkedEmails)
+    );
+  };
+
+  const assignedNokiaSitesForSelectedDupla = useMemo(
+    () => getNokiaSitesForDupla(selectedDupla),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [controleGeralSites, selectedDupla, activeDuplaLinkedEmails, users]
+    [nokiaControleGeralSites, selectedDupla, activeDuplaLinkedEmails, allRegisteredUsers]
   );
 
-  const filteredAssignedSites = useMemo(() => {
+  const assignedEricssonRowsForSelectedDupla = useMemo(
+    () => getEricssonRowsForDupla(selectedDupla),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [ericssonRows, selectedDupla, activeDuplaLinkedEmails]
+  );
+
+  const filteredAssignedNokiaSites = useMemo(() => {
     const q = assignedSearch.trim().toLowerCase();
-    if (!q) return assignedSitesForSelectedDupla;
-    return assignedSitesForSelectedDupla.filter((s) => {
+    if (!q) return assignedNokiaSitesForSelectedDupla;
+    return assignedNokiaSitesForSelectedDupla.filter((s) => {
       const hay = `${s.siteId} ${s.siteName} ${s.municipio} ${s.uf} ${s.status}`.toLowerCase();
       return hay.includes(q);
     });
-  }, [assignedSitesForSelectedDupla, assignedSearch]);
+  }, [assignedNokiaSitesForSelectedDupla, assignedSearch]);
 
-  // Available UFs in Controle Geral
+  const filteredAssignedEricssonRows = useMemo(() => {
+    const q = assignedSearch.trim().toLowerCase();
+    if (!q) return assignedEricssonRowsForSelectedDupla;
+    return assignedEricssonRowsForSelectedDupla.filter((r) => {
+      const hay = `${r.siteIdA} ${r.siteIdB} ${r.siteName} ${r.chaves} ${r.cidadeA} ${r.cidadeB} ${r.state} ${r.servico}`.toLowerCase();
+      return hay.includes(q);
+    });
+  }, [assignedEricssonRowsForSelectedDupla, assignedSearch]);
+
+  // Available UFs for activeVendor
   const availableUfs = useMemo(() => {
     const set = new Set<string>();
-    controleGeralSites.forEach((s) => {
-      const u = (getCellValueForColumn(s, 'UF') || s.uf || '').trim().toUpperCase();
-      if (u && u !== '—') set.add(u);
-    });
+    if (activeVendor === 'NOKIA') {
+      nokiaControleGeralSites.forEach((s) => {
+        const u = (getCellValueForColumn(s, 'UF') || s.uf || '').trim().toUpperCase();
+        if (u && u !== '—') set.add(u);
+      });
+    } else {
+      ericssonRows.forEach((r) => {
+        const u = (r.state || r.fields?.['00.03.State'] || '').trim().toUpperCase();
+        if (u && u !== '—') set.add(u);
+      });
+    }
     return Array.from(set).sort();
-  }, [controleGeralSites]);
+  }, [activeVendor, nokiaControleGeralSites, ericssonRows]);
 
-  // Candidate sites in the left picker panel
-  const pickerSites = useMemo(() => {
-    const assignedIds = new Set(assignedSitesForSelectedDupla.map((s) => s.id));
+  // Candidate TIM/Nokia sites in the left picker panel
+  const pickerNokiaSites = useMemo(() => {
+    const assignedIds = new Set(assignedNokiaSitesForSelectedDupla.map((s) => s.id));
     const q = sitePickerSearch.trim().toLowerCase();
     const tokens = q
       ? q
@@ -263,8 +413,7 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = ({
           .filter(Boolean)
       : [];
 
-    const matched = controleGeralSites.filter((s) => {
-      // Exclude sites already in this Dupla so the picker focuses on sites to send
+    const matched = nokiaControleGeralSites.filter((s) => {
       if (assignedIds.has(s.id)) return false;
 
       if (sitePickerUf !== 'ALL') {
@@ -293,21 +442,76 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = ({
     });
     return sortSitesParaFazerFirst(matched);
   }, [
-    controleGeralSites,
-    assignedSitesForSelectedDupla,
+    nokiaControleGeralSites,
+    assignedNokiaSitesForSelectedDupla,
     sitePickerSearch,
     sitePickerUf,
     sitePickerFilter,
   ]);
 
-  const toggleSelectSite = (siteId: string) => {
+  // Candidate Ericsson rows in the left picker panel
+  const pickerEricssonRows = useMemo(() => {
+    const assignedIds = new Set(assignedEricssonRowsForSelectedDupla.map((r) => r.id));
+    const q = sitePickerSearch.trim().toLowerCase();
+    const tokens = q
+      ? q
+          .split(/[\s,;|\n\r\t]+/)
+          .map((t) => t.trim())
+          .filter(Boolean)
+      : [];
+
+    return ericssonRows.filter((r) => {
+      if (assignedIds.has(r.id)) return false;
+
+      if (sitePickerUf !== 'ALL') {
+        const uf = (r.state || r.fields?.['00.03.State'] || '').trim().toUpperCase();
+        if (uf !== sitePickerUf) return false;
+      }
+
+      const eq = (r.equipe || r.fields?.['EQUIPE'] || '').trim();
+      const hasDupla = eq !== '' && eq !== '—' && eq.toLowerCase() !== 'a definir';
+      const feito = isEricssonRowFeito(r);
+
+      if (sitePickerFilter === 'SEM_DUPLA' && hasDupla) return false;
+      if (sitePickerFilter === 'PARA_FAZER' && feito) return false;
+      if (sitePickerFilter === 'FEITOS' && !feito) return false;
+
+      if (tokens.length > 0) {
+        const hay = `${r.siteIdA} ${r.siteIdB} ${r.siteName} ${r.chaves} ${r.cidadeA} ${r.cidadeB} ${r.state} ${eq} ${r.servico}`.toLowerCase();
+        if (tokens.length === 1) {
+          return hay.includes(tokens[0]);
+        }
+        return tokens.some((tk) => hay.includes(tk));
+      }
+
+      return true;
+    });
+  }, [
+    ericssonRows,
+    assignedEricssonRowsForSelectedDupla,
+    sitePickerSearch,
+    sitePickerUf,
+    sitePickerFilter,
+  ]);
+
+  const activePickerCount =
+    activeVendor === 'NOKIA' ? pickerNokiaSites.length : pickerEricssonRows.length;
+  const activeAssignedCount =
+    activeVendor === 'NOKIA'
+      ? assignedNokiaSitesForSelectedDupla.length
+      : assignedEricssonRowsForSelectedDupla.length;
+
+  const toggleSelectSite = (token: string) => {
     setSelectedSiteIds((prev) =>
-      prev.includes(siteId) ? prev.filter((id) => id !== siteId) : [...prev, siteId]
+      prev.includes(token) ? prev.filter((id) => id !== token) : [...prev, token]
     );
   };
 
   const handleSelectAllVisiblePicker = () => {
-    const visibleIds = pickerSites.slice(0, 100).map((s) => s.siteId);
+    const visibleIds =
+      activeVendor === 'NOKIA'
+        ? pickerNokiaSites.slice(0, 100).map((s) => s.siteId)
+        : pickerEricssonRows.slice(0, 100).map((r) => r.id);
     const allSelected =
       visibleIds.length > 0 && visibleIds.every((code) => selectedSiteIds.includes(code));
     if (allSelected) {
@@ -321,7 +525,12 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = ({
     if (selectedSiteIds.length === 0) return;
     setIsAssigning(true);
     try {
-      await onAssignSitesToDupla(selectedSiteIds, selectedDupla, activeDuplaLinkedEmails);
+      await onAssignSitesToDupla(
+        selectedSiteIds,
+        selectedDupla,
+        activeDuplaLinkedEmails,
+        activeVendor
+      );
       setSelectedSiteIds([]);
     } finally {
       setIsAssigning(false);
@@ -329,11 +538,14 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = ({
   };
 
   const handleClearAllForSelectedDupla = async () => {
-    if (assignedSitesForSelectedDupla.length === 0 || isClearing) return;
+    if (activeAssignedCount === 0 || isClearing) return;
     setIsClearing(true);
     try {
-      const tokensToClear = assignedSitesForSelectedDupla.flatMap((s) => [s.id, s.siteId]);
-      await onClearDuplaSites(selectedDupla, tokensToClear);
+      const tokensToClear =
+        activeVendor === 'NOKIA'
+          ? assignedNokiaSitesForSelectedDupla.flatMap((s) => [s.id, s.siteId])
+          : assignedEricssonRowsForSelectedDupla.map((r) => r.id);
+      await onClearDuplaSites(selectedDupla, tokensToClear, activeVendor);
       setAssignedSearch('');
       setSelectedSiteIds([]);
     } finally {
@@ -342,41 +554,109 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = ({
   };
 
   const handleSimulateSelectedDupla = () => {
-    // Find matching user from users list or construct a realistic simulated user linked to this Dupla
-    const matchedUser = users.find((u) =>
+    const matchedUser = allRegisteredUsers.find((u) =>
       activeDuplaLinkedEmails.includes(u.email.trim().toLowerCase())
     );
     if (matchedUser) {
-      onSimulateDuplaView({
-        ...matchedUser,
-        equipe: selectedDupla,
-      });
+      onSimulateDuplaView(
+        {
+          ...matchedUser,
+          equipe: selectedDupla,
+          assignedPlatform: activeVendor,
+        },
+        activeVendor
+      );
       return;
     }
 
-    onSimulateDuplaView({
-      id: `sim-${selectedDupla}`,
-      name: selectedDupla,
-      email:
-        activeDuplaLinkedEmails[0] ||
-        `${selectedDupla
-          .toLowerCase()
-          .replace(/[^a-z0-9]/g, '.')
-          .replace(/\.+/g, '.')
-          .replace(/^\.|\.$/g, '')}@ametatelecom.com.br`,
-      role: 'Executor',
-      equipe: selectedDupla,
-      emailVerified: true,
-      createdAt: new Date().toISOString(),
-    });
+    onSimulateDuplaView(
+      {
+        id: `sim-${selectedDupla}`,
+        name: selectedDupla,
+        email:
+          activeDuplaLinkedEmails[0] ||
+          `${selectedDupla
+            .toLowerCase()
+            .replace(/[^a-z0-9]/g, '.')
+            .replace(/\.+/g, '.')
+            .replace(/^\.|\.$/g, '')}@ametatelecom.com.br`,
+        role: 'Executor',
+        assignedPlatform: activeVendor,
+        equipe: selectedDupla,
+        emailVerified: true,
+        createdAt: new Date().toISOString(),
+      },
+      activeVendor
+    );
   };
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
+    <div className="space-y-3">
+      {/* =====================================================================
+          MOBILE QUICK BAR (lg:hidden): OPÇÕES BEM APARENTES NO MOBILE
+         ===================================================================== */}
+      <div className="lg:hidden bg-slate-900 text-white border border-slate-800 rounded-2xl p-3.5 shadow-md space-y-3">
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-xs font-black uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
+            <Users className="w-4 h-4 text-amber-400 shrink-0" />
+            <span>
+              1. Dupla Selecionada ({activeVendor === 'ERICSSON' ? 'Ericsson' : 'TIM / Nokia'})
+            </span>
+          </span>
+          <span className="px-2.5 py-1 bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 rounded-lg text-xs font-mono font-black">
+            {activeAssignedCount} site(s)
+          </span>
+        </div>
+
+        <select
+          value={selectedDupla}
+          onChange={(e) => {
+            setSelectedDupla(e.target.value);
+            setSelectedSiteIds([]);
+          }}
+          className="w-full px-3.5 py-3 bg-white text-slate-950 font-black rounded-xl text-sm border-2 border-amber-400 focus:outline-none shadow-sm"
+        >
+          {equipesDuplas.map((d) => (
+            <option key={d} value={d}>
+              Dupla: {d}
+            </option>
+          ))}
+        </select>
+
+        <div className="grid grid-cols-2 gap-2 text-xs font-black">
+          {(
+            [
+              { id: 'ALL', label: 'Ver Tudo na Tela' },
+              { id: 'DEMANDAR', label: 'E-mail & Demandar Site' },
+              { id: 'DUPLAS', label: `Lista de Duplas (${equipesDuplas.length})` },
+              { id: 'VINCULADOS', label: `Sites Demandados (${activeAssignedCount})` },
+            ] as const
+          ).map((tab) => (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => setMobileSection(tab.id)}
+              className={`py-2.5 px-2.5 rounded-xl text-center truncate transition-all cursor-pointer border ${
+                mobileSection === tab.id
+                  ? 'bg-amber-400 text-slate-950 border-amber-300 shadow-sm font-black'
+                  : 'bg-slate-800 text-slate-200 border-slate-700 hover:bg-slate-700'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
       {/* =====================================================================
           LEFT COLUMN (4 COLS): LISTA INTERATIVA DE DUPLAS + CRIAR NOVA DUPLA
          ===================================================================== */}
-      <div className="lg:col-span-4 bg-white border border-slate-200 rounded-xl shadow-2xs overflow-hidden flex flex-col">
+      <div
+        className={`lg:col-span-4 bg-white border border-slate-200 rounded-xl shadow-2xs overflow-hidden flex flex-col ${
+          mobileSection !== 'ALL' && mobileSection !== 'DUPLAS' ? 'hidden lg:flex' : 'flex'
+        }`}
+      >
         <div className="p-4 bg-slate-900 text-white space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -440,15 +720,30 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = ({
         </div>
 
         {/* Scrollable List of Duplas */}
-        <div className="divide-y divide-slate-100 max-h-[640px] overflow-y-auto p-2 space-y-1">
+        <div className="divide-y divide-slate-100 max-h-72 lg:max-h-[640px] overflow-y-auto p-2 space-y-1">
           {filteredDuplas.map((dupla) => {
             const isSelected = selectedDupla === dupla;
             const isEditing = editingDupla === dupla;
             const linkedEmails = getLinkedEmailsForDupla(dupla);
-            const duplaSites = getSitesForDupla(dupla);
-            const feitosCount = duplaSites.filter((s) => isSiteFeito(s)).length;
-            const fazerCount = duplaSites.length - feitosCount;
-            const notasCount = duplaSites.filter((s) => isSiteNotaPendente(s)).length;
+
+            let totalSitesCount = 0;
+            let feitosCount = 0;
+            let fazerCount = 0;
+            let notasCount = 0;
+
+            if (activeVendor === 'NOKIA') {
+              const duplaSites = getNokiaSitesForDupla(dupla);
+              totalSitesCount = duplaSites.length;
+              feitosCount = duplaSites.filter((s) => isSiteFeito(s)).length;
+              fazerCount = totalSitesCount - feitosCount;
+              notasCount = duplaSites.filter((s) => isSiteNotaPendente(s)).length;
+            } else {
+              const duplaRows = getEricssonRowsForDupla(dupla);
+              totalSitesCount = duplaRows.length;
+              feitosCount = duplaRows.filter((r) => isEricssonRowFeito(r)).length;
+              fazerCount = totalSitesCount - feitosCount;
+              notasCount = duplaRows.filter((r) => isEricssonRowNotaPendente(r)).length;
+            }
 
             return (
               <div
@@ -457,6 +752,9 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = ({
                   if (!isEditing) {
                     setSelectedDupla(dupla);
                     setSelectedSiteIds([]);
+                    if (mobileSection === 'DUPLAS') {
+                      setMobileSection('DEMANDAR');
+                    }
                   }
                 }}
                 className={`p-3 rounded-xl border transition-all cursor-pointer ${
@@ -520,7 +818,7 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = ({
                             {dupla}
                           </span>
                           <span className="px-1.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-slate-900 text-white">
-                            {duplaSites.length}
+                            {totalSitesCount}
                           </span>
                         </div>
 
@@ -565,7 +863,7 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = ({
                       </div>
                     </div>
 
-                    {/* Mini stats row */}
+                    {/* Mini stats row (identical rules for TIM/Nokia and Ericsson) */}
                     <div className="flex items-center gap-2 text-[10px] font-mono pt-1 border-t border-slate-200/60">
                       <span className="px-1.5 py-0.5 rounded bg-amber-50 text-amber-800 border border-amber-200/80">
                         Para Fazer: {fazerCount}
@@ -588,21 +886,25 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = ({
       {/* =====================================================================
           RIGHT COLUMN (8 COLS): VÍNCULO DE E-MAIL DE PERFIL + DISTRIBUIÇÃO DE SITES
          ===================================================================== */}
-      <div className="lg:col-span-8 space-y-4">
+      <div
+        className={`lg:col-span-8 space-y-4 ${
+          mobileSection === 'DUPLAS' ? 'hidden lg:block' : 'block'
+        }`}
+      >
         {/* Card A: Selected Dupla Header & Profile Email Linker */}
-        <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-2xs space-y-4">
+        <div className="bg-white border border-slate-200 rounded-xl p-3.5 sm:p-4 shadow-2xs space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3.5">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-blue-600 text-white font-bold text-sm flex items-center justify-center shadow-2xs">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-10 h-10 rounded-xl bg-blue-600 text-white font-bold text-sm flex items-center justify-center shadow-2xs shrink-0">
                 {selectedDupla.slice(0, 2).toUpperCase()}
               </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <h3 className="text-sm font-bold text-slate-900">
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h3 className="text-sm font-bold text-slate-900 truncate">
                     Dupla Selecionada: {selectedDupla}
                   </h3>
                   <span className="px-2 py-0.5 bg-slate-100 border border-slate-200 text-slate-700 rounded-md text-[11px] font-mono font-semibold">
-                    {assignedSitesForSelectedDupla.length} site(s) na demanda
+                    {activeAssignedCount} site(s) na demanda
                   </span>
                 </div>
                 <p className="text-xs text-slate-500">
@@ -614,113 +916,197 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = ({
             <button
               type="button"
               onClick={handleSimulateSelectedDupla}
-              className="px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold rounded-xl flex items-center gap-2 cursor-pointer shadow-2xs"
+              className="w-full sm:w-auto justify-center px-3.5 py-2.5 sm:py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold rounded-xl flex items-center gap-2 cursor-pointer shadow-2xs"
               title="Ver exatamente como a planilha e os sites aparecem quando esta dupla entra no sistema"
             >
-              <Eye className="w-4 h-4 text-blue-400" />
-              <span>Ver como aparece para eles ({assignedSitesForSelectedDupla.length} sites)</span>
+              <Eye className="w-4 h-4 text-blue-400 shrink-0" />
+              <span>Ver como aparece para eles ({activeAssignedCount} sites)</span>
             </button>
           </div>
 
-          {/* Profile Email Linker Box ("sera vinculado com e-mail deles de perfil") */}
-          <div className="p-3.5 bg-[#F3F4F6] border border-slate-200 rounded-xl space-y-3">
+          {/* Profile Email Linker Box (High-visibility on mobile & desktop) */}
+          <div className="p-3.5 sm:p-4 bg-blue-50/70 border-2 border-blue-300 rounded-2xl space-y-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="flex items-center gap-2">
-                <Link2 className="w-4 h-4 text-blue-600" />
-                <span className="text-xs font-bold text-slate-900">
-                  E-mail(s) de Perfil Vinculado(s) à Dupla "{selectedDupla}"
-                </span>
+                <div className="w-7 h-7 rounded-lg bg-[#223585] text-white flex items-center justify-center shrink-0">
+                  <Link2 className="w-4 h-4" />
+                </div>
+                <div>
+                  <span className="text-xs sm:text-sm font-black text-slate-900 block">
+                    Escolher E-mail para Demandar — Dupla "{selectedDupla}"
+                  </span>
+                  <span className="text-[11px] text-slate-600 block">
+                    Pesquise abaixo por nome ou e-mail e toque em Vincular
+                  </span>
+                </div>
               </div>
-              <span className="text-[11px] text-slate-500">
-                Ao logar com qualquer e-mail vinculado, o usuário verá automaticamente os sites desta dupla
-              </span>
             </div>
 
             {/* Active Linked Emails Chips */}
             <div className="flex flex-wrap items-center gap-1.5">
               {activeDuplaLinkedEmails.length > 0 ? (
                 activeDuplaLinkedEmails.map((email) => {
-                  const matchedProfile = users.find(
+                  const matchedProfile = allRegisteredUsers.find(
                     (u) => u.email.toLowerCase() === email.toLowerCase()
                   );
                   return (
                     <span
                       key={email}
-                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white border border-blue-200 text-slate-800 text-xs shadow-2xs"
+                      className="inline-flex flex-wrap items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border-2 border-blue-400 text-slate-900 text-xs font-bold shadow-2xs max-w-full"
                     >
-                      <Mail className="w-3.5 h-3.5 text-blue-600 shrink-0" />
-                      <span className="font-mono font-semibold">{email}</span>
+                      <Mail className="w-4 h-4 text-blue-600 shrink-0" />
+                      <span className="font-mono font-bold break-all sm:break-normal">
+                        {email}
+                      </span>
                       {matchedProfile && (
-                        <span className="text-[10px] px-1.5 py-0.5 bg-slate-100 text-slate-600 rounded">
-                          {matchedProfile.name}
+                        <span className="text-[10px] px-2 py-0.5 bg-blue-100 text-blue-900 font-bold rounded-md">
+                          {matchedProfile.name} ({matchedProfile.role})
                         </span>
                       )}
                       <button
                         type="button"
                         onClick={() => handleRemoveEmailLink(email)}
-                        className="text-slate-400 hover:text-red-600 ml-0.5 cursor-pointer"
+                        className="text-red-500 hover:text-red-700 ml-1 p-1 bg-red-50 rounded-md cursor-pointer"
                         title="Desvincular este e-mail da dupla"
                       >
-                        <X className="w-3.5 h-3.5" />
+                        <X className="w-4 h-4" />
                       </button>
                     </span>
                   );
                 })
               ) : (
-                <span className="text-xs text-slate-500 italic">
-                  Nenhum e-mail vinculado ainda. Selecione um perfil cadastrado abaixo ou digite o e-mail da dupla:
+                <span className="text-xs font-semibold text-amber-900 bg-amber-100/80 border border-amber-300 px-3 py-1.5 rounded-lg">
+                  Nenhum e-mail vinculado ainda. Pesquise ou escolha um e-mail abaixo:
                 </span>
               )}
             </div>
 
-            {/* Controls to Link Profile Email from Registered Users or Custom Email */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 pt-1">
-              <div className="flex items-center gap-1.5">
+            {/* Searchable Selector for Registered Profiles — LARGE & APPARENT */}
+            <div className="space-y-2.5 pt-1">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                {/* Search Input to Filter Emails/Names */}
+                <div className="relative w-full sm:w-72 shrink-0">
+                  <Search className="w-4 h-4 text-blue-600 absolute left-3 top-3 sm:top-2.5" />
+                  <input
+                    type="text"
+                    value={emailSearchQuery}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setEmailSearchQuery(val);
+                      const qNorm = normalizeAccents(val.trim().toLowerCase());
+                      if (qNorm) {
+                        const firstMatch = allRegisteredUsers.find((u) =>
+                          normalizeAccents(
+                            `${u.name || ''} ${u.email || ''} ${u.role || ''}`.toLowerCase()
+                          ).includes(qNorm)
+                        );
+                        if (firstMatch) {
+                          setSelectedUserEmailToLink(firstMatch.email);
+                        }
+                      }
+                    }}
+                    placeholder="🔍 Pesquisar e-mail ou nome..."
+                    className="w-full pl-9 pr-8 py-2.5 sm:py-2 bg-white border-2 border-blue-400 rounded-xl text-xs sm:text-xs font-bold text-slate-900 placeholder-slate-500 focus:outline-none focus:border-[#223585] shadow-2xs"
+                  />
+                  {emailSearchQuery && (
+                    <button
+                      type="button"
+                      onClick={() => setEmailSearchQuery('')}
+                      className="absolute right-2.5 top-2.5 sm:top-2 text-slate-400 hover:text-slate-700 cursor-pointer"
+                      title="Limpar pesquisa de e-mail"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+
                 <select
                   value={selectedUserEmailToLink}
                   onChange={(e) => setSelectedUserEmailToLink(e.target.value)}
-                  className="flex-1 px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs text-slate-800 focus:outline-none focus:border-blue-600"
+                  className="w-full sm:flex-1 px-3 py-2.5 sm:py-2 bg-white border-2 border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:border-[#223585]"
                 >
-                  <option value="">Selecionar perfil cadastrado ({users.length})...</option>
-                  {users.map((u) => (
-                    <option key={u.id} value={u.email}>
-                      {u.name} — {u.email} ({u.role})
-                    </option>
-                  ))}
+                  <option value="">
+                    {emailSearchQuery.trim()
+                      ? `Encontrados (${filteredRegisteredUsers.length}) — toque para escolher...`
+                      : `Escolher na lista de e-mails (${allRegisteredUsers.length})...`}
+                  </option>
+                  {filteredRegisteredUsers.map((u) => {
+                    const alreadyLinked = activeDuplaLinkedEmails.includes(
+                      u.email.trim().toLowerCase()
+                    );
+                    return (
+                      <option key={u.email} value={u.email}>
+                        {alreadyLinked ? '✓ ' : ''}
+                        {u.name} — {u.email} ({u.role})
+                      </option>
+                    );
+                  })}
                 </select>
+
                 <button
                   type="button"
-                  onClick={() => handleAddEmailLink(selectedUserEmailToLink)}
-                  disabled={!selectedUserEmailToLink}
-                  className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-xs font-semibold rounded-lg whitespace-nowrap cursor-pointer"
+                  onClick={() => {
+                    handleAddEmailLink(selectedUserEmailToLink);
+                    setEmailSearchQuery('');
+                  }}
+                  disabled={!selectedUserEmailToLink || isLinkingEmail}
+                  className="w-full sm:w-auto px-4 py-3 sm:py-2 bg-[#223585] hover:bg-[#192868] disabled:opacity-50 text-white text-xs font-black uppercase tracking-wide rounded-xl whitespace-nowrap cursor-pointer shadow-sm"
                 >
-                  Vincular Perfil
+                  {isLinkingEmail ? 'Vinculando...' : '+ Vincular E-mail'}
                 </button>
               </div>
 
-              <div className="flex items-center gap-1.5">
-                <input
-                  type="email"
-                  value={customEmailInput}
-                  onChange={(e) => setCustomEmailInput(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault();
-                      handleAddEmailLink(customEmailInput);
-                    }
-                  }}
-                  placeholder="Ou digite o e-mail do perfil (ex: nome@ametatelecom.com.br)..."
-                  className="flex-1 px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-mono text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-600"
-                />
-                <button
-                  type="button"
-                  onClick={() => handleAddEmailLink(customEmailInput)}
-                  disabled={!customEmailInput.trim()}
-                  className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 disabled:opacity-50 text-white text-xs font-semibold rounded-lg whitespace-nowrap cursor-pointer"
-                >
-                  + E-mail
-                </button>
-              </div>
+              {/* Instant Clickable Results when typing in the Email Search box */}
+              {emailSearchQuery.trim().length > 0 && (
+                <div className="bg-white border-2 border-blue-300 rounded-xl shadow-md max-h-56 overflow-y-auto divide-y divide-slate-100">
+                  {filteredRegisteredUsers.length === 0 ? (
+                    <div className="px-3.5 py-3 text-xs font-semibold text-slate-500">
+                      Nenhum perfil encontrado para "{emailSearchQuery}".
+                    </div>
+                  ) : (
+                    filteredRegisteredUsers.slice(0, 12).map((u) => {
+                      const alreadyLinked = activeDuplaLinkedEmails.includes(
+                        u.email.trim().toLowerCase()
+                      );
+                      return (
+                        <div
+                          key={u.email}
+                          className="p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2 hover:bg-blue-50/50 text-xs"
+                        >
+                          <div className="min-w-0">
+                            <div className="font-bold text-slate-900 flex flex-wrap items-center gap-1.5">
+                              <span>{u.name}</span>
+                              <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-100 text-blue-900 font-bold">
+                                {u.role}
+                              </span>
+                            </div>
+                            <div className="font-mono text-xs font-semibold text-slate-700 break-all mt-0.5">
+                              {u.email}
+                            </div>
+                          </div>
+                          {alreadyLinked ? (
+                            <span className="text-xs font-bold text-emerald-700 shrink-0">
+                              ✓ Já vinculado
+                            </span>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                handleAddEmailLink(u.email);
+                                setEmailSearchQuery('');
+                              }}
+                              disabled={isLinkingEmail}
+                              className="w-full sm:w-auto px-4 py-2 sm:py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black rounded-lg shrink-0 cursor-pointer text-center shadow-2xs"
+                            >
+                              + Vincular Este E-mail
+                            </button>
+                          )}
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -728,7 +1114,11 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = ({
         {/* Card B: Interactive Dual-Column Site Assignment ("para quais sites vao e parece para eles") */}
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
           {/* PANEL 1: SELECIONAR SITES DA PLANILHA PARA MANDAR PARA A DUPLA */}
-          <div className="bg-white border border-slate-200 rounded-xl shadow-2xs overflow-hidden flex flex-col">
+          <div
+            className={`bg-white border border-slate-200 rounded-xl shadow-2xs overflow-hidden flex flex-col ${
+              mobileSection === 'VINCULADOS' ? 'hidden lg:flex' : 'flex'
+            }`}
+          >
             <div className="p-3.5 bg-white border-b border-slate-200 space-y-2.5">
               <div className="flex items-center justify-between gap-2">
                 <div>
@@ -740,7 +1130,7 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = ({
                   </p>
                 </div>
                 <span className="px-2 py-0.5 bg-[#F3F4F6] border border-slate-200 rounded text-[11px] font-mono text-slate-600">
-                  {pickerSites.length} disponíveis
+                  {activePickerCount} disponíveis
                 </span>
               </div>
 
@@ -751,7 +1141,7 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = ({
                   type="text"
                   value={sitePickerSearch}
                   onChange={(e) => setSitePickerSearch(e.target.value)}
-                  placeholder="Buscar SITE ID, Município ou colar vários códigos (SN-OI65J2 SN-OI65J4)..."
+                  placeholder="Buscar SITE ID, Município ou colar vários códigos..."
                   className="w-full pl-8 pr-7 py-1.5 bg-[#F3F4F6] border border-slate-200 rounded-lg text-xs text-slate-900 placeholder-slate-400 focus:bg-white focus:outline-none focus:border-blue-600"
                 />
                 {sitePickerSearch && (
@@ -806,17 +1196,17 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = ({
               </div>
 
               {/* Bulk Action Bar */}
-              <div className="flex items-center justify-between gap-2 pt-1 border-t border-slate-100">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 pt-1.5 border-t border-slate-100">
                 <button
                   type="button"
                   onClick={handleSelectAllVisiblePicker}
-                  className="text-[11px] font-semibold text-slate-600 hover:text-slate-900 flex items-center gap-1.5 cursor-pointer"
+                  className="py-2 px-2.5 bg-slate-100 hover:bg-slate-200 rounded-lg text-xs font-bold text-slate-800 flex items-center justify-center sm:justify-start gap-1.5 cursor-pointer"
                 >
-                  <CheckSquare className="w-3.5 h-3.5 text-blue-600" />
+                  <CheckSquare className="w-4 h-4 text-blue-600 shrink-0" />
                   <span>
                     {selectedSiteIds.length > 0
                       ? `Desmarcar (${selectedSiteIds.length})`
-                      : `Selecionar visíveis (${Math.min(100, pickerSites.length)})`}
+                      : `Selecionar todos visíveis (${Math.min(100, activePickerCount)})`}
                   </span>
                 </button>
 
@@ -824,92 +1214,169 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = ({
                   type="button"
                   disabled={selectedSiteIds.length === 0 || isAssigning}
                   onClick={handleConfirmAssignSelected}
-                  className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white text-xs font-semibold rounded-lg flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                  className="w-full sm:w-auto justify-center px-4 py-3 sm:py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white text-xs font-black uppercase tracking-wide rounded-xl flex items-center gap-1.5 cursor-pointer shadow-sm"
                 >
                   <span>
-                    Mandar {selectedSiteIds.length > 0 ? `${selectedSiteIds.length} ` : ''}Site(s)
+                    Demandar {selectedSiteIds.length > 0 ? `${selectedSiteIds.length} ` : ''}Site(s)
                     para {selectedDupla}
                   </span>
-                  <ArrowRight className="w-3.5 h-3.5" />
+                  <ArrowRight className="w-4 h-4 shrink-0" />
                 </button>
               </div>
             </div>
 
             {/* Scrollable Picker List */}
             <div className="divide-y divide-slate-100 max-h-[450px] overflow-y-auto">
-              {pickerSites.slice(0, 120).map((site) => {
-                const isChecked = selectedSiteIds.includes(site.siteId);
-                const currentEq = (
-                  getCellValueForColumn(site, 'EQUIPE EXECUTANTE') ||
-                  site.equipeParceira ||
-                  ''
-                ).trim();
-                const feito = isSiteFeito(site);
+              {activeVendor === 'NOKIA'
+                ? pickerNokiaSites.slice(0, 120).map((site) => {
+                    const isChecked = selectedSiteIds.includes(site.siteId);
+                    const currentEq = (
+                      getCellValueForColumn(site, 'EQUIPE EXECUTANTE') ||
+                      site.equipeParceira ||
+                      ''
+                    ).trim();
+                    const feito = isSiteFeito(site);
 
-                return (
-                  <div
-                    key={site.id}
-                    onClick={() => toggleSelectSite(site.siteId)}
-                    className={`px-3.5 py-2.5 flex items-center justify-between gap-2 text-xs cursor-pointer transition-colors ${
-                      isChecked ? 'bg-blue-50/80' : 'hover:bg-slate-50'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      {isChecked ? (
-                        <CheckSquare className="w-4 h-4 text-blue-600 shrink-0" />
-                      ) : (
-                        <Square className="w-4 h-4 text-slate-300 shrink-0" />
-                      )}
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-1.5">
-                          <span className="font-mono font-bold text-slate-900">
-                            {site.siteId}
-                          </span>
-                          <span className="px-1.5 py-0.5 bg-slate-100 text-slate-700 rounded text-[10px] font-mono">
-                            {site.uf} · {site.municipio}
-                          </span>
-                          <span
-                            className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
-                              feito
-                                ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                                : 'bg-amber-50 text-amber-700 border border-amber-200'
-                            }`}
-                          >
-                            {feito ? 'Feito' : 'Para Fazer'}
-                          </span>
-                        </div>
-                        <div className="text-[11px] text-slate-500 truncate mt-0.5">
-                          {getCellValueForColumn(site, 'END ID') || site.siteName} ·{' '}
-                          {currentEq && currentEq !== '—' ? (
-                            <span className="text-slate-600">Atual: {currentEq}</span>
+                    return (
+                      <div
+                        key={site.id}
+                        onClick={() => toggleSelectSite(site.siteId)}
+                        className={`px-3.5 py-2.5 flex items-center justify-between gap-2 text-xs cursor-pointer transition-colors ${
+                          isChecked ? 'bg-blue-50/80' : 'hover:bg-slate-50'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          {isChecked ? (
+                            <CheckSquare className="w-4 h-4 text-blue-600 shrink-0" />
                           ) : (
-                            <span className="text-slate-400 italic">Sem dupla</span>
+                            <Square className="w-4 h-4 text-slate-300 shrink-0" />
                           )}
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-1.5">
+                              <span className="font-mono font-bold text-slate-900">
+                                {site.siteId}
+                              </span>
+                              <span className="px-1.5 py-0.5 bg-slate-100 text-slate-700 rounded text-[10px] font-mono">
+                                {site.uf} · {site.municipio}
+                              </span>
+                              <span
+                                className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                                  feito
+                                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                    : 'bg-amber-50 text-amber-700 border border-amber-200'
+                                }`}
+                              >
+                                {feito ? 'Feito' : 'Para Fazer'}
+                              </span>
+                            </div>
+                            <div className="text-[11px] text-slate-500 truncate mt-0.5">
+                              {getCellValueForColumn(site, 'END ID') || site.siteName} ·{' '}
+                              {currentEq && currentEq !== '—' ? (
+                                <span className="text-slate-600">Atual: {currentEq}</span>
+                              ) : (
+                                <span className="text-slate-400 italic">Sem dupla</span>
+                              )}
+                            </div>
+                          </div>
                         </div>
+
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onAssignSitesToDupla(
+                              [site.siteId],
+                              selectedDupla,
+                              activeDuplaLinkedEmails,
+                              'NOKIA'
+                            );
+                          }}
+                          className="px-2.5 py-1 bg-[#F3F4F6] hover:bg-blue-600 hover:text-white text-slate-700 border border-slate-200 rounded-lg text-[11px] font-semibold transition-colors flex items-center gap-1 shrink-0 cursor-pointer"
+                          title={`Mandar ${site.siteId} imediatamente para ${selectedDupla}`}
+                        >
+                          <span>Mandar</span>
+                          <ArrowRight className="w-3 h-3" />
+                        </button>
                       </div>
-                    </div>
+                    );
+                  })
+                : pickerEricssonRows.slice(0, 120).map((row) => {
+                    const isChecked = selectedSiteIds.includes(row.id);
+                    const currentEq = (row.equipe || row.fields?.['EQUIPE'] || '').trim();
+                    const feito = isEricssonRowFeito(row);
+                    const displayCode =
+                      row.siteIdA && row.siteIdB
+                        ? `${row.siteIdA} ↔ ${row.siteIdB}`
+                        : row.siteIdA || row.siteIdB || row.siteName || row.chaves;
+                    const uf = row.state || row.fields?.['00.03.State'] || '—';
+                    const mun = row.cidadeA || row.cidadeB || '—';
 
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onAssignSitesToDupla(
-                          [site.siteId],
-                          selectedDupla,
-                          activeDuplaLinkedEmails
-                        );
-                      }}
-                      className="px-2.5 py-1 bg-[#F3F4F6] hover:bg-blue-600 hover:text-white text-slate-700 border border-slate-200 rounded-lg text-[11px] font-semibold transition-colors flex items-center gap-1 shrink-0 cursor-pointer"
-                      title={`Mandar ${site.siteId} imediatamente para ${selectedDupla}`}
-                    >
-                      <span>Mandar</span>
-                      <ArrowRight className="w-3 h-3" />
-                    </button>
-                  </div>
-                );
-              })}
+                    return (
+                      <div
+                        key={row.id}
+                        onClick={() => toggleSelectSite(row.id)}
+                        className={`px-3.5 py-2.5 flex items-center justify-between gap-2 text-xs cursor-pointer transition-colors ${
+                          isChecked ? 'bg-blue-50/80' : 'hover:bg-slate-50'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          {isChecked ? (
+                            <CheckSquare className="w-4 h-4 text-blue-600 shrink-0" />
+                          ) : (
+                            <Square className="w-4 h-4 text-slate-300 shrink-0" />
+                          )}
+                          <div className="min-w-0">
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              <span className="font-mono font-bold text-slate-900">
+                                {displayCode}
+                              </span>
+                              <span className="px-1.5 py-0.5 bg-slate-100 text-slate-700 rounded text-[10px] font-mono">
+                                {uf} · {mun}
+                              </span>
+                              <span
+                                className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                                  feito
+                                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                    : 'bg-amber-50 text-amber-700 border border-amber-200'
+                                }`}
+                              >
+                                {feito ? 'Feito' : 'Para Fazer'}
+                              </span>
+                            </div>
+                            <div className="text-[11px] text-slate-500 truncate mt-0.5">
+                              {row.chaves ? `Chave: ${row.chaves} · ` : ''}
+                              {row.servico || 'Ericsson TX'} ·{' '}
+                              {currentEq && currentEq !== '—' ? (
+                                <span className="text-slate-600">Atual: {currentEq}</span>
+                              ) : (
+                                <span className="text-slate-400 italic">Sem dupla</span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
 
-              {pickerSites.length === 0 && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onAssignSitesToDupla(
+                              [row.id],
+                              selectedDupla,
+                              activeDuplaLinkedEmails,
+                              'ERICSSON'
+                            );
+                          }}
+                          className="px-2.5 py-1 bg-[#F3F4F6] hover:bg-blue-600 hover:text-white text-slate-700 border border-slate-200 rounded-lg text-[11px] font-semibold transition-colors flex items-center gap-1 shrink-0 cursor-pointer"
+                          title={`Mandar ${displayCode} imediatamente para ${selectedDupla}`}
+                        >
+                          <span>Mandar</span>
+                          <ArrowRight className="w-3 h-3" />
+                        </button>
+                      </div>
+                    );
+                  })}
+
+              {activePickerCount === 0 && (
                 <div className="p-8 text-center text-xs text-slate-400">
                   Nenhum site disponível com este filtro.
                 </div>
@@ -918,15 +1385,18 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = ({
           </div>
 
           {/* PANEL 2: SITES ATUALMENTE VINCULADOS À DUPLA ("O QUE APARECE PARA ELES") */}
-          <div className="bg-white border border-slate-200 rounded-xl shadow-2xs overflow-hidden flex flex-col">
+          <div
+            className={`bg-white border border-slate-200 rounded-xl shadow-2xs overflow-hidden flex flex-col ${
+              mobileSection === 'DEMANDAR' ? 'hidden lg:flex' : 'flex'
+            }`}
+          >
             <div className="p-3.5 bg-slate-900 text-white space-y-2.5">
               <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
                   <UserCheck className="w-4 h-4 text-emerald-400" />
                   <div>
                     <h4 className="text-xs font-bold">
-                      3. Sites que Aparecem para "{selectedDupla}" (
-                      {assignedSitesForSelectedDupla.length})
+                      3. Sites que Aparecem para "{selectedDupla}" ({activeAssignedCount})
                     </h4>
                     <p className="text-[11px] text-slate-400">
                       Estes sites aparecem automaticamente no perfil vinculado ({activeDuplaLinkedEmails[0] || 'sem e-mail'})
@@ -934,14 +1404,14 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = ({
                   </div>
                 </div>
 
-                {assignedSitesForSelectedDupla.length > 0 && (
+                {activeAssignedCount > 0 && (
                   <button
                     type="button"
                     disabled={isClearing}
                     onClick={handleClearAllForSelectedDupla}
                     className="px-2.5 py-1 bg-red-600/90 hover:bg-red-600 disabled:opacity-50 text-white rounded-lg text-[11px] font-semibold transition-colors cursor-pointer shrink-0 shadow-2xs"
                   >
-                    {isClearing ? 'Limpando...' : `Limpar Todos (${assignedSitesForSelectedDupla.length})`}
+                    {isClearing ? 'Limpando...' : `Limpar Todos (${activeAssignedCount})`}
                   </button>
                 )}
               </div>
@@ -952,83 +1422,157 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = ({
                   type="text"
                   value={assignedSearch}
                   onChange={(e) => setAssignedSearch(e.target.value)}
-                  placeholder={`Filtrar nos ${assignedSitesForSelectedDupla.length} sites desta dupla...`}
+                  placeholder={`Filtrar nos ${activeAssignedCount} sites desta dupla...`}
                   className="w-full pl-8 pr-2.5 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-xs text-white placeholder-slate-400 focus:outline-none focus:border-blue-400"
                 />
               </div>
             </div>
 
             <div className="divide-y divide-slate-100 max-h-[515px] overflow-y-auto">
-              {filteredAssignedSites.map((site) => {
-                const feito = isSiteFeito(site);
-                const notaPend = isSiteNotaPendente(site);
+              {activeVendor === 'NOKIA'
+                ? filteredAssignedNokiaSites.map((site) => {
+                    const feito = isSiteFeito(site);
+                    const notaPend = isSiteNotaPendente(site);
 
-                return (
-                  <div
-                    key={site.id}
-                    className="px-3.5 py-2.5 hover:bg-slate-50 flex items-center justify-between gap-2 text-xs"
-                  >
-                    <div className="min-w-0">
-                      <div className="flex flex-wrap items-center gap-1.5">
-                        <span className="font-mono font-bold text-slate-900">
-                          {site.siteId}
-                        </span>
-                        <span className="px-1.5 py-0.5 bg-slate-100 text-slate-700 rounded text-[10px] font-mono">
-                          {site.uf} · {site.municipio}
-                        </span>
-                        <span
-                          className={`px-1.5 py-0.5 rounded text-[10px] font-semibold inline-flex items-center gap-1 ${
-                            feito
-                              ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                              : 'bg-amber-50 text-amber-700 border border-amber-200'
-                          }`}
-                        >
-                          {feito ? (
-                            <CheckCircle2 className="w-3 h-3" />
-                          ) : (
-                            <Clock className="w-3 h-3" />
-                          )}
-                          <span>{site.status}</span>
-                        </span>
-                        {notaPend && (
-                          <span className="px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200 text-[10px] font-medium inline-flex items-center gap-1">
-                            <Receipt className="w-3 h-3" />
-                            <span>Nota Pend.</span>
-                          </span>
-                        )}
-                      </div>
-                      <div className="text-[11px] text-slate-500 truncate mt-0.5">
-                        {getCellValueForColumn(site, 'END ID') || site.siteName} · Escopo:{' '}
-                        {getCellValueForColumn(site, 'Escopo') || site.setores || '—'}
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-1 shrink-0">
-                      <button
-                        type="button"
-                        onClick={() => onOpenSiteDrawer(site.id)}
-                        className="px-2 py-1 bg-[#F3F4F6] hover:bg-slate-200 text-slate-700 rounded-md text-[11px] font-medium flex items-center gap-1 cursor-pointer"
-                        title="Abrir ficha lateral do site"
+                    return (
+                      <div
+                        key={site.id}
+                        className="px-3.5 py-2.5 hover:bg-slate-50 flex items-center justify-between gap-2 text-xs"
                       >
-                        <ExternalLink className="w-3 h-3" />
-                        <span>Ficha</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          onUnassignSitesFromDupla([site.id, site.siteId], selectedDupla)
-                        }
-                        className="p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-md cursor-pointer"
-                        title="Remover este site da dupla"
-                      >
-                        <X className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
+                        <div className="min-w-0">
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <span className="font-mono font-bold text-slate-900">
+                              {site.siteId}
+                            </span>
+                            <span className="px-1.5 py-0.5 bg-slate-100 text-slate-700 rounded text-[10px] font-mono">
+                              {site.uf} · {site.municipio}
+                            </span>
+                            <span
+                              className={`px-1.5 py-0.5 rounded text-[10px] font-semibold inline-flex items-center gap-1 ${
+                                feito
+                                  ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                  : 'bg-amber-50 text-amber-700 border border-amber-200'
+                              }`}
+                            >
+                              {feito ? (
+                                <CheckCircle2 className="w-3 h-3" />
+                              ) : (
+                                <Clock className="w-3 h-3" />
+                              )}
+                              <span>{site.status}</span>
+                            </span>
+                            {notaPend && (
+                              <span className="px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200 text-[10px] font-medium inline-flex items-center gap-1">
+                                <Receipt className="w-3 h-3" />
+                                <span>Nota Pend.</span>
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-[11px] text-slate-500 truncate mt-0.5">
+                            {getCellValueForColumn(site, 'END ID') || site.siteName} · Escopo:{' '}
+                            {getCellValueForColumn(site, 'Escopo') || site.setores || '—'}
+                          </div>
+                        </div>
 
-              {filteredAssignedSites.length === 0 && (
+                        <div className="flex items-center gap-1 shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => onOpenSiteDrawer(site.id)}
+                            className="px-2 py-1 bg-[#F3F4F6] hover:bg-slate-200 text-slate-700 rounded-md text-[11px] font-medium flex items-center gap-1 cursor-pointer"
+                            title="Abrir ficha lateral do site"
+                          >
+                            <ExternalLink className="w-3 h-3" />
+                            <span>Ficha</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              onUnassignSitesFromDupla(
+                                [site.id, site.siteId],
+                                selectedDupla,
+                                'NOKIA'
+                              )
+                            }
+                            className="p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-md cursor-pointer"
+                            title="Remover este site da dupla"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })
+                : filteredAssignedEricssonRows.map((row) => {
+                    const feito = isEricssonRowFeito(row);
+                    const notaPend = isEricssonRowNotaPendente(row);
+                    const displayCode =
+                      row.siteIdA && row.siteIdB
+                        ? `${row.siteIdA} ↔ ${row.siteIdB}`
+                        : row.siteIdA || row.siteIdB || row.siteName || row.chaves;
+                    const uf = row.state || row.fields?.['00.03.State'] || '—';
+                    const mun = row.cidadeA || row.cidadeB || '—';
+
+                    return (
+                      <div
+                        key={row.id}
+                        className="px-3.5 py-2.5 hover:bg-slate-50 flex items-center justify-between gap-2 text-xs"
+                      >
+                        <div className="min-w-0">
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <span className="font-mono font-bold text-slate-900">
+                              {displayCode}
+                            </span>
+                            <span className="px-1.5 py-0.5 bg-slate-100 text-slate-700 rounded text-[10px] font-mono">
+                              {uf} · {mun}
+                            </span>
+                            <span
+                              className={`px-1.5 py-0.5 rounded text-[10px] font-semibold inline-flex items-center gap-1 ${
+                                feito
+                                  ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                  : 'bg-amber-50 text-amber-700 border border-amber-200'
+                              }`}
+                            >
+                              {feito ? (
+                                <CheckCircle2 className="w-3 h-3" />
+                              ) : (
+                                <Clock className="w-3 h-3" />
+                              )}
+                              <span>
+                                Vistoria A: {row.siteAVistoriaStatus}
+                                {row.siteIdB ? ` · B: ${row.siteBVistoriaStatus}` : ''}
+                              </span>
+                            </span>
+                            {notaPend && (
+                              <span className="px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200 text-[10px] font-medium inline-flex items-center gap-1">
+                                <Receipt className="w-3 h-3" />
+                                <span>Nota Pend.</span>
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-[11px] text-slate-500 truncate mt-0.5">
+                            {row.chaves ? `Chave: ${row.chaves} · ` : ''}
+                            Serviço: {row.servico || '—'}
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-1 shrink-0">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              onUnassignSitesFromDupla([row.id], selectedDupla, 'ERICSSON')
+                            }
+                            className="p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-md cursor-pointer"
+                            title="Remover este site da dupla"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+
+              {((activeVendor === 'NOKIA' && filteredAssignedNokiaSites.length === 0) ||
+                (activeVendor === 'ERICSSON' && filteredAssignedEricssonRows.length === 0)) && (
                 <div className="p-8 text-center space-y-2">
                   <div className="text-xs font-semibold text-slate-600">
                     Nenhum site vinculado a "{selectedDupla}" ainda.
@@ -1041,6 +1585,7 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = ({
             </div>
           </div>
         </div>
+      </div>
       </div>
     </div>
   );

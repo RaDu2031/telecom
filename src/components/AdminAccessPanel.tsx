@@ -46,19 +46,24 @@ const ROLE_OPTIONS: Array<{
   description: string;
 }> = [
   {
-    role: 'ADM',
-    label: 'ADM',
-    description: 'Acesso a tudo',
+    role: 'Coordenador Geral',
+    label: 'Coord. Geral',
+    description: 'Vê todas as planilhas, Engenharia e Vistoria da sua plataforma',
+  },
+  {
+    role: 'Coordenador Engenharia',
+    label: 'Coord. Eng.',
+    description: 'Visibilidade apenas de Engenharia e Vistoria',
   },
   {
     role: 'Executor',
     label: 'Executor',
-    description: 'Acesso à Pasta Engenharia e Vistoria',
+    description: 'Acesso apenas aos sites demandados para ele e Vistoria',
   },
   {
     role: 'Vistoriador',
     label: 'Vistoriador',
-    description: 'Acesso apenas à Pasta de Vistoria (sem Engenharia)',
+    description: 'Acesso apenas aos sites demandados e Pasta de Vistoria',
   },
 ];
 
@@ -189,6 +194,8 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
 
   const countsByRole = useMemo(() => {
     let adm = 0;
+    let coordGeral = 0;
+    let coordEng = 0;
     let executor = 0;
     let vistoriador = 0;
     let validado = 0;
@@ -197,8 +204,10 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
     let dispensado = 0;
 
     usersWithDocEval.forEach(({ user, docSummary }) => {
-      const r = normalizeUserRole(user.role);
+      const r = normalizeUserRole(user.role, user.email);
       if (r === 'ADM') adm++;
+      else if (r === 'Coordenador Geral') coordGeral++;
+      else if (r === 'Coordenador Engenharia') coordEng++;
       else if (r === 'Executor') executor++;
       else vistoriador++;
 
@@ -211,6 +220,8 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
     return {
       total: users.length,
       adm,
+      coordGeral,
+      coordEng,
       executor,
       vistoriador,
       validado,
@@ -698,15 +709,25 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
             <div className="flex flex-wrap items-center gap-1.5">
               {[
                 { id: 'ALL' as const, label: 'Todos os Recursos', count: countsByRole.total },
-                { id: 'ADM' as const, label: 'ADM (Tudo)', count: countsByRole.adm },
+                { id: 'ADM' as const, label: 'ADM Dono', count: countsByRole.adm },
+                {
+                  id: 'Coordenador Geral' as const,
+                  label: 'Coordenador Geral',
+                  count: countsByRole.coordGeral,
+                },
+                {
+                  id: 'Coordenador Engenharia' as const,
+                  label: 'Coordenador Engenharia',
+                  count: countsByRole.coordEng,
+                },
                 {
                   id: 'Executor' as const,
-                  label: 'Executores (Engenharia)',
+                  label: 'Executores',
                   count: countsByRole.executor,
                 },
                 {
                   id: 'Vistoriador' as const,
-                  label: 'Vistoriadores (Vistorias)',
+                  label: 'Vistoriadores',
                   count: countsByRole.vistoriador,
                 },
               ].map((item) => (
@@ -914,32 +935,40 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
 
                       <td className="py-3 pl-3 pr-5 text-right whitespace-nowrap">
                         <div className="inline-flex items-center justify-end gap-2 flex-nowrap">
-                          {/* Direct 3-Profile Selector for this Resource */}
-                          <div className="inline-flex items-center p-0.5 bg-slate-100 border border-slate-200 rounded-lg shrink-0">
-                            {ROLE_OPTIONS.map((opt) => {
-                              const active = uRole === opt.role;
-                              return (
-                                <button
-                                  key={opt.role}
-                                  type="button"
-                                  disabled={isUpdating}
-                                  onClick={() => handleRoleChange(u.id, opt.role, u.name)}
-                                  title={opt.description}
-                                  className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-colors cursor-pointer whitespace-nowrap ${
-                                    active
-                                      ? opt.role === 'ADM'
-                                        ? 'bg-slate-900 text-white'
-                                        : opt.role === 'Executor'
-                                        ? 'bg-blue-600 text-white'
-                                        : 'bg-amber-500 text-white'
-                                      : 'text-slate-600 hover:text-slate-900'
-                                  }`}
-                                >
-                                  {opt.label}
-                                </button>
-                              );
-                            })}
-                          </div>
+                          {/* Direct Profile Selector for this Resource (ADM Dono exclusive to Rafael Araújo) */}
+                          {isPrimaryAdmin ? (
+                            <span className="px-3 py-1 bg-amber-500 text-slate-950 font-black text-xs rounded-lg shadow-2xs">
+                              ADM Dono (Único)
+                            </span>
+                          ) : (
+                            <div className="inline-flex items-center p-0.5 bg-slate-100 border border-slate-200 rounded-lg shrink-0">
+                              {ROLE_OPTIONS.map((opt) => {
+                                const active = uRole === opt.role;
+                                return (
+                                  <button
+                                    key={opt.role}
+                                    type="button"
+                                    disabled={isUpdating}
+                                    onClick={() => handleRoleChange(u.id, opt.role, u.name)}
+                                    title={opt.description}
+                                    className={`px-2 py-1 text-[11px] font-semibold rounded-md transition-colors cursor-pointer whitespace-nowrap ${
+                                      active
+                                        ? opt.role === 'Coordenador Geral'
+                                          ? 'bg-indigo-600 text-white'
+                                          : opt.role === 'Coordenador Engenharia'
+                                          ? 'bg-teal-600 text-white'
+                                          : opt.role === 'Executor'
+                                          ? 'bg-blue-600 text-white'
+                                          : 'bg-amber-500 text-white'
+                                        : 'text-slate-600 hover:text-slate-900'
+                                    }`}
+                                  >
+                                    {opt.label}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          )}
 
                           {!isPrimaryAdmin && onTestUserView && (
                             <button

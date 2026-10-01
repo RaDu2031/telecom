@@ -26,6 +26,11 @@ import {
   EricssonRow,
   EricssonSheetMeta,
   ERICSSON_ORIGINAL_COLUMNS,
+  AmetaNotification,
+  NotificationEventType,
+  AssignedPlatformScope,
+  isOwnerAdmUser,
+  hasFullSpreadsheetAccess,
 } from './src/types/telecom.ts';
 import {
   parseExcelWorkbookBuffer,
@@ -63,7 +68,29 @@ interface DatabaseSchema {
   ericssonFolders?: EngineeringFolder[];
   ericssonFiles?: EngineeringFile[];
   ericssonUsers?: StoredUser[];
+  notifications?: AmetaNotification[];
+  duplaEmailsMap?: Record<string, string[]>;
   lastUpdated: string;
+}
+
+function pushNotification(
+  db: DatabaseSchema,
+  notif: Omit<AmetaNotification, 'id' | 'readByEmails' | 'createdAt'>
+): AmetaNotification {
+  if (!Array.isArray(db.notifications)) {
+    db.notifications = [];
+  }
+  const created: AmetaNotification = {
+    ...notif,
+    id: `notif-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+    readByEmails: [],
+    createdAt: new Date().toISOString(),
+  };
+  db.notifications.unshift(created);
+  if (db.notifications.length > 350) {
+    db.notifications = db.notifications.slice(0, 350);
+  }
+  return created;
 }
 
 const DATA_DIR = path.resolve(process.cwd(), 'data');
@@ -555,12 +582,70 @@ function syncEquipesResourcesToUsers(db: DatabaseSchema): boolean {
     changed = true;
   }
 
-  // Normalize any remaining user roles and ensure mandatory 8-document structure on every profile
+  // Ensure Coordinator profiles for TIM / Nokia exist
+  const coordGeralTimEmail = 'coord.geral.tim@ameta.com.br';
+  if (!db.users.some((u) => u.email.toLowerCase() === coordGeralTimEmail)) {
+    db.users.push({
+      id: 'usr-coord-geral-tim',
+      name: 'Coordenador Geral TIM/Nokia',
+      email: coordGeralTimEmail,
+      role: 'Coordenador Geral',
+      assignedPlatform: 'NOKIA',
+      accessReleased: true,
+      equipe: 'Coordenação Geral TIM/Nokia',
+      telefone: '11 97777-1001',
+      atividade: 'Coordenação Geral (Todas as Planilhas TIM/Nokia)',
+      statusRecurso: 'VALIDADO',
+      dispensadoDocumentos: true,
+      documents: ensureUserMandatoryDocuments([]),
+      emailVerified: true,
+      verifiedAt: new Date().toISOString(),
+      preferredVendor: 'NOKIA',
+      createdAt: new Date().toISOString(),
+      passwordHash: hashPassword('ameta2026'),
+    });
+    changed = true;
+  }
+
+  const coordEngTimEmail = 'coord.engenharia.tim@ameta.com.br';
+  if (!db.users.some((u) => u.email.toLowerCase() === coordEngTimEmail)) {
+    db.users.push({
+      id: 'usr-coord-eng-tim',
+      name: 'Coordenador Engenharia TIM/Nokia',
+      email: coordEngTimEmail,
+      role: 'Coordenador Engenharia',
+      assignedPlatform: 'NOKIA',
+      accessReleased: true,
+      equipe: 'Coordenação Engenharia TIM/Nokia',
+      telefone: '11 97777-1002',
+      atividade: 'Coordenação de Engenharia e Vistoria (TIM/Nokia)',
+      statusRecurso: 'VALIDADO',
+      dispensadoDocumentos: true,
+      documents: ensureUserMandatoryDocuments([]),
+      emailVerified: true,
+      verifiedAt: new Date().toISOString(),
+      preferredVendor: 'NOKIA',
+      createdAt: new Date().toISOString(),
+      passwordHash: hashPassword('ameta2026'),
+    });
+    changed = true;
+  }
+
+  // Normalize any remaining user roles (only Rafael Araújo is ADM) and ensure mandatory 8-document structure on every profile
   db.users.forEach((u) => {
-    const norm =
-      u.email.toLowerCase() === adminEmail ? 'ADM' : normalizeUserRole(u.role);
+    const norm = isOwnerAdmUser(u.email)
+      ? 'ADM'
+      : normalizeUserRole(u.role, u.email);
     if (u.role !== norm) {
       u.role = norm;
+      changed = true;
+    }
+    if (!u.assignedPlatform) {
+      u.assignedPlatform = isOwnerAdmUser(u.email) ? 'BOTH' : 'NOKIA';
+      changed = true;
+    }
+    if (typeof u.accessReleased !== 'boolean') {
+      u.accessReleased = true;
       changed = true;
     }
     if (!Array.isArray(u.documents) || u.documents.length !== 8) {
@@ -708,12 +793,80 @@ function ensureEricssonSeedAndUsers(db: DatabaseSchema): boolean {
     changed = true;
   }
 
+  const ericCoordGeralEmail = 'coord.geral.ericsson@ameta.com.br';
+  if (!db.ericssonUsers.some((u) => u.email.toLowerCase() === ericCoordGeralEmail)) {
+    db.ericssonUsers.push({
+      id: 'eric-usr-coord-geral',
+      name: 'Coordenador Geral Ericsson',
+      email: ericCoordGeralEmail,
+      role: 'Coordenador Geral',
+      assignedPlatform: 'ERICSSON',
+      accessReleased: true,
+      equipe: 'Coordenação Geral Ericsson',
+      telefone: '11 97777-2001',
+      atividade: 'Coordenação Geral (Todas as Planilhas Ericsson)',
+      statusRecurso: 'VALIDADO',
+      dispensadoDocumentos: true,
+      documents: ensureUserMandatoryDocuments([]),
+      emailVerified: true,
+      verifiedAt: new Date().toISOString(),
+      preferredVendor: 'ERICSSON',
+      createdAt: new Date().toISOString(),
+      passwordHash: hashPassword('ameta2026'),
+    });
+    changed = true;
+  }
+
+  const ericCoordEngEmail = 'coord.engenharia.ericsson@ameta.com.br';
+  if (!db.ericssonUsers.some((u) => u.email.toLowerCase() === ericCoordEngEmail)) {
+    db.ericssonUsers.push({
+      id: 'eric-usr-coord-eng',
+      name: 'Coordenador Engenharia Ericsson',
+      email: ericCoordEngEmail,
+      role: 'Coordenador Engenharia',
+      assignedPlatform: 'ERICSSON',
+      accessReleased: true,
+      equipe: 'Coordenação Engenharia Ericsson',
+      telefone: '11 97777-2002',
+      atividade: 'Coordenação de Engenharia e Vistoria (Ericsson)',
+      statusRecurso: 'VALIDADO',
+      dispensadoDocumentos: true,
+      documents: ensureUserMandatoryDocuments([]),
+      emailVerified: true,
+      verifiedAt: new Date().toISOString(),
+      preferredVendor: 'ERICSSON',
+      createdAt: new Date().toISOString(),
+      passwordHash: hashPassword('ameta2026'),
+    });
+    changed = true;
+  }
+
   db.ericssonUsers.forEach((u) => {
+    const norm = isOwnerAdmUser(u.email)
+      ? 'ADM'
+      : normalizeUserRole(u.role, u.email);
+    if (u.role !== norm) {
+      u.role = norm;
+      changed = true;
+    }
+    if (!u.assignedPlatform) {
+      u.assignedPlatform = isOwnerAdmUser(u.email) ? 'BOTH' : 'ERICSSON';
+      changed = true;
+    }
+    if (typeof u.accessReleased !== 'boolean') {
+      u.accessReleased = true;
+      changed = true;
+    }
     if (!Array.isArray(u.documents) || u.documents.length !== 8) {
       u.documents = ensureUserMandatoryDocuments(u.documents);
       changed = true;
     }
   });
+
+  if (!Array.isArray(db.notifications)) {
+    db.notifications = [];
+    changed = true;
+  }
 
   // Ensure complete isolation between Nokia (engineeringFolders/engineeringFiles) and Ericsson (ericssonFolders/ericssonFiles)
   if (!Array.isArray(db.ericssonFolders)) {
@@ -1015,6 +1168,7 @@ async function startServer() {
       ericssonFiles: db.ericssonFiles || [],
       ericssonUsers: (db.ericssonUsers || []).map(sanitizeUser),
       users: db.users.map(sanitizeUser),
+      notifications: db.notifications || [],
       lastUpdated: db.lastUpdated,
     });
     for (const client of sseClients) {
@@ -1095,7 +1249,9 @@ async function startServer() {
     }
 
     const normalizedEmail = email.trim().toLowerCase();
-    const user = db.users.find((u) => u.email.toLowerCase() === normalizedEmail);
+    const user =
+      db.users.find((u) => u.email.toLowerCase() === normalizedEmail) ||
+      (db.ericssonUsers || []).find((u) => u.email.toLowerCase() === normalizedEmail);
 
     if (!user && !isValidAmetaDomain(normalizedEmail)) {
       res.status(403).json({
@@ -1235,6 +1391,7 @@ async function startServer() {
         ericssonFiles: db.ericssonFiles || [],
         ericssonUsers: (db.ericssonUsers || []).map(sanitizeUser),
         users: db.users.map(sanitizeUser),
+        notifications: db.notifications || [],
         lastUpdated: db.lastUpdated,
       })}\n\n`
     );
@@ -1271,8 +1428,288 @@ async function startServer() {
       ericssonFiles: db.ericssonFiles || [],
       ericssonUsers: (db.ericssonUsers || []).map(sanitizeUser),
       users: db.users.map(sanitizeUser),
+      notifications: db.notifications || [],
+      duplaEmailsMap: db.duplaEmailsMap || {},
       lastUpdated: db.lastUpdated,
       activeConnections: sseClients.size,
+    });
+  });
+
+  // ===================== NOTIFICATIONS & OWNER ADM PERMISSIONS PANEL =====================
+
+  app.post('/api/notifications/mark-read', (req, res) => {
+    const { email, notificationId, markAll } = req.body as {
+      email?: string;
+      notificationId?: string;
+      markAll?: boolean;
+    };
+    if (!email || !email.trim()) {
+      res.status(400).json({ error: 'E-mail do usuário é obrigatório.' });
+      return;
+    }
+    const cleanEmail = email.trim().toLowerCase();
+    if (!Array.isArray(db.notifications)) db.notifications = [];
+
+    db.notifications.forEach((n) => {
+      if (markAll || n.id === notificationId) {
+        if (!Array.isArray(n.readByEmails)) n.readByEmails = [];
+        if (!n.readByEmails.includes(cleanEmail)) {
+          n.readByEmails.push(cleanEmail);
+        }
+      }
+    });
+
+    saveDatabase(db);
+    res.json({ notifications: db.notifications });
+  });
+
+  app.delete('/api/notifications/:id', (req, res) => {
+    const { id } = req.params;
+    if (!Array.isArray(db.notifications)) db.notifications = [];
+    db.notifications = db.notifications.filter((n) => n.id !== id);
+    saveDatabase(db);
+    broadcastUpdate({
+      type: 'NOTIFICATION_DELETED',
+      timestamp: new Date().toISOString(),
+      summary: 'Notificação removida',
+    });
+    res.json({ notifications: db.notifications });
+  });
+
+  // Exclusive ADM Dono endpoint to assign role (Coordenador Geral, Coordenador Engenharia, Executor, Vistoriador), platform (NOKIA / ERICSSON / BOTH), and release access
+  app.post('/api/owner/permissions/release', (req, res) => {
+    const {
+      ownerEmail,
+      userId,
+      email,
+      name,
+      password,
+      role,
+      assignedPlatform = 'NOKIA',
+      equipe,
+      telefone,
+      atividade,
+      accessReleased = true,
+    } = req.body as {
+      ownerEmail?: string;
+      userId?: string;
+      email?: string;
+      name?: string;
+      password?: string;
+      role?: UserRole;
+      assignedPlatform?: AssignedPlatformScope;
+      equipe?: string;
+      telefone?: string;
+      atividade?: string;
+      accessReleased?: boolean;
+    };
+
+    if (!isOwnerAdmUser(ownerEmail)) {
+      res.status(403).json({
+        error: 'Acesso restrito: Apenas o ADM Dono (Rafael Araújo) pode liberar permissões e definir cargos.',
+      });
+      return;
+    }
+
+    const cleanEmail = (email || '').trim().toLowerCase();
+    if (!cleanEmail && !userId) {
+      res.status(400).json({ error: 'Informe o usuário ou e-mail para liberar a permissão.' });
+      return;
+    }
+
+    const allowedRoles: UserRole[] = [
+      'Coordenador Geral',
+      'Coordenador Engenharia',
+      'Executor',
+      'Vistoriador',
+    ];
+    // Only the Owner can be ADM
+    const targetIsOwner = isOwnerAdmUser(cleanEmail);
+    const finalRole: UserRole = targetIsOwner
+      ? 'ADM'
+      : role && allowedRoles.includes(role)
+      ? role
+      : 'Executor';
+
+    const finalPlatform: AssignedPlatformScope = targetIsOwner
+      ? 'BOTH'
+      : assignedPlatform && ['NOKIA', 'ERICSSON', 'BOTH'].includes(assignedPlatform)
+      ? assignedPlatform
+      : 'NOKIA';
+
+    const now = new Date().toISOString();
+    if (!Array.isArray(db.ericssonUsers)) db.ericssonUsers = [];
+
+    const existingNokia = db.users.find(
+      (u) => (userId && u.id === userId) || (cleanEmail && u.email.toLowerCase() === cleanEmail)
+    );
+    const existingEric = db.ericssonUsers.find(
+      (u) => (userId && u.id === userId) || (cleanEmail && u.email.toLowerCase() === cleanEmail)
+    );
+    const baseUser = existingNokia || existingEric;
+
+    const resolvedEmail = cleanEmail || baseUser?.email.toLowerCase() || '';
+    const resolvedName = (name || baseUser?.name || resolvedEmail.split('@')[0]).trim();
+    const resolvedEquipe =
+      typeof equipe === 'string'
+        ? equipe.trim()
+        : baseUser?.equipe ||
+          (finalRole.includes('Coordenador') ? `Coordenação ${finalPlatform}` : 'Campo / Execução');
+    const resolvedTelefone =
+      typeof telefone === 'string' ? telefone.trim() : baseUser?.telefone || '';
+    const resolvedAtividade =
+      typeof atividade === 'string' && atividade.trim()
+        ? atividade.trim()
+        : finalRole === 'Coordenador Geral'
+        ? 'Coordenação Geral (Todas as Planilhas)'
+        : finalRole === 'Coordenador Engenharia'
+        ? 'Coordenação de Engenharia & Vistoria'
+        : finalRole === 'Executor'
+        ? 'Execução de Sites & Envio de TSSR'
+        : 'Vistoria de Campo';
+    const resolvedPasswordHash =
+      password && password.trim().length >= 4
+        ? hashPassword(password.trim())
+        : baseUser?.passwordHash || hashPassword('ameta2026');
+
+    // Update or insert into Nokia (TIM) users if platform is NOKIA or BOTH
+    if (finalPlatform === 'NOKIA' || finalPlatform === 'BOTH') {
+      if (existingNokia) {
+        existingNokia.name = resolvedName;
+        existingNokia.role = finalRole;
+        existingNokia.assignedPlatform = finalPlatform;
+        existingNokia.accessReleased = Boolean(accessReleased);
+        existingNokia.releasedByEmail = ownerEmail?.trim();
+        existingNokia.releasedAt = now;
+        existingNokia.equipe = resolvedEquipe;
+        existingNokia.telefone = resolvedTelefone;
+        existingNokia.atividade = resolvedAtividade;
+        existingNokia.preferredVendor = 'NOKIA';
+        if (password && password.trim().length >= 4) {
+          existingNokia.passwordHash = resolvedPasswordHash;
+        }
+      } else {
+        db.users.unshift({
+          id: baseUser?.id || `usr-${Date.now()}`,
+          name: resolvedName,
+          email: resolvedEmail,
+          role: finalRole,
+          assignedPlatform: finalPlatform,
+          accessReleased: Boolean(accessReleased),
+          releasedByEmail: ownerEmail?.trim(),
+          releasedAt: now,
+          equipe: resolvedEquipe,
+          telefone: resolvedTelefone,
+          atividade: resolvedAtividade,
+          statusRecurso: baseUser?.statusRecurso || 'VALIDADO',
+          dispensadoDocumentos:
+            baseUser?.dispensadoDocumentos ?? finalRole.includes('Coordenador'),
+          documents: ensureUserMandatoryDocuments(baseUser?.documents),
+          emailVerified: true,
+          verifiedAt: now,
+          preferredVendor: 'NOKIA',
+          createdAt: baseUser?.createdAt || now,
+          passwordHash: resolvedPasswordHash,
+        });
+      }
+    } else if (existingNokia && !isOwnerAdmUser(existingNokia.email)) {
+      // Keep record in db.users with assignedPlatform = 'ERICSSON' so login and simulation work seamlessly
+      existingNokia.name = resolvedName;
+      existingNokia.role = finalRole;
+      existingNokia.assignedPlatform = 'ERICSSON';
+      existingNokia.accessReleased = Boolean(accessReleased);
+      existingNokia.releasedByEmail = ownerEmail?.trim();
+      existingNokia.releasedAt = now;
+      existingNokia.equipe = resolvedEquipe;
+      existingNokia.telefone = resolvedTelefone;
+      existingNokia.atividade = resolvedAtividade;
+      existingNokia.preferredVendor = 'ERICSSON';
+    }
+
+    // Update or insert into Ericsson users if platform is ERICSSON or BOTH
+    if (finalPlatform === 'ERICSSON' || finalPlatform === 'BOTH') {
+      if (existingEric) {
+        existingEric.name = resolvedName;
+        existingEric.role = finalRole;
+        existingEric.assignedPlatform = finalPlatform;
+        existingEric.accessReleased = Boolean(accessReleased);
+        existingEric.releasedByEmail = ownerEmail?.trim();
+        existingEric.releasedAt = now;
+        existingEric.equipe = resolvedEquipe;
+        existingEric.telefone = resolvedTelefone;
+        existingEric.atividade = resolvedAtividade;
+        existingEric.preferredVendor = 'ERICSSON';
+        if (password && password.trim().length >= 4) {
+          existingEric.passwordHash = resolvedPasswordHash;
+        }
+      } else {
+        db.ericssonUsers.unshift({
+          id: baseUser?.id ? `eric-${baseUser.id}` : `eric-usr-${Date.now()}`,
+          name: resolvedName,
+          email: resolvedEmail,
+          role: finalRole,
+          assignedPlatform: finalPlatform,
+          accessReleased: Boolean(accessReleased),
+          releasedByEmail: ownerEmail?.trim(),
+          releasedAt: now,
+          equipe: resolvedEquipe,
+          telefone: resolvedTelefone,
+          atividade: resolvedAtividade,
+          statusRecurso: baseUser?.statusRecurso || 'VALIDADO',
+          dispensadoDocumentos:
+            baseUser?.dispensadoDocumentos ?? finalRole.includes('Coordenador'),
+          documents: ensureUserMandatoryDocuments(baseUser?.documents),
+          emailVerified: true,
+          verifiedAt: now,
+          preferredVendor: 'ERICSSON',
+          createdAt: baseUser?.createdAt || now,
+          passwordHash: resolvedPasswordHash,
+        });
+      }
+    } else if (existingEric && !isOwnerAdmUser(existingEric.email)) {
+      existingEric.name = resolvedName;
+      existingEric.role = finalRole;
+      existingEric.assignedPlatform = 'NOKIA';
+      existingEric.accessReleased = Boolean(accessReleased);
+      existingEric.releasedByEmail = ownerEmail?.trim();
+      existingEric.releasedAt = now;
+      existingEric.equipe = resolvedEquipe;
+      existingEric.telefone = resolvedTelefone;
+      existingEric.atividade = resolvedAtividade;
+      existingEric.preferredVendor = 'NOKIA';
+    }
+
+    const platformLabel =
+      finalPlatform === 'NOKIA'
+        ? 'TIM / Nokia'
+        : finalPlatform === 'ERICSSON'
+        ? 'Ericsson'
+        : 'TIM/Nokia & Ericsson';
+
+    pushNotification(db, {
+      type: 'PERMISSAO_LIBERADA_ADM',
+      vendor: finalPlatform === 'ERICSSON' ? 'ERICSSON' : 'NOKIA',
+      title: `Permissão Liberada: ${finalRole} (${platformLabel})`,
+      message: `O ADM Dono (Rafael Araújo) configurou e liberou o acesso de ${resolvedName} como ${finalRole} na plataforma ${platformLabel}.`,
+      actorName: 'Rafael Araújo (ADM Dono)',
+      actorEmail: ownerEmail || 'rafael.araujo@ameta.com.br',
+      actorRole: 'ADM',
+      targetRoles: [finalRole, 'ADM'],
+      targetEmails: [resolvedEmail],
+      targetEquipes: resolvedEquipe ? [resolvedEquipe] : [],
+    });
+
+    saveDatabase(db);
+    broadcastUpdate({
+      type: 'PERMISSIONS_UPDATED',
+      timestamp: now,
+      summary: `Permissão liberada pelo ADM Dono: ${resolvedName} → ${finalRole} (${platformLabel})`,
+    });
+
+    res.json({
+      users: db.users.map(sanitizeUser),
+      ericssonUsers: db.ericssonUsers.map(sanitizeUser),
+      notifications: db.notifications || [],
     });
   });
 
@@ -1282,8 +1719,15 @@ async function startServer() {
     const { id } = req.params;
     const { role } = req.body as { role?: UserRole };
 
-    if (!role || !['ADM', 'Executor', 'Vistoriador'].includes(role)) {
-      res.status(400).json({ error: 'Perfil inválido. Escolha ADM, Executor ou Vistoriador.' });
+    const validRoles: UserRole[] = [
+      'ADM',
+      'Coordenador Geral',
+      'Coordenador Engenharia',
+      'Executor',
+      'Vistoriador',
+    ];
+    if (!role || !validRoles.includes(role)) {
+      res.status(400).json({ error: 'Perfil inválido.' });
       return;
     }
 
@@ -1293,7 +1737,8 @@ async function startServer() {
       return;
     }
 
-    target.role = role;
+    // Only Rafael Araújo can be ADM
+    target.role = role === 'ADM' && !isOwnerAdmUser(target.email) ? 'Coordenador Geral' : role;
 
     // Also update matching resource row in Equipes sheet if present
     db.sites.forEach((s) => {
@@ -1369,7 +1814,10 @@ async function startServer() {
     }
 
     const validRole: UserRole =
-      role && ['ADM', 'Executor', 'Vistoriador'].includes(role) ? role : 'Vistoriador';
+      role &&
+      ['Coordenador Geral', 'Coordenador Engenharia', 'Executor', 'Vistoriador'].includes(role)
+        ? role
+        : 'Vistoriador';
 
     const newUserId = `usr-${Date.now()}`;
     const baseDocs = ensureUserMandatoryDocuments(documents);
@@ -1948,6 +2396,7 @@ async function startServer() {
       vendor = 'NOKIA',
       uploadedByName,
       uploadedByEmail,
+      uploadedByRole,
       siteId,
       ocSitePre,
       tssrRowId,
@@ -1963,6 +2412,7 @@ async function startServer() {
       vendor?: VendorType;
       uploadedByName?: string;
       uploadedByEmail?: string;
+      uploadedByRole?: string;
       siteId?: string;
       ocSitePre?: string;
       tssrRowId?: string;
@@ -2005,6 +2455,32 @@ async function startServer() {
       }
       return false;
     })();
+
+    const resolvedNokiaRole =
+      uploadedByRole ||
+      db.users.find(
+        (u) => u.email.toLowerCase() === String(uploadedByEmail || '').trim().toLowerCase()
+      )?.role ||
+      '';
+
+    if (
+      resolvedNokiaRole === 'Vistoriador' &&
+      (isInsideTssrProjectFolder || String(notes || '').toUpperCase().includes('[TSSR]'))
+    ) {
+      res.status(403).json({
+        error:
+          'O perfil Vistoriador não tem permissão para subir TSSR. Apenas o Executor pode subir TSSR.',
+      });
+      return;
+    }
+
+    if (resolvedNokiaRole === 'Executor' && !isInsideTssrProjectFolder) {
+      res.status(403).json({
+        error:
+          'O perfil Executor não tem permissão para subir Vistoria. O Executor pode subir apenas TSSR.',
+      });
+      return;
+    }
 
     const cleanSiteId = (siteId || '').trim().toUpperCase();
     const mustRequireSite =
@@ -2172,6 +2648,44 @@ async function startServer() {
       }
     }
 
+    // Create notifications for Engineering Coordinators when TSSR is uploaded or Vistoria goes to folder and changes status to OK
+    const isTssrFile =
+      isInsideTssrProjectFolder ||
+      (primaryFile?.fileName || '').toUpperCase().includes('TSSR') ||
+      (notes || '').toUpperCase().includes('TSSR');
+
+    if (primaryFile) {
+      if (isTssrFile) {
+        pushNotification(db, {
+          type: 'TSSR_ENVIADO_EXECUTOR',
+          vendor,
+          title: `TSSR Enviado para Engenharia (${cleanSiteId || folder?.name || 'TSSR'})`,
+          message: `${uploadedByName.trim()} subiu o arquivo TSSR "${primaryFile.fileName}"${
+            cleanSiteId ? ` do site ${cleanSiteId}` : ''
+          } na pasta ${folder?.name || 'TSSR'} para análise da Coordenação de Engenharia.`,
+          siteId: cleanSiteId || undefined,
+          fileName: primaryFile.fileName,
+          actorName: uploadedByName.trim(),
+          actorEmail: uploadedByEmail?.trim() || 'executor@ameta.com.br',
+          targetRoles: ['Coordenador Engenharia', 'Coordenador Geral', 'ADM'],
+        });
+      } else if (shouldUpdateTssrVistoria) {
+        pushNotification(db, {
+          type: 'VISTORIA_OK_PASTA',
+          vendor,
+          title: `Vistoria na Pasta — Status OK (${cleanSiteId})`,
+          message: `A vistoria do site ${cleanSiteId} ("${primaryFile.fileName}") foi entregue na pasta "${
+            folder?.name || 'Vistorias Executadas'
+          }" por ${uploadedByName.trim()} e mudou o status para OK (Entregue).`,
+          siteId: cleanSiteId,
+          fileName: primaryFile.fileName,
+          actorName: uploadedByName.trim(),
+          actorEmail: uploadedByEmail?.trim() || 'vistoria@ameta.com.br',
+          targetRoles: ['Coordenador Engenharia', 'Coordenador Geral', 'ADM'],
+        });
+      }
+    }
+
     saveDatabase(db);
 
     broadcastUpdate({
@@ -2190,6 +2704,7 @@ async function startServer() {
       engineeringFiles: db.engineeringFiles,
       tssrRows: db.tssrRows,
       tssrSheets: db.tssrSheets || [],
+      notifications: db.notifications || [],
     });
   });
 
@@ -2778,6 +3293,29 @@ async function startServer() {
     }
 
     db.sites.unshift(newSite);
+
+    const demandedEquipe = (
+      newSite.equipeParceira ||
+      newSite.responsavelCampo ||
+      newSite.customFields?.['EQUIPE EXECUTANTE'] ||
+      newSite.customFields?.['Executor'] ||
+      ''
+    ).trim();
+
+    if (demandedEquipe) {
+      pushNotification(db, {
+        type: 'SITE_DEMANDADO_EXECUTOR',
+        vendor: newSite.vendor,
+        title: `Novo Site Demandado: ${newSite.siteId}`,
+        message: `O site ${newSite.siteId} (${newSite.municipio || newSite.uf || newSite.sheetName}) foi demandado para a equipe "${demandedEquipe}".`,
+        siteId: newSite.siteId,
+        actorName: actorEmail || 'Coordenação',
+        actorEmail: newSite.updatedBy || 'coordenacao@ameta.com.br',
+        targetRoles: ['Executor', 'Vistoriador'],
+        targetEquipes: [demandedEquipe],
+      });
+    }
+
     saveDatabase(db);
 
     broadcastUpdate({
@@ -2811,9 +3349,9 @@ async function startServer() {
       : undefined;
     const effectiveRole = normalizeUserRole(actorRole || matchedUser?.role);
 
-    // Non-ADM demanded users (Vistoriador & Executor) can edit STATUS and SI Executed (date)
+    // Allowed roles with full spreadsheet editing: ADM and Coordenador Geral
     let allowedUpdates: Partial<TelecomSite> = updates;
-    if (effectiveRole !== 'ADM') {
+    if (!hasFullSpreadsheetAccess(effectiveRole)) {
       const nextStatus =
         updates.status ||
         (updates.customFields && updates.customFields['STATUS']) ||
@@ -2845,7 +3383,59 @@ async function startServer() {
       updatedBy: actorEmail || updates.updatedBy || currentSite.updatedBy,
     };
 
+    const prevEquipe = (
+      currentSite.equipeParceira ||
+      currentSite.responsavelCampo ||
+      currentSite.customFields?.['EQUIPE EXECUTANTE'] ||
+      ''
+    ).trim();
+    const nextEquipe = (
+      updatedSite.equipeParceira ||
+      updatedSite.responsavelCampo ||
+      updatedSite.customFields?.['EQUIPE EXECUTANTE'] ||
+      ''
+    ).trim();
+
     db.sites[index] = updatedSite;
+
+    // 1. If a site was demanded/assigned to an Executor equipe, notify that Executor
+    if (nextEquipe && nextEquipe.toLowerCase() !== prevEquipe.toLowerCase()) {
+      pushNotification(db, {
+        type: 'SITE_DEMANDADO_EXECUTOR',
+        vendor: updatedSite.vendor,
+        title: `Site Demandado: ${updatedSite.siteId}`,
+        message: `O site ${updatedSite.siteId} foi demandado para a equipe "${nextEquipe}" por ${
+          matchedUser?.name || actorEmail || 'Coordenação'
+        }.`,
+        siteId: updatedSite.siteId,
+        actorName: matchedUser?.name || actorEmail || 'Coordenação',
+        actorEmail: actorEmail || 'coordenacao@ameta.com.br',
+        actorRole: effectiveRole,
+        targetRoles: ['Executor', 'Vistoriador'],
+        targetEquipes: [nextEquipe],
+      });
+    }
+
+    // 2. If an Executor updates the site/status/equipe (or when equipe/status is updated), notify Coordinators
+    if (
+      effectiveRole === 'Executor' ||
+      effectiveRole === 'Vistoriador' ||
+      (nextEquipe && nextEquipe !== prevEquipe)
+    ) {
+      pushNotification(db, {
+        type: 'EXECUTOR_ATUALIZOU_EQUIPE',
+        vendor: updatedSite.vendor,
+        title: `Atualização de Equipe / Site: ${updatedSite.siteId}`,
+        message: `${matchedUser?.name || actorEmail || 'Executor'} (${
+          nextEquipe || matchedUser?.equipe || 'Campo'
+        }) atualizou o site ${updatedSite.siteId} (Status: ${updatedSite.status}).`,
+        siteId: updatedSite.siteId,
+        actorName: matchedUser?.name || actorEmail || 'Executor',
+        actorEmail: actorEmail || 'executor@ameta.com.br',
+        actorRole: effectiveRole,
+        targetRoles: ['Coordenador Geral', 'Coordenador Engenharia', 'ADM'],
+      });
+    }
 
     const sheet = db.sheets.find(
       (sh) => sh.vendor === updatedSite.vendor && sh.name === updatedSite.sheetName
@@ -2928,22 +3518,35 @@ async function startServer() {
       return;
     }
 
-    const cleanDupla = getCanonicalDuplaName(duplaName.trim()) || duplaName.trim();
+    const rawDupla = duplaName.trim();
+    const cleanDupla = getCanonicalDuplaName(rawDupla) || rawDupla;
     const emailList = Array.isArray(emails)
       ? Array.from(new Set(emails.map((e) => e.trim().toLowerCase()).filter(Boolean)))
       : [];
     const emailSet = new Set(emailList);
 
-    // Update user profiles in db.users so their `equipe` reflects the linked Dupla
-    db.users.forEach((u) => {
-      const uEmail = u.email.trim().toLowerCase();
-      const uCanonEq = getCanonicalDuplaName(u.equipe || '') || (u.equipe || '').trim();
-      if (emailSet.has(uEmail)) {
-        u.equipe = cleanDupla;
-      } else if (normalizeAccents(uCanonEq) === normalizeAccents(cleanDupla)) {
-        u.equipe = 'Campo / Engenharia';
-      }
-    });
+    if (!db.duplaEmailsMap || typeof db.duplaEmailsMap !== 'object') {
+      db.duplaEmailsMap = {};
+    }
+    db.duplaEmailsMap[cleanDupla] = emailList;
+    db.duplaEmailsMap[rawDupla] = emailList;
+
+    // Update user profiles in BOTH db.users (Nokia) and db.ericssonUsers (Ericsson) so their `equipe` reflects the linked Dupla
+    const updateUsersEquipe = (list?: StoredUser[]) => {
+      if (!Array.isArray(list)) return;
+      list.forEach((u) => {
+        const uEmail = u.email.trim().toLowerCase();
+        const uCanonEq = getCanonicalDuplaName(u.equipe || '') || (u.equipe || '').trim();
+        if (emailSet.has(uEmail)) {
+          u.equipe = cleanDupla;
+        } else if (normalizeAccents(uCanonEq) === normalizeAccents(cleanDupla)) {
+          u.equipe = 'Campo / Engenharia';
+        }
+      });
+    };
+
+    updateUsersEquipe(db.users);
+    updateUsersEquipe(db.ericssonUsers);
 
     // Also stamp E-MAIL DUPLA on all sites currently assigned to this Dupla (matching canonical Dupla name)
     const emailStr = emailList.join(', ');
@@ -2957,6 +3560,18 @@ async function startServer() {
       }
     });
 
+    if (Array.isArray(db.ericssonRows)) {
+      db.ericssonRows.forEach((r) => {
+        const rowEq = getCanonicalDuplaName(r.equipe || r.fields?.['EQUIPE'] || '') || (r.equipe || '').trim();
+        if (rowEq && normalizeAccents(rowEq) === normalizeAccents(cleanDupla)) {
+          r.fields = {
+            ...(r.fields || {}),
+            'E-MAIL DUPLA': emailStr,
+          };
+        }
+      });
+    }
+
     saveDatabase(db);
     broadcastUpdate({
       type: 'FULL_STATE',
@@ -2966,11 +3581,14 @@ async function startServer() {
 
     res.json({
       users: db.users.map(sanitizeUser),
+      ericssonUsers: (db.ericssonUsers || []).map(sanitizeUser),
+      duplaEmailsMap: db.duplaEmailsMap,
       sites: db.sites,
+      ericssonRows: db.ericssonRows || [],
     });
   });
 
-  // Bulk assign, unassign, rename, or clear Equipe Executante (Dupla) / Responsible for one or more sites
+  // Bulk assign, unassign, rename, or clear Equipe Executante (Dupla) / Responsible for one or more sites (TIM/Nokia OR Ericsson)
   app.post('/api/sites/assign-responsible', (req, res) => {
     const {
       siteTokens,
@@ -2998,17 +3616,28 @@ async function startServer() {
     if (renameFrom && typeof renameTo === 'string') {
       const nextDupla = renameTo.trim();
       const canonFrom = getCanonicalDuplaName(renameFrom) || renameFrom.trim();
-      db.users.forEach((u) => {
-        const uCanonEq = getCanonicalDuplaName(u.equipe || '') || (u.equipe || '').trim();
-        if (
-          normalizeAccents(uCanonEq) === normalizeAccents(canonFrom) ||
-          normalizeAccents(u.equipe || '') === normalizeAccents(renameFrom)
-        ) {
-          u.equipe = nextDupla;
-        }
-      });
+
+      if (db.duplaEmailsMap && db.duplaEmailsMap[renameFrom]) {
+        db.duplaEmailsMap[nextDupla] = db.duplaEmailsMap[renameFrom];
+        delete db.duplaEmailsMap[renameFrom];
+      }
+
+      const renameInUserList = (list?: StoredUser[]) => {
+        if (!Array.isArray(list)) return;
+        list.forEach((u) => {
+          const uCanonEq = getCanonicalDuplaName(u.equipe || '') || (u.equipe || '').trim();
+          if (
+            normalizeAccents(uCanonEq) === normalizeAccents(canonFrom) ||
+            normalizeAccents(u.equipe || '') === normalizeAccents(renameFrom)
+          ) {
+            u.equipe = nextDupla;
+          }
+        });
+      };
+      renameInUserList(db.users);
+      renameInUserList(db.ericssonUsers);
+
       db.sites.forEach((s) => {
-        if (vendor && s.vendor !== vendor) return;
         if (s.sheetName === 'Equipes' || s.sheetName === 'Controle Cancelados') return;
         if (doesSiteMatchEquipe(s, renameFrom) || doesSiteMatchResponsible(s, renameFrom)) {
           s.equipeParceira = nextDupla;
@@ -3023,6 +3652,26 @@ async function startServer() {
           updatedCount++;
         }
       });
+
+      if (Array.isArray(db.ericssonRows)) {
+        db.ericssonRows.forEach((r) => {
+          const rEq = (r.equipe || r.fields?.['EQUIPE'] || '').trim();
+          const rCanon = getCanonicalDuplaName(rEq) || rEq;
+          if (
+            rEq &&
+            (normalizeAccents(rCanon) === normalizeAccents(canonFrom) ||
+              normalizeAccents(rEq) === normalizeAccents(renameFrom))
+          ) {
+            r.equipe = nextDupla;
+            r.fields = {
+              ...(r.fields || {}),
+              EQUIPE: nextDupla,
+            };
+            r.updatedAt = now;
+            updatedCount++;
+          }
+        });
+      }
     } else if (
       (clearAllForResponsible && clearAllForResponsible.trim()) ||
       (Array.isArray(unassignSiteTokens) && unassignSiteTokens.length > 0)
@@ -3035,85 +3684,190 @@ async function startServer() {
       );
       const targetDupla = (clearAllForResponsible || '').trim();
       const canonTargetDupla = getCanonicalDuplaName(targetDupla) || targetDupla;
-      const linkedUsersForDupla = hasClearAll
-        ? db.users.filter((u) => {
-            const uEq = getCanonicalDuplaName(u.equipe || '') || (u.equipe || '').trim();
-            return normalizeAccents(uEq) === normalizeAccents(canonTargetDupla);
-          })
-        : [];
 
-      db.sites.forEach((s) => {
-        if (vendor && s.vendor !== vendor) return;
-        if (s.sheetName === 'Equipes' || s.sheetName === 'Controle Cancelados') return;
+      if (vendor === 'ERICSSON') {
+        if (Array.isArray(db.ericssonRows)) {
+          db.ericssonRows.forEach((r) => {
+            const rEq = (r.equipe || r.fields?.['EQUIPE'] || '').trim();
+            const rCanon = getCanonicalDuplaName(rEq) || rEq;
+            const matchesToken =
+              tokenSet.size > 0 &&
+              (tokenSet.has(r.id.toUpperCase()) ||
+                (r.siteIdA && tokenSet.has(r.siteIdA.trim().toUpperCase())) ||
+                (r.siteIdB && tokenSet.has(r.siteIdB.trim().toUpperCase())) ||
+                (r.siteName && tokenSet.has(r.siteName.trim().toUpperCase())) ||
+                (r.chaves && tokenSet.has(r.chaves.trim().toUpperCase())));
+            const matchesClearTarget =
+              hasClearAll &&
+              rEq !== '' &&
+              (normalizeAccents(rCanon) === normalizeAccents(canonTargetDupla) ||
+                normalizeAccents(rEq) === normalizeAccents(targetDupla));
 
-        const matchesToken =
-          tokenSet.size > 0 &&
-          (tokenSet.has(s.id.toUpperCase()) || tokenSet.has(s.siteId.trim().toUpperCase()));
-
-        const matchesClearTarget =
-          hasClearAll &&
-          (doesSiteMatchEquipe(s, targetDupla) ||
-            doesSiteMatchResponsible(s, targetDupla) ||
-            linkedUsersForDupla.some((u) => doesSiteMatchResponsible(s, u)));
-
-        if (matchesToken || matchesClearTarget) {
-          s.equipeParceira = '';
-          s.responsavelCampo = '';
-          s.customFields = {
-            ...(s.customFields || {}),
-            'EQUIPE EXECUTANTE': '',
-            Executor: '',
-            Responsável: '',
-            'E-MAIL DUPLA': '',
-            ...(s.customFields && 'EQUIPE' in s.customFields ? { EQUIPE: '' } : {}),
-            ...(s.customFields && 'TalonView Executor' in s.customFields
-              ? { 'TalonView Executor': '' }
-              : {}),
-            ...(s.customFields && 'EMAIL_DUPLA' in s.customFields ? { EMAIL_DUPLA: '' } : {}),
-          };
-          s.updatedAt = now;
-          updatedCount++;
+            if (matchesToken || matchesClearTarget) {
+              r.equipe = '';
+              r.fields = {
+                ...(r.fields || {}),
+                EQUIPE: '',
+                'E-MAIL DUPLA': '',
+              };
+              r.updatedAt = now;
+              updatedCount++;
+            }
+          });
         }
-      });
+      } else {
+        const linkedUsersForDupla = hasClearAll
+          ? db.users.filter((u) => {
+              const uEq = getCanonicalDuplaName(u.equipe || '') || (u.equipe || '').trim();
+              return normalizeAccents(uEq) === normalizeAccents(canonTargetDupla);
+            })
+          : [];
+
+        db.sites.forEach((s) => {
+          if (vendor && s.vendor !== vendor) return;
+          if (s.sheetName === 'Equipes' || s.sheetName === 'Controle Cancelados') return;
+
+          const matchesToken =
+            tokenSet.size > 0 &&
+            (tokenSet.has(s.id.toUpperCase()) || tokenSet.has(s.siteId.trim().toUpperCase()));
+
+          const matchesClearTarget =
+            hasClearAll &&
+            (doesSiteMatchEquipe(s, targetDupla) ||
+              doesSiteMatchResponsible(s, targetDupla) ||
+              linkedUsersForDupla.some((u) => doesSiteMatchResponsible(s, u)));
+
+          if (matchesToken || matchesClearTarget) {
+            s.equipeParceira = '';
+            s.responsavelCampo = '';
+            s.customFields = {
+              ...(s.customFields || {}),
+              'EQUIPE EXECUTANTE': '',
+              Executor: '',
+              Responsável: '',
+              'E-MAIL DUPLA': '',
+              ...(s.customFields && 'EQUIPE' in s.customFields ? { EQUIPE: '' } : {}),
+              ...(s.customFields && 'TalonView Executor' in s.customFields
+                ? { 'TalonView Executor': '' }
+                : {}),
+              ...(s.customFields && 'EMAIL_DUPLA' in s.customFields ? { EMAIL_DUPLA: '' } : {}),
+            };
+            s.updatedAt = now;
+            updatedCount++;
+          }
+        });
+      }
     } else if (Array.isArray(siteTokens) && siteTokens.length > 0) {
       const tokenSet = new Set(
         siteTokens.map((t) => String(t || '').trim().toUpperCase()).filter(Boolean)
       );
       const nextResp = (responsibleName || '').trim();
       const canonNextResp = getCanonicalDuplaName(nextResp) || nextResp;
+      const allUsersCombined = [...db.users, ...(db.ericssonUsers || [])];
       const autoLinkedEmails =
         Array.isArray(linkedEmails) && linkedEmails.length > 0
           ? linkedEmails
-          : db.users
-              .filter((u) => {
-                const uEq = getCanonicalDuplaName(u.equipe || '') || (u.equipe || '').trim();
-                return normalizeAccents(uEq) === normalizeAccents(canonNextResp);
-              })
-              .map((u) => u.email.toLowerCase());
+          : Array.from(
+              new Set(
+                allUsersCombined
+                  .filter((u) => {
+                    const uEq = getCanonicalDuplaName(u.equipe || '') || (u.equipe || '').trim();
+                    return normalizeAccents(uEq) === normalizeAccents(canonNextResp);
+                  })
+                  .map((u) => u.email.toLowerCase())
+              )
+            );
       const emailStr = autoLinkedEmails.join(', ');
 
-      db.sites.forEach((s) => {
-        if (vendor && s.vendor !== vendor) return;
-        if (s.sheetName === 'Equipes' || s.sheetName === 'Controle Cancelados') return;
-        if (tokenSet.has(s.id.toUpperCase()) || tokenSet.has(s.siteId.trim().toUpperCase())) {
-          s.equipeParceira = nextResp;
-          s.responsavelCampo = nextResp;
-          s.customFields = {
-            ...(s.customFields || {}),
-            'EQUIPE EXECUTANTE': nextResp,
-            Executor: nextResp,
-            Responsável: nextResp,
-            'E-MAIL DUPLA': emailStr,
-          };
-          s.updatedAt = now;
-          updatedCount++;
+      const demandedSiteIds: string[] = [];
+
+      if (vendor === 'ERICSSON') {
+        if (Array.isArray(db.ericssonRows)) {
+          db.ericssonRows.forEach((r) => {
+            const matchRow =
+              tokenSet.has(r.id.toUpperCase()) ||
+              (r.siteIdA && tokenSet.has(r.siteIdA.trim().toUpperCase())) ||
+              (r.siteIdB && tokenSet.has(r.siteIdB.trim().toUpperCase())) ||
+              (r.siteName && tokenSet.has(r.siteName.trim().toUpperCase())) ||
+              (r.chaves && tokenSet.has(r.chaves.trim().toUpperCase()));
+            if (matchRow) {
+              r.equipe = nextResp;
+              r.fields = {
+                ...(r.fields || {}),
+                EQUIPE: nextResp,
+                'E-MAIL DUPLA': emailStr,
+              };
+              r.updatedAt = now;
+              updatedCount++;
+              const label = r.siteIdA || r.siteIdB || r.siteName || r.chaves;
+              if (label && !demandedSiteIds.includes(label)) {
+                demandedSiteIds.push(label);
+              }
+            }
+          });
         }
-      });
+      } else {
+        db.sites.forEach((s) => {
+          if (vendor && s.vendor !== vendor) return;
+          if (s.sheetName === 'Equipes' || s.sheetName === 'Controle Cancelados') return;
+          if (tokenSet.has(s.id.toUpperCase()) || tokenSet.has(s.siteId.trim().toUpperCase())) {
+            s.equipeParceira = nextResp;
+            s.responsavelCampo = nextResp;
+            s.customFields = {
+              ...(s.customFields || {}),
+              'EQUIPE EXECUTANTE': nextResp,
+              Executor: nextResp,
+              Responsável: nextResp,
+              'E-MAIL DUPLA': emailStr,
+            };
+            s.updatedAt = now;
+            updatedCount++;
+            demandedSiteIds.push(s.siteId);
+          }
+        });
+      }
+
+      if (updatedCount > 0 && nextResp) {
+        const previewIds = demandedSiteIds.slice(0, 6).join(', ');
+        const extraLabel =
+          demandedSiteIds.length > 6 ? ` (+${demandedSiteIds.length - 6})` : '';
+        pushNotification(db, {
+          type: 'SITE_DEMANDADO_EXECUTOR',
+          vendor: vendor || 'NOKIA',
+          title: `${updatedCount} Site(s) Demandado(s) para ${nextResp} (${
+            vendor === 'ERICSSON' ? 'Ericsson' : 'TIM/Nokia'
+          })`,
+          message: `Os sites [${previewIds}${extraLabel}] (${
+            vendor === 'ERICSSON' ? 'Ericsson' : 'TIM/Nokia'
+          }) foram demandados para a equipe "${nextResp}".`,
+          siteId: demandedSiteIds[0],
+          actorName: 'Coordenação / ADM',
+          actorEmail: 'coordenacao@ameta.com.br',
+          targetRoles: ['Executor', 'Vistoriador'],
+          targetEquipes: [nextResp],
+          targetEmails: autoLinkedEmails,
+        });
+
+        pushNotification(db, {
+          type: 'EXECUTOR_ATUALIZOU_EQUIPE',
+          vendor: vendor || 'NOKIA',
+          title: `Equipe Atualizada: ${nextResp} (${updatedCount} site(s) ${
+            vendor === 'ERICSSON' ? 'Ericsson' : 'TIM/Nokia'
+          })`,
+          message: `A equipe "${nextResp}" foi atribuída aos sites [${previewIds}${extraLabel}] na plataforma ${
+            vendor === 'ERICSSON' ? 'Ericsson' : 'TIM/Nokia'
+          }.`,
+          siteId: demandedSiteIds[0],
+          actorName: 'Coordenação / ADM',
+          actorEmail: 'coordenacao@ameta.com.br',
+          targetRoles: ['Coordenador Geral', 'Coordenador Engenharia', 'ADM'],
+        });
+      }
     }
 
     saveDatabase(db);
     broadcastUpdate({
-      type: 'FULL_STATE',
+      type: vendor === 'ERICSSON' ? 'ERICSSON_UPDATED' : 'FULL_STATE',
       timestamp: now,
       vendor,
       summary: clearAllForResponsible
@@ -3121,7 +3875,14 @@ async function startServer() {
         : `${updatedCount} site(s) atualizado(s) para Equipe/Dupla ${responsibleName || renameTo || '—'}`,
     });
 
-    res.json({ updatedCount, sites: db.sites, users: db.users.map(sanitizeUser) });
+    res.json({
+      updatedCount,
+      sites: db.sites,
+      ericssonRows: db.ericssonRows || [],
+      users: db.users.map(sanitizeUser),
+      ericssonUsers: (db.ericssonUsers || []).map(sanitizeUser),
+      notifications: db.notifications || [],
+    });
   });
 
   app.post('/api/sites/import-onedrive', async (req, res) => {
@@ -3805,6 +4566,10 @@ async function startServer() {
     if (typeof updates.equipe === 'string') mergedFields['EQUIPE'] = updates.equipe.trim();
     if (typeof updates.servico === 'string') mergedFields['Serviço'] = updates.servico.trim();
 
+    const prevEquipe = (target.equipe || '').trim();
+    const prevStatusA = (target.statusA || '').trim();
+    const prevStatusB = (target.statusB || '').trim();
+
     target.fields = mergedFields;
     target.chaves = mergedFields['01.00. Chaves'] || target.chaves;
     target.state = mergedFields['00.03.State'] || target.state;
@@ -3832,6 +4597,43 @@ async function startServer() {
       target.siteIdB
     );
     target.updatedAt = now;
+
+    const nextEquipe = (target.equipe || '').trim();
+    const pairLabel =
+      target.siteIdA && target.siteIdB
+        ? `${target.siteIdA} ↔ ${target.siteIdB}`
+        : target.siteIdA || target.siteIdB || target.chaves;
+
+    if (nextEquipe && nextEquipe.toLowerCase() !== prevEquipe.toLowerCase()) {
+      pushNotification(db, {
+        type: 'SITE_DEMANDADO_EXECUTOR',
+        vendor: 'ERICSSON',
+        title: `Site Demandado (Ericsson): ${pairLabel}`,
+        message: `O enlace/site ${pairLabel} foi demandado para a equipe "${nextEquipe}" na plataforma Ericsson.`,
+        siteId: pairLabel,
+        actorName: 'Coordenação Ericsson',
+        actorEmail: 'coord.geral.ericsson@ameta.com.br',
+        targetRoles: ['Executor', 'Vistoriador'],
+        targetEquipes: [nextEquipe],
+      });
+    }
+
+    if (
+      nextEquipe !== prevEquipe ||
+      target.statusA !== prevStatusA ||
+      target.statusB !== prevStatusB
+    ) {
+      pushNotification(db, {
+        type: 'EXECUTOR_ATUALIZOU_EQUIPE',
+        vendor: 'ERICSSON',
+        title: `Atualização de Equipe / Enlace: ${pairLabel}`,
+        message: `O enlace ${pairLabel} (Equipe: ${nextEquipe || 'Sem equipe'}) teve atualização de equipe/status (${target.statusA} / ${target.statusB}).`,
+        siteId: pairLabel,
+        actorName: nextEquipe || 'Executor Ericsson',
+        actorEmail: 'executor@ameta.com.br',
+        targetRoles: ['Coordenador Geral', 'Coordenador Engenharia', 'ADM'],
+      });
+    }
 
     saveDatabase(db);
     broadcastUpdate({
@@ -3895,9 +4697,10 @@ async function startServer() {
       notes,
       uploadedByName,
       uploadedByEmail,
+      uploadedByRole,
     } = req.body as {
       rowId?: string;
-      targetSide?: 'A' | 'B' | 'LOS' | 'BOTH';
+      targetSide?: 'A' | 'B' | 'LOS' | 'BOTH' | 'TSSR';
       linkedSiteId?: string;
       folderId?: string;
       assignedTo?: string;
@@ -3923,7 +4726,34 @@ async function startServer() {
       notes?: string;
       uploadedByName?: string;
       uploadedByEmail?: string;
+      uploadedByRole?: string;
     };
+
+    const resolvedEricRole =
+      uploadedByRole ||
+      db.users.find(
+        (u) => u.email.toLowerCase() === String(uploadedByEmail || '').trim().toLowerCase()
+      )?.role ||
+      '';
+
+    if (
+      resolvedEricRole === 'Vistoriador' &&
+      (targetSide === 'TSSR' || String(notes || '').toUpperCase().includes('[TSSR]'))
+    ) {
+      res.status(403).json({
+        error:
+          'O perfil Vistoriador não tem permissão para subir TSSR. Apenas o Executor pode subir TSSR.',
+      });
+      return;
+    }
+
+    if (resolvedEricRole === 'Executor' && targetSide !== 'TSSR') {
+      res.status(403).json({
+        error:
+          'O perfil Executor não tem permissão para subir Vistoria ou LOS. O Executor pode subir apenas TSSR.',
+      });
+      return;
+    }
 
     const filesToProcess =
       Array.isArray(incomingFiles) && incomingFiles.length > 0
@@ -4064,13 +4894,15 @@ async function startServer() {
       const { fileType, extension } = detectFileType(cleanName);
 
       const resolvedSiteTag =
-        targetSide === 'A'
-          ? `${targetRow.siteIdA || pairLabel} [Vistoria A]`
-          : targetSide === 'B'
-          ? `${targetRow.siteIdB || pairLabel} [Vistoria B]`
-          : targetSide === 'LOS'
-          ? `${linkedSiteId || targetRow.siteIdA || pairLabel} [LOS]`
-          : pairLabel;
+        targetSide === 'TSSR'
+          ? `${linkedSiteId || targetRow.siteIdA || pairLabel} [TSSR]`
+          : targetSide === 'A'
+            ? `${targetRow.siteIdA || pairLabel} [Vistoria A]`
+            : targetSide === 'B'
+              ? `${targetRow.siteIdB || pairLabel} [Vistoria B]`
+              : targetSide === 'LOS'
+                ? `${linkedSiteId || targetRow.siteIdA || pairLabel} [LOS]`
+                : pairLabel;
 
       const newFileRecord: EngineeringFile = {
         id: fileId,
@@ -4085,9 +4917,11 @@ async function startServer() {
         tssrRowId: targetRow.id,
         notes:
           notes?.trim() ||
-          (targetSide === 'LOS'
-            ? `LOS Ericsson (${linkedSiteId || pairLabel})`
-            : `Vistoria Site ${targetSide} (${pairLabel})`),
+          (targetSide === 'TSSR'
+            ? `[TSSR] Pacote TSSR Ericsson (${linkedSiteId || pairLabel})`
+            : targetSide === 'LOS'
+              ? `LOS Ericsson (${linkedSiteId || pairLabel})`
+              : `Vistoria Site ${targetSide} (${pairLabel})`),
         assignedTo: assignedTo?.trim() || undefined,
         uploadedByName: uploadedByName.trim(),
         uploadedByEmail: uploadedByEmail?.trim() || 'vistoria@ameta.com.br',
@@ -4159,6 +4993,41 @@ async function startServer() {
         uploadedByEmail?.trim() || 'vistoria@ameta.com.br';
     }
     targetRow.updatedAt = now;
+
+    const folderObj = (db.ericssonFolders || []).find((f) => f.id === targetFolderId);
+    const isEricTssr =
+      targetSide === 'TSSR' ||
+      (primaryFile.fileName || '').toUpperCase().includes('TSSR') ||
+      (notes || '').toUpperCase().includes('TSSR') ||
+      (folderObj?.name || '').toUpperCase().includes('TSSR');
+
+    if (isEricTssr) {
+      pushNotification(db, {
+        type: 'TSSR_ENVIADO_EXECUTOR',
+        vendor: 'ERICSSON',
+        title: `TSSR Enviado na Ericsson (${pairLabel})`,
+        message: `${uploadedByName.trim()} subiu o arquivo TSSR "${primaryFile.fileName}" do site/enlace ${pairLabel} para revisão da Coordenação de Engenharia Ericsson.`,
+        siteId: pairLabel,
+        fileName: primaryFile.fileName,
+        actorName: uploadedByName.trim(),
+        actorEmail: uploadedByEmail?.trim() || 'executor@ameta.com.br',
+        targetRoles: ['Coordenador Engenharia', 'Coordenador Geral', 'ADM'],
+      });
+    } else {
+      pushNotification(db, {
+        type: 'VISTORIA_OK_PASTA',
+        vendor: 'ERICSSON',
+        title: `Vistoria na Pasta Ericsson — Status OK (${pairLabel})`,
+        message: `${uploadedByName.trim()} enviou o arquivo "${primaryFile.fileName}" para a pasta "${
+          folderObj?.name || 'Vistoria Ericsson'
+        }" e o status do site ${pairLabel} mudou para OK (Entregue).`,
+        siteId: pairLabel,
+        fileName: primaryFile.fileName,
+        actorName: uploadedByName.trim(),
+        actorEmail: uploadedByEmail?.trim() || 'vistoria@ameta.com.br',
+        targetRoles: ['Coordenador Engenharia', 'Coordenador Geral', 'ADM'],
+      });
+    }
 
     saveDatabase(db);
     broadcastUpdate({
@@ -4632,6 +5501,29 @@ async function startServer() {
     }
 
     targetRow.updatedAt = now;
+
+    const isNowOk =
+      targetRow.siteAVistoriaStatus === 'Entregue' ||
+      targetRow.siteBVistoriaStatus === 'Entregue' ||
+      targetRow.losStatus === 'Entregue';
+    const pairLabelToggle =
+      targetRow.siteIdA && targetRow.siteIdB
+        ? `${targetRow.siteIdA} ↔ ${targetRow.siteIdB}`
+        : targetRow.siteIdA || targetRow.siteIdB || targetRow.chaves;
+
+    if (isNowOk) {
+      pushNotification(db, {
+        type: 'VISTORIA_OK_PASTA',
+        vendor: 'ERICSSON',
+        title: `Status OK na Engenharia Ericsson (${pairLabelToggle})`,
+        message: `${actorName || 'Equipe'} alterou o status da vistoria de ${pairLabelToggle} para OK (Entregue).`,
+        siteId: pairLabelToggle,
+        actorName: actorName || 'Equipe Ericsson',
+        actorEmail: actorEmail || 'vistoria@ameta.com.br',
+        targetRoles: ['Coordenador Engenharia', 'Coordenador Geral', 'ADM'],
+      });
+    }
+
     saveDatabase(db);
 
     broadcastUpdate({
@@ -4644,6 +5536,7 @@ async function startServer() {
     res.json({
       row: targetRow,
       ericssonRows: db.ericssonRows,
+      notifications: db.notifications || [],
     });
   });
 
@@ -4794,7 +5687,10 @@ async function startServer() {
     }
 
     const validRole: UserRole =
-      role && ['ADM', 'Executor', 'Vistoriador'].includes(role) ? role : 'Vistoriador';
+      role &&
+      ['Coordenador Geral', 'Coordenador Engenharia', 'Executor', 'Vistoriador'].includes(role)
+        ? role
+        : 'Vistoriador';
 
     const newUserId = `eric-usr-${Date.now()}`;
     const baseDocs = ensureUserMandatoryDocuments(documents);
@@ -4893,8 +5789,14 @@ async function startServer() {
       return;
     }
 
-    if (role && ['ADM', 'Executor', 'Vistoriador'].includes(role)) {
-      target.role = role;
+    if (
+      role &&
+      ['ADM', 'Coordenador Geral', 'Coordenador Engenharia', 'Executor', 'Vistoriador'].includes(
+        role
+      )
+    ) {
+      target.role =
+        role === 'ADM' && !isOwnerAdmUser(target.email) ? 'Coordenador Geral' : role;
     }
     if (typeof equipe === 'string') {
       target.equipe = equipe.trim();
@@ -4991,7 +5893,31 @@ async function startServer() {
       }
     });
 
+    if (updatedCount > 0) {
+      pushNotification(db, {
+        type: 'SITE_DEMANDADO_EXECUTOR',
+        vendor: 'ERICSSON',
+        title: `${updatedCount} Enlace(s) Demandado(s) para ${cleanEquipe}`,
+        message: `A equipe "${cleanEquipe}" recebeu ${updatedCount} enlace(s)/site(s) para execução na plataforma Ericsson.`,
+        actorName: 'Coordenação Ericsson',
+        actorEmail: 'coord.geral.ericsson@ameta.com.br',
+        targetRoles: ['Executor', 'Vistoriador'],
+        targetEquipes: [cleanEquipe],
+      });
+
+      pushNotification(db, {
+        type: 'EXECUTOR_ATUALIZOU_EQUIPE',
+        vendor: 'ERICSSON',
+        title: `Equipe Ericsson Atualizada: ${cleanEquipe}`,
+        message: `${updatedCount} enlace(s) foram atribuídos para a equipe "${cleanEquipe}" na Ericsson.`,
+        actorName: 'Coordenação Ericsson',
+        actorEmail: 'coord.geral.ericsson@ameta.com.br',
+        targetRoles: ['Coordenador Geral', 'Coordenador Engenharia', 'ADM'],
+      });
+    }
+
     saveDatabase(db);
+
     broadcastUpdate({
       type: 'ERICSSON_UPDATED',
       timestamp: now,
@@ -5002,6 +5928,7 @@ async function startServer() {
     res.json({
       updatedCount,
       ericssonRows: db.ericssonRows,
+      notifications: db.notifications || [],
     });
   });
 

@@ -186,14 +186,70 @@ export interface SpreadsheetMeta {
   columns?: string[]; // Ordered headers from Coluna A to Observação
 }
 
-export type UserRole = 'ADM' | 'Executor' | 'Vistoriador';
+export type UserRole =
+  | 'ADM'
+  | 'Coordenador Geral'
+  | 'Coordenador Engenharia'
+  | 'Executor'
+  | 'Vistoriador';
 
-export function normalizeUserRole(raw?: string): UserRole {
+export type AssignedPlatformScope = 'NOKIA' | 'ERICSSON' | 'BOTH';
+
+export const OWNER_ADM_EMAILS = [
+  'rafael.araujo@ameta.com.br',
+  'rafael.araujo0797@gmail.com',
+];
+
+export function isOwnerAdmUser(email?: string | null): boolean {
+  if (!email) return false;
+  const clean = email.trim().toLowerCase();
+  return OWNER_ADM_EMAILS.includes(clean);
+}
+
+export function normalizeUserRole(raw?: string, email?: string): UserRole {
+  if (email && isOwnerAdmUser(email)) {
+    return 'ADM';
+  }
   if (!raw) return 'Executor';
-  const r = raw.trim().toLowerCase();
-  if (r === 'adm' || r.includes('admin')) return 'ADM';
-  if (r.includes('vistori')) return 'Vistoriador';
+  const r = raw
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+
+  // Only the Owner (Rafael Araújo) can be ADM; any other user previously marked ADM becomes Coordenador Geral
+  if (r === 'adm' || r.includes('admin')) {
+    return email && !isOwnerAdmUser(email) ? 'Coordenador Geral' : 'ADM';
+  }
+  if (r.includes('engenharia') && (r.includes('coord') || r.includes('coordenador'))) {
+    return 'Coordenador Engenharia';
+  }
+  if (r.includes('coord') || r.includes('coordenador')) {
+    return 'Coordenador Geral';
+  }
+  if (r.includes('vistori')) {
+    return 'Vistoriador';
+  }
   return 'Executor';
+}
+
+export function hasFullSpreadsheetAccess(role: UserRole): boolean {
+  return role === 'ADM' || role === 'Coordenador Geral';
+}
+
+export function isEngineeringCoordinatorRole(role: UserRole): boolean {
+  return role === 'Coordenador Engenharia';
+}
+
+export function canUserAccessVendor(
+  user: AmetaUser | null | undefined,
+  vendor: VendorType
+): boolean {
+  if (!user) return false;
+  if (isOwnerAdmUser(user.email) || user.role === 'ADM') return true;
+  const scope = user.assignedPlatform || user.preferredVendor || 'NOKIA';
+  if (scope === 'BOTH') return true;
+  return scope === vendor;
 }
 
 export type MandatoryDocType =
@@ -367,6 +423,10 @@ export interface AmetaUser {
   name: string;
   email: string;
   role: UserRole;
+  assignedPlatform?: AssignedPlatformScope; // 'NOKIA' (TIM/Nokia), 'ERICSSON', or 'BOTH'
+  accessReleased?: boolean; // Released/approved by ADM Dono
+  releasedByEmail?: string;
+  releasedAt?: string;
   equipe?: string;
   telefone?: string;
   cpf?: string;
@@ -380,6 +440,94 @@ export interface AmetaUser {
   verifiedAt?: string;
   preferredVendor?: VendorType;
   createdAt: string;
+}
+
+export type NotificationEventType =
+  | 'SITE_DEMANDADO_EXECUTOR'
+  | 'EXECUTOR_ATUALIZOU_EQUIPE'
+  | 'VISTORIA_OK_PASTA'
+  | 'TSSR_ENVIADO_EXECUTOR'
+  | 'PERMISSAO_LIBERADA_ADM';
+
+export interface AmetaNotification {
+  id: string;
+  type: NotificationEventType;
+  vendor: VendorType; // 'NOKIA' (TIM/Nokia) or 'ERICSSON'
+  title: string;
+  message: string;
+  siteId?: string;
+  fileName?: string;
+  actorName: string;
+  actorEmail: string;
+  actorRole?: UserRole;
+  targetRoles: UserRole[];
+  targetEquipes?: string[];
+  targetEmails?: string[];
+  readByEmails: string[];
+  createdAt: string;
+}
+
+export function doesNotificationMatchUser(
+  notif: AmetaNotification,
+  user: AmetaUser | null | undefined,
+  effectiveRole: UserRole,
+  activeVendor?: VendorType
+): boolean {
+  if (!user) return false;
+
+  const userEmail = (user.email || '').trim().toLowerCase();
+
+  // Direct email match
+  if (
+    Array.isArray(notif.targetEmails) &&
+    notif.targetEmails.length > 0 &&
+    notif.targetEmails.some((e) => e.trim().toLowerCase() === userEmail)
+  ) {
+    return true;
+  }
+
+  // ADM Dono (when not simulating another role) sees all notifications for the active platform (or all)
+  if (effectiveRole === 'ADM' && isOwnerAdmUser(user.email)) {
+    if (activeVendor && notif.vendor !== activeVendor) {
+      return false;
+    }
+    return true;
+  }
+
+  // Platform check: Each platform has its own Coordinator, Engineering Coordinator, and Executor
+  const allowedPlatform = user.assignedPlatform || user.preferredVendor;
+  if (allowedPlatform && allowedPlatform !== 'BOTH' && notif.vendor !== allowedPlatform) {
+    return false;
+  }
+  if (activeVendor && notif.vendor !== activeVendor) {
+    return false;
+  }
+
+  if (!Array.isArray(notif.targetRoles) || !notif.targetRoles.includes(effectiveRole)) {
+    return false;
+  }
+
+  // If role is Executor and notification specifies targetEquipes, verify team/name match
+  if (
+    effectiveRole === 'Executor' &&
+    Array.isArray(notif.targetEquipes) &&
+    notif.targetEquipes.length > 0
+  ) {
+    const cleanUserEquipe = (user.equipe || '').trim().toLowerCase();
+    const cleanUserName = (user.name || '').trim().toLowerCase();
+    const matchesTeam = notif.targetEquipes.some((eq) => {
+      const target = (eq || '').trim().toLowerCase();
+      if (!target) return false;
+      return (
+        (cleanUserEquipe &&
+          (cleanUserEquipe.includes(target) || target.includes(cleanUserEquipe))) ||
+        (cleanUserName && (cleanUserName.includes(target) || target.includes(cleanUserName)))
+      );
+    });
+    return matchesTeam;
+  }
+
+  return true;
 }
 
 export interface EngineeringFolder {

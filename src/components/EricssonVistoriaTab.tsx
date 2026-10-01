@@ -91,28 +91,34 @@ export const EricssonVistoriaTab: React.FC<EricssonVistoriaTabProps> = ({
   onUpdated,
   onOpenSitesTab,
 }) => {
-  const isAdmin = effectiveRole === 'ADM';
+  const isAdmin =
+    effectiveRole === 'ADM' ||
+    effectiveRole === 'Coordenador Geral' ||
+    effectiveRole === 'Coordenador Engenharia';
   const isVistoriador = effectiveRole === 'Vistoriador';
+  const isExecutor = effectiveRole === 'Executor';
+  const canUploadTssr = isExecutor || isAdmin;
+  const canUploadVistoria = isVistoriador || isAdmin;
 
-  // Ericsson Vistoria folders only (exclude TSSR Entrada / TSSR engineering folders)
+  // Dedicated Ericsson folders (completely isolated from Nokia)
   const ericssonFolders = useMemo(() => {
-    const allEricsson = folders.filter((f) => f.vendor === 'ERICSSON');
-    const blockedRootIds = new Set(
-      allEricsson
-        .filter((f) => f.name === 'TSSR Entrada' || f.name === 'TSSR')
-        .map((f) => f.id)
-    );
-    let added = true;
-    while (added) {
-      added = false;
-      for (const f of allEricsson) {
-        if (f.parentId && blockedRootIds.has(f.parentId) && !blockedRootIds.has(f.id)) {
-          blockedRootIds.add(f.id);
-          added = true;
-        }
-      }
+    const list = folders.filter((f) => f.vendor === 'ERICSSON');
+    if (list.length === 0) {
+      return [
+        {
+          id: 'folder-ericsson-root',
+          parentId: null,
+          name: 'Vistoria Ericsson',
+          vendor: 'ERICSSON' as const,
+          description: 'Repositório exclusivo de Vistoria e LOS do sistema Ericsson',
+          createdByName: 'Rafael Araújo',
+          createdByEmail: 'rafael.araujo@ameta.com.br',
+          createdAt: '',
+          isSystem: true,
+        },
+      ];
     }
-    return allEricsson.filter((f) => !blockedRootIds.has(f.id));
+    return list;
   }, [folders]);
 
   const allowedFolderIds = useMemo(
@@ -121,20 +127,25 @@ export const EricssonVistoriaTab: React.FC<EricssonVistoriaTabProps> = ({
   );
 
   const ericssonFiles = useMemo(
-    () => files.filter((fl) => fl.vendor === 'ERICSSON' && allowedFolderIds.has(fl.folderId)),
+    () =>
+      files.filter(
+        (fl) =>
+          fl.vendor === 'ERICSSON' &&
+          (!fl.folderId || allowedFolderIds.has(fl.folderId) || fl.folderId === 'folder-ericsson-root')
+      ),
     [files, allowedFolderIds]
   );
 
   const rootVistoriasFolder = useMemo(
     () =>
-      ericssonFolders.find((f) => f.parentId === null && f.name === 'Vistorias') ||
+      ericssonFolders.find((f) => f.id === 'folder-ericsson-root' || f.parentId === null) ||
       ericssonFolders[0] ||
       null,
     [ericssonFolders]
   );
 
   const [currentFolderId, setCurrentFolderId] = useState<string>(
-    () => rootVistoriasFolder?.id || 'folder-ericsson-vistorias'
+    () => rootVistoriasFolder?.id || 'folder-ericsson-root'
   );
   const [highlightedFileId, setHighlightedFileId] = useState<string | null>(null);
   const [selectedFileIds, setSelectedFileIds] = useState<string[]>([]);
@@ -145,21 +156,12 @@ export const EricssonVistoriaTab: React.FC<EricssonVistoriaTabProps> = ({
     return found || rootVistoriasFolder;
   }, [ericssonFolders, currentFolderId, rootVistoriasFolder]);
 
-  const effectiveFolderId = activeFolder?.id || 'folder-ericsson-vistorias';
+  const effectiveFolderId = activeFolder?.id || 'folder-ericsson-root';
   const isAtRootVistorias = !activeFolder || activeFolder.parentId === null;
 
-  const uploadableFolders = useMemo(
-    () => ericssonFolders.filter((f) => f.parentId !== null),
-    [ericssonFolders]
-  );
+  const uploadableFolders = useMemo(() => ericssonFolders, [ericssonFolders]);
 
-  const creatableParentFolders = useMemo(
-    () =>
-      isAdmin
-        ? ericssonFolders
-        : ericssonFolders.filter((f) => f.parentId !== null),
-    [ericssonFolders, isAdmin]
-  );
+  const creatableParentFolders = useMemo(() => ericssonFolders, [ericssonFolders]);
 
   // Search & Uploader filters
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -175,10 +177,13 @@ export const EricssonVistoriaTab: React.FC<EricssonVistoriaTabProps> = ({
 
   // Upload Modal:
   // - uploadCategory: 'VISTORIA' (links to Site A or Site B; marks chosen side Entregue & other side Dispensado)
-  //                   or 'LOS' (links to Site ID A or B and marks LOS as Entregue)
+  //                   'LOS' (links to Site ID A or B and marks LOS as Entregue)
+  //                   'TSSR' (Executor/Admin only: links to Site ID A or B and uploads TSSR package)
   const [uploadModalOpen, setUploadModalOpen] = useState<boolean>(false);
   const [uploadTargetFolderId, setUploadTargetFolderId] = useState<string>('');
-  const [uploadCategory, setUploadCategory] = useState<'VISTORIA' | 'LOS'>('VISTORIA');
+  const [uploadCategory, setUploadCategory] = useState<'VISTORIA' | 'LOS' | 'TSSR'>(
+    effectiveRole === 'Executor' ? 'TSSR' : 'VISTORIA'
+  );
   const [selectedSiteSide, setSelectedSiteSide] = useState<'A' | 'B'>('A');
   const [selectedRowId, setSelectedRowId] = useState<string>('');
   const [siteSearchQuery, setSiteSearchQuery] = useState<string>('');
@@ -219,7 +224,7 @@ export const EricssonVistoriaTab: React.FC<EricssonVistoriaTabProps> = ({
       const resolvedFolderId =
         targetFile?.folderId ||
         focusedFolderId ||
-        'folder-ericsson-vistorias-executadas';
+        'folder-ericsson-root';
 
       setCurrentFolderId(resolvedFolderId);
       if (targetFile) {
@@ -294,10 +299,7 @@ export const EricssonVistoriaTab: React.FC<EricssonVistoriaTabProps> = ({
     const q = searchQuery.trim().toLowerCase();
     const base =
       isAtRootVistorias || q
-        ? ericssonFiles.filter((fl) => {
-            const folder = ericssonFolders.find((f) => f.id === fl.folderId);
-            return folder ? folder.parentId !== null : true;
-          })
+        ? ericssonFiles
         : ericssonFiles.filter((fl) => fl.folderId === effectiveFolderId);
 
     return base.filter((fl) => {
@@ -365,11 +367,7 @@ export const EricssonVistoriaTab: React.FC<EricssonVistoriaTabProps> = ({
   };
 
   const openCreateFolderModal = (parentId?: string) => {
-    const targetParent = parentId || effectiveFolderId;
-    const parentObj = ericssonFolders.find((f) => f.id === targetParent);
-    if ((!parentObj || parentObj.parentId === null) && !isAdmin) {
-      return;
-    }
+    const targetParent = parentId || effectiveFolderId || 'folder-ericsson-root';
     setNewFolderParentId(targetParent);
     setNewFolderName('');
     setNewFolderDescription('');
@@ -379,17 +377,22 @@ export const EricssonVistoriaTab: React.FC<EricssonVistoriaTabProps> = ({
 
   const openUploadModal = (
     targetFolderId?: string,
-    defaultCategory: 'VISTORIA' | 'LOS' = 'VISTORIA'
+    defaultCategory: 'VISTORIA' | 'LOS' | 'TSSR' = 'VISTORIA'
   ) => {
     const candidateId = targetFolderId || effectiveFolderId;
     const candidateFolder = ericssonFolders.find((f) => f.id === candidateId);
-    const safeTargetId =
-      candidateFolder && candidateFolder.parentId !== null
-        ? candidateFolder.id
-        : uploadableFolders[0]?.id || 'folder-ericsson-vistorias-executadas';
+    const safeTargetId = candidateFolder
+      ? candidateFolder.id
+      : uploadableFolders[0]?.id || 'folder-ericsson-root';
+
+    const resolvedCategory: 'VISTORIA' | 'LOS' | 'TSSR' = isExecutor
+      ? 'TSSR'
+      : isVistoriador && defaultCategory === 'TSSR'
+        ? 'VISTORIA'
+        : defaultCategory;
 
     setUploadTargetFolderId(safeTargetId);
-    setUploadCategory(defaultCategory);
+    setUploadCategory(resolvedCategory);
     setSelectedSiteSide('A');
     setSelectedRowId('');
     setSiteSearchQuery('');
@@ -400,7 +403,11 @@ export const EricssonVistoriaTab: React.FC<EricssonVistoriaTabProps> = ({
     setNewRowCidadeA('');
     setNewRowCidadeB('');
     setNewRowEquipe(user.equipe || '');
-    setUploadNotes('');
+    setUploadNotes(
+      resolvedCategory === 'TSSR'
+        ? '[TSSR] Enviado pelo Executor para Coordenação de Engenharia Ericsson'
+        : ''
+    );
     setPendingFiles([]);
     setUploadError(null);
     setUploadModalOpen(true);
@@ -446,17 +453,15 @@ export const EricssonVistoriaTab: React.FC<EricssonVistoriaTabProps> = ({
     }
     setCreatingFolder(true);
     try {
-      const res = await fetch('/api/engineering/folders', {
+      const res = await fetch('/api/ericsson/folders', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: newFolderName.trim(),
-          parentId: newFolderParentId || effectiveFolderId,
-          vendor: 'ERICSSON',
+          parentId: newFolderParentId || effectiveFolderId || 'folder-ericsson-root',
           description: newFolderDescription.trim(),
           createdByName: user.name,
           createdByEmail: user.email,
-          createdByRole: user.role,
         }),
       });
       const data = await res.json();
@@ -467,9 +472,9 @@ export const EricssonVistoriaTab: React.FC<EricssonVistoriaTabProps> = ({
       onUpdated(
         rows,
         sheetMeta,
-        `Pasta "${data.folder.name}" criada com sucesso!`,
-        data.engineeringFolders,
-        data.engineeringFiles
+        `Pasta Ericsson "${data.folder.name}" criada com sucesso!`,
+        data.ericssonFolders,
+        data.ericssonFiles
       );
       setNewFolderModalOpen(false);
     } catch {
@@ -482,6 +487,19 @@ export const EricssonVistoriaTab: React.FC<EricssonVistoriaTabProps> = ({
   const handleUploadSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setUploadError(null);
+
+    if (isVistoriador && uploadCategory === 'TSSR') {
+      setUploadError(
+        'O perfil Vistoriador não tem permissão para subir TSSR. Apenas o Executor pode subir TSSR.'
+      );
+      return;
+    }
+    if (isExecutor && uploadCategory !== 'TSSR') {
+      setUploadError(
+        'O perfil Executor não tem permissão para subir Vistoria ou LOS. O Executor pode subir apenas TSSR.'
+      );
+      return;
+    }
 
     if (!selectedRowId && !createNewRowMode) {
       setUploadError(
@@ -500,9 +518,13 @@ export const EricssonVistoriaTab: React.FC<EricssonVistoriaTabProps> = ({
       return;
     }
 
-    // Determine targetSide ('A', 'B', or 'LOS') and linkedSiteId
-    const effectiveTargetSide: 'A' | 'B' | 'LOS' =
-      uploadCategory === 'LOS' ? 'LOS' : selectedSiteSide;
+    // Determine targetSide ('A', 'B', 'LOS', or 'TSSR') and linkedSiteId
+    const effectiveTargetSide: 'A' | 'B' | 'LOS' | 'TSSR' =
+      uploadCategory === 'TSSR'
+        ? 'TSSR'
+        : uploadCategory === 'LOS'
+          ? 'LOS'
+          : selectedSiteSide;
 
     const linkedSiteId = createNewRowMode
       ? selectedSiteSide === 'B' && newRowSiteIdB.trim()
@@ -523,7 +545,7 @@ export const EricssonVistoriaTab: React.FC<EricssonVistoriaTabProps> = ({
           rowId: createNewRowMode ? undefined : selectedRowId,
           targetSide: effectiveTargetSide,
           linkedSiteId,
-          folderId: uploadTargetFolderId || 'folder-ericsson-vistorias-executadas',
+          folderId: uploadTargetFolderId || 'folder-ericsson-root',
           createNewRow: createNewRowMode,
           newRowData: createNewRowMode
             ? {
@@ -540,6 +562,7 @@ export const EricssonVistoriaTab: React.FC<EricssonVistoriaTabProps> = ({
           notes: uploadNotes.trim() || undefined,
           uploadedByName: user.name,
           uploadedByEmail: user.email,
+          uploadedByRole: effectiveRole,
         }),
       });
 
@@ -551,7 +574,9 @@ export const EricssonVistoriaTab: React.FC<EricssonVistoriaTabProps> = ({
 
       const updatedRow = data.row as EricssonRow;
       let toastMessage = '';
-      if (effectiveTargetSide === 'A') {
+      if (effectiveTargetSide === 'TSSR') {
+        toastMessage = `TSSR vinculado ao site ${linkedSiteId} enviado por ${user.name} na pasta Ericsson!`;
+      } else if (effectiveTargetSide === 'A') {
         toastMessage = `Vistoria A (${updatedRow?.siteIdA || linkedSiteId}) marcada como Entregue e Vistoria B (${updatedRow?.siteIdB || '—'}) marcada como Dispensado!`;
       } else if (effectiveTargetSide === 'B') {
         toastMessage = `Vistoria B (${updatedRow?.siteIdB || linkedSiteId}) marcada como Entregue e Vistoria A (${updatedRow?.siteIdA || '—'}) marcada como Dispensado!`;
@@ -563,11 +588,11 @@ export const EricssonVistoriaTab: React.FC<EricssonVistoriaTabProps> = ({
         data.ericssonRows || rows,
         data.ericssonSheetMeta || sheetMeta,
         toastMessage,
-        data.engineeringFolders,
-        data.engineeringFiles
+        data.ericssonFolders,
+        data.ericssonFiles
       );
 
-      setCurrentFolderId(uploadTargetFolderId || 'folder-ericsson-vistorias-executadas');
+      setCurrentFolderId(uploadTargetFolderId || 'folder-ericsson-root');
       if (data.file?.id) {
         setHighlightedFileId(data.file.id);
       }
@@ -584,17 +609,17 @@ export const EricssonVistoriaTab: React.FC<EricssonVistoriaTabProps> = ({
     e.stopPropagation();
     if (folder.isSystem) return;
     try {
-      const res = await fetch(`/api/engineering/folders/${encodeURIComponent(folder.id)}`, {
+      const res = await fetch(`/api/ericsson/folders/${encodeURIComponent(folder.id)}`, {
         method: 'DELETE',
       });
       if (res.ok) {
         const data = await res.json();
         onUpdated(
-          rows,
+          data.ericssonRows || rows,
           sheetMeta,
-          `Pasta "${folder.name}" removida.`,
-          data.engineeringFolders,
-          data.engineeringFiles
+          `Pasta "${folder.name}" removida da Ericsson.`,
+          data.ericssonFolders,
+          data.ericssonFiles
         );
         if (currentFolderId === folder.id && folder.parentId) {
           setCurrentFolderId(folder.parentId);
@@ -607,7 +632,7 @@ export const EricssonVistoriaTab: React.FC<EricssonVistoriaTabProps> = ({
 
   const handleDeleteFile = async (file: EngineeringFile) => {
     try {
-      const res = await fetch(`/api/engineering/files/${encodeURIComponent(file.id)}`, {
+      const res = await fetch(`/api/ericsson/files/${encodeURIComponent(file.id)}`, {
         method: 'DELETE',
       });
       if (res.ok) {
@@ -617,8 +642,8 @@ export const EricssonVistoriaTab: React.FC<EricssonVistoriaTabProps> = ({
           data.ericssonRows || rows,
           sheetMeta,
           `Arquivo "${file.fileName}" excluído com sucesso!`,
-          data.engineeringFolders,
-          data.engineeringFiles
+          data.ericssonFolders,
+          data.ericssonFiles
         );
       }
     } catch {
@@ -634,14 +659,14 @@ export const EricssonVistoriaTab: React.FC<EricssonVistoriaTabProps> = ({
       let latestFolders = folders;
       let latestFiles = files;
       for (const fid of selectedFileIds) {
-        const res = await fetch(`/api/engineering/files/${encodeURIComponent(fid)}`, {
+        const res = await fetch(`/api/ericsson/files/${encodeURIComponent(fid)}`, {
           method: 'DELETE',
         });
         if (res.ok) {
           const data = await res.json();
           if (Array.isArray(data.ericssonRows)) latestRows = data.ericssonRows;
-          if (Array.isArray(data.engineeringFolders)) latestFolders = data.engineeringFolders;
-          if (Array.isArray(data.engineeringFiles)) latestFiles = data.engineeringFiles;
+          if (Array.isArray(data.ericssonFolders)) latestFolders = data.ericssonFolders;
+          if (Array.isArray(data.ericssonFiles)) latestFiles = data.ericssonFiles;
         }
       }
       const count = selectedFileIds.length;
@@ -738,66 +763,94 @@ export const EricssonVistoriaTab: React.FC<EricssonVistoriaTabProps> = ({
             <div>
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-xs font-bold uppercase tracking-wider text-[#223585]">
-                  Vistoria &amp; LOS · ERICSSON
+                  {isExecutor ? 'TSSR (Engenharia) · ERICSSON' : 'Vistoria & LOS · ERICSSON'}
                 </span>
                 <span className="text-slate-300">•</span>
                 <h1 className="text-base font-bold text-slate-900">
-                  Envio de Vistoria (Site A ou B) e LOS —{' '}
-                  {isAtRootVistorias ? 'Pastas de Vistoria' : activeFolder?.name}
+                  {isExecutor
+                    ? `Envio de TSSR (Engenharia) — ${isAtRootVistorias ? 'Pastas Ericsson' : activeFolder?.name}`
+                    : `Envio de Vistoria (Site A ou B) e LOS — ${
+                        isAtRootVistorias ? 'Pastas de Vistoria' : activeFolder?.name
+                      }`}
                 </h1>
               </div>
               <p className="text-xs text-slate-500 mt-0.5">
-                Suba o arquivo em Vistoria vinculando ao <strong>Site ID A</strong> ou{' '}
-                <strong>Site ID B</strong>: ao entregar <strong>Vistoria A</strong>, o{' '}
-                <strong>B</strong> fica automaticamente como{' '}
-                <strong className="text-sky-700">Dispensado</strong> (e vice-versa). No{' '}
-                <strong>LOS</strong>, vincule ao Site ID para marcar o LOS como{' '}
-                <strong className="text-emerald-700">Entregue</strong>.
+                {isExecutor ? (
+                  <>
+                    Suba o pacote de <strong>TSSR (Engenharia)</strong> vinculando ao{' '}
+                    <strong>Site ID A</strong> ou <strong>Site ID B</strong> da planilha Ericsson.
+                    (Apenas o Executor tem acesso para subir TSSR).
+                  </>
+                ) : (
+                  <>
+                    Suba o arquivo em Vistoria vinculando ao <strong>Site ID A</strong> ou{' '}
+                    <strong>Site ID B</strong>: ao entregar <strong>Vistoria A</strong>, o{' '}
+                    <strong>B</strong> fica automaticamente como{' '}
+                    <strong className="text-sky-700">Dispensado</strong> (e vice-versa). No{' '}
+                    <strong>LOS</strong>, vincule ao Site ID para marcar o LOS como{' '}
+                    <strong className="text-emerald-700">Entregue</strong>.
+                  </>
+                )}
               </p>
             </div>
           </div>
 
           {/* Primary Action Buttons */}
-          <div className="flex flex-wrap items-center gap-2.5">
+          <div className="w-full sm:w-auto flex flex-wrap items-center gap-2">
             {!isVistoriador && onOpenSitesTab && (
               <button
                 type="button"
                 onClick={onOpenSitesTab}
-                className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-semibold rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer"
+                className="flex-1 sm:flex-initial justify-center px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-semibold rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer"
               >
-                <FileSpreadsheet className="w-4 h-4 text-[#223585]" />
+                <FileSpreadsheet className="w-4 h-4 text-[#223585] shrink-0" />
                 <span>Ver Planilha Mãe (Sites)</span>
               </button>
             )}
 
-            {!isAtRootVistorias && (
+            <button
+              type="button"
+              onClick={() => openCreateFolderModal(effectiveFolderId)}
+              className="flex-1 sm:flex-initial justify-center px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-semibold rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer"
+            >
+              <FolderPlus className="w-4 h-4 text-amber-600 shrink-0" />
+              <span>Nova Pasta Ericsson</span>
+            </button>
+
+            {canUploadTssr && (
               <button
                 type="button"
-                onClick={() => openCreateFolderModal(effectiveFolderId)}
-                className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-semibold rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer"
+                onClick={() => {
+                  openUploadModal(effectiveFolderId, 'TSSR');
+                }}
+                className="w-full sm:w-auto justify-center px-4 py-3.5 sm:py-2 bg-purple-600 hover:bg-purple-700 text-white text-xs font-black uppercase tracking-wide rounded-xl sm:rounded-lg transition-colors flex items-center gap-2 shadow-sm cursor-pointer"
               >
-                <FolderPlus className="w-4 h-4 text-amber-600" />
-                <span>Nova Subpasta</span>
+                <Upload className="w-4 h-4 shrink-0" />
+                <span>Subir TSSR (Engenharia)</span>
               </button>
             )}
 
-            <button
-              type="button"
-              onClick={() => openUploadModal(effectiveFolderId, 'VISTORIA')}
-              className="px-4 py-2 bg-[#223585] hover:bg-[#1a2865] text-white text-xs font-semibold rounded-lg transition-colors flex items-center gap-2 shadow-2xs cursor-pointer"
-            >
-              <Upload className="w-4 h-4" />
-              <span>Subir Vistoria (Vincular Site A ou B)</span>
-            </button>
+            {canUploadVistoria && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => openUploadModal(effectiveFolderId, 'VISTORIA')}
+                  className="w-full sm:w-auto justify-center px-4 py-3.5 sm:py-2 bg-[#223585] hover:bg-[#1a2865] text-white text-xs font-black uppercase tracking-wide rounded-xl sm:rounded-lg transition-colors flex items-center gap-2 shadow-sm cursor-pointer"
+                >
+                  <Upload className="w-4 h-4 shrink-0" />
+                  <span>Subir Vistoria (Vincular Site A ou B)</span>
+                </button>
 
-            <button
-              type="button"
-              onClick={() => openUploadModal(effectiveFolderId, 'LOS')}
-              className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold rounded-lg transition-colors flex items-center gap-2 shadow-2xs cursor-pointer"
-            >
-              <Radio className="w-4 h-4" />
-              <span>Subir Arquivo de LOS (Vincular Site ID)</span>
-            </button>
+                <button
+                  type="button"
+                  onClick={() => openUploadModal(effectiveFolderId, 'LOS')}
+                  className="w-full sm:w-auto justify-center px-4 py-3.5 sm:py-2 bg-amber-600 hover:bg-amber-700 text-white text-xs font-black uppercase tracking-wide rounded-xl sm:rounded-lg transition-colors flex items-center gap-2 shadow-sm cursor-pointer"
+                >
+                  <Radio className="w-4 h-4 shrink-0" />
+                  <span>Subir Arquivo de LOS (Vincular Site ID)</span>
+                </button>
+              </>
+            )}
           </div>
         </div>
 
@@ -856,8 +909,8 @@ export const EricssonVistoriaTab: React.FC<EricssonVistoriaTabProps> = ({
           </div>
 
           {/* Search & Uploader Filter */}
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="relative w-64">
+          <div className="w-full sm:w-auto flex flex-wrap items-center gap-2">
+            <div className="relative w-full sm:w-64">
               <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2" />
               <input
                 type="text"
@@ -1018,22 +1071,36 @@ export const EricssonVistoriaTab: React.FC<EricssonVistoriaTabProps> = ({
               )}
             </div>
             <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => openUploadModal(effectiveFolderId, 'VISTORIA')}
-                className="px-3 py-1.5 bg-[#223585] hover:bg-[#1a2865] text-white text-xs font-semibold rounded-lg flex items-center gap-1.5 cursor-pointer"
-              >
-                <Upload className="w-3.5 h-3.5" />
-                <span>Subir Vistoria (Site A ou B)</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => openUploadModal(effectiveFolderId, 'LOS')}
-                className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold rounded-lg flex items-center gap-1.5 cursor-pointer"
-              >
-                <Radio className="w-3.5 h-3.5" />
-                <span>Subir LOS</span>
-              </button>
+              {canUploadTssr && (
+                <button
+                  type="button"
+                  onClick={() => openUploadModal(effectiveFolderId, 'TSSR')}
+                  className="px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold rounded-lg flex items-center gap-1.5 cursor-pointer"
+                >
+                  <Upload className="w-3.5 h-3.5" />
+                  <span>Subir TSSR</span>
+                </button>
+              )}
+              {canUploadVistoria && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => openUploadModal(effectiveFolderId, 'VISTORIA')}
+                    className="px-3 py-1.5 bg-[#223585] hover:bg-[#1a2865] text-white text-xs font-semibold rounded-lg flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <Upload className="w-3.5 h-3.5" />
+                    <span>Subir Vistoria (Site A ou B)</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => openUploadModal(effectiveFolderId, 'LOS')}
+                    className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold rounded-lg flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <Radio className="w-3.5 h-3.5" />
+                    <span>Subir LOS</span>
+                  </button>
+                </>
+              )}
             </div>
           </div>
 
@@ -1182,7 +1249,7 @@ export const EricssonVistoriaTab: React.FC<EricssonVistoriaTabProps> = ({
                         <td className="py-3 px-5 text-right">
                           <div className="inline-flex items-center gap-1.5">
                             <a
-                              href={`/api/engineering/files/${encodeURIComponent(file.id)}/view`}
+                              href={`/api/ericsson/files/${encodeURIComponent(file.id)}/view`}
                               target="_blank"
                               rel="noopener noreferrer"
                               className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 font-semibold rounded-lg transition-colors inline-flex items-center gap-1"
@@ -1191,7 +1258,7 @@ export const EricssonVistoriaTab: React.FC<EricssonVistoriaTabProps> = ({
                               <span>Abrir</span>
                             </a>
                             <a
-                              href={`/api/engineering/files/${encodeURIComponent(file.id)}/download`}
+                              href={`/api/ericsson/files/${encodeURIComponent(file.id)}/download`}
                               download={file.fileName}
                               className="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 font-semibold rounded-lg transition-colors inline-flex items-center gap-1.5"
                             >
@@ -1323,11 +1390,11 @@ export const EricssonVistoriaTab: React.FC<EricssonVistoriaTabProps> = ({
          ===================================================================== */}
       {uploadModalOpen && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-[2px]"
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-900/50 backdrop-blur-[2px]"
           onClick={() => setUploadModalOpen(false)}
         >
           <div
-            className="w-full max-w-lg bg-white border border-slate-200 rounded-2xl shadow-xl overflow-hidden max-h-[92vh] flex flex-col"
+            className="w-full max-w-lg bg-white border border-slate-200 rounded-t-2xl sm:rounded-2xl shadow-xl overflow-hidden max-h-[92vh] flex flex-col"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="px-5 py-4 border-b border-slate-200 flex items-center justify-between shrink-0">
@@ -1335,14 +1402,18 @@ export const EricssonVistoriaTab: React.FC<EricssonVistoriaTabProps> = ({
                 <Upload className="w-5 h-5 text-[#223585]" />
                 <div>
                   <h3 className="text-sm font-bold text-slate-900">
-                    {uploadCategory === 'LOS'
-                      ? 'Subir Arquivo de LOS (Vincular ao Site ID)'
-                      : 'Subir Arquivo de Vistoria (Vincular ao Site ID A ou B)'}
+                    {uploadCategory === 'TSSR'
+                      ? 'Subir TSSR (Engenharia — Vincular ao Site ID)'
+                      : uploadCategory === 'LOS'
+                        ? 'Subir Arquivo de LOS (Vincular ao Site ID)'
+                        : 'Subir Arquivo de Vistoria (Vincular ao Site ID A ou B)'}
                   </h3>
                   <p className="text-[11px] text-slate-500">
-                    {uploadCategory === 'LOS'
-                      ? 'Liga o LOS com o ID do site e marca a coluna LOS como Entregue na planilha'
-                      : 'Se entregar Vistoria A, o B fica como Dispensado. Se entregar Vistoria B, o A fica como Dispensado.'}
+                    {uploadCategory === 'TSSR'
+                      ? 'Exclusivo para Executor: vincula o pacote TSSR ao Site ID da planilha Ericsson'
+                      : uploadCategory === 'LOS'
+                        ? 'Liga o LOS com o ID do site e marca a coluna LOS como Entregue na planilha'
+                        : 'Se entregar Vistoria A, o B fica como Dispensado. Se entregar Vistoria B, o A fica como Dispensado.'}
                   </p>
                 </div>
               </div>
@@ -1363,60 +1434,102 @@ export const EricssonVistoriaTab: React.FC<EricssonVistoriaTabProps> = ({
                 </div>
               )}
 
-              {/* 1. Category Selector: Vistoria vs LOS */}
+              {/* 1. Category Selector: Vistoria vs LOS vs TSSR (role-gated) */}
               <div>
                 <label className="block font-bold text-slate-800 mb-1.5">
                   1. Qual tipo de arquivo você está enviando? *
                 </label>
-                <div className="grid grid-cols-2 gap-2.5">
-                  <button
-                    type="button"
-                    onClick={() => setUploadCategory('VISTORIA')}
-                    className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
-                      uploadCategory === 'VISTORIA'
-                        ? 'bg-blue-50 border-[#223585] text-[#223585] ring-1 ring-[#223585]/20'
-                        : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-700'
-                    }`}
-                  >
-                    <div className="font-bold text-xs flex items-center justify-between">
-                      <span>Vistoria (Site A ou B)</span>
-                      {uploadCategory === 'VISTORIA' && (
-                        <CheckCircle2 className="w-4 h-4 text-[#223585]" />
-                      )}
-                    </div>
-                    <div className="text-[10px] text-slate-500 mt-0.5">
-                      Marca o site escolhido como <strong>Entregue</strong> e o outro como{' '}
-                      <strong>Dispensado</strong>
-                    </div>
-                  </button>
+                <div
+                  className={`grid gap-2.5 ${
+                    canUploadVistoria && canUploadTssr
+                      ? 'grid-cols-1 sm:grid-cols-3'
+                      : canUploadVistoria
+                        ? 'grid-cols-1 sm:grid-cols-2'
+                        : 'grid-cols-1'
+                  }`}
+                >
+                  {canUploadVistoria && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => setUploadCategory('VISTORIA')}
+                        className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
+                          uploadCategory === 'VISTORIA'
+                            ? 'bg-blue-50 border-[#223585] text-[#223585] ring-1 ring-[#223585]/20'
+                            : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-700'
+                        }`}
+                      >
+                        <div className="font-bold text-xs flex items-center justify-between">
+                          <span>Vistoria (Site A ou B)</span>
+                          {uploadCategory === 'VISTORIA' && (
+                            <CheckCircle2 className="w-4 h-4 text-[#223585]" />
+                          )}
+                        </div>
+                        <div className="text-[10px] text-slate-500 mt-0.5">
+                          Marca o site escolhido como <strong>Entregue</strong> e o outro como{' '}
+                          <strong>Dispensado</strong>
+                        </div>
+                      </button>
 
-                  <button
-                    type="button"
-                    onClick={() => setUploadCategory('LOS')}
-                    className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
-                      uploadCategory === 'LOS'
-                        ? 'bg-amber-50 border-amber-600 text-amber-900 ring-1 ring-amber-500/20'
-                        : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-700'
-                    }`}
-                  >
-                    <div className="font-bold text-xs flex items-center justify-between">
-                      <span>Arquivo de LOS</span>
-                      {uploadCategory === 'LOS' && (
-                        <CheckCircle2 className="w-4 h-4 text-amber-600" />
-                      )}
-                    </div>
-                    <div className="text-[10px] text-slate-500 mt-0.5">
-                      Liga o LOS com o ID do site e coloca a coluna LOS como{' '}
-                      <strong>Entregue</strong>
-                    </div>
-                  </button>
+                      <button
+                        type="button"
+                        onClick={() => setUploadCategory('LOS')}
+                        className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
+                          uploadCategory === 'LOS'
+                            ? 'bg-amber-50 border-amber-600 text-amber-900 ring-1 ring-amber-500/20'
+                            : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-700'
+                        }`}
+                      >
+                        <div className="font-bold text-xs flex items-center justify-between">
+                          <span>Arquivo de LOS</span>
+                          {uploadCategory === 'LOS' && (
+                            <CheckCircle2 className="w-4 h-4 text-amber-600" />
+                          )}
+                        </div>
+                        <div className="text-[10px] text-slate-500 mt-0.5">
+                          Liga o LOS com o ID do site e coloca a coluna LOS como{' '}
+                          <strong>Entregue</strong>
+                        </div>
+                      </button>
+                    </>
+                  )}
+
+                  {canUploadTssr && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setUploadCategory('TSSR');
+                        if (!uploadNotes.trim()) {
+                          setUploadNotes(
+                            '[TSSR] Enviado pelo Executor para Coordenação de Engenharia Ericsson'
+                          );
+                        }
+                      }}
+                      className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
+                        uploadCategory === 'TSSR'
+                          ? 'bg-purple-50 border-purple-600 text-purple-950 ring-1 ring-purple-500/20'
+                          : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-700'
+                      }`}
+                    >
+                      <div className="font-bold text-xs flex items-center justify-between">
+                        <span>TSSR (Engenharia)</span>
+                        {uploadCategory === 'TSSR' && (
+                          <CheckCircle2 className="w-4 h-4 text-purple-600" />
+                        )}
+                      </div>
+                      <div className="text-[10px] text-slate-500 mt-0.5">
+                        Exclusivo para <strong>Executor</strong>: envia pacote de TSSR vinculado ao
+                        Site ID
+                      </div>
+                    </button>
+                  )}
                 </div>
               </div>
 
               {/* Destination Folder Selector */}
               <div>
                 <label className="block font-semibold text-slate-700 mb-1">
-                  Pasta de Destino (Vistorias Executadas / Subpastas) *
+                  Pasta de Destino (Exclusiva Ericsson) *
                 </label>
                 <select
                   value={uploadTargetFolderId}
@@ -1599,7 +1712,7 @@ export const EricssonVistoriaTab: React.FC<EricssonVistoriaTabProps> = ({
                             ? 'Selecione qual Site está entregando a Vistoria (o outro ficará como Dispensado):'
                             : 'Selecione o Site ID vinculado a este arquivo de LOS:'}
                         </div>
-                        <div className="grid grid-cols-2 gap-2">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                           <button
                             type="button"
                             onClick={() => setSelectedSiteSide('A')}
@@ -1759,7 +1872,13 @@ export const EricssonVistoriaTab: React.FC<EricssonVistoriaTabProps> = ({
               {/* File Picker */}
               <div>
                 <label className="block font-semibold text-slate-700 mb-1.5">
-                  3. Selecione o Arquivo ({uploadCategory === 'LOS' ? 'LOS' : 'Vistoria'}) *
+                  3. Selecione o Arquivo (
+                  {uploadCategory === 'TSSR'
+                    ? 'TSSR'
+                    : uploadCategory === 'LOS'
+                      ? 'LOS'
+                      : 'Vistoria'}
+                  ) *
                 </label>
                 <input
                   ref={fileInputRef}
@@ -1833,18 +1952,22 @@ export const EricssonVistoriaTab: React.FC<EricssonVistoriaTabProps> = ({
                   type="submit"
                   disabled={uploading}
                   className={`px-4 py-2 disabled:opacity-50 text-white font-bold rounded-lg flex items-center gap-1.5 cursor-pointer ${
-                    uploadCategory === 'LOS'
-                      ? 'bg-amber-600 hover:bg-amber-700'
-                      : 'bg-[#223585] hover:bg-[#192868]'
+                    uploadCategory === 'TSSR'
+                      ? 'bg-purple-600 hover:bg-purple-700'
+                      : uploadCategory === 'LOS'
+                        ? 'bg-amber-600 hover:bg-amber-700'
+                        : 'bg-[#223585] hover:bg-[#192868]'
                   }`}
                 >
                   <Upload className="w-3.5 h-3.5" />
                   <span>
                     {uploading
                       ? 'Enviando...'
-                      : uploadCategory === 'LOS'
-                      ? 'Enviar LOS (Marcar Entregue)'
-                      : `Enviar Vistoria Site ${selectedSiteSide} (Outro Dispensado)`}
+                      : uploadCategory === 'TSSR'
+                        ? `Enviar TSSR (Site ${selectedSiteSide})`
+                        : uploadCategory === 'LOS'
+                          ? 'Enviar LOS (Marcar Entregue)'
+                          : `Enviar Vistoria Site ${selectedSiteSide} (Outro Dispensado)`}
                   </span>
                 </button>
               </div>

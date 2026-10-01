@@ -115,9 +115,16 @@ export const EngineeringVistoriasTab: React.FC<EngineeringVistoriasTabProps> = (
   const currentRole: UserRole = simulatedTargetUser
     ? normalizeUserRole(simulatedTargetUser.role)
     : effectiveRole || normalizeUserRole(user.role);
-  const isAdmin = currentRole === 'ADM' && !simulatedTargetUser;
+  const isAdmin =
+    (currentRole === 'ADM' ||
+      currentRole === 'Coordenador Geral' ||
+      currentRole === 'Coordenador Engenharia') &&
+    !simulatedTargetUser;
   const isVistoriador = currentRole === 'Vistoriador';
-  const isTssrProjectsMode = mode === 'tssr-projects' && !isVistoriador;
+  const isExecutor = currentRole === 'Executor';
+  const canUploadTssr = isExecutor || isAdmin;
+  const canUploadVistoria = isVistoriador || isAdmin;
+  const isTssrProjectsMode = (mode === 'tssr-projects' || isExecutor) && !isVistoriador;
 
   // Hidden/collapsible tab state for "Demanda por Responsável" inside Documentos ("em uma aba escondida so abre se eu clicar")
   const [isDocDemandaTabOpen, setIsDocDemandaTabOpen] = useState<boolean>(false);
@@ -489,7 +496,9 @@ export const EngineeringVistoriasTab: React.FC<EngineeringVistoriasTabProps> = (
     setNewTssrUf('');
     setNewTssrCidade('');
     setNewTssrEnderecoId('');
-    setUploadNotes('');
+    setUploadNotes(
+      isExecutor ? '[TSSR] Enviado pelo Executor para Coordenação de Engenharia' : ''
+    );
     setUploadAssignedTo(
       !isAdmin
         ? activeTargetUser.name
@@ -605,6 +614,19 @@ export const EngineeringVistoriasTab: React.FC<EngineeringVistoriasTabProps> = (
     e.preventDefault();
     setUploadError(null);
 
+    if (isVistoriador && isUploadTargetTssrProject) {
+      setUploadError(
+        'O perfil Vistoriador não tem permissão para subir TSSR. Apenas o Executor pode subir TSSR.'
+      );
+      return;
+    }
+    if (isExecutor && !isUploadTargetTssrProject) {
+      setUploadError(
+        'O perfil Executor não tem permissão para subir Vistoria. O Executor pode subir apenas TSSR.'
+      );
+      return;
+    }
+
     const finalSiteId = (uploadSiteId || '').trim().toUpperCase();
     const requireSiteForThisUpload = !isUploadTargetTssrProject;
 
@@ -644,6 +666,7 @@ export const EngineeringVistoriasTab: React.FC<EngineeringVistoriasTabProps> = (
           vendor: activeVendor,
           uploadedByName: user.name,
           uploadedByEmail: user.email,
+          uploadedByRole: currentRole,
           siteId: finalSiteId || undefined,
           ocSitePre: uploadOcSitePre.trim() || undefined,
           tssrRowId: uploadTssrRowId || undefined,
@@ -894,14 +917,14 @@ export const EngineeringVistoriasTab: React.FC<EngineeringVistoriasTabProps> = (
           </div>
 
           {/* Primary Action Buttons */}
-          <div className="flex flex-wrap items-center gap-2.5">
+          <div className="w-full sm:w-auto flex flex-wrap items-center gap-2">
             {onBackToEngineeringControl && (
               <button
                 type="button"
                 onClick={onBackToEngineeringControl}
-                className="px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-lg transition-colors flex items-center gap-1.5 shadow-2xs cursor-pointer"
+                className="w-full sm:w-auto justify-center px-3.5 py-2.5 sm:py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-lg transition-colors flex items-center gap-1.5 shadow-2xs cursor-pointer"
               >
-                <ArrowLeft className="w-4 h-4" />
+                <ArrowLeft className="w-4 h-4 shrink-0" />
                 <span>Voltar para Controle de Engenharia (Planilha)</span>
               </button>
             )}
@@ -910,9 +933,9 @@ export const EngineeringVistoriasTab: React.FC<EngineeringVistoriasTabProps> = (
               <button
                 type="button"
                 onClick={onOpenTssrTab}
-                className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-semibold rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer"
+                className="w-full sm:w-auto justify-center px-3.5 py-2.5 sm:py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-semibold rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer"
               >
-                <FileSpreadsheet className="w-4 h-4 text-[#223585]" />
+                <FileSpreadsheet className="w-4 h-4 text-[#223585] shrink-0" />
                 <span>Ver Planilha TSSR TIM Nokia</span>
               </button>
             )}
@@ -921,25 +944,45 @@ export const EngineeringVistoriasTab: React.FC<EngineeringVistoriasTabProps> = (
               <button
                 type="button"
                 onClick={() => openCreateFolderModal(effectiveFolderId)}
-                className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-semibold rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer"
+                className="w-full sm:w-auto justify-center px-3.5 py-2.5 sm:py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-semibold rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer"
               >
-                <FolderPlus className="w-4 h-4 text-amber-600" />
+                <FolderPlus className="w-4 h-4 text-amber-600 shrink-0" />
                 <span>Nova Subpasta</span>
               </button>
             )}
 
-            <button
-              type="button"
-              onClick={() => openUploadModal(effectiveFolderId)}
-              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg transition-colors flex items-center gap-2 shadow-2xs cursor-pointer"
-            >
-              <Upload className="w-4 h-4" />
-              <span>
-                {isTssrProjectsMode
-                  ? 'Carregar Arquivo (.ZIP / .RAR / Docs)'
-                  : 'Subir Arquivo de Vistoria (Vincular ao Site)'}
-              </span>
-            </button>
+            {canUploadTssr && (
+              <button
+                type="button"
+                onClick={() => {
+                  const tssrFolder =
+                    allVendorFolders.find((f) => f.name === 'TSSR') ||
+                    allVendorFolders.find((f) => f.name === 'TSSR Entrada') ||
+                    uploadableFolders[0];
+                  openUploadModal(tssrFolder?.id || effectiveFolderId);
+                  setUploadNotes('[TSSR] Enviado pelo Executor para Coordenação de Engenharia');
+                }}
+                className="w-full sm:w-auto justify-center px-4 py-3.5 sm:py-2 bg-purple-600 hover:bg-purple-700 text-white text-xs font-black uppercase tracking-wide rounded-xl sm:rounded-lg transition-colors flex items-center gap-2 shadow-sm cursor-pointer"
+              >
+                <Upload className="w-4 h-4 shrink-0" />
+                <span>Subir TSSR (Engenharia)</span>
+              </button>
+            )}
+
+            {canUploadVistoria && (
+              <button
+                type="button"
+                onClick={() => openUploadModal(effectiveFolderId)}
+                className="w-full sm:w-auto justify-center px-4 py-3.5 sm:py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-black uppercase tracking-wide rounded-xl sm:rounded-lg transition-colors flex items-center gap-2 shadow-sm cursor-pointer"
+              >
+                <Upload className="w-4 h-4 shrink-0" />
+                <span>
+                  {isTssrProjectsMode
+                    ? 'Carregar Arquivo TSSR (.ZIP / .RAR / Docs)'
+                    : 'Subir Arquivo de Vistoria (Vincular ao Site)'}
+                </span>
+              </button>
+            )}
           </div>
         </div>
 
@@ -998,34 +1041,34 @@ export const EngineeringVistoriasTab: React.FC<EngineeringVistoriasTabProps> = (
           </div>
 
           {/* Search & Uploader Filter + Hidden Tab Button for ADM */}
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="w-full sm:w-auto flex flex-wrap items-center gap-2">
             {isAdmin && (
               <button
                 type="button"
                 onClick={() => setIsDocDemandaTabOpen((prev) => !prev)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all flex items-center gap-1.5 cursor-pointer ${
+                className={`w-full sm:w-auto justify-center px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all flex items-center gap-1.5 cursor-pointer ${
                   isDocDemandaTabOpen || docResponsavelFilter !== 'ALL'
                     ? 'bg-blue-600 border-blue-600 text-white shadow-2xs'
                     : 'bg-slate-100 hover:bg-slate-200 border-slate-200 text-slate-800'
                 }`}
                 title="Clique para abrir ou fechar a aba escondida de Demanda por Responsável (Documentos)"
               >
-                <UserCheck className="w-3.5 h-3.5" />
-                <span>
+                <UserCheck className="w-3.5 h-3.5 shrink-0" />
+                <span className="truncate">
                   Demanda por Responsável
                   {docResponsavelFilter !== 'ALL'
                     ? `: ${docResponsavelFilter === '__NONE__' ? 'Sem Responsável' : docResponsavelFilter}`
                     : ''}
                 </span>
                 {isDocDemandaTabOpen ? (
-                  <ChevronUp className="w-3.5 h-3.5" />
+                  <ChevronUp className="w-3.5 h-3.5 shrink-0" />
                 ) : (
-                  <ChevronDown className="w-3.5 h-3.5" />
+                  <ChevronDown className="w-3.5 h-3.5 shrink-0" />
                 )}
               </button>
             )}
 
-            <div className="relative w-64">
+            <div className="relative w-full sm:w-64">
               <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2" />
               <input
                 type="text"
@@ -1437,7 +1480,11 @@ export const EngineeringVistoriasTab: React.FC<EngineeringVistoriasTabProps> = (
                   className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg shadow-2xs flex items-center gap-2 cursor-pointer"
                 >
                   <Upload className="w-4 h-4" />
-                  <span>Carregar Arquivo (.ZIP / .RAR / Docs)</span>
+                  <span>
+                    {isExecutor
+                      ? 'Subir TSSR (.ZIP / .RAR / Docs)'
+                      : 'Carregar Arquivo (.ZIP / .RAR / Docs)'}
+                  </span>
                 </button>
                 <button
                   type="button"
@@ -1474,7 +1521,7 @@ export const EngineeringVistoriasTab: React.FC<EngineeringVistoriasTabProps> = (
                   className="text-blue-600 hover:text-blue-700 font-bold flex items-center gap-1 cursor-pointer"
                 >
                   <Upload className="w-3.5 h-3.5" />
-                  <span>+ Carregar Arquivo Aqui</span>
+                  <span>{isExecutor ? '+ Subir TSSR Aqui' : '+ Carregar Arquivo Aqui'}</span>
                 </button>
               </div>
             </div>
@@ -1782,15 +1829,19 @@ export const EngineeringVistoriasTab: React.FC<EngineeringVistoriasTabProps> = (
           onClick={() => setUploadModalOpen(false)}
         >
           <div
-            className="w-full max-w-lg bg-white border border-slate-200 rounded-2xl shadow-xl overflow-hidden"
+            className="w-full max-w-lg bg-white border border-slate-200 rounded-2xl shadow-xl overflow-hidden max-h-[92vh] flex flex-col"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="px-5 py-4 border-b border-slate-200 flex items-center justify-between">
+            <div className="px-5 py-4 border-b border-slate-200 flex items-center justify-between shrink-0">
               <div className="flex items-center gap-2.5">
-                <Upload className="w-5 h-5 text-blue-600" />
+                <Upload className="w-5 h-5 text-blue-600 shrink-0" />
                 <div>
                   <h3 className="text-sm font-bold text-slate-900">
-                    Carregar Pacotes .ZIP / WinRAR (.RAR) & Documentos
+                    {isExecutor
+                      ? 'Subir TSSR (.ZIP / WinRAR .RAR & Documentos)'
+                      : isVistoriador
+                        ? 'Subir Vistoria (.ZIP / WinRAR .RAR & Documentos)'
+                        : 'Carregar Pacotes .ZIP / WinRAR (.RAR) & Documentos'}
                   </h3>
                   <p className="text-[11px] text-slate-500">
                     Obrigatório informar o nome de quem carregou para todos os arquivos
@@ -1806,7 +1857,7 @@ export const EngineeringVistoriasTab: React.FC<EngineeringVistoriasTabProps> = (
               </button>
             </div>
 
-            <form onSubmit={handleUploadSubmit} className="p-5 space-y-4">
+            <form onSubmit={handleUploadSubmit} className="p-4 sm:p-5 space-y-4 overflow-y-auto">
               {uploadError && (
                 <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700 flex items-center gap-2">
                   <AlertCircle className="w-4 h-4 shrink-0" />

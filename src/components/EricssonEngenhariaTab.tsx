@@ -255,7 +255,7 @@ export const EricssonEngenhariaTab: React.FC<EricssonEngenhariaTabProps> = ({
           data.ericssonRows,
           sheetMeta,
           `Arquivo de ${side === 'LOS' ? 'LOS' : `Vistoria ${side}`} excluído com sucesso!`,
-          data.engineeringFiles
+          data.ericssonFiles
         );
       }
     } catch {

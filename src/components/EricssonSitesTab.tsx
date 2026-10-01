@@ -39,6 +39,7 @@ import {
   parseEricssonWorkbookBuffer,
   computeEricssonSiteCounters,
 } from '../utils/ericssonSpreadsheetUtils';
+import { getCanonicalDuplaName, normalizeAccents } from '../utils/spreadsheetUtils';
 
 export interface EricssonSitesTabProps {
   user: AmetaUser;
@@ -58,6 +59,7 @@ export interface EricssonSitesTabProps {
     fileId?: string,
     fileName?: string
   ) => void;
+  onOpenDuplasDemanda?: () => void;
 }
 
 const CHART_COLORS = [
@@ -80,6 +82,7 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
   onUpdated,
   onEricssonUsersUpdated,
   onOpenFileInVistoriaFolder,
+  onOpenDuplasDemanda,
 }) => {
   const [viewMode, setViewMode] = useState<'resumo' | 'planilha' | 'graficos' | 'equipes'>(
     'resumo'
@@ -156,37 +159,72 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
       .filter(Boolean);
   }, [searchQuery]);
 
+  const hasFullAccess =
+    effectiveRole === 'ADM' || effectiveRole === 'Coordenador Geral';
+
+  // Executors and Vistoriadores only see rows demanded/assigned to their Equipe, Name, or Linked Email
+  const roleScopedRows = useMemo(() => {
+    if (
+      hasFullAccess ||
+      effectiveRole === 'Coordenador Engenharia'
+    ) {
+      return rows;
+    }
+    const uEquipe = (user.equipe || '').trim();
+    const uName = (user.name || '').trim();
+    const uEmail = (user.email || '').trim().toLowerCase();
+    const canonUserEq = normalizeAccents(getCanonicalDuplaName(uEquipe) || uEquipe);
+    const canonUserName = normalizeAccents(getCanonicalDuplaName(uName) || uName);
+
+    return rows.filter((r) => {
+      const rEq = (r.equipe || r.fields?.['EQUIPE'] || '').trim();
+      const rowEmails = (r.fields?.['E-MAIL DUPLA'] || '').toLowerCase();
+      if (uEmail && rowEmails && rowEmails.includes(uEmail)) {
+        return true;
+      }
+      if (!rEq) return false;
+      const canonRowEq = normalizeAccents(getCanonicalDuplaName(rEq) || rEq);
+      if (canonUserEq && canonRowEq && (canonRowEq === canonUserEq || canonRowEq.includes(canonUserEq) || canonUserEq.includes(canonRowEq))) {
+        return true;
+      }
+      if (canonUserName && canonRowEq && (canonRowEq === canonUserName || canonRowEq.includes(canonUserName))) {
+        return true;
+      }
+      return false;
+    });
+  }, [rows, hasFullAccess, effectiveRole, user.equipe, user.name, user.email]);
+
   const distinctStates = useMemo(() => {
     const set = new Set<string>();
-    rows.forEach((r) => {
+    roleScopedRows.forEach((r) => {
       const val = (r.state || r.fields?.['00.03.State'] || '').trim();
       if (val) set.add(val);
     });
     return Array.from(set).sort();
-  }, [rows]);
+  }, [roleScopedRows]);
 
   const distinctEquipes = useMemo(() => {
     const set = new Set<string>();
-    rows.forEach((r) => {
+    roleScopedRows.forEach((r) => {
       const val = (r.equipe || r.fields?.['EQUIPE'] || '').trim();
       if (val) set.add(val);
     });
     return Array.from(set).sort();
-  }, [rows]);
+  }, [roleScopedRows]);
 
   const distinctSheetStatuses = useMemo(() => {
     const set = new Set<string>();
-    rows.forEach((r) => {
+    roleScopedRows.forEach((r) => {
       const sA = (r.statusA || r.fields?.['Status A'] || '').trim();
       const sB = (r.statusB || r.fields?.['Status B'] || '').trim();
       if (sA) set.add(sA);
       if (sB) set.add(sB);
     });
     return Array.from(set).sort();
-  }, [rows]);
+  }, [roleScopedRows]);
 
   const filteredRows = useMemo(() => {
-    return rows.filter((r) => {
+    return roleScopedRows.filter((r) => {
       const rState = (r.state || r.fields?.['00.03.State'] || '').trim();
       const rMeta = (r.meta || r.fields?.['Meta'] || '').trim();
       const rEquipe = (r.equipe || r.fields?.['EQUIPE'] || '').trim();
@@ -254,7 +292,7 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
       return false;
     });
   }, [
-    rows,
+    roleScopedRows,
     filterState,
     filterMeta,
     filterEquipe,
@@ -420,7 +458,7 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
           data.ericssonRows,
           sheetMeta,
           `Arquivo de ${side === 'LOS' ? 'LOS' : `Vistoria ${side}`} excluído com sucesso!`,
-          data.engineeringFiles
+          data.ericssonFiles
         );
       }
     } catch {
@@ -851,46 +889,65 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
           </div>
 
           {/* Action Toolbar */}
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setSyncModalOpen(true)}
-              className="px-3.5 py-2 bg-[#1E8E8D] hover:bg-[#177372] text-white text-xs font-bold rounded-lg transition-colors flex items-center gap-1.5 shadow-2xs cursor-pointer"
-            >
-              <RefreshCw className="w-3.5 h-3.5" />
-              <span>Excel Online / Atualizar Planilha</span>
-            </button>
+          <div className="w-full sm:w-auto grid grid-cols-1 sm:flex sm:flex-wrap items-center gap-2">
+            {hasFullAccess && (
+              <>
+                {onOpenDuplasDemanda && (
+                  <button
+                    type="button"
+                    onClick={onOpenDuplasDemanda}
+                    className="w-full sm:w-auto justify-center px-4 py-3 sm:py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-black uppercase tracking-wide rounded-xl sm:rounded-lg transition-colors flex items-center gap-2 shadow-sm cursor-pointer"
+                  >
+                    <Users className="w-4 h-4 text-amber-400 shrink-0" />
+                    <span>Demandar Sites / Duplas (Ericsson)</span>
+                  </button>
+                )}
 
-            <button
-              type="button"
-              onClick={() => setCreateModalOpen(true)}
-              className="px-3.5 py-2 bg-[#223585] hover:bg-[#192869] text-white text-xs font-bold rounded-lg transition-colors flex items-center gap-1.5 shadow-2xs cursor-pointer"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              <span>+ Nova Linha (Par)</span>
-            </button>
+                <div className="grid grid-cols-2 sm:flex items-center gap-2 w-full sm:w-auto">
+                  <button
+                    type="button"
+                    onClick={() => setSyncModalOpen(true)}
+                    className="justify-center px-3 py-2.5 sm:py-2 bg-[#1E8E8D] hover:bg-[#177372] text-white text-xs font-bold rounded-xl sm:rounded-lg transition-colors flex items-center gap-1.5 shadow-2xs cursor-pointer"
+                  >
+                    <RefreshCw className="w-3.5 h-3.5 shrink-0" />
+                    <span className="truncate">Atualizar Planilha</span>
+                  </button>
 
-            <button
-              type="button"
-              onClick={handleExportExcel}
-              className="px-3.5 py-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 text-xs font-semibold rounded-lg transition-colors flex items-center gap-1.5 shadow-2xs cursor-pointer"
-            >
-              <Download className="w-3.5 h-3.5 text-[#1E8E8D]" />
-              <span>Exportar .XLSX</span>
-            </button>
+                  <button
+                    type="button"
+                    onClick={() => setCreateModalOpen(true)}
+                    className="justify-center px-3 py-2.5 sm:py-2 bg-[#223585] hover:bg-[#192869] text-white text-xs font-bold rounded-xl sm:rounded-lg transition-colors flex items-center gap-1.5 shadow-2xs cursor-pointer"
+                  >
+                    <Plus className="w-3.5 h-3.5 shrink-0" />
+                    <span className="truncate">+ Nova Linha</span>
+                  </button>
+                </div>
+              </>
+            )}
 
-            <button
-              type="button"
-              onClick={() => setIsFullscreen((prev) => !prev)}
-              className="p-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-lg transition-colors shadow-2xs cursor-pointer"
-              title={isFullscreen ? 'Sair da tela inteira' : 'Tela inteira'}
-            >
-              {isFullscreen ? (
-                <Minimize2 className="w-4 h-4" />
-              ) : (
-                <Maximize2 className="w-4 h-4" />
-              )}
-            </button>
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              <button
+                type="button"
+                onClick={handleExportExcel}
+                className="flex-1 sm:flex-initial justify-center px-3.5 py-2.5 sm:py-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 text-xs font-semibold rounded-xl sm:rounded-lg transition-colors flex items-center gap-1.5 shadow-2xs cursor-pointer"
+              >
+                <Download className="w-3.5 h-3.5 text-[#1E8E8D] shrink-0" />
+                <span>Exportar .XLSX</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setIsFullscreen((prev) => !prev)}
+                className="p-2.5 sm:p-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-xl sm:rounded-lg transition-colors shadow-2xs cursor-pointer"
+                title={isFullscreen ? 'Sair da tela inteira' : 'Tela inteira'}
+              >
+                {isFullscreen ? (
+                  <Minimize2 className="w-4 h-4" />
+                ) : (
+                  <Maximize2 className="w-4 h-4" />
+                )}
+              </button>
+            </div>
           </div>
         </div>
 
@@ -1065,18 +1122,26 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
               <span>Gráficos (Por Site)</span>
             </button>
 
-            <button
-              type="button"
-              onClick={() => setViewMode('equipes')}
-              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
-                viewMode === 'equipes'
-                  ? 'bg-[#223585] text-white shadow-2xs'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              <Users className="w-3.5 h-3.5" />
-              <span>Equipes Ericsson ({ericssonUsers.length})</span>
-            </button>
+            {hasFullAccess && (
+              <button
+                type="button"
+                onClick={() => {
+                  if (onOpenDuplasDemanda) {
+                    onOpenDuplasDemanda();
+                  } else {
+                    setViewMode('equipes');
+                  }
+                }}
+                className={`px-3.5 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+                  viewMode === 'equipes'
+                    ? 'bg-[#223585] text-white shadow-2xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <Users className="w-3.5 h-3.5" />
+                <span>Duplas & Demanda ({ericssonUsers.length})</span>
+              </button>
+            )}
           </div>
 
           {(viewMode === 'resumo' || viewMode === 'planilha') && (
