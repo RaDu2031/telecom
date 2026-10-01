@@ -32,6 +32,9 @@ import {
   EngineeringFolder,
   EngineeringFile,
 } from '../types/telecom';
+import { cloudFetch } from '../lib/firebaseCloud';
+
+const fetch = cloudFetch;
 
 export interface EricssonVistoriaTabProps {
   user: AmetaUser;

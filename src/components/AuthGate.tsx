@@ -7,9 +7,13 @@ import {
   AlertCircle,
   RefreshCw,
   KeyRound,
+  Cloud,
 } from 'lucide-react';
 import { AmetaUser, VendorType } from '../types/telecom';
 import { AmetaLogo } from './AmetaLogo';
+import { signInWithGoogleFirebase, cloudFetch } from '../lib/firebaseCloud';
+
+const fetch = cloudFetch;
 
 interface AuthGateProps {
   onAuthenticated: (user: AmetaUser, initialVendor?: VendorType) => void;
@@ -18,7 +22,7 @@ interface AuthGateProps {
 export const AuthGate: React.FC<AuthGateProps> = ({ onAuthenticated }) => {
   const [mode, setMode] = useState<'login' | 'register' | 'verify'>('login');
   const [name, setName] = useState('');
-  const [email, setEmail] = useState('rafael.araujo@ameta.com.br');
+  const [email, setEmail] = useState('rafael.araujo@ametaservicos.com.br');
   const [password, setPassword] = useState('ameta2026');
   const [role, setRole] = useState<AmetaUser['role']>('Vistoriador');
   const [initialVendorChoice, setInitialVendorChoice] = useState<VendorType>('NOKIA');
@@ -31,18 +35,40 @@ export const AuthGate: React.FC<AuthGateProps> = ({ onAuthenticated }) => {
   const [error, setError] = useState<string | null>(null);
   const [infoMessage, setInfoMessage] = useState<string | null>(null);
 
+  const handleGoogleCloudSignIn = async () => {
+    setError(null);
+    setInfoMessage(null);
+    setLoading(true);
+    try {
+      const { ametaUser } = await signInWithGoogleFirebase();
+      onAuthenticated(ametaUser, initialVendorChoice);
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? `Falha no login Google Cloud: ${err.message}`
+          : 'Não foi possível autenticar com Google Firebase.'
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const validateAmetaEmailClient = (rawEmail: string): boolean => {
     const clean = rawEmail.trim().toLowerCase();
     const parts = clean.split('@');
     if (parts.length !== 2 || !parts[0]) return false;
     const domain = parts[1];
     return (
+      domain === 'ametaservicos.com.br' ||
+      domain === 'ametaservicos.com' ||
       domain === 'ameta.com' ||
       domain === 'ameta.com.br' ||
       domain === 'ameta.net' ||
       domain === 'ameta.org' ||
       domain === 'ameta.eng.br' ||
-      domain.startsWith('ameta.') ||
+      domain.startsWith('ameta') ||
+      domain.includes('ametaservicos') ||
+      domain.endsWith('.ametaservicos.com.br') ||
       domain.endsWith('.ameta.com') ||
       domain.endsWith('.ameta.com.br')
     );
@@ -91,7 +117,7 @@ export const AuthGate: React.FC<AuthGateProps> = ({ onAuthenticated }) => {
     setInfoMessage(null);
 
     if (!validateAmetaEmailClient(email)) {
-      setError('O cadastro exige um e-mail corporativo @ameta.');
+      setError('O cadastro exige um e-mail corporativo @ametaservicos.com.br (ou @ameta.com.br).');
       return;
     }
 
@@ -112,6 +138,11 @@ export const AuthGate: React.FC<AuthGateProps> = ({ onAuthenticated }) => {
       if (!response.ok) {
         setError(data.error || 'Não foi possível concluir o cadastro.');
         setLoading(false);
+        return;
+      }
+
+      if (!data.requiresVerification && data.user) {
+        onAuthenticated(data.user, initialVendorChoice);
         return;
       }
 
@@ -190,7 +221,7 @@ export const AuthGate: React.FC<AuthGateProps> = ({ onAuthenticated }) => {
               {mode === 'login'
                 ? 'Acesse o portal de Engenharia e Sites'
                 : mode === 'register'
-                ? 'Cadastro corporativo @ameta'
+                ? 'Cadastro corporativo @ametaservicos.com.br'
                 : 'Verificação de segurança'}
             </p>
           </div>
@@ -215,7 +246,7 @@ export const AuthGate: React.FC<AuthGateProps> = ({ onAuthenticated }) => {
           <form onSubmit={handleLogin} className="space-y-4">
             <div>
               <label className="block text-xs font-medium text-slate-600 mb-1.5">
-                E-mail @ameta
+                E-mail Corporativo (@ametaservicos.com.br)
               </label>
               <div className="relative">
                 <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-2.5" />
@@ -224,7 +255,7 @@ export const AuthGate: React.FC<AuthGateProps> = ({ onAuthenticated }) => {
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="nome@ameta.com.br"
+                  placeholder="nome@ametaservicos.com.br"
                   className="w-full pl-10 pr-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-blue-600 font-mono transition-colors"
                 />
               </div>
@@ -287,6 +318,16 @@ export const AuthGate: React.FC<AuthGateProps> = ({ onAuthenticated }) => {
               <ArrowRight className="w-4 h-4" />
             </button>
 
+            <button
+              type="button"
+              disabled={loading}
+              onClick={handleGoogleCloudSignIn}
+              className="w-full py-2.5 px-4 bg-slate-900 hover:bg-slate-800 disabled:opacity-50 text-white font-semibold text-xs rounded-xl transition-colors flex items-center justify-center gap-2 cursor-pointer shadow-2xs"
+            >
+              <Cloud className="w-4 h-4 text-emerald-400" />
+              <span>Entrar com Google (Sincronização Firebase Cloud)</span>
+            </button>
+
             <div className="pt-2 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500">
               <button
                 type="button"
@@ -322,7 +363,7 @@ export const AuthGate: React.FC<AuthGateProps> = ({ onAuthenticated }) => {
                 <button
                   type="button"
                   onClick={() => {
-                    setEmail('rafael.araujo@ameta.com.br');
+                    setEmail('rafael.araujo@ametaservicos.com.br');
                     setPassword('ameta2026');
                   }}
                   className="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-mono text-[11px] font-semibold transition-colors cursor-pointer"
@@ -353,14 +394,14 @@ export const AuthGate: React.FC<AuthGateProps> = ({ onAuthenticated }) => {
 
             <div>
               <label className="block text-xs font-medium text-slate-600 mb-1">
-                E-mail @ameta
+                E-mail (@ametaservicos.com.br)
               </label>
               <input
                 type="email"
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="voce@ameta.com.br"
+                placeholder="voce@ametaservicos.com.br"
                 className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 font-mono focus:outline-none focus:bg-white focus:border-blue-600"
               />
             </div>

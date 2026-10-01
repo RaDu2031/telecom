@@ -1,0 +1,100 @@
+{
+  "entities": {
+    "AdminUser": {
+      "title": "AdminUser",
+      "description": "Trusted administrator registry entry keyed by Firebase Auth UID.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "description": "Firebase Auth UID of the administrator."
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "maxLength": 256,
+          "description": "Verified email address of the administrator."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when admin record was created."
+        }
+      },
+      "required": ["uid", "email", "createdAt"]
+    },
+    "WorkspaceSnapshot": {
+      "title": "WorkspaceSnapshot",
+      "description": "Synchronized state chunk for the Ameta Telecom workspace (TIM/Nokia and Ericsson).",
+      "type": "object",
+      "properties": {
+        "chunkId": {
+          "type": "string",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "description": "Identifier of the workspace state chunk."
+        },
+        "vendor": {
+          "type": "string",
+          "enum": ["NOKIA", "ERICSSON", "SHARED"],
+          "maxLength": 32,
+          "description": "Target telecom platform."
+        },
+        "payloadType": {
+          "type": "string",
+          "enum": ["USERS", "DUPLAS", "NOTIFICATIONS", "FOLDERS", "FILES", "SITES_META"],
+          "maxLength": 32,
+          "description": "Category of synchronized data."
+        },
+        "dataJson": {
+          "type": "string",
+          "maxLength": 900000,
+          "description": "Serialized workspace collection state."
+        },
+        "authorUid": {
+          "type": "string",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "description": "UID of the authenticated user who wrote the snapshot."
+        },
+        "authorEmail": {
+          "type": "string",
+          "maxLength": 256,
+          "description": "Email of the user who updated the snapshot."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Creation server timestamp."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Last update server timestamp."
+        }
+      },
+      "required": [
+        "chunkId",
+        "vendor",
+        "payloadType",
+        "dataJson",
+        "authorUid",
+        "authorEmail",
+        "createdAt",
+        "updatedAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/admins/{adminUid}": {
+      "schema": { "$ref": "#/entities/AdminUser" },
+      "description": "Registry of system administrators."
+    },
+    "/workspace_snapshots/{chunkId}": {
+      "schema": { "$ref": "#/entities/WorkspaceSnapshot" },
+      "description": "Synchronized state chunks for Ameta Telecom workspace."
+    }
+  }
+}

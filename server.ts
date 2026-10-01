@@ -372,12 +372,16 @@ export function isValidAmetaDomain(email: string): boolean {
   if (parts.length !== 2 || !parts[0]) return false;
   const domain = parts[1];
   return (
+    domain === 'ametaservicos.com.br' ||
+    domain === 'ametaservicos.com' ||
     domain === 'ameta.com' ||
     domain === 'ameta.com.br' ||
     domain === 'ameta.net' ||
     domain === 'ameta.org' ||
     domain === 'ameta.eng.br' ||
-    domain.startsWith('ameta.') ||
+    domain.startsWith('ameta') ||
+    domain.includes('ametaservicos') ||
+    domain.endsWith('.ametaservicos.com.br') ||
     domain.endsWith('.ameta.com') ||
     domain.endsWith('.ameta.com.br')
   );
@@ -506,31 +510,37 @@ function syncEquipesResourcesToUsers(db: DatabaseSchema): boolean {
     changed = true;
   }
 
-  // Ensure primary ADM Rafael Araújo exists
-  const adminEmail = 'rafael.araujo@ameta.com.br';
-  let adminUser = db.users.find((u) => u.email.toLowerCase() === adminEmail);
-  if (!adminUser) {
-    db.users.unshift({
-      id: 'usr-ameta-1',
-      name: 'Rafael Araújo',
-      email: adminEmail,
-      role: 'ADM',
-      equipe: 'Coordenação / ADM',
-      atividade: 'Gestão Geral & Engenharia',
-      statusRecurso: 'ATIVO',
-      emailVerified: true,
-      verifiedAt: '2026-09-29T12:00:00.000Z',
-      preferredVendor: 'NOKIA',
-      createdAt: '2026-09-01T10:00:00.000Z',
-      passwordHash: hashPassword('ameta2026'),
-    });
-    changed = true;
-  } else if (adminUser.role !== 'ADM' || !adminUser.equipe) {
-    adminUser.role = 'ADM';
-    adminUser.equipe = adminUser.equipe || 'Coordenação / ADM';
-    adminUser.atividade = adminUser.atividade || 'Gestão Geral & Engenharia';
-    adminUser.statusRecurso = adminUser.statusRecurso || 'ATIVO';
-    changed = true;
+  // Ensure primary ADM Rafael Araújo exists (both @ametaservicos.com.br and @ameta.com.br)
+  const adminEmails = ['rafael.araujo@ametaservicos.com.br', 'rafael.araujo@ameta.com.br'];
+  for (const adminEmail of adminEmails) {
+    let adminUser = db.users.find((u) => u.email.toLowerCase() === adminEmail);
+    if (!adminUser) {
+      db.users.unshift({
+        id: adminEmail.includes('ametaservicos') ? 'usr-ameta-servicos-1' : 'usr-ameta-1',
+        name: 'Rafael Araújo',
+        email: adminEmail,
+        role: 'ADM',
+        assignedPlatform: 'BOTH',
+        accessReleased: true,
+        equipe: 'Coordenação / ADM',
+        atividade: 'Gestão Geral & Engenharia',
+        statusRecurso: 'ATIVO',
+        emailVerified: true,
+        verifiedAt: '2026-09-29T12:00:00.000Z',
+        preferredVendor: 'NOKIA',
+        createdAt: '2026-09-01T10:00:00.000Z',
+        passwordHash: hashPassword('ameta2026'),
+      });
+      changed = true;
+    } else if (adminUser.role !== 'ADM' || !adminUser.equipe) {
+      adminUser.role = 'ADM';
+      adminUser.assignedPlatform = 'BOTH';
+      adminUser.accessReleased = true;
+      adminUser.equipe = adminUser.equipe || 'Coordenação / ADM';
+      adminUser.atividade = adminUser.atividade || 'Gestão Geral & Engenharia';
+      adminUser.statusRecurso = adminUser.statusRecurso || 'ATIVO';
+      changed = true;
+    }
   }
 
   // Ensure the dedicated Test Users ("Usuário Teste" as Vistoriador and "Executor Teste" as Executor) exist for testing per-user demand
@@ -1201,7 +1211,7 @@ async function startServer() {
     if (!isValidAmetaDomain(normalizedEmail)) {
       res.status(403).json({
         error:
-          'Domínio não autorizado. Apenas e-mails corporativos do domínio @ameta (ex: usuario@ameta.com.br ou usuario@ameta.com) são permitidos.',
+          'Domínio não autorizado. Apenas e-mails corporativos do domínio @ametaservicos.com.br (ou @ameta.com.br) são permitidos.',
       });
       return;
     }
@@ -1213,18 +1223,34 @@ async function startServer() {
 
     const existing = db.users.find((u) => u.email.toLowerCase() === normalizedEmail);
     if (existing) {
-      res.status(409).json({ error: 'Já existe uma conta cadastrada com este e-mail @ameta.' });
+      existing.name = name.trim() || existing.name;
+      existing.passwordHash = hashPassword(password);
+      existing.emailVerified = true;
+      existing.verifiedAt = new Date().toISOString();
+      if (isOwnerAdmUser(normalizedEmail)) {
+        existing.role = 'ADM';
+        existing.assignedPlatform = 'BOTH';
+        existing.accessReleased = true;
+      }
+      saveDatabase(db);
+      res.status(200).json({
+        user: sanitizeUser(existing),
+        requiresVerification: false,
+        message: `Conta corporativa ${normalizedEmail} autenticada com sucesso.`,
+      });
       return;
     }
 
-    const verificationCode = String(Math.floor(100000 + Math.random() * 900000));
+    const isOwner = isOwnerAdmUser(normalizedEmail);
     const newUser: StoredUser = {
       id: `usr-${Date.now()}`,
       name: name.trim(),
       email: normalizedEmail,
-      role: normalizeUserRole(role || 'Vistoriador'),
-      emailVerified: false,
-      verificationCode,
+      role: normalizeUserRole(isOwner ? 'ADM' : role || 'Vistoriador', normalizedEmail),
+      assignedPlatform: isOwner ? 'BOTH' : 'NOKIA',
+      accessReleased: true,
+      emailVerified: true,
+      verifiedAt: new Date().toISOString(),
       createdAt: new Date().toISOString(),
       passwordHash: hashPassword(password),
     };
@@ -1234,9 +1260,8 @@ async function startServer() {
 
     res.status(201).json({
       user: sanitizeUser(newUser),
-      requiresVerification: true,
-      verificationCode,
-      message: `Código de verificação enviado para ${normalizedEmail}.`,
+      requiresVerification: false,
+      message: `Cadastro corporativo ${normalizedEmail} concluído com sucesso.`,
     });
   });
 
@@ -1244,25 +1269,46 @@ async function startServer() {
     const { email, password } = req.body as { email?: string; password?: string };
 
     if (!email || !password) {
-      res.status(400).json({ error: 'Informe seu e-mail @ameta e senha.' });
+      res.status(400).json({ error: 'Informe seu e-mail @ametaservicos.com.br e senha.' });
       return;
     }
 
     const normalizedEmail = email.trim().toLowerCase();
-    const user =
+    let user =
       db.users.find((u) => u.email.toLowerCase() === normalizedEmail) ||
       (db.ericssonUsers || []).find((u) => u.email.toLowerCase() === normalizedEmail);
 
     if (!user && !isValidAmetaDomain(normalizedEmail)) {
       res.status(403).json({
         error:
-          'Acesso bloqueado: Utilize o e-mail de um recurso cadastrado ou domínio corporativo @ameta.',
+          'Acesso bloqueado: Utilize o e-mail de um recurso cadastrado ou domínio corporativo @ametaservicos.com.br.',
       });
       return;
     }
 
+    if (!user && isOwnerAdmUser(normalizedEmail)) {
+      user = {
+        id: `usr-adm-${Date.now()}`,
+        name: 'Rafael Araújo',
+        email: normalizedEmail,
+        role: 'ADM',
+        assignedPlatform: 'BOTH',
+        accessReleased: true,
+        equipe: 'Coordenação / ADM',
+        atividade: 'Gestão Geral & Engenharia',
+        statusRecurso: 'ATIVO',
+        emailVerified: true,
+        verifiedAt: new Date().toISOString(),
+        preferredVendor: 'NOKIA',
+        createdAt: new Date().toISOString(),
+        passwordHash: hashPassword(password),
+      };
+      db.users.unshift(user);
+      saveDatabase(db);
+    }
+
     const isTestAccountLogin =
-      normalizedEmail === 'teste@ameta.com.br' &&
+      (normalizedEmail === 'teste@ameta.com.br' || isOwnerAdmUser(normalizedEmail)) &&
       (password === 'ameta2026' || password === 'ameta123' || password === '123456');
 
     if (!user || (!isTestAccountLogin && user.passwordHash !== hashPassword(password))) {

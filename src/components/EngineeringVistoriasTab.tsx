@@ -40,6 +40,9 @@ import {
   TssrSheetMeta,
 } from '../types/telecom';
 import { doesDocumentMatchResponsible } from '../utils/spreadsheetUtils';
+import { cloudFetch } from '../lib/firebaseCloud';
+
+const fetch = cloudFetch;
 
 interface EngineeringVistoriasTabProps {
   user: AmetaUser;

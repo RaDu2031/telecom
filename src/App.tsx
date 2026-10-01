@@ -93,6 +93,9 @@ import {
   getSiteExecutionSortBucket,
 } from './components/InteractiveSpreadsheetChart';
 import { DuplasInteractiveView } from './components/DuplasInteractiveView';
+import { subscribeToCloudWorkspaceUpdates, cloudFetch } from './lib/firebaseCloud';
+
+const fetch = cloudFetch;
 import {
   exportSitesToCsv,
   exportSitesToXlsx,
@@ -404,6 +407,9 @@ export default function App() {
 
     fetchLatestState();
     connectStream();
+    subscribeToCloudWorkspaceUpdates(() => {
+      fetchLatestState();
+    });
 
     // Real-time background sync every 2.5s + immediate sync on tab focus/visibility so no change is ever missed
     const pollInterval = setInterval(fetchLatestState, 2500);

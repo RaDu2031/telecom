@@ -20,6 +20,9 @@ import {
   UserRole,
   isOwnerAdmUser,
 } from '../types/telecom';
+import { cloudFetch } from '../lib/firebaseCloud';
+
+const fetch = cloudFetch;
 
 interface OwnerPermissionsModalProps {
   isOpen: boolean;

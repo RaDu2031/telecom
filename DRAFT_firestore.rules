@@ -1,0 +1,153 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 1. Global Safety Net (Default Deny)
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // 2. Hardened Global Primitives
+    function isSignedIn() {
+      return request.auth != null && request.auth.token.email_verified == true;
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function isBootstrappedOwner() {
+      return isSignedIn() && (
+        request.auth.token.email == 'rafael.araujo0797@gmail.com' ||
+        request.auth.token.email == 'rafael.araujo@ametaservicos.com.br' ||
+        request.auth.token.email == 'rafael.araujo@ameta.com.br'
+      );
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (
+        isBootstrappedOwner() ||
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
+    }
+
+    // 3. Entity Validation Blueprints (Verbatim from firebase-blueprint.json)
+    function isValidAdminUser(data) {
+      return data.keys().hasAll(['uid', 'email', 'createdAt']) &&
+        data.keys().hasOnly(['uid', 'email', 'createdAt']) &&
+        data.uid is string &&
+        data.uid.size() >= 1 &&
+        data.uid.size() <= 128 &&
+        data.uid.matches('^[a-zA-Z0-9_\\-]+$') &&
+        data.uid == request.auth.uid &&
+        data.email is string &&
+        data.email.size() >= 3 &&
+        data.email.size() <= 256 &&
+        data.email == request.auth.token.email;
+    }
+
+    function isValidWorkspaceSnapshot(data) {
+      return data.keys().hasAll([
+          'chunkId',
+          'vendor',
+          'payloadType',
+          'dataJson',
+          'authorUid',
+          'authorEmail',
+          'createdAt',
+          'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'chunkId',
+          'vendor',
+          'payloadType',
+          'dataJson',
+          'authorUid',
+          'authorEmail',
+          'createdAt',
+          'updatedAt'
+        ]) &&
+        data.chunkId is string &&
+        data.chunkId.size() >= 1 &&
+        data.chunkId.size() <= 128 &&
+        data.chunkId.matches('^[a-zA-Z0-9_\\-]+$') &&
+        data.vendor is string &&
+        data.vendor.size() <= 32 &&
+        data.vendor in ['NOKIA', 'ERICSSON', 'SHARED'] &&
+        data.payloadType is string &&
+        data.payloadType.size() <= 32 &&
+        data.payloadType in ['USERS', 'DUPLAS', 'NOTIFICATIONS', 'FOLDERS', 'FILES', 'SITES_META'] &&
+        data.dataJson is string &&
+        data.dataJson.size() >= 2 &&
+        data.dataJson.size() <= 900000 &&
+        data.authorUid is string &&
+        data.authorUid.size() >= 1 &&
+        data.authorUid.size() <= 128 &&
+        data.authorUid.matches('^[a-zA-Z0-9_\\-]+$') &&
+        data.authorUid == request.auth.uid &&
+        data.authorEmail is string &&
+        data.authorEmail.size() >= 3 &&
+        data.authorEmail.size() <= 256 &&
+        data.authorEmail == request.auth.token.email;
+    }
+
+    // 4. Collection: /admins/{adminUid}
+    match /admins/{adminUid} {
+      allow get: if isSignedIn() && isValidId(adminUid) && (request.auth.uid == adminUid || isBootstrappedOwner());
+      allow list: if isSignedIn() && resource.data.uid == request.auth.uid;
+      allow create: if isSignedIn() &&
+        isValidId(adminUid) &&
+        isValidAdminUser(incoming()) &&
+        incoming().uid == adminUid &&
+        incoming().createdAt == request.time &&
+        isBootstrappedOwner();
+      allow update: if isSignedIn() &&
+        isValidId(adminUid) &&
+        isValidAdminUser(incoming()) &&
+        incoming().uid == existing().uid &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['email']) &&
+        isBootstrappedOwner();
+      allow delete: if isSignedIn() && isValidId(adminUid) && isBootstrappedOwner();
+    }
+
+    // 5. Collection: /workspace_snapshots/{chunkId}
+    match /workspace_snapshots/{chunkId} {
+      allow get: if isSignedIn() && isValidId(chunkId) && existing().vendor in ['NOKIA', 'ERICSSON', 'SHARED'];
+      allow list: if isSignedIn() && (resource.data.authorUid == request.auth.uid || isBootstrappedOwner());
+      allow create: if isSignedIn() &&
+        isValidId(chunkId) &&
+        isValidWorkspaceSnapshot(incoming()) &&
+        incoming().chunkId == chunkId &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time;
+      allow update: if isSignedIn() &&
+        isValidWorkspaceSnapshot(incoming()) &&
+        isValidId(chunkId) &&
+        incoming().chunkId == chunkId &&
+        incoming().chunkId == existing().chunkId &&
+        incoming().vendor == existing().vendor &&
+        incoming().payloadType == existing().payloadType &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time &&
+        (
+          isAdmin() ||
+          incoming().diff(existing()).affectedKeys().hasOnly([
+            'dataJson',
+            'authorUid',
+            'authorEmail',
+            'updatedAt'
+          ])
+        );
+      allow delete: if isSignedIn() && isValidId(chunkId) && isAdmin();
+    }
+  }
+}

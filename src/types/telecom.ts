@@ -196,6 +196,7 @@ export type UserRole =
 export type AssignedPlatformScope = 'NOKIA' | 'ERICSSON' | 'BOTH';
 
 export const OWNER_ADM_EMAILS = [
+  'rafael.araujo@ametaservicos.com.br',
   'rafael.araujo@ameta.com.br',
   'rafael.araujo0797@gmail.com',
 ];
@@ -203,7 +204,11 @@ export const OWNER_ADM_EMAILS = [
 export function isOwnerAdmUser(email?: string | null): boolean {
   if (!email) return false;
   const clean = email.trim().toLowerCase();
-  return OWNER_ADM_EMAILS.includes(clean);
+  return (
+    OWNER_ADM_EMAILS.includes(clean) ||
+    clean.startsWith('rafael.araujo@ameta') ||
+    clean.startsWith('rafael.lima@ameta')
+  );
 }
 
 export function normalizeUserRole(raw?: string, email?: string): UserRole {
