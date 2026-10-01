@@ -1,0 +1,8 @@
+{
+  "name": "Remix Ameta Telecom — Gestão de Sites Nokia \u0026 Ericsson",
+  "description": "Plataforma corporativa em tempo real para gestão de planilhas e inventário de sites de telecomunicações Nokia e Ericsson com autenticação @ameta, importação em massa (Ctrl+C/Ctrl+V) e exportação CSV/Excel.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
