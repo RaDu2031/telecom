@@ -177,19 +177,23 @@ export const AuthGate: React.FC<AuthGateProps> = ({ onAuthenticated }) => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col items-center justify-center p-6">
-      <div className="w-full max-w-sm bg-white border border-slate-200/90 rounded-2xl shadow-xs p-7 space-y-6">
-        {/* Brand Header with Ameta Logo next to Name */}
-        <div className="flex flex-col items-center text-center space-y-2">
-          <AmetaLogo size="lg" theme="light" />
-          <p className="text-xs text-slate-500">
-            {mode === 'login'
-              ? 'Acesse o portal de Engenharia e Sites'
-              : mode === 'register'
-              ? 'Cadastro corporativo @ameta'
-              : 'Verificação de segurança'}
-          </p>
-        </div>
+    <div className="min-h-screen bg-[#F0F3FB] text-slate-900 flex flex-col items-center justify-center p-6">
+      <div className="w-full max-w-sm bg-white border border-slate-200/90 rounded-2xl shadow-sm overflow-hidden">
+        {/* Top Brand Accent Bar with Ameta Navy & Teal */}
+        <div className="h-1.5 w-full bg-gradient-to-r from-[#223585] via-[#206289] to-[#1E8E8D]" />
+
+        <div className="p-7 space-y-6">
+          {/* Brand Header with Official Ameta Serviços Logo */}
+          <div className="flex flex-col items-center text-center space-y-2">
+            <AmetaLogo size="lg" theme="light" />
+            <p className="text-xs text-slate-500">
+              {mode === 'login'
+                ? 'Acesse o portal de Engenharia e Sites'
+                : mode === 'register'
+                ? 'Cadastro corporativo @ameta'
+                : 'Verificação de segurança'}
+            </p>
+          </div>
 
         {/* Alerts */}
         {error && (
@@ -467,6 +471,7 @@ export const AuthGate: React.FC<AuthGateProps> = ({ onAuthenticated }) => {
             </div>
           </form>
         )}
+        </div>
       </div>
     </div>
   );

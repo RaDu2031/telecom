@@ -14,8 +14,19 @@ import {
   Minimize2,
   Maximize2,
   ExternalLink,
+  AlertTriangle,
+  FileWarning,
+  ShieldAlert,
+  X,
 } from 'lucide-react';
-import { TelecomSite, VendorType } from '../types/telecom';
+import {
+  TelecomSite,
+  VendorType,
+  AmetaUser,
+  MandatoryDocType,
+  UserMandatoryDocument,
+  evaluateUserOverallDocumentStatus,
+} from '../types/telecom';
 import {
   getCellValueForColumn,
   getCanonicalDuplaName,
@@ -28,6 +39,7 @@ export type ChartCategoryFilter = 'ALL' | 'PARA_FAZER' | 'FEITOS' | 'NOTAS_PENDE
 
 interface InteractiveSpreadsheetChartProps {
   sites: TelecomSite[];
+  users?: AmetaUser[];
   activeVendor: VendorType;
   activeChartFilter: ChartCategoryFilter;
   onSelectChartFilter: (filter: ChartCategoryFilter) => void;
@@ -38,6 +50,20 @@ interface InteractiveSpreadsheetChartProps {
   activeUfFilter: string;
   onSelectUfFilter: (uf: string) => void;
   onOpenSite?: (siteId: string) => void;
+  onOpenCollaboratorDocs?: (userId: string) => void;
+  onRemoveExpiredDoc?: (
+    userId: string,
+    docType: MandatoryDocType,
+    docLabel: string,
+    userName: string
+  ) => void;
+}
+
+function formatDateBrShort(isoDate?: string): string {
+  if (!isoDate || !isoDate.trim()) return 'Sem data';
+  const parts = isoDate.trim().split('-');
+  if (parts.length !== 3) return isoDate;
+  return `${parts[2]}/${parts[1]}/${parts[0]}`;
 }
 
 export function isSiteFeito(site: TelecomSite): boolean {
@@ -158,8 +184,35 @@ export function isSiteNotaPendente(site: TelecomSite): boolean {
   return false;
 }
 
+export interface CollaboratorExpiredDocSummary {
+  user: AmetaUser;
+  canonicalEquipe: string;
+  vencidos: Array<
+    UserMandatoryDocument & {
+      eval: {
+        status: string;
+        daysRemaining: number | null;
+        statusLabel: string;
+      };
+    }
+  >;
+  aVencer: Array<
+    UserMandatoryDocument & {
+      eval: {
+        status: string;
+        daysRemaining: number | null;
+        statusLabel: string;
+      };
+    }
+  >;
+  validadosCount: number;
+  totalDocsCount: number;
+  overallStatus: 'VALIDADO' | 'A VENCER' | 'VENCIDO' | 'DISPENSADO';
+}
+
 export const InteractiveSpreadsheetChart: React.FC<InteractiveSpreadsheetChartProps> = ({
   sites,
+  users = [],
   activeVendor,
   activeChartFilter,
   onSelectChartFilter,
@@ -170,10 +223,54 @@ export const InteractiveSpreadsheetChart: React.FC<InteractiveSpreadsheetChartPr
   activeUfFilter,
   onSelectUfFilter,
   onOpenSite,
+  onOpenCollaboratorDocs,
+  onRemoveExpiredDoc,
 }) => {
   const [isMinimized, setIsMinimized] = useState<boolean>(false);
   const [isBarsMinimized, setIsBarsMinimized] = useState<boolean>(false);
-  const [breakdownMode, setBreakdownMode] = useState<'DUPLAS' | 'EXECUTOR' | 'UF'>('DUPLAS');
+  const [breakdownMode, setBreakdownMode] = useState<
+    'DUPLAS' | 'EXECUTOR' | 'UF' | 'DOC_VENCIDO'
+  >('DUPLAS');
+
+  // Evaluate collaborators with expired ("VENCIDO") or expiring ("A VENCER") documents
+  const collaboratorDocStats = useMemo(() => {
+    const expiredCollaborators: CollaboratorExpiredDocSummary[] = [];
+    const expiringCollaborators: CollaboratorExpiredDocSummary[] = [];
+    let totalExpiredDocsCount = 0;
+    let totalExpiringDocsCount = 0;
+
+    users.forEach((u) => {
+      const summary = evaluateUserOverallDocumentStatus(u);
+      if (summary.isUserDispensado) return;
+
+      const canonEq = u.equipe ? getCanonicalDuplaName(u.equipe) || u.equipe.trim() : 'Sem Equipe';
+      const item: CollaboratorExpiredDocSummary = {
+        user: u,
+        canonicalEquipe: canonEq,
+        vencidos: summary.vencidos,
+        aVencer: summary.aVencer,
+        validadosCount: summary.validados.length + summary.dispensados.length,
+        totalDocsCount: summary.evaluated.length || 8,
+        overallStatus: summary.overallStatus,
+      };
+
+      if (summary.vencidos.length > 0) {
+        expiredCollaborators.push(item);
+        totalExpiredDocsCount += summary.vencidos.length;
+      } else if (summary.aVencer.length > 0) {
+        expiringCollaborators.push(item);
+        totalExpiringDocsCount += summary.aVencer.length;
+      }
+    });
+
+    return {
+      expiredCollaborators,
+      expiringCollaborators,
+      allAlertCollaborators: [...expiredCollaborators, ...expiringCollaborators],
+      totalExpiredDocsCount,
+      totalExpiringDocsCount,
+    };
+  }, [users]);
 
   const stats = useMemo(() => {
     const activePool = sites.filter((s) => !isSiteCancelado(s));
@@ -321,8 +418,6 @@ export const InteractiveSpreadsheetChart: React.FC<InteractiveSpreadsheetChartPr
       byUf.set(ufKey, curU);
     });
 
-    // Only show Duplas, Executors, and UFs that have pending sites (paraFazer > 0).
-    // As soon as all sites of a Dupla/Executor/UF are completed (feitos), it exits automatically.
     const allDuplasRaw = Array.from(byDupla.values());
     const allExecutorsRaw = Array.from(byExecutor.values());
     const allUfsRaw = Array.from(byUf.values());
@@ -356,6 +451,41 @@ export const InteractiveSpreadsheetChart: React.FC<InteractiveSpreadsheetChartPr
       completedUfsCount: allUfsRaw.length - allUfs.length,
     };
   }, [sites]);
+
+  // Helper to find expired collaborators linked to a given Dupla name
+  const getExpiredCollaboratorsForDupla = (
+    duplaName: string
+  ): CollaboratorExpiredDocSummary[] => {
+    const dNorm = duplaName.trim().toLowerCase();
+    return collaboratorDocStats.expiredCollaborators.filter((item) => {
+      const eqNorm = item.canonicalEquipe.trim().toLowerCase();
+      const rawEqNorm = (item.user.equipe || '').trim().toLowerCase();
+      const nameNorm = item.user.name.trim().toLowerCase();
+      if (eqNorm === dNorm || rawEqNorm === dNorm || nameNorm === dNorm) return true;
+      const tokens = dNorm
+        .split(/[\s/,&-]+/)
+        .map((t) => t.trim())
+        .filter((t) => t.length >= 4);
+      return tokens.some(
+        (tk) => eqNorm.includes(tk) || rawEqNorm.includes(tk) || nameNorm.includes(tk)
+      );
+    });
+  };
+
+  // Helper to find expired collaborators linked to an Executor
+  const getExpiredCollaboratorsForExecutor = (
+    executorName: string,
+    duplasOfExec: string[]
+  ): CollaboratorExpiredDocSummary[] => {
+    const exNorm = executorName.trim().toLowerCase();
+    return collaboratorDocStats.expiredCollaborators.filter((item) => {
+      const nameNorm = item.user.name.trim().toLowerCase();
+      if (nameNorm.includes(exNorm) || exNorm.includes(nameNorm)) return true;
+      return duplasOfExec.some((d) =>
+        getExpiredCollaboratorsForDupla(d).some((c) => c.user.id === item.user.id)
+      );
+    });
+  };
 
   // Automatically clear the active chart filter if a Dupla, Executor, or UF finishes all its pending sites
   useEffect(() => {
@@ -474,7 +604,7 @@ export const InteractiveSpreadsheetChart: React.FC<InteractiveSpreadsheetChartPr
                 : 'Clique para minimizar a aba de gráficos'
             }
           >
-            <div className="w-7 h-7 rounded-lg bg-slate-900 group-hover:bg-blue-600 transition-colors text-white flex items-center justify-center shrink-0">
+            <div className="w-7 h-7 rounded-lg bg-[#223585] group-hover:bg-[#1E8E8D] transition-colors text-white flex items-center justify-center shrink-0">
               <BarChart3 className="w-4 h-4" />
             </div>
             <div className="flex items-center gap-2">
@@ -486,6 +616,35 @@ export const InteractiveSpreadsheetChart: React.FC<InteractiveSpreadsheetChartPr
               </span>
             </div>
           </button>
+
+          {/* Compact inline badge for Collaborators with Expired Documents (always visible in header bar) */}
+          {collaboratorDocStats.expiredCollaborators.length > 0 && (
+            <button
+              type="button"
+              onClick={() => {
+                setIsMinimized(false);
+                setIsBarsMinimized(false);
+                setBreakdownMode('DOC_VENCIDO');
+              }}
+              className="px-2.5 py-0.5 rounded-md bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 text-[11px] font-semibold flex items-center gap-1.5 cursor-pointer transition-colors"
+              title="Clique para ver no gráfico os colaboradores com documento vencido"
+            >
+              <AlertTriangle className="w-3.5 h-3.5 text-red-600 shrink-0" />
+              <span>
+                {collaboratorDocStats.expiredCollaborators.length} Colaborador(es) c/ Doc Vencido:{' '}
+                <strong>
+                  {collaboratorDocStats.expiredCollaborators
+                    .map(
+                      (c) =>
+                        `${c.user.name} (${
+                          c.vencidos.map((d) => d.label).join(', ') || 'Doc Vencido'
+                        })`
+                    )
+                    .join(' · ')}
+                </strong>
+              </span>
+            </button>
+          )}
 
           {/* Compact inline summary pills when minimized so admin still sees KPIs in 1 line */}
           {isMinimized && (
@@ -579,9 +738,9 @@ export const InteractiveSpreadsheetChart: React.FC<InteractiveSpreadsheetChartPr
               type="button"
               onClick={() => setIsBarsMinimized((prev) => !prev)}
               className="px-2.5 py-1 bg-[#F3F4F6] hover:bg-slate-200/80 border border-slate-200 rounded-lg text-[11px] font-medium text-slate-700 flex items-center gap-1 cursor-pointer"
-              title="Minimizar ou expandir apenas o gráfico de barras por Dupla/Executor/UF"
+              title="Minimizar ou expandir apenas o gráfico de barras por Dupla/Executor/UF/Doc Vencido"
             >
-              <span>{isBarsMinimized ? 'Mostrar Barras por Dupla' : 'Ocultar Barras'}</span>
+              <span>{isBarsMinimized ? 'Mostrar Barras' : 'Ocultar Barras'}</span>
               {isBarsMinimized ? (
                 <ChevronDown className="w-3.5 h-3.5 text-slate-500" />
               ) : (
@@ -595,7 +754,7 @@ export const InteractiveSpreadsheetChart: React.FC<InteractiveSpreadsheetChartPr
             onClick={() => setIsMinimized((prev) => !prev)}
             className={`px-3 py-1 rounded-lg text-xs font-semibold flex items-center gap-1.5 border transition-colors cursor-pointer ${
               isMinimized
-                ? 'bg-slate-900 hover:bg-slate-800 text-white border-slate-900'
+                ? 'bg-[#223585] hover:bg-[#1b2a6b] text-white border-[#223585]'
                 : 'bg-[#F3F4F6] hover:bg-slate-200 text-slate-800 border-slate-200'
             }`}
           >
@@ -618,8 +777,8 @@ export const InteractiveSpreadsheetChart: React.FC<InteractiveSpreadsheetChartPr
 
       {!isMinimized && (
         <div className="p-4 space-y-4 bg-[#F3F4F6]/50">
-          {/* 3 Main Interactive Cards: 1º PARA FAZER | 2º FEITOS | 3º NOTAS PENDENTES */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          {/* 4 Main Interactive Cards: 1º PARA FAZER | 2º FEITOS | 3º NOTAS PENDENTES | 4º COLABORADORES C/ DOC VENCIDO */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
             {/* 1. SITES PARA FAZER (SEMPRE EM PRIMEIRO) */}
             <button
               type="button"
@@ -644,7 +803,7 @@ export const InteractiveSpreadsheetChart: React.FC<InteractiveSpreadsheetChartPr
                       1º Sites Para Fazer (A Executar)
                     </div>
                     <div className="text-[11px] text-slate-500">
-                      Aparecem sempre em primeiro ao clicar no gráfico
+                      Aparecem sempre em primeiro ao clicar
                     </div>
                   </div>
                 </div>
@@ -671,7 +830,7 @@ export const InteractiveSpreadsheetChart: React.FC<InteractiveSpreadsheetChartPr
               </div>
             </button>
 
-            {/* 2. SITES FEITOS (EM SEGUNDO) */}
+            {/* 2. SITES FEITOS (EM SEGUNDO - AMETA TEAL) */}
             <button
               type="button"
               onClick={() =>
@@ -693,7 +852,7 @@ export const InteractiveSpreadsheetChart: React.FC<InteractiveSpreadsheetChartPr
                       2º Sites Feitos (Finalizados)
                     </div>
                     <div className="text-[11px] text-slate-500">
-                      Vistorias e atividades concluídas na planilha
+                      Vistorias e atividades concluídas
                     </div>
                   </div>
                 </div>
@@ -720,7 +879,7 @@ export const InteractiveSpreadsheetChart: React.FC<InteractiveSpreadsheetChartPr
               </div>
             </button>
 
-            {/* 3. NOTAS PENDENTES (FINANCEIRO / SPO / NF) */}
+            {/* 3. NOTAS PENDENTES (FINANCEIRO / SPO / NF - AMETA NAVY) */}
             <button
               type="button"
               onClick={() =>
@@ -741,10 +900,10 @@ export const InteractiveSpreadsheetChart: React.FC<InteractiveSpreadsheetChartPr
                   </div>
                   <div>
                     <div className="text-xs font-bold text-slate-900">
-                      Notas Pendentes (SPO / SGR / Emitir NF)
+                      Notas Pendentes (SPO / Emitir NF)
                     </div>
                     <div className="text-[11px] text-slate-500">
-                      Aguardando emissão de NF, SPO, SGR ou sem N° da NF
+                      Aguardando NF, SPO, SGR ou sem N° NF
                     </div>
                   </div>
                 </div>
@@ -770,9 +929,108 @@ export const InteractiveSpreadsheetChart: React.FC<InteractiveSpreadsheetChartPr
                 </div>
               </div>
             </button>
+
+            {/* 4. COLABORADORES COM DOCUMENTO VENCIDO */}
+            <button
+              type="button"
+              onClick={() => {
+                setIsBarsMinimized(false);
+                setBreakdownMode((prev) =>
+                  prev === 'DOC_VENCIDO' ? 'DUPLAS' : 'DOC_VENCIDO'
+                );
+              }}
+              className={`p-4 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between gap-2.5 ${
+                breakdownMode === 'DOC_VENCIDO'
+                  ? 'bg-red-50/90 border-red-400 ring-2 ring-red-400/40 shadow-sm'
+                  : collaboratorDocStats.expiredCollaborators.length > 0
+                  ? 'bg-red-50/40 hover:bg-red-50/80 border-red-200 shadow-2xs'
+                  : 'bg-white hover:bg-slate-50/80 border-slate-200 shadow-2xs'
+              }`}
+            >
+              <div className="flex items-start justify-between gap-2 w-full">
+                <div className="flex items-center gap-2.5">
+                  <div
+                    className={`w-9 h-9 rounded-lg border flex items-center justify-center shrink-0 ${
+                      collaboratorDocStats.expiredCollaborators.length > 0
+                        ? 'bg-red-100 text-red-700 border-red-200'
+                        : 'bg-emerald-100 text-emerald-800 border-emerald-200'
+                    }`}
+                  >
+                    <FileWarning className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <div className="text-xs font-bold text-slate-900">
+                      Colaboradores c/ Doc Vencido
+                    </div>
+                    <div className="text-[11px] text-slate-500">
+                      {collaboratorDocStats.expiredCollaborators.length > 0
+                        ? 'Clique para ver quem está com doc vencido'
+                        : 'Todos os documentos obrigatórios em dia'}
+                    </div>
+                  </div>
+                </div>
+                <span
+                  className={`px-2 py-0.5 rounded-full text-[11px] font-mono font-bold border shrink-0 ${
+                    collaboratorDocStats.expiredCollaborators.length > 0
+                      ? 'bg-red-600 text-white border-red-700'
+                      : 'bg-emerald-100 text-emerald-900 border-emerald-200'
+                  }`}
+                >
+                  {collaboratorDocStats.expiredCollaborators.length > 0
+                    ? `${collaboratorDocStats.totalExpiredDocsCount} doc(s)`
+                    : 'OK'}
+                </span>
+              </div>
+
+              <div className="space-y-1.5 w-full">
+                <div className="flex items-baseline justify-between gap-2">
+                  <span
+                    className={`text-2xl font-bold font-mono tabular-nums ${
+                      collaboratorDocStats.expiredCollaborators.length > 0
+                        ? 'text-red-700'
+                        : 'text-slate-900'
+                    }`}
+                  >
+                    {collaboratorDocStats.expiredCollaborators.length}
+                  </span>
+                  <span className="text-[11px] text-slate-500 truncate">
+                    {collaboratorDocStats.expiringCollaborators.length > 0
+                      ? `+ ${collaboratorDocStats.expiringCollaborators.length} a vencer (30d)`
+                      : 'NR10 · NR35 · ASO · PCMSO · PGR'}
+                  </span>
+                </div>
+
+                {/* Inline list of collaborators with expired docs right on the card */}
+                {collaboratorDocStats.expiredCollaborators.length > 0 ? (
+                  <div className="flex flex-wrap gap-1 pt-0.5">
+                    {collaboratorDocStats.expiredCollaborators.slice(0, 2).map((c) => (
+                      <span
+                        key={c.user.id}
+                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-red-100/90 text-red-900 border border-red-200 text-[10px] font-semibold truncate max-w-full"
+                      >
+                        <AlertTriangle className="w-2.5 h-2.5 text-red-600 shrink-0" />
+                        <span className="truncate">
+                          {c.user.name}:{' '}
+                          {c.vencidos.map((d) => d.label).join(', ') || 'Vencido'}
+                        </span>
+                      </span>
+                    ))}
+                    {collaboratorDocStats.expiredCollaborators.length > 2 && (
+                      <span className="px-1.5 py-0.5 rounded bg-red-100 text-red-800 text-[10px] font-mono font-bold">
+                        +{collaboratorDocStats.expiredCollaborators.length - 2}
+                      </span>
+                    )}
+                  </div>
+                ) : (
+                  <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
+                    <div className="h-full bg-emerald-600 rounded-full w-full" />
+                  </div>
+                )}
+              </div>
+            </button>
           </div>
 
-          {/* Interactive Comparative Bar Chart (Por Dupla Executante | Por Executor | Por UF) */}
+          {/* Interactive Comparative Bar Chart (Por Dupla Executante | Por Executor | Por UF | Colab. Doc Vencido) */}
           {!isBarsMinimized && (
             <div className="bg-white border border-slate-200 rounded-xl p-3.5 space-y-3">
               <div className="flex flex-wrap items-center justify-between gap-2">
@@ -782,18 +1040,21 @@ export const InteractiveSpreadsheetChart: React.FC<InteractiveSpreadsheetChartPr
                       'Equipes / Duplas com Sites Pendentes:'}
                     {breakdownMode === 'EXECUTOR' &&
                       'Executores / Gestores com Sites Pendentes:'}
-                    {breakdownMode === 'UF' &&
-                      'UFs com Sites Pendentes:'}
+                    {breakdownMode === 'UF' && 'UFs com Sites Pendentes:'}
+                    {breakdownMode === 'DOC_VENCIDO' &&
+                      'Gráfico de Colaboradores com Documento Vencido / Alerta:'}
                   </span>
-                  <span className="px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-800 border border-emerald-200 text-[11px] font-medium">
-                    {breakdownMode === 'DUPLAS' &&
-                      `100% Feitos saem automático (${stats.completedDuplasCount} concluídas ocultas)`}
-                    {breakdownMode === 'EXECUTOR' &&
-                      `100% Feitos saem automático (${stats.completedExecutorsCount} concluídos ocultos)`}
-                    {breakdownMode === 'UF' &&
-                      `100% Feitos saem automático (${stats.completedUfsCount} UFs concluídas ocultas)`}
-                  </span>
-                  <div className="flex items-center gap-3 text-[11px] text-slate-600">
+                  {breakdownMode !== 'DOC_VENCIDO' && (
+                    <span className="px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-800 border border-emerald-200 text-[11px] font-medium">
+                      {breakdownMode === 'DUPLAS' &&
+                        `100% Feitos saem automático (${stats.completedDuplasCount} concluídas ocultas)`}
+                      {breakdownMode === 'EXECUTOR' &&
+                        `100% Feitos saem automático (${stats.completedExecutorsCount} concluídos ocultos)`}
+                      {breakdownMode === 'UF' &&
+                        `100% Feitos saem automático (${stats.completedUfsCount} UFs concluídas ocultas)`}
+                    </span>
+                  )}
+                  <div className="flex flex-wrap items-center gap-3 text-[11px] text-slate-600">
                     <span className="inline-flex items-center gap-1 font-medium text-amber-800">
                       <span className="w-2.5 h-2.5 rounded-xs bg-amber-500 inline-block" />
                       1º Pendentes (A Fazer)
@@ -806,10 +1067,14 @@ export const InteractiveSpreadsheetChart: React.FC<InteractiveSpreadsheetChartPr
                       <span className="w-2.5 h-2.5 rounded-xs bg-blue-600 inline-block" />
                       Notas Pendentes
                     </span>
+                    <span className="inline-flex items-center gap-1 font-semibold text-red-700">
+                      <span className="w-2.5 h-2.5 rounded-xs bg-red-600 inline-block" />
+                      Doc. Vencido ({collaboratorDocStats.expiredCollaborators.length})
+                    </span>
                   </div>
                 </div>
 
-                <div className="flex items-center p-0.5 bg-[#F3F4F6] border border-slate-200 rounded-lg text-[11px]">
+                <div className="flex flex-wrap items-center p-0.5 bg-[#F3F4F6] border border-slate-200 rounded-lg text-[11px]">
                   <button
                     type="button"
                     onClick={() => setBreakdownMode('DUPLAS')}
@@ -846,6 +1111,22 @@ export const InteractiveSpreadsheetChart: React.FC<InteractiveSpreadsheetChartPr
                     <MapPin className="w-3 h-3" />
                     <span>Por UF ({stats.allUfs.length})</span>
                   </button>
+                  <button
+                    type="button"
+                    onClick={() => setBreakdownMode('DOC_VENCIDO')}
+                    className={`px-2.5 py-1 rounded-md font-medium flex items-center gap-1 cursor-pointer ${
+                      breakdownMode === 'DOC_VENCIDO'
+                        ? 'bg-red-600 text-white font-semibold shadow-2xs'
+                        : collaboratorDocStats.expiredCollaborators.length > 0
+                        ? 'text-red-700 hover:bg-red-50 font-semibold'
+                        : 'text-slate-500 hover:text-slate-800'
+                    }`}
+                  >
+                    <ShieldAlert className="w-3 h-3" />
+                    <span>
+                      Doc. Vencido ({collaboratorDocStats.expiredCollaborators.length})
+                    </span>
+                  </button>
                 </div>
               </div>
 
@@ -858,6 +1139,7 @@ export const InteractiveSpreadsheetChart: React.FC<InteractiveSpreadsheetChartPr
                     const feitoW =
                       item.total > 0 ? Math.round((item.feitos / item.total) * 100) : 0;
                     const variantsList = Array.from(item.rawVariants);
+                    const expiredInDupla = getExpiredCollaboratorsForDupla(item.dupla);
 
                     return (
                       <button
@@ -873,7 +1155,9 @@ export const InteractiveSpreadsheetChart: React.FC<InteractiveSpreadsheetChartPr
                         }
                         className={`p-2.5 rounded-lg border text-left transition-all cursor-pointer ${
                           isSelected
-                            ? 'bg-slate-900 text-white border-slate-900 ring-2 ring-blue-500/40'
+                            ? 'bg-[#223585] text-white border-[#223585] ring-2 ring-[#1E8E8D]/50'
+                            : expiredInDupla.length > 0
+                            ? 'bg-red-50/40 hover:bg-red-50/80 border-red-200 text-slate-800'
                             : 'bg-[#F3F4F6]/60 hover:bg-[#F3F4F6] border-slate-200/80 text-slate-800'
                         }`}
                       >
@@ -898,7 +1182,31 @@ export const InteractiveSpreadsheetChart: React.FC<InteractiveSpreadsheetChartPr
                           </div>
                         )}
 
-                        {/* Bar: 1º Para Fazer (Amber) on the left, 2º Feitos (Emerald) on the right */}
+                        {/* Alert Badge if a collaborator in this Dupla has an expired document */}
+                        {expiredInDupla.length > 0 && (
+                          <div
+                            className={`mb-1.5 px-2 py-1 rounded text-[10px] font-semibold flex items-center gap-1 ${
+                              isSelected
+                                ? 'bg-red-500/90 text-white'
+                                : 'bg-red-100 text-red-800 border border-red-200'
+                            }`}
+                          >
+                            <AlertTriangle className="w-3 h-3 shrink-0" />
+                            <span className="truncate">
+                              Doc Vencido:{' '}
+                              {expiredInDupla
+                                .map(
+                                  (c) =>
+                                    `${c.user.name} (${
+                                      c.vencidos.map((d) => d.label).join(', ') || 'Vencido'
+                                    })`
+                                )
+                                .join(', ')}
+                            </span>
+                          </div>
+                        )}
+
+                        {/* Bar: 1º Para Fazer (Amber) on the left, 2º Feitos (Teal) on the right */}
                         <div className="w-full h-2 bg-slate-200 rounded-full overflow-hidden flex mb-1.5">
                           <div
                             className="h-full bg-amber-500"
@@ -914,7 +1222,7 @@ export const InteractiveSpreadsheetChart: React.FC<InteractiveSpreadsheetChartPr
 
                         <div
                           className={`flex items-center justify-between text-[10px] font-mono ${
-                            isSelected ? 'text-slate-300' : 'text-slate-500'
+                            isSelected ? 'text-slate-200' : 'text-slate-500'
                           }`}
                         >
                           <span
@@ -947,6 +1255,10 @@ export const InteractiveSpreadsheetChart: React.FC<InteractiveSpreadsheetChartPr
                       item.total > 0 ? Math.round((item.feitos / item.total) * 100) : 0;
                     const variantsList = Array.from(item.rawVariants);
                     const duplasOfExec = Array.from(item.duplasSet);
+                    const expiredInExec = getExpiredCollaboratorsForExecutor(
+                      item.executor,
+                      duplasOfExec
+                    );
 
                     return (
                       <button
@@ -959,7 +1271,9 @@ export const InteractiveSpreadsheetChart: React.FC<InteractiveSpreadsheetChartPr
                         }}
                         className={`p-3 rounded-lg border text-left transition-all cursor-pointer ${
                           isSelected
-                            ? 'bg-slate-900 text-white border-slate-900 ring-2 ring-blue-500/40'
+                            ? 'bg-[#223585] text-white border-[#223585] ring-2 ring-[#1E8E8D]/50'
+                            : expiredInExec.length > 0
+                            ? 'bg-red-50/40 hover:bg-red-50/80 border-red-200 text-slate-800'
                             : 'bg-[#F3F4F6]/60 hover:bg-[#F3F4F6] border-slate-200/80 text-slate-800'
                         }`}
                       >
@@ -997,7 +1311,30 @@ export const InteractiveSpreadsheetChart: React.FC<InteractiveSpreadsheetChartPr
                           </div>
                         )}
 
-                        {/* Bar: 1º Para Fazer (Amber) first, 2º Feitos (Emerald) second */}
+                        {expiredInExec.length > 0 && (
+                          <div
+                            className={`mb-1.5 px-2 py-1 rounded text-[10px] font-semibold flex items-center gap-1 ${
+                              isSelected
+                                ? 'bg-red-500/90 text-white'
+                                : 'bg-red-100 text-red-800 border border-red-200'
+                            }`}
+                          >
+                            <AlertTriangle className="w-3 h-3 shrink-0" />
+                            <span className="truncate">
+                              Doc Vencido:{' '}
+                              {expiredInExec
+                                .map(
+                                  (c) =>
+                                    `${c.user.name} (${
+                                      c.vencidos.map((d) => d.label).join(', ') || 'Vencido'
+                                    })`
+                                )
+                                .join(', ')}
+                            </span>
+                          </div>
+                        )}
+
+                        {/* Bar: 1º Para Fazer (Amber) first, 2º Feitos (Teal) second */}
                         <div className="w-full h-2 bg-slate-200 rounded-full overflow-hidden flex mb-1.5">
                           <div
                             className="h-full bg-amber-500"
@@ -1011,7 +1348,7 @@ export const InteractiveSpreadsheetChart: React.FC<InteractiveSpreadsheetChartPr
 
                         <div
                           className={`flex items-center justify-between text-[10px] font-mono ${
-                            isSelected ? 'text-slate-300' : 'text-slate-500'
+                            isSelected ? 'text-slate-200' : 'text-slate-500'
                           }`}
                         >
                           <span
@@ -1050,7 +1387,7 @@ export const InteractiveSpreadsheetChart: React.FC<InteractiveSpreadsheetChartPr
                         onClick={() => onSelectUfFilter(isSelected ? 'ALL' : item.uf)}
                         className={`p-2.5 rounded-lg border text-left transition-all cursor-pointer ${
                           isSelected
-                            ? 'bg-slate-900 text-white border-slate-900'
+                            ? 'bg-[#223585] text-white border-[#223585]'
                             : 'bg-[#F3F4F6]/60 hover:bg-[#F3F4F6] border-slate-200/80 text-slate-800'
                         }`}
                       >
@@ -1078,7 +1415,7 @@ export const InteractiveSpreadsheetChart: React.FC<InteractiveSpreadsheetChartPr
 
                         <div
                           className={`flex flex-col gap-0.5 text-[10px] font-mono ${
-                            isSelected ? 'text-slate-300' : 'text-slate-500'
+                            isSelected ? 'text-slate-200' : 'text-slate-500'
                           }`}
                         >
                           <span>
@@ -1089,6 +1426,191 @@ export const InteractiveSpreadsheetChart: React.FC<InteractiveSpreadsheetChartPr
                       </button>
                     );
                   })}
+                </div>
+              )}
+
+              {/* 4th Mode: COLABORADORES COM DOCUMENTO VENCIDO / A VENCER */}
+              {breakdownMode === 'DOC_VENCIDO' && (
+                <div className="space-y-2.5">
+                  {collaboratorDocStats.allAlertCollaborators.length > 0 ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                      {collaboratorDocStats.allAlertCollaborators.map((item) => {
+                        const isVencido =
+                          item.vencidos.length > 0 || item.overallStatus === 'VENCIDO';
+                        const vencW = Math.round(
+                          (Math.max(1, item.vencidos.length) / item.totalDocsCount) * 100
+                        );
+                        const validW = Math.round(
+                          (item.validadosCount / item.totalDocsCount) * 100
+                        );
+                        const isDuplaFiltered =
+                          item.canonicalEquipe !== 'Sem Equipe' &&
+                          activeEquipeFilter === item.canonicalEquipe;
+
+                        return (
+                          <div
+                            key={item.user.id}
+                            className={`p-3.5 rounded-xl border flex flex-col justify-between gap-2.5 ${
+                              isVencido
+                                ? 'bg-red-50/50 border-red-200'
+                                : 'bg-amber-50/50 border-amber-200'
+                            }`}
+                          >
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="min-w-0">
+                                <div className="flex items-center gap-1.5">
+                                  <AlertTriangle
+                                    className={`w-4 h-4 shrink-0 ${
+                                      isVencido ? 'text-red-600' : 'text-amber-600'
+                                    }`}
+                                  />
+                                  <span className="text-xs font-bold text-slate-900 truncate">
+                                    {item.user.name}
+                                  </span>
+                                </div>
+                                <div className="text-[11px] text-slate-600 mt-0.5 flex flex-wrap items-center gap-1.5">
+                                  <span className="font-mono font-semibold text-[#223585]">
+                                    {item.user.role}
+                                  </span>
+                                  <span>·</span>
+                                  <span>Equipe: {item.canonicalEquipe}</span>
+                                </div>
+                              </div>
+                              <span
+                                className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold shrink-0 ${
+                                  isVencido
+                                    ? 'bg-red-600 text-white'
+                                    : 'bg-amber-500 text-white'
+                                }`}
+                              >
+                                {isVencido
+                                  ? `${Math.max(1, item.vencidos.length)} VENCIDO(S)`
+                                  : `${item.aVencer.length} A VENCER`}
+                              </span>
+                            </div>
+
+                            {/* Visual Document Status Bar */}
+                            <div className="w-full h-2 bg-slate-200 rounded-full overflow-hidden flex">
+                              <div
+                                className="h-full bg-red-600"
+                                style={{ width: `${vencW}%` }}
+                                title={`Documentos Vencidos: ${item.vencidos.length}`}
+                              />
+                              <div
+                                className="h-full bg-emerald-600"
+                                style={{ width: `${validW}%` }}
+                                title={`Documentos Validados: ${item.validadosCount}`}
+                              />
+                            </div>
+
+                            {/* Specific Expired Documents Badges */}
+                            <div className="flex flex-wrap gap-1.5">
+                              {item.vencidos.map((doc) => (
+                                <span
+                                  key={doc.type}
+                                  className="px-2 py-1 rounded-md bg-white border border-red-200 text-red-800 text-[11px] font-medium inline-flex items-center gap-1.5 shadow-2xs"
+                                >
+                                  <strong className="font-bold">{doc.label}:</strong>
+                                  <span className="font-mono text-[10px]">
+                                    Venc. {formatDateBrShort(doc.expiresAt)}
+                                    {doc.eval.daysRemaining !== null
+                                      ? ` (${Math.abs(doc.eval.daysRemaining)}d atrás)`
+                                      : ''}
+                                  </span>
+                                  {onRemoveExpiredDoc && (
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        onRemoveExpiredDoc(
+                                          item.user.id,
+                                          doc.type,
+                                          doc.label,
+                                          item.user.name
+                                        )
+                                      }
+                                      title={`Remover documento vencido ${doc.label} de ${item.user.name}`}
+                                      className="ml-0.5 p-0.5 rounded hover:bg-red-100 text-red-600 hover:text-red-800 cursor-pointer"
+                                    >
+                                      <X className="w-3 h-3" />
+                                    </button>
+                                  )}
+                                </span>
+                              ))}
+                              {item.aVencer.map((doc) => (
+                                <span
+                                  key={doc.type}
+                                  className="px-2 py-1 rounded-md bg-white border border-amber-200 text-amber-800 text-[11px] font-medium inline-flex items-center gap-1.5 shadow-2xs"
+                                >
+                                  <strong className="font-bold">{doc.label}:</strong>
+                                  <span className="font-mono text-[10px]">
+                                    Vence em {formatDateBrShort(doc.expiresAt)} (
+                                    {doc.eval.daysRemaining}d)
+                                  </span>
+                                  {onRemoveExpiredDoc && (
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        onRemoveExpiredDoc(
+                                          item.user.id,
+                                          doc.type,
+                                          doc.label,
+                                          item.user.name
+                                        )
+                                      }
+                                      title={`Remover documento ${doc.label} de ${item.user.name}`}
+                                      className="ml-0.5 p-0.5 rounded hover:bg-amber-100 text-amber-700 hover:text-amber-900 cursor-pointer"
+                                    >
+                                      <X className="w-3 h-3" />
+                                    </button>
+                                  )}
+                                </span>
+                              ))}
+                            </div>
+
+                            {/* Quick Action Buttons */}
+                            <div className="flex items-center justify-between gap-2 pt-1 border-t border-red-200/60">
+                              {item.canonicalEquipe !== 'Sem Equipe' ? (
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    onSelectEquipeFilter(
+                                      isDuplaFiltered ? 'ALL' : item.canonicalEquipe
+                                    )
+                                  }
+                                  className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold cursor-pointer transition-colors ${
+                                    isDuplaFiltered
+                                      ? 'bg-[#223585] text-white'
+                                      : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200'
+                                  }`}
+                                >
+                                  {isDuplaFiltered
+                                    ? 'Limpar Filtro da Equipe'
+                                    : `Filtrar Sites (${item.canonicalEquipe})`}
+                                </button>
+                              ) : (
+                                <span />
+                              )}
+
+                              {onOpenCollaboratorDocs && (
+                                <button
+                                  type="button"
+                                  onClick={() => onOpenCollaboratorDocs(item.user.id)}
+                                  className="px-2.5 py-1 rounded-lg bg-red-600 hover:bg-red-700 text-white text-[11px] font-semibold flex items-center gap-1 cursor-pointer transition-colors"
+                                >
+                                  <span>Ver Documentos</span>
+                                  <ExternalLink className="w-3 h-3" />
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="p-5 text-center bg-emerald-50/50 border border-emerald-200 rounded-xl text-xs text-emerald-800 font-medium">
+                      Nenhum colaborador está com documento vencido ou a vencer no momento.
+                    </div>
+                  )}
                 </div>
               )}
 

@@ -18,9 +18,33 @@ import {
   MandatoryDocType,
   UserMandatoryDocument,
   ensureUserMandatoryDocuments,
+  evaluateDocumentExpiration,
   evaluateUserOverallDocumentStatus,
+  TssrRow,
+  TssrSheetMeta,
+  TSSR_TIM_NOKIA_ORIGINAL_COLUMNS,
+  EricssonRow,
+  EricssonSheetMeta,
+  ERICSSON_ORIGINAL_COLUMNS,
 } from './src/types/telecom.ts';
-import { parseExcelWorkbookBuffer } from './src/utils/spreadsheetUtils.ts';
+import {
+  parseExcelWorkbookBuffer,
+  getCanonicalDuplaName,
+  doesSiteMatchEquipe,
+  doesSiteMatchResponsible,
+  normalizeAccents,
+} from './src/utils/spreadsheetUtils.ts';
+import {
+  parseTssrWorkbookBuffer,
+  mergeTssrRowsPreservingVistoria,
+  buildTssrRowKey,
+} from './src/utils/tssrSpreadsheetUtils.ts';
+import {
+  parseEricssonWorkbookBuffer,
+  mergeEricssonRowsPreservingVistoria,
+  buildEricssonRowKey,
+  computeEricssonSiteCounters,
+} from './src/utils/ericssonSpreadsheetUtils.ts';
 
 interface StoredUser extends AmetaUser {
   passwordHash: string;
@@ -32,12 +56,25 @@ interface DatabaseSchema {
   sheets: SpreadsheetMeta[];
   engineeringFolders: EngineeringFolder[];
   engineeringFiles: EngineeringFile[];
+  tssrRows?: TssrRow[];
+  tssrSheets?: TssrSheetMeta[];
+  ericssonRows?: EricssonRow[];
+  ericssonSheetMeta?: EricssonSheetMeta;
+  ericssonFolders?: EngineeringFolder[];
+  ericssonFiles?: EngineeringFile[];
+  ericssonUsers?: StoredUser[];
   lastUpdated: string;
 }
 
 const DATA_DIR = path.resolve(process.cwd(), 'data');
-const UPLOADS_DIR = path.join(DATA_DIR, 'uploads');
+const UPLOADS_DIR = process.env.AMETA_UPLOADS_DIR
+  ? path.resolve(process.env.AMETA_UPLOADS_DIR)
+  : path.join(DATA_DIR, 'uploads');
 const DB_FILE = path.join(DATA_DIR, 'ameta-db.json');
+const TSSR_SEED_FILE = path.join(DATA_DIR, 'tssr-seed.json');
+const ERICSSON_SEED_FILE = path.join(DATA_DIR, 'ericsson-seed.json');
+const DEFAULT_ERICSSON_ONEDRIVE_URL =
+  'https://onedrive.live.com/:x:/g/personal/d82e752e01e5afdd/IQBkdW7amR5BQLwUz3WVNtySAWRS0ZetSRS24kMBQIjwE4E?rtime=bHml02143kg&redeem=aHR0cHM6Ly8xZHJ2Lm1zL3gvYy9kODJlNzUyZTAxZTVhZmRkL0lRQmtkVzdhbVI1QlFMd1V6M1dWTnR5U0FXUlMwWmV0U1JTMjRrTUJRSWp3RTRFP2U9cjhQT3B5';
 
 const REGIONAL_SUBFOLDERS = [
   'AM - Amazonas',
@@ -347,7 +384,8 @@ function createInitialEngineeringTree(): {
   const now = '2026-09-29T14:00:00.000Z';
   const folders: EngineeringFolder[] = [];
 
-  (['NOKIA', 'ERICSSON'] as VendorType[]).forEach((vendor) => {
+  // Create initial folder tree ONLY for NOKIA (Ericsson is a separate system with its own folders)
+  (['NOKIA'] as VendorType[]).forEach((vendor) => {
     const vKey = vendor.toLowerCase();
     const rootId = `folder-${vKey}-vistorias`;
 
@@ -529,6 +567,19 @@ function syncEquipesResourcesToUsers(db: DatabaseSchema): boolean {
       u.documents = ensureUserMandatoryDocuments(u.documents);
       changed = true;
     }
+    // Clean up any leftover statusOverride === 'VENCIDO' or 'A_VENCER' when both fileName and expiresAt were already removed
+    u.documents.forEach((d) => {
+      const hasFile = Boolean(d.fileName && d.fileName.trim());
+      const hasDate = Boolean(d.expiresAt && d.expiresAt.trim());
+      if (
+        !hasFile &&
+        !hasDate &&
+        (d.statusOverride === 'VENCIDO' || d.statusOverride === 'A_VENCER')
+      ) {
+        d.statusOverride = undefined;
+        changed = true;
+      }
+    });
     const evaluated = evaluateUserOverallDocumentStatus(u);
     if (
       !u.statusRecurso ||
@@ -536,6 +587,216 @@ function syncEquipesResourcesToUsers(db: DatabaseSchema): boolean {
       u.statusRecurso !== evaluated.overallStatus
     ) {
       u.statusRecurso = evaluated.overallStatus;
+      changed = true;
+    }
+  });
+
+  return changed;
+}
+
+function ensureEricssonSeedAndUsers(db: DatabaseSchema): boolean {
+  let changed = false;
+
+  if (
+    (!Array.isArray(db.ericssonRows) || db.ericssonRows.length === 0) &&
+    fs.existsSync(ERICSSON_SEED_FILE)
+  ) {
+    try {
+      const seedRaw = JSON.parse(fs.readFileSync(ERICSSON_SEED_FILE, 'utf-8')) as {
+        columns?: string[];
+        rows?: EricssonRow[];
+        users?: Array<Omit<StoredUser, 'passwordHash'>>;
+      };
+      if (Array.isArray(seedRaw.rows) && seedRaw.rows.length > 0) {
+        db.ericssonRows = seedRaw.rows;
+        const counters = computeEricssonSiteCounters(db.ericssonRows);
+        db.ericssonSheetMeta = {
+          id: 'ericsson-sheet-main',
+          tabName: 'ERICSSON CLARO TX',
+          sourceFileName: 'PLAN. AMETA_Controle EDB.xlsx',
+          liveSyncUrl: DEFAULT_ERICSSON_ONEDRIVE_URL,
+          lastSyncAt: new Date().toISOString(),
+          totalRows: db.ericssonRows.length,
+          totalSites: counters.totalSites,
+          columns:
+            Array.isArray(seedRaw.columns) && seedRaw.columns.length > 0
+              ? seedRaw.columns
+              : [...ERICSSON_ORIGINAL_COLUMNS],
+        };
+        changed = true;
+      }
+      if (
+        (!Array.isArray(db.ericssonUsers) || db.ericssonUsers.length === 0) &&
+        Array.isArray(seedRaw.users)
+      ) {
+        db.ericssonUsers = seedRaw.users.map((u) => ({
+          ...u,
+          documents: ensureUserMandatoryDocuments(u.documents),
+          passwordHash: hashPassword('ameta2026'),
+        }));
+        changed = true;
+      }
+    } catch (err) {
+      console.error('Failed to load Ericsson seed file:', err);
+    }
+  }
+
+  if (!Array.isArray(db.ericssonRows)) {
+    db.ericssonRows = [];
+    changed = true;
+  }
+
+  if (!db.ericssonSheetMeta) {
+    const counters = computeEricssonSiteCounters(db.ericssonRows);
+    db.ericssonSheetMeta = {
+      id: 'ericsson-sheet-main',
+      tabName: 'ERICSSON CLARO TX',
+      sourceFileName: 'PLAN. AMETA_Controle EDB.xlsx',
+      liveSyncUrl: DEFAULT_ERICSSON_ONEDRIVE_URL,
+      lastSyncAt: new Date().toISOString(),
+      totalRows: db.ericssonRows.length,
+      totalSites: counters.totalSites,
+      columns: [...ERICSSON_ORIGINAL_COLUMNS],
+    };
+    changed = true;
+  }
+
+  if (!Array.isArray(db.ericssonUsers)) {
+    db.ericssonUsers = [];
+    changed = true;
+  }
+
+  // Ensure primary ADM and dedicated Ericsson test accounts exist in db.ericssonUsers
+  const adminEmail = 'rafael.araujo@ameta.com.br';
+  if (!db.ericssonUsers.some((u) => u.email.toLowerCase() === adminEmail)) {
+    db.ericssonUsers.unshift({
+      id: 'eric-usr-admin',
+      name: 'Rafael Araújo',
+      email: adminEmail,
+      role: 'ADM',
+      equipe: 'Coordenação Ericsson / ADM',
+      atividade: 'Gestão Geral Ericsson',
+      statusRecurso: 'VALIDADO',
+      documents: ensureUserMandatoryDocuments([]),
+      emailVerified: true,
+      verifiedAt: '2026-09-29T12:00:00.000Z',
+      preferredVendor: 'ERICSSON',
+      createdAt: '2026-09-01T10:00:00.000Z',
+      passwordHash: hashPassword('ameta2026'),
+    });
+    changed = true;
+  }
+
+  const testEmail = 'teste@ameta.com.br';
+  if (!db.ericssonUsers.some((u) => u.email.toLowerCase() === testEmail)) {
+    db.ericssonUsers.push({
+      id: 'eric-usr-teste-vist',
+      name: 'Usuário Teste Ericsson (Vistoriador)',
+      email: testEmail,
+      role: 'Vistoriador',
+      equipe: 'Equipe 1',
+      telefone: '11 99999-0000',
+      atividade: 'Vistoria Ericsson (EHS / TSSR)',
+      statusRecurso: 'VALIDADO',
+      documents: ensureUserMandatoryDocuments([]),
+      emailVerified: true,
+      verifiedAt: new Date().toISOString(),
+      preferredVendor: 'ERICSSON',
+      createdAt: new Date().toISOString(),
+      passwordHash: hashPassword('ameta2026'),
+    });
+    changed = true;
+  }
+
+  db.ericssonUsers.forEach((u) => {
+    if (!Array.isArray(u.documents) || u.documents.length !== 8) {
+      u.documents = ensureUserMandatoryDocuments(u.documents);
+      changed = true;
+    }
+  });
+
+  // Ensure complete isolation between Nokia (engineeringFolders/engineeringFiles) and Ericsson (ericssonFolders/ericssonFiles)
+  if (!Array.isArray(db.ericssonFolders)) {
+    db.ericssonFolders = [];
+    changed = true;
+  }
+  if (!Array.isArray(db.ericssonFiles)) {
+    db.ericssonFiles = [];
+    changed = true;
+  }
+
+  // Migrate any real Ericsson files that were previously in db.engineeringFiles into db.ericssonFiles
+  if (Array.isArray(db.engineeringFiles)) {
+    const ericFilesInShared = db.engineeringFiles.filter((fl) => fl.vendor === 'ERICSSON');
+    if (ericFilesInShared.length > 0) {
+      ericFilesInShared.forEach((fl) => {
+        if (!db.ericssonFiles!.some((ef) => ef.id === fl.id)) {
+          db.ericssonFiles!.push(fl);
+        }
+      });
+      db.engineeringFiles = db.engineeringFiles.filter((fl) => fl.vendor !== 'ERICSSON');
+      changed = true;
+    }
+  }
+
+  // Remove any Ericsson folders from Nokia's db.engineeringFolders
+  if (Array.isArray(db.engineeringFolders)) {
+    const beforeSharedFolders = db.engineeringFolders.length;
+    db.engineeringFolders = db.engineeringFolders.filter((f) => f.vendor !== 'ERICSSON');
+    if (db.engineeringFolders.length !== beforeSharedFolders) {
+      changed = true;
+    }
+  }
+
+  // Purge any replicated Nokia regional/system folders from db.ericssonFolders
+  const nokiaReplicatedNames = new Set([
+    ...REGIONAL_SUBFOLDERS,
+    'Vistorias Executadas',
+    'TSSR Entrada',
+    'TSSR',
+    'Vistorias',
+  ]);
+  const beforeEricFolders = db.ericssonFolders.length;
+  db.ericssonFolders = db.ericssonFolders.filter(
+    (f) =>
+      f.id === 'folder-ericsson-root' ||
+      (!f.id.startsWith('folder-ericsson-vistorias') &&
+        !f.id.startsWith('folder-ericsson-tssr') &&
+        !nokiaReplicatedNames.has(f.name))
+  );
+  if (db.ericssonFolders.length !== beforeEricFolders) {
+    changed = true;
+  }
+
+  // Ensure the clean Ericsson root folder exists
+  if (!db.ericssonFolders.some((f) => f.id === 'folder-ericsson-root')) {
+    db.ericssonFolders.unshift({
+      id: 'folder-ericsson-root',
+      parentId: null,
+      name: 'Vistoria Ericsson',
+      vendor: 'ERICSSON',
+      description: 'Repositório exclusivo de Vistoria e LOS do sistema Ericsson',
+      createdByName: 'Rafael Araújo',
+      createdByEmail: 'rafael.araujo@ameta.com.br',
+      createdAt: '2026-09-29T14:00:00.000Z',
+      isSystem: true,
+    });
+    changed = true;
+  }
+
+  // Ensure any custom Ericsson folders have valid parentId pointing to folder-ericsson-root or another valid Ericsson folder
+  const validEricFolderIds = new Set(db.ericssonFolders.map((f) => f.id));
+  db.ericssonFolders.forEach((f) => {
+    if (f.id !== 'folder-ericsson-root' && (!f.parentId || !validEricFolderIds.has(f.parentId))) {
+      f.parentId = 'folder-ericsson-root';
+      changed = true;
+    }
+  });
+
+  // Ensure any existing Ericsson files point to a valid Ericsson folder (defaulting to folder-ericsson-root)
+  db.ericssonFiles.forEach((fl) => {
+    if (!fl.folderId || !validEricFolderIds.has(fl.folderId)) {
+      fl.folderId = 'folder-ericsson-root';
       changed = true;
     }
   });
@@ -624,10 +885,50 @@ function loadDatabase(): DatabaseSchema {
         if (needsSave) {
           saveDatabase(parsed);
         }
+        // Ensure TSSR TIM Nokia rows are initialized from seed if empty
+        if (!Array.isArray(parsed.tssrRows) || parsed.tssrRows.length === 0) {
+          if (fs.existsSync(TSSR_SEED_FILE)) {
+            try {
+              parsed.tssrRows = JSON.parse(fs.readFileSync(TSSR_SEED_FILE, 'utf-8')) as TssrRow[];
+              parsed.tssrSheets = [
+                {
+                  id: 'tssr-sheet-nokia-1',
+                  vendor: 'NOKIA',
+                  tabName: 'TSSR TIM Nokia',
+                  sourceFileName: 'CONTROLE TSSR (OneDrive)',
+                  lastSyncAt: new Date().toISOString(),
+                  totalRows: parsed.tssrRows.length,
+                },
+              ];
+              saveDatabase(parsed);
+            } catch {
+              parsed.tssrRows = [];
+              parsed.tssrSheets = [];
+            }
+          } else {
+            parsed.tssrRows = [];
+            parsed.tssrSheets = [];
+          }
+        }
+        if (!Array.isArray(parsed.tssrSheets)) {
+          parsed.tssrSheets = [];
+        }
+        if (ensureEricssonSeedAndUsers(parsed)) {
+          saveDatabase(parsed);
+        }
         return parsed;
       }
     } catch (err) {
       console.error('Error reading database file, re-initializing default seed:', err);
+    }
+  }
+
+  let initialTssrRows: TssrRow[] = [];
+  if (fs.existsSync(TSSR_SEED_FILE)) {
+    try {
+      initialTssrRows = JSON.parse(fs.readFileSync(TSSR_SEED_FILE, 'utf-8')) as TssrRow[];
+    } catch {
+      initialTssrRows = [];
     }
   }
 
@@ -654,10 +955,22 @@ function loadDatabase(): DatabaseSchema {
     sheets: INITIAL_SHEETS,
     engineeringFolders: seedTree.folders,
     engineeringFiles: seedTree.files,
+    tssrRows: initialTssrRows,
+    tssrSheets: [
+      {
+        id: 'tssr-sheet-nokia-1',
+        vendor: 'NOKIA',
+        tabName: 'TSSR TIM Nokia',
+        sourceFileName: 'CONTROLE TSSR (OneDrive)',
+        lastSyncAt: new Date().toISOString(),
+        totalRows: initialTssrRows.length,
+      },
+    ],
     lastUpdated: new Date().toISOString(),
   };
 
   syncEquipesResourcesToUsers(initialDb);
+  ensureEricssonSeedAndUsers(initialDb);
   saveDatabase(initialDb);
   return initialDb;
 }
@@ -694,12 +1007,20 @@ async function startServer() {
       sheets: db.sheets,
       engineeringFolders: db.engineeringFolders,
       engineeringFiles: db.engineeringFiles,
+      tssrRows: db.tssrRows || [],
+      tssrSheets: db.tssrSheets || [],
+      ericssonRows: db.ericssonRows || [],
+      ericssonSheetMeta: db.ericssonSheetMeta,
+      ericssonFolders: db.ericssonFolders || [],
+      ericssonFiles: db.ericssonFiles || [],
+      ericssonUsers: (db.ericssonUsers || []).map(sanitizeUser),
       users: db.users.map(sanitizeUser),
       lastUpdated: db.lastUpdated,
     });
     for (const client of sseClients) {
       try {
         client.write(`data: ${message}\n\n`);
+        (client as unknown as { flush?: () => void }).flush?.();
       } catch {
         sseClients.delete(client);
       }
@@ -890,9 +1211,10 @@ async function startServer() {
   // ===================== REAL-TIME STREAM (SSE) & DATA ENDPOINTS =====================
 
   app.get('/api/stream', (req, res) => {
-    res.setHeader('Content-Type', 'text/event-stream');
-    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
+    res.setHeader('Cache-Control', 'no-cache, no-transform');
     res.setHeader('Connection', 'keep-alive');
+    res.setHeader('X-Accel-Buffering', 'no');
     res.flushHeaders?.();
 
     sseClients.add(res);
@@ -905,19 +1227,28 @@ async function startServer() {
         sheets: db.sheets,
         engineeringFolders: db.engineeringFolders,
         engineeringFiles: db.engineeringFiles,
+        tssrRows: db.tssrRows || [],
+        tssrSheets: db.tssrSheets || [],
+        ericssonRows: db.ericssonRows || [],
+        ericssonSheetMeta: db.ericssonSheetMeta,
+        ericssonFolders: db.ericssonFolders || [],
+        ericssonFiles: db.ericssonFiles || [],
+        ericssonUsers: (db.ericssonUsers || []).map(sanitizeUser),
         users: db.users.map(sanitizeUser),
         lastUpdated: db.lastUpdated,
       })}\n\n`
     );
+    (res as unknown as { flush?: () => void }).flush?.();
 
     const heartbeat = setInterval(() => {
       try {
         res.write(`: heartbeat ${Date.now()}\n\n`);
+        (res as unknown as { flush?: () => void }).flush?.();
       } catch {
         clearInterval(heartbeat);
         sseClients.delete(res);
       }
-    }, 20000);
+    }, 15000);
 
     req.on('close', () => {
       clearInterval(heartbeat);
@@ -926,11 +1257,19 @@ async function startServer() {
   });
 
   app.get('/api/state', (_req, res) => {
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
     res.json({
       sites: db.sites,
       sheets: db.sheets,
       engineeringFolders: db.engineeringFolders,
       engineeringFiles: db.engineeringFiles,
+      tssrRows: db.tssrRows || [],
+      tssrSheets: db.tssrSheets || [],
+      ericssonRows: db.ericssonRows || [],
+      ericssonSheetMeta: db.ericssonSheetMeta,
+      ericssonFolders: db.ericssonFolders || [],
+      ericssonFiles: db.ericssonFiles || [],
+      ericssonUsers: (db.ericssonUsers || []).map(sanitizeUser),
       users: db.users.map(sanitizeUser),
       lastUpdated: db.lastUpdated,
       activeConnections: sseClients.size,
@@ -1126,12 +1465,29 @@ async function startServer() {
       return;
     }
 
-    if (typeof dispensadoDocumentos === 'boolean') {
-      target.dispensadoDocumentos = dispensadoDocumentos;
-      target.statusRecurso = dispensadoDocumentos ? 'DISPENSADO' : 'VALIDADO';
-    } else if (statusRecurso) {
-      target.statusRecurso = statusRecurso;
-      target.dispensadoDocumentos = statusRecurso.toUpperCase() === 'DISPENSADO';
+    target.documents = ensureUserMandatoryDocuments(target.documents);
+
+    const nextUpper = (statusRecurso || '').trim().toUpperCase();
+    const isNextDispensado =
+      typeof dispensadoDocumentos === 'boolean'
+        ? dispensadoDocumentos
+        : nextUpper === 'DISPENSADO';
+
+    target.dispensadoDocumentos = isNextDispensado;
+
+    // When admin sets user status to VALIDADO or DISPENSADO, clear any lingering VENCIDO / A_VENCER overrides or expired dates on documents
+    if (nextUpper === 'VALIDADO' || isNextDispensado) {
+      target.documents.forEach((d) => {
+        if (d.statusOverride === 'VENCIDO' || d.statusOverride === 'A_VENCER') {
+          d.statusOverride = undefined;
+        }
+        if (nextUpper === 'VALIDADO' && d.expiresAt) {
+          const evalCheck = evaluateDocumentExpiration(d, false);
+          if (evalCheck.status === 'VENCIDO' || evalCheck.status === 'A_VENCER') {
+            d.expiresAt = '';
+          }
+        }
+      });
     }
 
     const evaluated = evaluateUserOverallDocumentStatus(target);
@@ -1139,9 +1495,9 @@ async function startServer() {
     saveDatabase(db);
 
     broadcastUpdate({
-      type: 'FULL_STATE',
+      type: 'USER_DOCUMENT_UPDATED',
       timestamp: new Date().toISOString(),
-      summary: `Status de ${target.name} alterado para ${target.statusRecurso}`,
+      summary: `Status de ${target.name} atualizado para ${target.statusRecurso}`,
     });
 
     res.json({
@@ -1232,7 +1588,11 @@ async function startServer() {
       docEntry.fileName = '';
       docEntry.fileSize = 0;
       docEntry.uploadedAt = '';
+      docEntry.uploadedBy = '';
       docEntry.storageFileName = '';
+      docEntry.expiresAt = '';
+      docEntry.statusOverride = undefined;
+      docEntry.notes = '';
     } else if (fileBase64 && fileName) {
       const cleanBase64 = fileBase64.includes('base64,')
         ? fileBase64.split('base64,')[1]
@@ -1293,13 +1653,27 @@ async function startServer() {
 
     if (typeof expiresAt === 'string') {
       docEntry.expiresAt = expiresAt.trim();
-      // When user updates expiration date, let automatic evaluation compute Validado / A Vencer / Vencido
+      // When user updates or clears expiration date, clear any VENCIDO / A_VENCER override so automatic evaluation runs cleanly
       if (statusOverride === undefined && docEntry.statusOverride !== 'DISPENSADO') {
         docEntry.statusOverride = undefined;
       }
     }
     if (statusOverride !== undefined) {
       docEntry.statusOverride = statusOverride ? statusOverride : undefined;
+      // If user changes statusOverride away from VENCIDO without passing a new expiresAt, clear any past-due date so it doesn't stay VENCIDO
+      if (
+        statusOverride !== 'VENCIDO' &&
+        typeof expiresAt !== 'string' &&
+        docEntry.expiresAt
+      ) {
+        const evalCheck = evaluateDocumentExpiration(
+          { ...docEntry, statusOverride: undefined },
+          false
+        );
+        if (evalCheck.status === 'VENCIDO') {
+          docEntry.expiresAt = '';
+        }
+      }
     }
     if (typeof notes === 'string') {
       docEntry.notes = notes.trim();
@@ -1312,9 +1686,11 @@ async function startServer() {
     saveDatabase(db);
 
     broadcastUpdate({
-      type: 'FULL_STATE',
+      type: 'USER_DOCUMENT_UPDATED',
       timestamp: new Date().toISOString(),
-      summary: `Documento ${docEntry.label} de ${target.name} atualizado`,
+      summary: clearFile
+        ? `Documento ${docEntry.label} de ${target.name} removido`
+        : `Documento ${docEntry.label} de ${target.name} atualizado`,
     });
 
     res.json({
@@ -1565,6 +1941,7 @@ async function startServer() {
   });
 
   // Upload one or more files (.zip, .rar WinRAR, .7z, .xlsx, .pdf, etc.) into a folder
+  // Also supports automatic linking to a site in "TSSR TIM Nokia" (setting Status = Entregue, link, date/time, vistoriador)
   app.post('/api/engineering/files', (req, res) => {
     const {
       folderId,
@@ -1572,6 +1949,12 @@ async function startServer() {
       uploadedByName,
       uploadedByEmail,
       siteId,
+      ocSitePre,
+      tssrRowId,
+      createNewTssrRow,
+      newTssrFields,
+      requireSiteLink,
+      updateTssrVistoria,
       notes,
       assignedTo,
       files,
@@ -1581,6 +1964,12 @@ async function startServer() {
       uploadedByName?: string;
       uploadedByEmail?: string;
       siteId?: string;
+      ocSitePre?: string;
+      tssrRowId?: string;
+      createNewTssrRow?: boolean;
+      newTssrFields?: Record<string, string>;
+      requireSiteLink?: boolean;
+      updateTssrVistoria?: boolean;
       notes?: string;
       assignedTo?: string;
       files?: Array<{
@@ -1590,14 +1979,47 @@ async function startServer() {
       }>;
     };
 
-    if (!folderId) {
-      res.status(400).json({ error: 'Selecione a pasta de destino para o carregamento.' });
+    // Resolve target folder
+    let folder = folderId ? db.engineeringFolders.find((f) => f.id === folderId) : undefined;
+    if (!folder || folder.parentId === null) {
+      folder =
+        db.engineeringFolders.find(
+          (f) => f.vendor === vendor && f.parentId !== null && f.name !== 'Vistorias Executadas'
+        ) ||
+        db.engineeringFolders.find((f) => f.vendor === vendor && f.parentId !== null) ||
+        db.engineeringFolders[0];
+    }
+
+    // Check if target folder is inside "TSSR Entrada" or "TSSR"
+    const isInsideTssrProjectFolder = (() => {
+      let curr: EngineeringFolder | undefined = folder;
+      const visited = new Set<string>();
+      while (curr && !visited.has(curr.id)) {
+        visited.add(curr.id);
+        if (curr.name === 'TSSR Entrada' || curr.name === 'TSSR') {
+          return true;
+        }
+        curr = curr.parentId
+          ? db.engineeringFolders.find((f) => f.id === curr!.parentId)
+          : undefined;
+      }
+      return false;
+    })();
+
+    const cleanSiteId = (siteId || '').trim().toUpperCase();
+    const mustRequireSite =
+      typeof requireSiteLink === 'boolean' ? requireSiteLink : !isInsideTssrProjectFolder;
+
+    if (mustRequireSite && !cleanSiteId) {
+      res.status(400).json({
+        error: 'É obrigatório vincular um Site (Site Id) antes de enviar o arquivo da vistoria.',
+      });
       return;
     }
 
     if (!uploadedByName || !uploadedByName.trim()) {
       res.status(400).json({
-        error: 'É obrigatório informar o nome de quem carregou o arquivo para todos os arquivos.',
+        error: 'É obrigatório informar o nome do responsável que enviou o arquivo.',
       });
       return;
     }
@@ -1607,25 +2029,19 @@ async function startServer() {
       return;
     }
 
-    const folder = db.engineeringFolders.find((f) => f.id === folderId);
-    if (!folder) {
-      res.status(404).json({ error: 'Pasta de destino não encontrada.' });
-      return;
-    }
-
-    if (folder.parentId === null) {
-      res.status(400).json({
-        error:
-          'O carregamento de arquivos é permitido apenas dentro das pastas (ex: Vistorias Executadas, TSSR Entrada, TSSR ou subpastas).',
-      });
-      return;
-    }
-
     if (!fs.existsSync(UPLOADS_DIR)) {
       fs.mkdirSync(UPLOADS_DIR, { recursive: true });
     }
 
     const now = new Date().toISOString();
+    const formattedDeliveryDate = new Date(now).toLocaleString('pt-BR', {
+      timeZone: 'America/Sao_Paulo',
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
     const createdFiles: EngineeringFile[] = [];
 
     files.forEach((rawFile, idx) => {
@@ -1646,13 +2062,15 @@ async function startServer() {
 
       const newFileRecord: EngineeringFile = {
         id: fileId,
-        folderId,
+        folderId: folder ? folder.id : `folder-${vendor.toLowerCase()}-vistorias-executadas`,
         vendor,
         fileName: cleanName,
         fileType,
         extension,
         fileSize: rawFile.fileSize || buffer.length,
-        siteId: siteId?.trim().toUpperCase() || undefined,
+        siteId: cleanSiteId || undefined,
+        ocSitePre: ocSitePre?.trim() || undefined,
+        tssrRowId: tssrRowId?.trim() || undefined,
         notes: notes?.trim() || undefined,
         assignedTo: assignedTo?.trim() || undefined,
         uploadedByName: uploadedByName.trim(),
@@ -1665,6 +2083,95 @@ async function startServer() {
       createdFiles.push(newFileRecord);
     });
 
+    // Automatically update or create the linked site row in TSSR TIM Nokia when a Site ID is linked!
+    const shouldUpdateTssrVistoria =
+      Boolean(cleanSiteId) &&
+      (typeof updateTssrVistoria === 'boolean' ? updateTssrVistoria : !isInsideTssrProjectFolder);
+
+    const primaryFile = createdFiles[0];
+    if (shouldUpdateTssrVistoria && primaryFile) {
+      if (!Array.isArray(db.tssrRows)) {
+        db.tssrRows = [];
+      }
+      const fileViewUrl = `/api/engineering/files/${encodeURIComponent(primaryFile.id)}/view`;
+      const fileDownloadUrl = `/api/engineering/files/${encodeURIComponent(primaryFile.id)}/download`;
+
+      let matchedTssrCount = 0;
+      db.tssrRows.forEach((row) => {
+        const matchesById = tssrRowId && row.id === tssrRowId;
+        const matchesBySiteAndOc =
+          !tssrRowId &&
+          ocSitePre &&
+          row.siteId.trim().toUpperCase() === cleanSiteId &&
+          row.ocSitePre.trim().toUpperCase() === ocSitePre.trim().toUpperCase();
+        const matchesBySiteOnly =
+          !tssrRowId && !ocSitePre && row.siteId.trim().toUpperCase() === cleanSiteId;
+
+        if (matchesById || matchesBySiteAndOc || matchesBySiteOnly) {
+          row.vistoriaStatus = 'Entregue';
+          row.vistoriaFileId = primaryFile.id;
+          row.vistoriaFileName = primaryFile.fileName;
+          row.vistoriaFileUrl = fileViewUrl;
+          row.vistoriaDownloadUrl = fileDownloadUrl;
+          row.vistoriaDeliveredAt = formattedDeliveryDate;
+          row.vistoriaUploadedBy = uploadedByName.trim();
+          row.vistoriaUploadedByEmail = uploadedByEmail?.trim() || 'engenharia@ameta.com.br';
+          row.updatedAt = now;
+          matchedTssrCount++;
+        }
+      });
+
+      // If no row matched by exact criteria, try matching by Site Id across TSSR TIM Nokia
+      if (matchedTssrCount === 0 && !createNewTssrRow) {
+        db.tssrRows.forEach((row) => {
+          if (row.siteId.trim().toUpperCase() === cleanSiteId) {
+            row.vistoriaStatus = 'Entregue';
+            row.vistoriaFileId = primaryFile.id;
+            row.vistoriaFileName = primaryFile.fileName;
+            row.vistoriaFileUrl = fileViewUrl;
+            row.vistoriaDownloadUrl = fileDownloadUrl;
+            row.vistoriaDeliveredAt = formattedDeliveryDate;
+            row.vistoriaUploadedBy = uploadedByName.trim();
+            row.vistoriaUploadedByEmail = uploadedByEmail?.trim() || 'engenharia@ameta.com.br';
+            row.updatedAt = now;
+            matchedTssrCount++;
+          }
+        });
+      }
+
+      // If still no row matched (or createNewTssrRow was requested), create the new row in TSSR TIM Nokia
+      if (matchedTssrCount === 0) {
+        const baseFields: Record<string, string> = {};
+        TSSR_TIM_NOKIA_ORIGINAL_COLUMNS.forEach((col) => {
+          baseFields[col] = newTssrFields?.[col] || '';
+        });
+        baseFields['Site Id'] = cleanSiteId;
+        if (ocSitePre?.trim()) baseFields['Oc Site Pre'] = ocSitePre.trim();
+
+        const newRow: TssrRow = {
+          id: `tssr-${vendor.toLowerCase()}-${Date.now()}`,
+          rowKey: buildTssrRowKey(cleanSiteId, baseFields['Oc Site Pre']),
+          vendor,
+          tabName: 'TSSR TIM Nokia',
+          siteId: cleanSiteId,
+          ocSitePre: baseFields['Oc Site Pre'] || '',
+          enderecoId: baseFields['Enderecoid'] || '',
+          fields: baseFields,
+          vistoriaStatus: 'Entregue',
+          vistoriaFileId: primaryFile.id,
+          vistoriaFileName: primaryFile.fileName,
+          vistoriaFileUrl: fileViewUrl,
+          vistoriaDownloadUrl: fileDownloadUrl,
+          vistoriaDeliveredAt: formattedDeliveryDate,
+          vistoriaUploadedBy: uploadedByName.trim(),
+          vistoriaUploadedByEmail: uploadedByEmail?.trim() || 'engenharia@ameta.com.br',
+          createdAt: now,
+          updatedAt: now,
+        };
+        db.tssrRows.unshift(newRow);
+      }
+    }
+
     saveDatabase(db);
 
     broadcastUpdate({
@@ -1672,20 +2179,54 @@ async function startServer() {
       timestamp: now,
       actorEmail: uploadedByEmail,
       vendor,
-      summary: `${createdFiles.length} arquivo(s) carregado(s) em "${folder.name}" por ${uploadedByName.trim()}`,
+      summary: cleanSiteId
+        ? `Arquivo ${primaryFile.fileName} (${cleanSiteId}) carregado por ${uploadedByName.trim()}`
+        : `Arquivo ${primaryFile.fileName} carregado em ${folder?.name || 'Engenharia'} por ${uploadedByName.trim()}`,
     });
 
     res.status(201).json({
       createdFiles,
       engineeringFolders: db.engineeringFolders,
       engineeringFiles: db.engineeringFiles,
+      tssrRows: db.tssrRows,
+      tssrSheets: db.tssrSheets || [],
     });
+  });
+
+  // View/open an engineering file directly in browser
+  app.get('/api/engineering/files/:id/view', (req, res) => {
+    const { id } = req.params;
+    const fileRecord =
+      db.engineeringFiles.find((f) => f.id === id) ||
+      (db.ericssonFiles || []).find((f) => f.id === id);
+    if (!fileRecord) {
+      res.status(404).json({ error: 'Arquivo não encontrado.' });
+      return;
+    }
+
+    if (fileRecord.storageFileName) {
+      const diskPath = path.join(UPLOADS_DIR, fileRecord.storageFileName);
+      if (fs.existsSync(diskPath)) {
+        const mime = detectMimeType(fileRecord.fileName);
+        res.setHeader('Content-Type', mime);
+        res.setHeader(
+          'Content-Disposition',
+          `inline; filename="${encodeURIComponent(fileRecord.fileName)}"`
+        );
+        res.sendFile(diskPath);
+        return;
+      }
+    }
+
+    res.redirect(`/api/engineering/files/${encodeURIComponent(id)}/download`);
   });
 
   // Download an engineering file (.zip, .rar, .xlsx, .pdf, etc.)
   app.get('/api/engineering/files/:id/download', (req, res) => {
     const { id } = req.params;
-    const fileRecord = db.engineeringFiles.find((f) => f.id === id);
+    const fileRecord =
+      db.engineeringFiles.find((f) => f.id === id) ||
+      (db.ericssonFiles || []).find((f) => f.id === id);
     if (!fileRecord) {
       res.status(404).json({ error: 'Arquivo não encontrado.' });
       return;
@@ -1773,6 +2314,92 @@ async function startServer() {
     }
 
     db.engineeringFiles = db.engineeringFiles.filter((f) => f.id !== id);
+
+    // If any TSSR row pointed to this deleted file, check if another file exists for that site or reset to Pendente
+    if (Array.isArray(db.tssrRows)) {
+      db.tssrRows.forEach((row) => {
+        if (row.vistoriaFileId === id) {
+          const fallbackFile = db.engineeringFiles.find(
+            (fl) =>
+              fl.siteId &&
+              fl.siteId.trim().toUpperCase() === row.siteId.trim().toUpperCase()
+          );
+          if (fallbackFile) {
+            row.vistoriaStatus = 'Entregue';
+            row.vistoriaFileId = fallbackFile.id;
+            row.vistoriaFileName = fallbackFile.fileName;
+            row.vistoriaFileUrl = `/api/engineering/files/${encodeURIComponent(fallbackFile.id)}/view`;
+            row.vistoriaDownloadUrl = `/api/engineering/files/${encodeURIComponent(fallbackFile.id)}/download`;
+            row.vistoriaDeliveredAt = new Date(fallbackFile.uploadedAt).toLocaleString('pt-BR', {
+              timeZone: 'America/Sao_Paulo',
+              day: '2-digit',
+              month: '2-digit',
+              year: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit',
+            });
+            row.vistoriaUploadedBy = fallbackFile.uploadedByName;
+            row.vistoriaUploadedByEmail = fallbackFile.uploadedByEmail;
+          } else {
+            row.vistoriaStatus = 'Pendente';
+            row.vistoriaFileId = undefined;
+            row.vistoriaFileName = undefined;
+            row.vistoriaFileUrl = undefined;
+            row.vistoriaDownloadUrl = undefined;
+            row.vistoriaDeliveredAt = undefined;
+            row.vistoriaUploadedBy = undefined;
+            row.vistoriaUploadedByEmail = undefined;
+          }
+        }
+      });
+    }
+
+    // If any Ericsson row pointed to this deleted file, reset its vistoria status
+    if (Array.isArray(db.ericssonRows)) {
+      db.ericssonRows.forEach((row) => {
+        if (row.siteAVistoriaFileId === id) {
+          row.siteAVistoriaStatus = 'Pendente';
+          row.siteAVistoriaFileId = undefined;
+          row.siteAVistoriaFolderId = undefined;
+          row.siteAVistoriaFileName = undefined;
+          row.siteAVistoriaFileUrl = undefined;
+          row.siteAVistoriaDownloadUrl = undefined;
+          row.siteAVistoriaDeliveredAt = undefined;
+          row.siteAVistoriaUploadedBy = undefined;
+          row.siteAVistoriaUploadedByEmail = undefined;
+          if (row.siteBVistoriaStatus === 'Dispensado') {
+            row.siteBVistoriaStatus = 'Pendente';
+          }
+        }
+        if (row.siteBVistoriaFileId === id) {
+          row.siteBVistoriaStatus = 'Pendente';
+          row.siteBVistoriaFileId = undefined;
+          row.siteBVistoriaFolderId = undefined;
+          row.siteBVistoriaFileName = undefined;
+          row.siteBVistoriaFileUrl = undefined;
+          row.siteBVistoriaDownloadUrl = undefined;
+          row.siteBVistoriaDeliveredAt = undefined;
+          row.siteBVistoriaUploadedBy = undefined;
+          row.siteBVistoriaUploadedByEmail = undefined;
+          if (row.siteAVistoriaStatus === 'Dispensado') {
+            row.siteAVistoriaStatus = 'Pendente';
+          }
+        }
+        if (row.losFileId === id) {
+          row.losStatus = 'Pendente';
+          row.losLinkedSiteId = undefined;
+          row.losFileId = undefined;
+          row.losFolderId = undefined;
+          row.losFileName = undefined;
+          row.losFileUrl = undefined;
+          row.losDownloadUrl = undefined;
+          row.losDeliveredAt = undefined;
+          row.losUploadedBy = undefined;
+          row.losUploadedByEmail = undefined;
+        }
+      });
+    }
+
     saveDatabase(db);
 
     broadcastUpdate({
@@ -1785,6 +2412,329 @@ async function startServer() {
     res.json({
       engineeringFolders: db.engineeringFolders,
       engineeringFiles: db.engineeringFiles,
+      tssrRows: db.tssrRows || [],
+      ericssonRows: db.ericssonRows || [],
+    });
+  });
+
+  // ===================== CONTROLE DE ENGENHARIA: TSSR TIM NOKIA ENDPOINTS =====================
+
+  // Import TSSR spreadsheet from OneDrive shared link
+  app.post('/api/tssr/import-onedrive', async (req, res) => {
+    const { url, vendor = 'NOKIA', tabName = 'TSSR TIM Nokia' } = req.body as {
+      url?: string;
+      vendor?: VendorType;
+      tabName?: string;
+    };
+
+    if (!url || !url.trim()) {
+      res.status(400).json({ error: 'Informe o link compartilhado da planilha TSSR no OneDrive.' });
+      return;
+    }
+
+    try {
+      let targetShareUrl = url.trim();
+      try {
+        const parsedUrl = new URL(targetShareUrl);
+        const redeemParam = parsedUrl.searchParams.get('redeem');
+        if (redeemParam) {
+          const decoded = Buffer.from(redeemParam, 'base64').toString('utf-8');
+          if (decoded.startsWith('http')) {
+            targetShareUrl = decoded;
+          }
+        }
+      } catch {
+        // ignore URL parse error
+      }
+
+      const b64 = Buffer.from(targetShareUrl)
+        .toString('base64')
+        .replace(/=+$/, '')
+        .replace(/\//g, '_')
+        .replace(/\+/g, '-');
+      const encodedToken = `u!${b64}`;
+
+      const badgerRes = await fetch('https://api-badgerp.svc.ms/v1.0/token', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          AppId: '1141147648',
+        },
+        body: JSON.stringify({ appId: '5cbed6ac-a083-4e14-b191-b4ba07653de2' }),
+      });
+
+      if (!badgerRes.ok) {
+        res.status(502).json({ error: 'Não foi possível obter token de leitura do OneDrive.' });
+        return;
+      }
+
+      const badgerData = (await badgerRes.json()) as { token?: string };
+      const metaUrl = `https://my.microsoftpersonalcontent.com/_api/v2.0/shares/${encodedToken}/driveitem`;
+      const metaRes = await fetch(metaUrl, {
+        headers: {
+          Authorization: `Badger ${badgerData.token}`,
+          Prefer: 'autoredeem',
+        },
+      });
+
+      if (!metaRes.ok) {
+        res.status(400).json({
+          error: 'Não foi possível acessar a planilha TSSR no OneDrive. Verifique se o link é público.',
+        });
+        return;
+      }
+
+      const metaJson = (await metaRes.json()) as {
+        name?: string;
+        '@content.downloadUrl'?: string;
+      };
+      const downloadUrl = metaJson['@content.downloadUrl'];
+      if (!downloadUrl) {
+        res.status(400).json({ error: 'Link de download não encontrado nos metadados do OneDrive.' });
+        return;
+      }
+
+      const dlRes = await fetch(downloadUrl);
+      if (!dlRes.ok) {
+        res.status(502).json({ error: 'Falha ao baixar o arquivo .xlsx da planilha TSSR.' });
+        return;
+      }
+
+      const arrayBuffer = await dlRes.arrayBuffer();
+      const parsed = parseTssrWorkbookBuffer(arrayBuffer, vendor, tabName);
+
+      res.json({
+        fileName: metaJson.name || 'CONTROLE_TSSR.xlsx',
+        sheetNameUsed: parsed.sheetNameUsed,
+        rows: parsed.rows,
+      });
+    } catch (err) {
+      console.error('TSSR OneDrive import error:', err);
+      res.status(500).json({ error: 'Erro ao processar planilha TSSR do OneDrive.' });
+    }
+  });
+
+  // Bulk upsert/reload TSSR spreadsheet rows while strictly preserving automatic Vistoria system columns
+  app.post('/api/tssr/bulk', (req, res) => {
+    const {
+      rows: incomingRows,
+      vendor = 'NOKIA',
+      tabName = 'TSSR TIM Nokia',
+      sourceFileName,
+      liveSyncUrl,
+    } = req.body as {
+      rows?: TssrRow[];
+      vendor?: VendorType;
+      tabName?: string;
+      sourceFileName?: string;
+      liveSyncUrl?: string;
+    };
+
+    if (!Array.isArray(incomingRows) || incomingRows.length === 0) {
+      res.status(400).json({ error: 'Nenhuma linha válida encontrada na planilha TSSR.' });
+      return;
+    }
+
+    const { merged, insertedCount, updatedCount } = mergeTssrRowsPreservingVistoria(
+      db.tssrRows || [],
+      incomingRows,
+      vendor,
+      tabName
+    );
+
+    db.tssrRows = merged;
+    if (!Array.isArray(db.tssrSheets)) {
+      db.tssrSheets = [];
+    }
+
+    const now = new Date().toISOString();
+    const existingMeta = db.tssrSheets.find(
+      (m) => m.vendor === vendor && m.tabName === tabName
+    );
+    const tabCount = db.tssrRows.filter(
+      (r) => r.vendor === vendor && r.tabName === tabName
+    ).length;
+
+    if (existingMeta) {
+      existingMeta.lastSyncAt = now;
+      existingMeta.totalRows = tabCount;
+      if (sourceFileName) existingMeta.sourceFileName = sourceFileName;
+      if (liveSyncUrl) existingMeta.liveSyncUrl = liveSyncUrl;
+    } else {
+      db.tssrSheets.push({
+        id: `tssr-sheet-${Date.now()}`,
+        vendor,
+        tabName,
+        sourceFileName: sourceFileName || 'Planilha TSSR',
+        liveSyncUrl,
+        lastSyncAt: now,
+        totalRows: tabCount,
+      });
+    }
+
+    saveDatabase(db);
+
+    broadcastUpdate({
+      type: 'TSSR_UPDATED',
+      timestamp: now,
+      vendor,
+      summary: `Planilha ${tabName} atualizada (${updatedCount} linhas atualizadas, ${insertedCount} novas — status e arquivos de vistoria preservados)`,
+    });
+
+    res.json({
+      insertedCount,
+      updatedCount,
+      tssrRows: db.tssrRows,
+      tssrSheets: db.tssrSheets,
+    });
+  });
+
+  // Create a single new row in TSSR TIM Nokia
+  app.post('/api/tssr/rows', (req, res) => {
+    const {
+      vendor = 'NOKIA',
+      tabName = 'TSSR TIM Nokia',
+      siteId,
+      ocSitePre,
+      enderecoId,
+      fields,
+    } = req.body as {
+      vendor?: VendorType;
+      tabName?: string;
+      siteId?: string;
+      ocSitePre?: string;
+      enderecoId?: string;
+      fields?: Record<string, string>;
+    };
+
+    const cleanSiteId = (siteId || fields?.['Site Id'] || '').trim().toUpperCase();
+    if (!cleanSiteId) {
+      res.status(400).json({ error: 'Informe a sigla do site (Site Id) para criar a nova linha.' });
+      return;
+    }
+
+    const cleanOc = (ocSitePre || fields?.['Oc Site Pre'] || '').trim();
+    const cleanEnd = (enderecoId || fields?.['Enderecoid'] || '').trim();
+
+    const normalizedFields: Record<string, string> = {};
+    TSSR_TIM_NOKIA_ORIGINAL_COLUMNS.forEach((col) => {
+      normalizedFields[col] = fields?.[col] || '';
+    });
+    normalizedFields['Site Id'] = cleanSiteId;
+    if (cleanOc) normalizedFields['Oc Site Pre'] = cleanOc;
+    if (cleanEnd) normalizedFields['Enderecoid'] = cleanEnd;
+
+    const now = new Date().toISOString();
+    const newRow: TssrRow = {
+      id: `tssr-${vendor.toLowerCase()}-${Date.now()}`,
+      rowKey: buildTssrRowKey(cleanSiteId, cleanOc),
+      vendor,
+      tabName,
+      siteId: cleanSiteId,
+      ocSitePre: cleanOc,
+      enderecoId: cleanEnd,
+      fields: normalizedFields,
+      vistoriaStatus: 'Pendente',
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    if (!Array.isArray(db.tssrRows)) {
+      db.tssrRows = [];
+    }
+    db.tssrRows.unshift(newRow);
+    saveDatabase(db);
+
+    broadcastUpdate({
+      type: 'TSSR_UPDATED',
+      timestamp: now,
+      vendor,
+      summary: `Nova linha ${cleanSiteId} criada em ${tabName}`,
+    });
+
+    res.status(201).json({
+      row: newRow,
+      tssrRows: db.tssrRows,
+      tssrSheets: db.tssrSheets || [],
+    });
+  });
+
+  // Update original spreadsheet fields of a TSSR row (system columns remain automatic)
+  app.put('/api/tssr/rows/:id', (req, res) => {
+    const { id } = req.params;
+    const { fields } = req.body as { fields?: Record<string, string> };
+
+    if (!Array.isArray(db.tssrRows)) {
+      res.status(404).json({ error: 'Linha TSSR não encontrada.' });
+      return;
+    }
+
+    const row = db.tssrRows.find((r) => r.id === id);
+    if (!row) {
+      res.status(404).json({ error: 'Linha TSSR não encontrada.' });
+      return;
+    }
+
+    if (fields && typeof fields === 'object') {
+      row.fields = {
+        ...row.fields,
+        ...fields,
+      };
+      if (fields['Site Id'] !== undefined) {
+        row.siteId = fields['Site Id'].trim().toUpperCase();
+        row.fields['Site Id'] = row.siteId;
+      }
+      if (fields['Oc Site Pre'] !== undefined) {
+        row.ocSitePre = fields['Oc Site Pre'].trim();
+        row.fields['Oc Site Pre'] = row.ocSitePre;
+      }
+      if (fields['Enderecoid'] !== undefined) {
+        row.enderecoId = fields['Enderecoid'].trim();
+        row.fields['Enderecoid'] = row.enderecoId;
+      }
+      row.rowKey = buildTssrRowKey(row.siteId, row.ocSitePre);
+    }
+
+    row.updatedAt = new Date().toISOString();
+    saveDatabase(db);
+
+    broadcastUpdate({
+      type: 'TSSR_UPDATED',
+      timestamp: row.updatedAt,
+      vendor: row.vendor,
+      summary: `Linha ${row.siteId} atualizada em ${row.tabName}`,
+    });
+
+    res.json({
+      row,
+      tssrRows: db.tssrRows,
+    });
+  });
+
+  // Delete a TSSR row
+  app.delete('/api/tssr/rows/:id', (req, res) => {
+    const { id } = req.params;
+    if (!Array.isArray(db.tssrRows)) {
+      res.status(404).json({ error: 'Linha TSSR não encontrada.' });
+      return;
+    }
+    const existing = db.tssrRows.find((r) => r.id === id);
+    if (!existing) {
+      res.status(404).json({ error: 'Linha TSSR não encontrada.' });
+      return;
+    }
+    db.tssrRows = db.tssrRows.filter((r) => r.id !== id);
+    saveDatabase(db);
+
+    broadcastUpdate({
+      type: 'TSSR_UPDATED',
+      timestamp: new Date().toISOString(),
+      vendor: existing.vendor,
+      summary: `Linha ${existing.siteId} removida de ${existing.tabName}`,
+    });
+
+    res.json({
+      tssrRows: db.tssrRows,
     });
   });
 
@@ -1978,8 +2928,7 @@ async function startServer() {
       return;
     }
 
-    const cleanDupla = duplaName.trim();
-    const cleanDuplaLower = cleanDupla.toLowerCase();
+    const cleanDupla = getCanonicalDuplaName(duplaName.trim()) || duplaName.trim();
     const emailList = Array.isArray(emails)
       ? Array.from(new Set(emails.map((e) => e.trim().toLowerCase()).filter(Boolean)))
       : [];
@@ -1988,18 +2937,19 @@ async function startServer() {
     // Update user profiles in db.users so their `equipe` reflects the linked Dupla
     db.users.forEach((u) => {
       const uEmail = u.email.trim().toLowerCase();
+      const uCanonEq = getCanonicalDuplaName(u.equipe || '') || (u.equipe || '').trim();
       if (emailSet.has(uEmail)) {
         u.equipe = cleanDupla;
-      } else if ((u.equipe || '').trim().toLowerCase() === cleanDuplaLower) {
+      } else if (normalizeAccents(uCanonEq) === normalizeAccents(cleanDupla)) {
         u.equipe = 'Campo / Engenharia';
       }
     });
 
-    // Also stamp E-MAIL DUPLA on all sites currently assigned to this Dupla
+    // Also stamp E-MAIL DUPLA on all sites currently assigned to this Dupla (matching canonical Dupla name)
     const emailStr = emailList.join(', ');
     db.sites.forEach((s) => {
-      const eq = (s.customFields?.['EQUIPE EXECUTANTE'] || s.equipeParceira || '').trim().toLowerCase();
-      if (eq === cleanDuplaLower) {
+      if (s.sheetName === 'Equipes' || s.sheetName === 'Controle Cancelados') return;
+      if (doesSiteMatchEquipe(s, cleanDupla)) {
         s.customFields = {
           ...(s.customFields || {}),
           'E-MAIL DUPLA': emailStr,
@@ -2046,30 +2996,21 @@ async function startServer() {
     let updatedCount = 0;
 
     if (renameFrom && typeof renameTo === 'string') {
-      const fromNorm = renameFrom.trim().toLowerCase();
       const nextDupla = renameTo.trim();
+      const canonFrom = getCanonicalDuplaName(renameFrom) || renameFrom.trim();
       db.users.forEach((u) => {
-        if ((u.equipe || '').trim().toLowerCase() === fromNorm) {
+        const uCanonEq = getCanonicalDuplaName(u.equipe || '') || (u.equipe || '').trim();
+        if (
+          normalizeAccents(uCanonEq) === normalizeAccents(canonFrom) ||
+          normalizeAccents(u.equipe || '') === normalizeAccents(renameFrom)
+        ) {
           u.equipe = nextDupla;
         }
       });
       db.sites.forEach((s) => {
         if (vendor && s.vendor !== vendor) return;
-        const eq = (
-          s.customFields?.['EQUIPE EXECUTANTE'] ||
-          s.equipeParceira ||
-          ''
-        )
-          .trim()
-          .toLowerCase();
-        const exec = (
-          s.customFields?.['Executor'] ||
-          s.responsavelCampo ||
-          ''
-        )
-          .trim()
-          .toLowerCase();
-        if (eq === fromNorm || exec === fromNorm) {
+        if (s.sheetName === 'Equipes' || s.sheetName === 'Controle Cancelados') return;
+        if (doesSiteMatchEquipe(s, renameFrom) || doesSiteMatchResponsible(s, renameFrom)) {
           s.equipeParceira = nextDupla;
           s.responsavelCampo = nextDupla;
           s.customFields = {
@@ -2082,11 +3023,40 @@ async function startServer() {
           updatedCount++;
         }
       });
-    } else if (Array.isArray(unassignSiteTokens) && unassignSiteTokens.length > 0) {
-      const tokenSet = new Set(unassignSiteTokens.map((t) => t.trim().toUpperCase()).filter(Boolean));
+    } else if (
+      (clearAllForResponsible && clearAllForResponsible.trim()) ||
+      (Array.isArray(unassignSiteTokens) && unassignSiteTokens.length > 0)
+    ) {
+      const hasClearAll = Boolean(clearAllForResponsible && clearAllForResponsible.trim());
+      const tokenSet = new Set(
+        (unassignSiteTokens || [])
+          .map((t) => String(t || '').trim().toUpperCase())
+          .filter(Boolean)
+      );
+      const targetDupla = (clearAllForResponsible || '').trim();
+      const canonTargetDupla = getCanonicalDuplaName(targetDupla) || targetDupla;
+      const linkedUsersForDupla = hasClearAll
+        ? db.users.filter((u) => {
+            const uEq = getCanonicalDuplaName(u.equipe || '') || (u.equipe || '').trim();
+            return normalizeAccents(uEq) === normalizeAccents(canonTargetDupla);
+          })
+        : [];
+
       db.sites.forEach((s) => {
         if (vendor && s.vendor !== vendor) return;
-        if (tokenSet.has(s.id.toUpperCase()) || tokenSet.has(s.siteId.trim().toUpperCase())) {
+        if (s.sheetName === 'Equipes' || s.sheetName === 'Controle Cancelados') return;
+
+        const matchesToken =
+          tokenSet.size > 0 &&
+          (tokenSet.has(s.id.toUpperCase()) || tokenSet.has(s.siteId.trim().toUpperCase()));
+
+        const matchesClearTarget =
+          hasClearAll &&
+          (doesSiteMatchEquipe(s, targetDupla) ||
+            doesSiteMatchResponsible(s, targetDupla) ||
+            linkedUsersForDupla.some((u) => doesSiteMatchResponsible(s, u)));
+
+        if (matchesToken || matchesClearTarget) {
           s.equipeParceira = '';
           s.responsavelCampo = '';
           s.customFields = {
@@ -2095,52 +3065,36 @@ async function startServer() {
             Executor: '',
             Responsável: '',
             'E-MAIL DUPLA': '',
-          };
-          s.updatedAt = now;
-          updatedCount++;
-        }
-      });
-    } else if (clearAllForResponsible) {
-      const targetNorm = clearAllForResponsible.trim().toLowerCase();
-      db.sites.forEach((s) => {
-        if (vendor && s.vendor !== vendor) return;
-        const eq = (
-          s.customFields?.['EQUIPE EXECUTANTE'] ||
-          s.equipeParceira ||
-          ''
-        )
-          .trim()
-          .toLowerCase();
-        const exec = (s.customFields?.['Executor'] || s.responsavelCampo || '').trim().toLowerCase();
-        const resp = (s.customFields?.['Responsável'] || '').trim().toLowerCase();
-        if (eq.includes(targetNorm) || exec.includes(targetNorm) || resp.includes(targetNorm)) {
-          s.equipeParceira = '';
-          s.responsavelCampo = '';
-          s.customFields = {
-            ...(s.customFields || {}),
-            'EQUIPE EXECUTANTE': '',
-            Executor: '',
-            Responsável: '',
-            'E-MAIL DUPLA': '',
+            ...(s.customFields && 'EQUIPE' in s.customFields ? { EQUIPE: '' } : {}),
+            ...(s.customFields && 'TalonView Executor' in s.customFields
+              ? { 'TalonView Executor': '' }
+              : {}),
+            ...(s.customFields && 'EMAIL_DUPLA' in s.customFields ? { EMAIL_DUPLA: '' } : {}),
           };
           s.updatedAt = now;
           updatedCount++;
         }
       });
     } else if (Array.isArray(siteTokens) && siteTokens.length > 0) {
-      const tokenSet = new Set(siteTokens.map((t) => t.trim().toUpperCase()).filter(Boolean));
+      const tokenSet = new Set(
+        siteTokens.map((t) => String(t || '').trim().toUpperCase()).filter(Boolean)
+      );
       const nextResp = (responsibleName || '').trim();
+      const canonNextResp = getCanonicalDuplaName(nextResp) || nextResp;
       const autoLinkedEmails =
         Array.isArray(linkedEmails) && linkedEmails.length > 0
           ? linkedEmails
           : db.users
-              .filter((u) => (u.equipe || '').trim().toLowerCase() === nextResp.toLowerCase())
+              .filter((u) => {
+                const uEq = getCanonicalDuplaName(u.equipe || '') || (u.equipe || '').trim();
+                return normalizeAccents(uEq) === normalizeAccents(canonNextResp);
+              })
               .map((u) => u.email.toLowerCase());
       const emailStr = autoLinkedEmails.join(', ');
 
       db.sites.forEach((s) => {
         if (vendor && s.vendor !== vendor) return;
-        if (s.sheetName !== 'Controle Geral') return;
+        if (s.sheetName === 'Equipes' || s.sheetName === 'Controle Cancelados') return;
         if (tokenSet.has(s.id.toUpperCase()) || tokenSet.has(s.siteId.trim().toUpperCase())) {
           s.equipeParceira = nextResp;
           s.responsavelCampo = nextResp;
@@ -2149,7 +3103,7 @@ async function startServer() {
             'EQUIPE EXECUTANTE': nextResp,
             Executor: nextResp,
             Responsável: nextResp,
-            ...(emailStr ? { 'E-MAIL DUPLA': emailStr } : {}),
+            'E-MAIL DUPLA': emailStr,
           };
           s.updatedAt = now;
           updatedCount++;
@@ -2162,7 +3116,9 @@ async function startServer() {
       type: 'FULL_STATE',
       timestamp: now,
       vendor,
-      summary: `${updatedCount} site(s) atualizado(s) para Equipe/Dupla ${responsibleName || renameTo || '—'}`,
+      summary: clearAllForResponsible
+        ? `Demanda de "${clearAllForResponsible}" limpa (${updatedCount} site(s) desvinculado(s))`
+        : `${updatedCount} site(s) atualizado(s) para Equipe/Dupla ${responsibleName || renameTo || '—'}`,
     });
 
     res.json({ updatedCount, sites: db.sites, users: db.users.map(sanitizeUser) });
@@ -2431,6 +3387,7 @@ async function startServer() {
       updatedCount,
       sites: db.sites,
       sheets: db.sheets,
+      users: db.users.map(sanitizeUser),
     });
   });
 
@@ -2487,6 +3444,1565 @@ async function startServer() {
     });
 
     res.status(201).json({ sheet: newSheet, sheets: db.sheets });
+  });
+
+  // ===================== ERICSSON INDEPENDENT SYSTEM ENDPOINTS =====================
+
+  async function downloadOneDriveWorkbookBuffer(rawUrl: string): Promise<{
+    fileName: string;
+    arrayBuffer: ArrayBuffer;
+  }> {
+    let targetShareUrl = rawUrl.trim();
+    try {
+      const parsedUrl = new URL(targetShareUrl);
+      const redeemParam = parsedUrl.searchParams.get('redeem');
+      if (redeemParam) {
+        const decoded = Buffer.from(redeemParam, 'base64').toString('utf-8');
+        if (decoded.startsWith('http')) {
+          targetShareUrl = decoded;
+        }
+      }
+    } catch {
+      // use raw url if URL parsing fails
+    }
+
+    const b64 = Buffer.from(targetShareUrl)
+      .toString('base64')
+      .replace(/=+$/, '')
+      .replace(/\//g, '_')
+      .replace(/\+/g, '-');
+    const encodedToken = `u!${b64}`;
+
+    const badgerRes = await fetch('https://api-badgerp.svc.ms/v1.0/token', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        AppId: '1141147648',
+      },
+      body: JSON.stringify({ appId: '5cbed6ac-a083-4e14-b191-b4ba07653de2' }),
+    });
+
+    if (!badgerRes.ok) {
+      throw new Error('Não foi possível obter token de leitura do OneDrive.');
+    }
+
+    const badgerData = (await badgerRes.json()) as { token?: string };
+    const metaUrl = `https://my.microsoftpersonalcontent.com/_api/v2.0/shares/${encodedToken}/driveitem`;
+    const metaRes = await fetch(metaUrl, {
+      headers: {
+        Authorization: `Badger ${badgerData.token}`,
+        Prefer: 'autoredeem',
+      },
+    });
+
+    if (!metaRes.ok) {
+      throw new Error('Não foi possível acessar a planilha no OneDrive. Verifique se o link é público.');
+    }
+
+    const metaJson = (await metaRes.json()) as {
+      name?: string;
+      '@content.downloadUrl'?: string;
+    };
+    const downloadUrl = metaJson['@content.downloadUrl'];
+    if (!downloadUrl) {
+      throw new Error('Link de download não encontrado nos metadados do OneDrive.');
+    }
+
+    const dlRes = await fetch(downloadUrl);
+    if (!dlRes.ok) {
+      throw new Error('Falha ao baixar o arquivo .xlsx do OneDrive.');
+    }
+
+    const arrayBuffer = await dlRes.arrayBuffer();
+    return {
+      fileName: metaJson.name || 'PLAN. AMETA_Controle EDB.xlsx',
+      arrayBuffer,
+    };
+  }
+
+  // 1. Import Ericsson spreadsheet from OneDrive Excel Online URL (preserving system Vistoria columns)
+  app.post('/api/ericsson/import-onedrive', async (req, res) => {
+    const { url, mode = 'replace' } = req.body as {
+      url?: string;
+      mode?: 'upsert' | 'replace';
+    };
+
+    const targetUrl = (url || db.ericssonSheetMeta?.liveSyncUrl || DEFAULT_ERICSSON_ONEDRIVE_URL).trim();
+    if (!targetUrl) {
+      res.status(400).json({ error: 'Informe o link compartilhado do Excel Online (OneDrive) da Ericsson.' });
+      return;
+    }
+
+    try {
+      const downloaded = await downloadOneDriveWorkbookBuffer(targetUrl);
+      const parsed = parseEricssonWorkbookBuffer(downloaded.arrayBuffer);
+      if (parsed.rows.length === 0) {
+        res.status(400).json({
+          error: 'Nenhuma linha válida encontrada na planilha da Ericsson.',
+        });
+        return;
+      }
+
+      const merged = mergeEricssonRowsPreservingVistoria(
+        db.ericssonRows || [],
+        parsed.rows,
+        mode
+      );
+
+      db.ericssonRows = merged.rows;
+      const counters = computeEricssonSiteCounters(db.ericssonRows);
+      const now = new Date().toISOString();
+      db.ericssonSheetMeta = {
+        id: 'ericsson-sheet-main',
+        tabName: parsed.tabName || 'ERICSSON CLARO TX',
+        sourceFileName: downloaded.fileName || 'PLAN. AMETA_Controle EDB.xlsx',
+        liveSyncUrl: targetUrl,
+        lastSyncAt: now,
+        totalRows: db.ericssonRows.length,
+        totalSites: counters.totalSites,
+        columns: parsed.columns,
+      };
+
+      saveDatabase(db);
+      broadcastUpdate({
+        type: 'ERICSSON_UPDATED',
+        timestamp: now,
+        vendor: 'ERICSSON',
+        summary: `Planilha Ericsson sincronizada (${counters.totalSites} sites em ${db.ericssonRows.length} pares, ${merged.preservedVistoriasCount} vistoria(s) preservada(s))`,
+      });
+
+      res.json({
+        ericssonRows: db.ericssonRows,
+        ericssonSheetMeta: db.ericssonSheetMeta,
+        insertedCount: merged.insertedCount,
+        updatedCount: merged.updatedCount,
+        preservedVistoriasCount: merged.preservedVistoriasCount,
+      });
+    } catch (err) {
+      console.error('Ericsson OneDrive import error:', err);
+      res.status(500).json({
+        error:
+          err instanceof Error
+            ? err.message
+            : 'Erro ao sincronizar planilha da Ericsson via OneDrive.',
+      });
+    }
+  });
+
+  // 2. Import Ericsson spreadsheet rows parsed from a local .xlsx file (preserving system Vistoria columns)
+  app.post('/api/ericsson/import-rows', (req, res) => {
+    const {
+      rows: incomingRows,
+      columns,
+      tabName,
+      sourceFileName,
+      mode = 'replace',
+    } = req.body as {
+      rows?: EricssonRow[];
+      columns?: string[];
+      tabName?: string;
+      sourceFileName?: string;
+      mode?: 'upsert' | 'replace';
+    };
+
+    if (!Array.isArray(incomingRows) || incomingRows.length === 0) {
+      res.status(400).json({ error: 'Nenhuma linha válida da Ericsson recebida para importação.' });
+      return;
+    }
+
+    const merged = mergeEricssonRowsPreservingVistoria(
+      db.ericssonRows || [],
+      incomingRows,
+      mode
+    );
+
+    db.ericssonRows = merged.rows;
+    const counters = computeEricssonSiteCounters(db.ericssonRows);
+    const now = new Date().toISOString();
+
+    db.ericssonSheetMeta = {
+      id: 'ericsson-sheet-main',
+      tabName: tabName || db.ericssonSheetMeta?.tabName || 'ERICSSON CLARO TX',
+      sourceFileName: sourceFileName || db.ericssonSheetMeta?.sourceFileName || 'Planilha_Ericsson.xlsx',
+      liveSyncUrl: db.ericssonSheetMeta?.liveSyncUrl || DEFAULT_ERICSSON_ONEDRIVE_URL,
+      lastSyncAt: now,
+      totalRows: db.ericssonRows.length,
+      totalSites: counters.totalSites,
+      columns:
+        Array.isArray(columns) && columns.length > 0
+          ? columns
+          : db.ericssonSheetMeta?.columns || [...ERICSSON_ORIGINAL_COLUMNS],
+    };
+
+    saveDatabase(db);
+    broadcastUpdate({
+      type: 'ERICSSON_UPDATED',
+      timestamp: now,
+      vendor: 'ERICSSON',
+      summary: `Planilha Ericsson carregada (${counters.totalSites} sites em ${db.ericssonRows.length} linhas, ${merged.preservedVistoriasCount} vistoria(s) preservada(s))`,
+    });
+
+    res.json({
+      ericssonRows: db.ericssonRows,
+      ericssonSheetMeta: db.ericssonSheetMeta,
+      insertedCount: merged.insertedCount,
+      updatedCount: merged.updatedCount,
+      preservedVistoriasCount: merged.preservedVistoriasCount,
+    });
+  });
+
+  // 3. Create a new Ericsson row (pair of sites)
+  app.post('/api/ericsson/rows', (req, res) => {
+    const {
+      chaves,
+      registro,
+      state,
+      meta,
+      siteIdA,
+      idDetentoraA,
+      siteIdB,
+      idDetentoraB,
+      statusA,
+      statusB,
+      cidadeA,
+      cidadeB,
+      equipe,
+      servico,
+      fields: incomingFields,
+    } = req.body as Partial<EricssonRow>;
+
+    const cleanA = (siteIdA || incomingFields?.['01.21.Site ID A'] || '').trim().toUpperCase();
+    const cleanB = (siteIdB || incomingFields?.['01.21.Site ID B'] || '').trim().toUpperCase();
+
+    if (!cleanA && !cleanB) {
+      res.status(400).json({ error: 'Informe pelo menos um Site ID (Site ID A ou Site ID B).' });
+      return;
+    }
+
+    const now = new Date().toISOString();
+    const cols = db.ericssonSheetMeta?.columns || [...ERICSSON_ORIGINAL_COLUMNS];
+    const rowFields: Record<string, string> = {};
+    cols.forEach((c) => {
+      rowFields[c] = incomingFields?.[c] || '';
+    });
+
+    const finalChaves = (chaves || rowFields['01.00. Chaves'] || `ER-${Date.now().toString().slice(-5)}`).trim();
+    const finalRegistro = (registro || rowFields['Registro'] || '').trim();
+    const finalState = (state || rowFields['00.03.State'] || '').trim().toUpperCase();
+    const finalMeta = (meta || rowFields['Meta'] || '').trim();
+    const finalDetA = (idDetentoraA || rowFields['ID Detentora A'] || '').trim();
+    const finalDetB = (idDetentoraB || rowFields['ID Detentora B'] || '').trim();
+    const finalStatusA = (statusA || rowFields['Status A'] || 'Em andamento').trim();
+    const finalStatusB = (statusB || rowFields['Status B'] || 'Em andamento').trim();
+    const finalCidadeA = (cidadeA || rowFields['CIDADE A'] || '').trim();
+    const finalCidadeB = (cidadeB || rowFields['CIDADE B'] || '').trim();
+    const finalEquipe = (equipe || rowFields['EQUIPE'] || '').trim();
+    const finalServico = (servico || rowFields['Serviço'] || '').trim();
+    const finalSiteName =
+      rowFields['00.04.Site Name'] ||
+      (cleanA && cleanB ? `${cleanA}-${cleanB}` : cleanA || cleanB);
+
+    rowFields['01.00. Chaves'] = finalChaves;
+    rowFields['Registro'] = finalRegistro;
+    rowFields['00.03.State'] = finalState;
+    rowFields['Meta'] = finalMeta;
+    rowFields['01.21.Site ID A'] = cleanA;
+    rowFields['ID Detentora A'] = finalDetA;
+    rowFields['01.21.Site ID B'] = cleanB;
+    rowFields['ID Detentora B'] = finalDetB;
+    rowFields['00.04.Site Name'] = finalSiteName;
+    rowFields['Status A'] = finalStatusA;
+    rowFields['Status B'] = finalStatusB;
+    rowFields['CIDADE A'] = finalCidadeA;
+    rowFields['CIDADE B'] = finalCidadeB;
+    rowFields['EQUIPE'] = finalEquipe;
+    rowFields['Serviço'] = finalServico;
+
+    const newRow: EricssonRow = {
+      id: `eric-row-${Date.now()}`,
+      rowKey: buildEricssonRowKey(finalChaves, finalRegistro, cleanA, cleanB),
+      chaves: finalChaves,
+      registro: finalRegistro,
+      state: finalState,
+      meta: finalMeta,
+      siteIdA: cleanA,
+      idDetentoraA: finalDetA,
+      siteIdB: cleanB,
+      idDetentoraB: finalDetB,
+      siteName: finalSiteName,
+      statusA: finalStatusA,
+      statusB: finalStatusB,
+      cidadeA: finalCidadeA,
+      cidadeB: finalCidadeB,
+      equipe: finalEquipe,
+      servico: finalServico,
+      fields: rowFields,
+      siteAVistoriaStatus: 'Pendente',
+      siteBVistoriaStatus: 'Pendente',
+      isManualRow: true,
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    if (!Array.isArray(db.ericssonRows)) db.ericssonRows = [];
+    db.ericssonRows.unshift(newRow);
+
+    if (db.ericssonSheetMeta) {
+      const counters = computeEricssonSiteCounters(db.ericssonRows);
+      db.ericssonSheetMeta.totalRows = db.ericssonRows.length;
+      db.ericssonSheetMeta.totalSites = counters.totalSites;
+    }
+
+    saveDatabase(db);
+    broadcastUpdate({
+      type: 'ERICSSON_UPDATED',
+      timestamp: now,
+      vendor: 'ERICSSON',
+      summary: `Nova linha Ericsson criada (${cleanA || '—'} ↔ ${cleanB || '—'})`,
+    });
+
+    res.status(201).json({
+      row: newRow,
+      ericssonRows: db.ericssonRows,
+      ericssonSheetMeta: db.ericssonSheetMeta,
+    });
+  });
+
+  // 4. Update an Ericsson row (original spreadsheet columns only; system vistoria columns are automatic)
+  app.put('/api/ericsson/rows/:id', (req, res) => {
+    const { id } = req.params;
+    const updates = req.body as Partial<EricssonRow>;
+
+    if (!Array.isArray(db.ericssonRows)) db.ericssonRows = [];
+    const target = db.ericssonRows.find((r) => r.id === id);
+    if (!target) {
+      res.status(404).json({ error: 'Linha da planilha Ericsson não encontrada.' });
+      return;
+    }
+
+    const now = new Date().toISOString();
+    const mergedFields: Record<string, string> = {
+      ...(target.fields || {}),
+      ...(updates.fields || {}),
+    };
+
+    if (typeof updates.chaves === 'string') mergedFields['01.00. Chaves'] = updates.chaves.trim();
+    if (typeof updates.state === 'string') mergedFields['00.03.State'] = updates.state.trim();
+    if (typeof updates.registro === 'string') mergedFields['Registro'] = updates.registro.trim();
+    if (typeof updates.meta === 'string') mergedFields['Meta'] = updates.meta.trim();
+    if (typeof updates.siteIdA === 'string')
+      mergedFields['01.21.Site ID A'] = updates.siteIdA.trim().toUpperCase();
+    if (typeof updates.idDetentoraA === 'string')
+      mergedFields['ID Detentora A'] = updates.idDetentoraA.trim();
+    if (typeof updates.siteIdB === 'string')
+      mergedFields['01.21.Site ID B'] = updates.siteIdB.trim().toUpperCase();
+    if (typeof updates.idDetentoraB === 'string')
+      mergedFields['ID Detentora B'] = updates.idDetentoraB.trim();
+    if (typeof updates.statusA === 'string') mergedFields['Status A'] = updates.statusA.trim();
+    if (typeof updates.statusB === 'string') mergedFields['Status B'] = updates.statusB.trim();
+    if (typeof updates.cidadeA === 'string') mergedFields['CIDADE A'] = updates.cidadeA.trim();
+    if (typeof updates.cidadeB === 'string') mergedFields['CIDADE B'] = updates.cidadeB.trim();
+    if (typeof updates.equipe === 'string') mergedFields['EQUIPE'] = updates.equipe.trim();
+    if (typeof updates.servico === 'string') mergedFields['Serviço'] = updates.servico.trim();
+
+    target.fields = mergedFields;
+    target.chaves = mergedFields['01.00. Chaves'] || target.chaves;
+    target.state = mergedFields['00.03.State'] || target.state;
+    target.registro = mergedFields['Registro'] || target.registro;
+    target.meta = mergedFields['Meta'] || target.meta;
+    target.siteIdA = (mergedFields['01.21.Site ID A'] || target.siteIdA).trim().toUpperCase();
+    target.idDetentoraA = mergedFields['ID Detentora A'] ?? target.idDetentoraA;
+    target.siteIdB = (mergedFields['01.21.Site ID B'] || target.siteIdB).trim().toUpperCase();
+    target.idDetentoraB = mergedFields['ID Detentora B'] ?? target.idDetentoraB;
+    target.siteName =
+      mergedFields['00.04.Site Name'] ||
+      (target.siteIdA && target.siteIdB
+        ? `${target.siteIdA}-${target.siteIdB}`
+        : target.siteIdA || target.siteIdB);
+    target.statusA = mergedFields['Status A'] ?? target.statusA;
+    target.statusB = mergedFields['Status B'] ?? target.statusB;
+    target.cidadeA = mergedFields['CIDADE A'] ?? target.cidadeA;
+    target.cidadeB = mergedFields['CIDADE B'] ?? target.cidadeB;
+    target.equipe = mergedFields['EQUIPE'] ?? target.equipe;
+    target.servico = mergedFields['Serviço'] ?? target.servico;
+    target.rowKey = buildEricssonRowKey(
+      target.chaves,
+      target.registro,
+      target.siteIdA,
+      target.siteIdB
+    );
+    target.updatedAt = now;
+
+    saveDatabase(db);
+    broadcastUpdate({
+      type: 'ERICSSON_UPDATED',
+      timestamp: now,
+      vendor: 'ERICSSON',
+      summary: `Linha Ericsson ${target.siteIdA} ↔ ${target.siteIdB} atualizada`,
+    });
+
+    res.json({
+      row: target,
+      ericssonRows: db.ericssonRows,
+    });
+  });
+
+  // 5. Delete an Ericsson row
+  app.delete('/api/ericsson/rows/:id', (req, res) => {
+    const { id } = req.params;
+    if (!Array.isArray(db.ericssonRows)) db.ericssonRows = [];
+    const target = db.ericssonRows.find((r) => r.id === id);
+    if (!target) {
+      res.status(404).json({ error: 'Linha não encontrada.' });
+      return;
+    }
+
+    db.ericssonRows = db.ericssonRows.filter((r) => r.id !== id);
+    if (db.ericssonSheetMeta) {
+      const counters = computeEricssonSiteCounters(db.ericssonRows);
+      db.ericssonSheetMeta.totalRows = db.ericssonRows.length;
+      db.ericssonSheetMeta.totalSites = counters.totalSites;
+    }
+
+    saveDatabase(db);
+    broadcastUpdate({
+      type: 'ERICSSON_UPDATED',
+      timestamp: new Date().toISOString(),
+      vendor: 'ERICSSON',
+      summary: `Linha ${target.siteIdA} ↔ ${target.siteIdB} removida`,
+    });
+
+    res.json({
+      ericssonRows: db.ericssonRows,
+      ericssonSheetMeta: db.ericssonSheetMeta,
+    });
+  });
+
+  // 6. Upload Ericsson Vistoria file linked to a Row (vistoria always goes together for the link/site, just like Nokia)
+  app.post('/api/ericsson/vistoria/upload', (req, res) => {
+    const {
+      rowId,
+      targetSide = 'A',
+      linkedSiteId,
+      folderId,
+      assignedTo,
+      createNewRow,
+      newRowData,
+      fileName,
+      fileSize,
+      base64Data,
+      files: incomingFiles,
+      notes,
+      uploadedByName,
+      uploadedByEmail,
+    } = req.body as {
+      rowId?: string;
+      targetSide?: 'A' | 'B' | 'LOS' | 'BOTH';
+      linkedSiteId?: string;
+      folderId?: string;
+      assignedTo?: string;
+      createNewRow?: boolean;
+      newRowData?: {
+        chaves?: string;
+        state?: string;
+        siteIdA?: string;
+        siteIdB?: string;
+        cidadeA?: string;
+        cidadeB?: string;
+        equipe?: string;
+        servico?: string;
+      };
+      fileName?: string;
+      fileSize?: number;
+      base64Data?: string;
+      files?: Array<{
+        fileName: string;
+        fileSize: number;
+        base64Data: string;
+      }>;
+      notes?: string;
+      uploadedByName?: string;
+      uploadedByEmail?: string;
+    };
+
+    const filesToProcess =
+      Array.isArray(incomingFiles) && incomingFiles.length > 0
+        ? incomingFiles
+        : fileName && base64Data
+        ? [{ fileName, fileSize: fileSize || 0, base64Data }]
+        : [];
+
+    if (filesToProcess.length === 0) {
+      res.status(400).json({ error: 'Selecione pelo menos um arquivo da vistoria para enviar.' });
+      return;
+    }
+    if (!uploadedByName || !uploadedByName.trim()) {
+      res.status(400).json({ error: 'Nome de quem está enviando é obrigatório.' });
+      return;
+    }
+
+    if (!Array.isArray(db.ericssonRows)) db.ericssonRows = [];
+
+    let targetRow = rowId ? db.ericssonRows.find((r) => r.id === rowId) : undefined;
+
+    if (!targetRow && createNewRow && newRowData) {
+      const cleanA = (newRowData.siteIdA || '').trim().toUpperCase();
+      const cleanB = (newRowData.siteIdB || '').trim().toUpperCase();
+      if (!cleanA && !cleanB) {
+        res.status(400).json({
+          error: 'Informe o Site ID para criar a nova linha vinculada na planilha Ericsson.',
+        });
+        return;
+      }
+
+      const nowIso = new Date().toISOString();
+      const cols = db.ericssonSheetMeta?.columns || [...ERICSSON_ORIGINAL_COLUMNS];
+      const rowFields: Record<string, string> = {};
+      cols.forEach((c) => {
+        rowFields[c] = '';
+      });
+
+      const finalChaves = (newRowData.chaves || `ER-${Date.now().toString().slice(-5)}`).trim();
+      const finalState = (newRowData.state || 'SP').trim().toUpperCase();
+      const finalSiteName = cleanA && cleanB ? `${cleanA}-${cleanB}` : cleanA || cleanB;
+
+      rowFields['01.00. Chaves'] = finalChaves;
+      rowFields['00.03.State'] = finalState;
+      rowFields['01.21.Site ID A'] = cleanA;
+      rowFields['01.21.Site ID B'] = cleanB;
+      rowFields['00.04.Site Name'] = finalSiteName;
+      rowFields['Status A'] = 'Em andamento';
+      rowFields['Status B'] = 'Em andamento';
+      rowFields['CIDADE A'] = (newRowData.cidadeA || '').trim();
+      rowFields['CIDADE B'] = (newRowData.cidadeB || '').trim();
+      rowFields['EQUIPE'] = (newRowData.equipe || '').trim();
+      rowFields['Serviço'] = (newRowData.servico || 'LOS A / LOS e Vistoria B').trim();
+
+      targetRow = {
+        id: `eric-row-${Date.now()}`,
+        rowKey: buildEricssonRowKey(finalChaves, '', cleanA, cleanB),
+        chaves: finalChaves,
+        registro: '',
+        state: finalState,
+        meta: '',
+        siteIdA: cleanA,
+        idDetentoraA: '',
+        siteIdB: cleanB,
+        idDetentoraB: '',
+        siteName: finalSiteName,
+        statusA: 'Em andamento',
+        statusB: 'Em andamento',
+        cidadeA: rowFields['CIDADE A'],
+        cidadeB: rowFields['CIDADE B'],
+        equipe: rowFields['EQUIPE'],
+        servico: rowFields['Serviço'],
+        fields: rowFields,
+        siteAVistoriaStatus: 'Pendente',
+        siteBVistoriaStatus: 'Pendente',
+        losStatus: 'Pendente',
+        isManualRow: true,
+        createdAt: nowIso,
+        updatedAt: nowIso,
+      };
+      db.ericssonRows.unshift(targetRow);
+      if (db.ericssonSheetMeta) {
+        const counters = computeEricssonSiteCounters(db.ericssonRows);
+        db.ericssonSheetMeta.totalRows = db.ericssonRows.length;
+        db.ericssonSheetMeta.totalSites = counters.totalSites;
+      }
+    }
+
+    if (!targetRow) {
+      res.status(400).json({
+        error:
+          'Envio sem vínculo não permitido. Selecione o site na planilha Ericsson ou crie uma nova linha.',
+      });
+      return;
+    }
+
+    const pairLabel =
+      targetRow.siteIdA && targetRow.siteIdB
+        ? `${targetRow.siteIdA} ↔ ${targetRow.siteIdB}`
+        : targetRow.siteIdA || targetRow.siteIdB || targetRow.chaves;
+
+    if (!fs.existsSync(UPLOADS_DIR)) {
+      fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+    }
+
+    const now = new Date().toISOString();
+    const formattedDeliveryDate = new Date(now).toLocaleString('pt-BR', {
+      timeZone: 'America/Sao_Paulo',
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+
+    if (!Array.isArray(db.ericssonFolders)) db.ericssonFolders = [];
+    if (!Array.isArray(db.ericssonFiles)) db.ericssonFiles = [];
+
+    const validFolder =
+      folderId && db.ericssonFolders.some((f) => f.id === folderId)
+        ? folderId
+        : 'folder-ericsson-root';
+    const targetFolderId = validFolder;
+    const createdFiles: EngineeringFile[] = [];
+
+    filesToProcess.forEach((rawFile, idx) => {
+      const cleanName = path.basename(rawFile.fileName || `vistoria_${idx + 1}.zip`);
+      const fileId = `eric-vist-${Date.now()}-${idx}-${Math.random().toString(36).slice(2, 6)}`;
+      const safeDiskName = `${fileId}_${cleanName.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
+      const diskPath = path.join(UPLOADS_DIR, safeDiskName);
+
+      const base64Clean = (rawFile.base64Data || '').includes(',')
+        ? rawFile.base64Data.split(',')[1]
+        : rawFile.base64Data || '';
+      const buffer = Buffer.from(base64Clean, 'base64');
+      fs.writeFileSync(diskPath, buffer);
+
+      const { fileType, extension } = detectFileType(cleanName);
+
+      const resolvedSiteTag =
+        targetSide === 'A'
+          ? `${targetRow.siteIdA || pairLabel} [Vistoria A]`
+          : targetSide === 'B'
+          ? `${targetRow.siteIdB || pairLabel} [Vistoria B]`
+          : targetSide === 'LOS'
+          ? `${linkedSiteId || targetRow.siteIdA || pairLabel} [LOS]`
+          : pairLabel;
+
+      const newFileRecord: EngineeringFile = {
+        id: fileId,
+        folderId: targetFolderId,
+        vendor: 'ERICSSON',
+        fileName: cleanName,
+        fileType,
+        extension,
+        fileSize: rawFile.fileSize || buffer.length,
+        siteId: resolvedSiteTag,
+        ocSitePre: targetRow.chaves,
+        tssrRowId: targetRow.id,
+        notes:
+          notes?.trim() ||
+          (targetSide === 'LOS'
+            ? `LOS Ericsson (${linkedSiteId || pairLabel})`
+            : `Vistoria Site ${targetSide} (${pairLabel})`),
+        assignedTo: assignedTo?.trim() || undefined,
+        uploadedByName: uploadedByName.trim(),
+        uploadedByEmail: uploadedByEmail?.trim() || 'vistoria@ameta.com.br',
+        uploadedAt: now,
+        storageFileName: safeDiskName,
+      };
+
+      db.ericssonFiles!.unshift(newFileRecord);
+      createdFiles.push(newFileRecord);
+    });
+
+    const primaryFile = createdFiles[0];
+    const fileViewUrl = `/api/ericsson/files/${encodeURIComponent(primaryFile.id)}/view`;
+    const fileDownloadUrl = `/api/ericsson/files/${encodeURIComponent(primaryFile.id)}/download`;
+
+    if (targetSide === 'A') {
+      // Delivering Vistoria A marks A as Entregue and B as Dispensado!
+      targetRow.siteAVistoriaStatus = 'Entregue';
+      targetRow.siteAVistoriaFileId = primaryFile.id;
+      targetRow.siteAVistoriaFolderId = targetFolderId;
+      targetRow.siteAVistoriaFileName = primaryFile.fileName;
+      targetRow.siteAVistoriaFileUrl = fileViewUrl;
+      targetRow.siteAVistoriaDownloadUrl = fileDownloadUrl;
+      targetRow.siteAVistoriaDeliveredAt = formattedDeliveryDate;
+      targetRow.siteAVistoriaUploadedBy = uploadedByName.trim();
+      targetRow.siteAVistoriaUploadedByEmail =
+        uploadedByEmail?.trim() || 'vistoria@ameta.com.br';
+
+      targetRow.siteBVistoriaStatus = 'Dispensado';
+    } else if (targetSide === 'B') {
+      // Delivering Vistoria B marks B as Entregue and A as Dispensado!
+      targetRow.siteBVistoriaStatus = 'Entregue';
+      targetRow.siteBVistoriaFileId = primaryFile.id;
+      targetRow.siteBVistoriaFolderId = targetFolderId;
+      targetRow.siteBVistoriaFileName = primaryFile.fileName;
+      targetRow.siteBVistoriaFileUrl = fileViewUrl;
+      targetRow.siteBVistoriaDownloadUrl = fileDownloadUrl;
+      targetRow.siteBVistoriaDeliveredAt = formattedDeliveryDate;
+      targetRow.siteBVistoriaUploadedBy = uploadedByName.trim();
+      targetRow.siteBVistoriaUploadedByEmail =
+        uploadedByEmail?.trim() || 'vistoria@ameta.com.br';
+
+      targetRow.siteAVistoriaStatus = 'Dispensado';
+    } else if (targetSide === 'BOTH') {
+      targetRow.siteAVistoriaStatus = 'Entregue';
+      targetRow.siteAVistoriaFileId = primaryFile.id;
+      targetRow.siteAVistoriaFolderId = targetFolderId;
+      targetRow.siteAVistoriaFileName = primaryFile.fileName;
+      targetRow.siteAVistoriaFileUrl = fileViewUrl;
+      targetRow.siteAVistoriaDownloadUrl = fileDownloadUrl;
+      targetRow.siteAVistoriaDeliveredAt = formattedDeliveryDate;
+      targetRow.siteAVistoriaUploadedBy = uploadedByName.trim();
+      targetRow.siteAVistoriaUploadedByEmail =
+        uploadedByEmail?.trim() || 'vistoria@ameta.com.br';
+
+      targetRow.siteBVistoriaStatus = 'Dispensado';
+    } else if (targetSide === 'LOS') {
+      targetRow.losStatus = 'Entregue';
+      targetRow.losLinkedSiteId =
+        linkedSiteId?.trim().toUpperCase() || targetRow.siteIdA || targetRow.siteIdB;
+      targetRow.losFileId = primaryFile.id;
+      targetRow.losFolderId = targetFolderId;
+      targetRow.losFileName = primaryFile.fileName;
+      targetRow.losFileUrl = fileViewUrl;
+      targetRow.losDownloadUrl = fileDownloadUrl;
+      targetRow.losDeliveredAt = formattedDeliveryDate;
+      targetRow.losUploadedBy = uploadedByName.trim();
+      targetRow.losUploadedByEmail =
+        uploadedByEmail?.trim() || 'vistoria@ameta.com.br';
+    }
+    targetRow.updatedAt = now;
+
+    saveDatabase(db);
+    broadcastUpdate({
+      type: 'ERICSSON_UPDATED',
+      timestamp: now,
+      vendor: 'ERICSSON',
+      actorEmail: uploadedByEmail,
+      summary: `Vistoria entregue para ${pairLabel} por ${uploadedByName.trim()}`,
+    });
+
+    res.status(201).json({
+      row: targetRow,
+      file: primaryFile,
+      createdFiles,
+      ericssonRows: db.ericssonRows,
+      ericssonSheetMeta: db.ericssonSheetMeta,
+      ericssonFolders: db.ericssonFolders,
+      ericssonFiles: db.ericssonFiles,
+    });
+  });
+
+  // 6a. Dedicated Ericsson Folders & Files endpoints (completely isolated from Nokia)
+  app.post('/api/ericsson/folders', (req, res) => {
+    const {
+      name,
+      parentId,
+      description,
+      createdByName,
+      createdByEmail,
+    } = req.body as {
+      name?: string;
+      parentId?: string | null;
+      description?: string;
+      createdByName?: string;
+      createdByEmail?: string;
+    };
+
+    if (!name || !name.trim()) {
+      res.status(400).json({ error: 'Informe o nome da pasta Ericsson.' });
+      return;
+    }
+
+    if (!Array.isArray(db.ericssonFolders)) db.ericssonFolders = [];
+    if (!Array.isArray(db.ericssonFiles)) db.ericssonFiles = [];
+
+    const targetParentId =
+      parentId && db.ericssonFolders.some((f) => f.id === parentId)
+        ? parentId
+        : 'folder-ericsson-root';
+
+    const duplicate = db.ericssonFolders.find(
+      (f) =>
+        f.parentId === targetParentId &&
+        f.name.trim().toLowerCase() === name.trim().toLowerCase()
+    );
+    if (duplicate) {
+      res.status(409).json({ error: 'Já existe uma pasta com este nome neste local na Ericsson.' });
+      return;
+    }
+
+    const now = new Date().toISOString();
+    const newFolder: EngineeringFolder = {
+      id: `eric-folder-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      parentId: targetParentId,
+      name: name.trim(),
+      vendor: 'ERICSSON',
+      description: description?.trim() || '',
+      createdByName: (createdByName || 'Engenharia Ericsson').trim(),
+      createdByEmail: (createdByEmail || 'engenharia@ameta.com.br').trim(),
+      createdAt: now,
+      isSystem: false,
+    };
+
+    db.ericssonFolders.push(newFolder);
+    saveDatabase(db);
+
+    broadcastUpdate({
+      type: 'ERICSSON_FOLDER_CREATED',
+      timestamp: now,
+      vendor: 'ERICSSON',
+      summary: `Nova pasta Ericsson "${newFolder.name}" criada por ${newFolder.createdByName}`,
+    });
+
+    res.status(201).json({
+      folder: newFolder,
+      ericssonFolders: db.ericssonFolders,
+      ericssonFiles: db.ericssonFiles,
+    });
+  });
+
+  app.delete('/api/ericsson/folders/:id', (req, res) => {
+    const { id } = req.params;
+    if (!Array.isArray(db.ericssonFolders)) db.ericssonFolders = [];
+    if (!Array.isArray(db.ericssonFiles)) db.ericssonFiles = [];
+
+    const target = db.ericssonFolders.find((f) => f.id === id);
+    if (!target) {
+      res.status(404).json({ error: 'Pasta não encontrada na Ericsson.' });
+      return;
+    }
+    if (target.id === 'folder-ericsson-root' || target.isSystem) {
+      res.status(403).json({ error: 'A pasta raiz da Ericsson não pode ser removida.' });
+      return;
+    }
+
+    const toRemoveIds = new Set<string>([id]);
+    let added = true;
+    while (added) {
+      added = false;
+      for (const f of db.ericssonFolders) {
+        if (f.parentId && toRemoveIds.has(f.parentId) && !toRemoveIds.has(f.id)) {
+          toRemoveIds.add(f.id);
+          added = true;
+        }
+      }
+    }
+
+    const removedFileIds = new Set<string>();
+    db.ericssonFiles.forEach((file) => {
+      if (toRemoveIds.has(file.folderId)) {
+        removedFileIds.add(file.id);
+        if (file.storageFileName) {
+          const p = path.join(UPLOADS_DIR, file.storageFileName);
+          if (fs.existsSync(p)) {
+            try {
+              fs.unlinkSync(p);
+            } catch {
+              // ignore
+            }
+          }
+        }
+      }
+    });
+
+    db.ericssonFolders = db.ericssonFolders.filter((f) => !toRemoveIds.has(f.id));
+    db.ericssonFiles = db.ericssonFiles.filter((fl) => !toRemoveIds.has(fl.folderId));
+
+    if (removedFileIds.size > 0 && Array.isArray(db.ericssonRows)) {
+      db.ericssonRows.forEach((row) => {
+        if (row.siteAVistoriaFileId && removedFileIds.has(row.siteAVistoriaFileId)) {
+          row.siteAVistoriaStatus = 'Pendente';
+          row.siteAVistoriaFileId = undefined;
+          row.siteAVistoriaFolderId = undefined;
+          row.siteAVistoriaFileName = undefined;
+          row.siteAVistoriaFileUrl = undefined;
+          row.siteAVistoriaDownloadUrl = undefined;
+          row.siteAVistoriaDeliveredAt = undefined;
+          row.siteAVistoriaUploadedBy = undefined;
+          row.siteAVistoriaUploadedByEmail = undefined;
+          if (row.siteBVistoriaStatus === 'Dispensado') {
+            row.siteBVistoriaStatus = 'Pendente';
+          }
+        }
+        if (row.siteBVistoriaFileId && removedFileIds.has(row.siteBVistoriaFileId)) {
+          row.siteBVistoriaStatus = 'Pendente';
+          row.siteBVistoriaFileId = undefined;
+          row.siteBVistoriaFolderId = undefined;
+          row.siteBVistoriaFileName = undefined;
+          row.siteBVistoriaFileUrl = undefined;
+          row.siteBVistoriaDownloadUrl = undefined;
+          row.siteBVistoriaDeliveredAt = undefined;
+          row.siteBVistoriaUploadedBy = undefined;
+          row.siteBVistoriaUploadedByEmail = undefined;
+          if (row.siteAVistoriaStatus === 'Dispensado') {
+            row.siteAVistoriaStatus = 'Pendente';
+          }
+        }
+        if (row.losFileId && removedFileIds.has(row.losFileId)) {
+          row.losStatus = 'Pendente';
+          row.losLinkedSiteId = undefined;
+          row.losFileId = undefined;
+          row.losFolderId = undefined;
+          row.losFileName = undefined;
+          row.losFileUrl = undefined;
+          row.losDownloadUrl = undefined;
+          row.losDeliveredAt = undefined;
+          row.losUploadedBy = undefined;
+          row.losUploadedByEmail = undefined;
+        }
+      });
+    }
+
+    saveDatabase(db);
+
+    broadcastUpdate({
+      type: 'ERICSSON_FOLDER_DELETED',
+      timestamp: new Date().toISOString(),
+      vendor: 'ERICSSON',
+      summary: `Pasta "${target.name}" removida da Ericsson`,
+    });
+
+    res.json({
+      ericssonFolders: db.ericssonFolders,
+      ericssonFiles: db.ericssonFiles,
+      ericssonRows: db.ericssonRows || [],
+    });
+  });
+
+  app.get('/api/ericsson/files/:id/view', (req, res) => {
+    const { id } = req.params;
+    const fileRecord = (db.ericssonFiles || []).find((f) => f.id === id);
+    if (!fileRecord) {
+      res.status(404).json({ error: 'Arquivo não encontrado na Ericsson.' });
+      return;
+    }
+
+    if (fileRecord.storageFileName) {
+      const diskPath = path.join(UPLOADS_DIR, fileRecord.storageFileName);
+      if (fs.existsSync(diskPath)) {
+        const mime = detectMimeType(fileRecord.fileName);
+        res.setHeader('Content-Type', mime);
+        res.setHeader(
+          'Content-Disposition',
+          `inline; filename="${encodeURIComponent(fileRecord.fileName)}"`
+        );
+        res.sendFile(diskPath);
+        return;
+      }
+    }
+
+    res.redirect(`/api/ericsson/files/${encodeURIComponent(id)}/download`);
+  });
+
+  app.get('/api/ericsson/files/:id/download', (req, res) => {
+    const { id } = req.params;
+    const fileRecord = (db.ericssonFiles || []).find((f) => f.id === id);
+    if (!fileRecord) {
+      res.status(404).json({ error: 'Arquivo não encontrado na Ericsson.' });
+      return;
+    }
+
+    if (fileRecord.storageFileName) {
+      const diskPath = path.join(UPLOADS_DIR, fileRecord.storageFileName);
+      if (fs.existsSync(diskPath)) {
+        res.download(diskPath, fileRecord.fileName);
+        return;
+      }
+    }
+
+    const fallbackBuffer = Buffer.from(
+      `AMETA TELECOM - ARQUIVO ERICSSON\nArquivo: ${fileRecord.fileName}\nCarregado por: ${fileRecord.uploadedByName} (${fileRecord.uploadedByEmail})\nSite ID: ${fileRecord.siteId || 'N/A'}\nData: ${fileRecord.uploadedAt}\n`,
+      'utf-8'
+    );
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="${encodeURIComponent(fileRecord.fileName)}"`
+    );
+    res.setHeader('Content-Type', 'application/octet-stream');
+    res.send(fallbackBuffer);
+  });
+
+  app.delete('/api/ericsson/files/:id', (req, res) => {
+    const { id } = req.params;
+    if (!Array.isArray(db.ericssonFiles)) db.ericssonFiles = [];
+    const existing = db.ericssonFiles.find((f) => f.id === id);
+    if (!existing) {
+      res.status(404).json({ error: 'Arquivo não encontrado na Ericsson.' });
+      return;
+    }
+
+    if (existing.storageFileName) {
+      const diskPath = path.join(UPLOADS_DIR, existing.storageFileName);
+      if (fs.existsSync(diskPath)) {
+        try {
+          fs.unlinkSync(diskPath);
+        } catch {
+          // ignore
+        }
+      }
+    }
+
+    db.ericssonFiles = db.ericssonFiles.filter((f) => f.id !== id);
+
+    if (Array.isArray(db.ericssonRows)) {
+      db.ericssonRows.forEach((row) => {
+        if (row.siteAVistoriaFileId === id) {
+          row.siteAVistoriaStatus = 'Pendente';
+          row.siteAVistoriaFileId = undefined;
+          row.siteAVistoriaFolderId = undefined;
+          row.siteAVistoriaFileName = undefined;
+          row.siteAVistoriaFileUrl = undefined;
+          row.siteAVistoriaDownloadUrl = undefined;
+          row.siteAVistoriaDeliveredAt = undefined;
+          row.siteAVistoriaUploadedBy = undefined;
+          row.siteAVistoriaUploadedByEmail = undefined;
+          if (row.siteBVistoriaStatus === 'Dispensado') {
+            row.siteBVistoriaStatus = 'Pendente';
+          }
+        }
+        if (row.siteBVistoriaFileId === id) {
+          row.siteBVistoriaStatus = 'Pendente';
+          row.siteBVistoriaFileId = undefined;
+          row.siteBVistoriaFolderId = undefined;
+          row.siteBVistoriaFileName = undefined;
+          row.siteBVistoriaFileUrl = undefined;
+          row.siteBVistoriaDownloadUrl = undefined;
+          row.siteBVistoriaDeliveredAt = undefined;
+          row.siteBVistoriaUploadedBy = undefined;
+          row.siteBVistoriaUploadedByEmail = undefined;
+          if (row.siteAVistoriaStatus === 'Dispensado') {
+            row.siteAVistoriaStatus = 'Pendente';
+          }
+        }
+        if (row.losFileId === id) {
+          row.losStatus = 'Pendente';
+          row.losLinkedSiteId = undefined;
+          row.losFileId = undefined;
+          row.losFolderId = undefined;
+          row.losFileName = undefined;
+          row.losFileUrl = undefined;
+          row.losDownloadUrl = undefined;
+          row.losDeliveredAt = undefined;
+          row.losUploadedBy = undefined;
+          row.losUploadedByEmail = undefined;
+        }
+      });
+    }
+
+    saveDatabase(db);
+
+    broadcastUpdate({
+      type: 'ERICSSON_FILE_DELETED',
+      timestamp: new Date().toISOString(),
+      vendor: 'ERICSSON',
+      summary: `Arquivo "${existing.fileName}" excluído da Ericsson`,
+    });
+
+    res.json({
+      ericssonFolders: db.ericssonFolders || [],
+      ericssonFiles: db.ericssonFiles || [],
+      ericssonRows: db.ericssonRows || [],
+    });
+  });
+
+  // 6b. Toggle Finalizado / Pendente directly in the normal spreadsheet (A, B, LOS, or BOTH)
+  app.post('/api/ericsson/rows/:id/toggle-finalizado', (req, res) => {
+    const { id } = req.params;
+    const {
+      side = 'BOTH',
+      finalizado,
+      actorName,
+      actorEmail,
+    } = req.body as {
+      side?: 'A' | 'B' | 'LOS' | 'BOTH';
+      finalizado?: boolean;
+      actorName?: string;
+      actorEmail?: string;
+    };
+
+    if (!Array.isArray(db.ericssonRows)) db.ericssonRows = [];
+    const targetRow = db.ericssonRows.find((r) => r.id === id);
+    if (!targetRow) {
+      res.status(404).json({ error: 'Linha não encontrada na planilha Ericsson.' });
+      return;
+    }
+
+    const now = new Date().toISOString();
+    const formattedDate = new Date(now).toLocaleString('pt-BR', {
+      timeZone: 'America/Sao_Paulo',
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+
+    const applyToSide = (s: 'A' | 'B' | 'LOS') => {
+      const currentIsFinalizado =
+        s === 'A'
+          ? targetRow.siteAVistoriaStatus === 'Entregue'
+          : s === 'B'
+          ? targetRow.siteBVistoriaStatus === 'Entregue'
+          : targetRow.losStatus === 'Entregue';
+      const nextFinalizado =
+        typeof finalizado === 'boolean' ? finalizado : !currentIsFinalizado;
+
+      if (s === 'A') {
+        targetRow.siteAVistoriaStatus = nextFinalizado ? 'Entregue' : 'Pendente';
+        if (nextFinalizado && !targetRow.siteAVistoriaDeliveredAt) {
+          targetRow.siteAVistoriaDeliveredAt = formattedDate;
+          targetRow.siteAVistoriaUploadedBy = actorName || 'Sistema';
+          targetRow.siteAVistoriaUploadedByEmail = actorEmail || '';
+        } else if (!nextFinalizado) {
+          targetRow.siteAVistoriaDeliveredAt = undefined;
+          targetRow.siteAVistoriaUploadedBy = undefined;
+          targetRow.siteAVistoriaUploadedByEmail = undefined;
+        }
+      } else if (s === 'B') {
+        targetRow.siteBVistoriaStatus = nextFinalizado ? 'Entregue' : 'Pendente';
+        if (nextFinalizado && !targetRow.siteBVistoriaDeliveredAt) {
+          targetRow.siteBVistoriaDeliveredAt = formattedDate;
+          targetRow.siteBVistoriaUploadedBy = actorName || 'Sistema';
+          targetRow.siteBVistoriaUploadedByEmail = actorEmail || '';
+        } else if (!nextFinalizado) {
+          targetRow.siteBVistoriaDeliveredAt = undefined;
+          targetRow.siteBVistoriaUploadedBy = undefined;
+          targetRow.siteBVistoriaUploadedByEmail = undefined;
+        }
+      } else {
+        targetRow.losStatus = nextFinalizado ? 'Entregue' : 'Pendente';
+        if (nextFinalizado && !targetRow.losDeliveredAt) {
+          targetRow.losDeliveredAt = formattedDate;
+          targetRow.losUploadedBy = actorName || 'Sistema';
+          targetRow.losUploadedByEmail = actorEmail || '';
+        } else if (!nextFinalizado) {
+          targetRow.losDeliveredAt = undefined;
+          targetRow.losUploadedBy = undefined;
+          targetRow.losUploadedByEmail = undefined;
+        }
+      }
+    };
+
+    if (side === 'A') {
+      const nextEntregue =
+        typeof finalizado === 'boolean'
+          ? finalizado
+          : targetRow.siteAVistoriaStatus !== 'Entregue';
+      if (nextEntregue) {
+        targetRow.siteAVistoriaStatus = 'Entregue';
+        if (!targetRow.siteAVistoriaDeliveredAt) {
+          targetRow.siteAVistoriaDeliveredAt = formattedDate;
+          targetRow.siteAVistoriaUploadedBy = actorName || 'Sistema';
+          targetRow.siteAVistoriaUploadedByEmail = actorEmail || '';
+        }
+        targetRow.siteBVistoriaStatus = 'Dispensado';
+      } else {
+        targetRow.siteAVistoriaStatus = 'Pendente';
+        targetRow.siteAVistoriaDeliveredAt = undefined;
+        targetRow.siteAVistoriaUploadedBy = undefined;
+        targetRow.siteAVistoriaUploadedByEmail = undefined;
+        if (targetRow.siteBVistoriaStatus === 'Dispensado') {
+          targetRow.siteBVistoriaStatus = 'Pendente';
+        }
+      }
+    } else if (side === 'B') {
+      const nextEntregue =
+        typeof finalizado === 'boolean'
+          ? finalizado
+          : targetRow.siteBVistoriaStatus !== 'Entregue';
+      if (nextEntregue) {
+        targetRow.siteBVistoriaStatus = 'Entregue';
+        if (!targetRow.siteBVistoriaDeliveredAt) {
+          targetRow.siteBVistoriaDeliveredAt = formattedDate;
+          targetRow.siteBVistoriaUploadedBy = actorName || 'Sistema';
+          targetRow.siteBVistoriaUploadedByEmail = actorEmail || '';
+        }
+        targetRow.siteAVistoriaStatus = 'Dispensado';
+      } else {
+        targetRow.siteBVistoriaStatus = 'Pendente';
+        targetRow.siteBVistoriaDeliveredAt = undefined;
+        targetRow.siteBVistoriaUploadedBy = undefined;
+        targetRow.siteBVistoriaUploadedByEmail = undefined;
+        if (targetRow.siteAVistoriaStatus === 'Dispensado') {
+          targetRow.siteAVistoriaStatus = 'Pendente';
+        }
+      }
+    } else if (side === 'LOS') {
+      applyToSide('LOS');
+    } else {
+      const nextEntregue =
+        typeof finalizado === 'boolean'
+          ? finalizado
+          : targetRow.siteAVistoriaStatus !== 'Entregue';
+      if (nextEntregue) {
+        targetRow.siteAVistoriaStatus = 'Entregue';
+        targetRow.siteBVistoriaStatus = 'Dispensado';
+      } else {
+        targetRow.siteAVistoriaStatus = 'Pendente';
+        targetRow.siteBVistoriaStatus = 'Pendente';
+      }
+    }
+
+    targetRow.updatedAt = now;
+    saveDatabase(db);
+
+    broadcastUpdate({
+      type: 'ERICSSON_UPDATED',
+      timestamp: now,
+      vendor: 'ERICSSON',
+      summary: `Status do site atualizado na planilha Ericsson (${targetRow.siteIdA} ↔ ${targetRow.siteIdB})`,
+    });
+
+    res.json({
+      row: targetRow,
+      ericssonRows: db.ericssonRows,
+    });
+  });
+
+  // 7. Remove/reset Vistoria or LOS file from an Ericsson row
+  app.delete('/api/ericsson/vistoria/:rowId/:side', (req, res) => {
+    const { rowId, side } = req.params;
+    const upperSide = (side || 'BOTH').toUpperCase();
+
+    if (!Array.isArray(db.ericssonRows)) db.ericssonRows = [];
+    const targetRow = db.ericssonRows.find((r) => r.id === rowId);
+    if (!targetRow) {
+      res.status(404).json({ error: 'Linha não encontrada.' });
+      return;
+    }
+
+    const fileIdsToRemove = new Set<string>();
+    if ((upperSide === 'A' || upperSide === 'BOTH') && targetRow.siteAVistoriaFileId) {
+      fileIdsToRemove.add(targetRow.siteAVistoriaFileId);
+    }
+    if ((upperSide === 'B' || upperSide === 'BOTH') && targetRow.siteBVistoriaFileId) {
+      fileIdsToRemove.add(targetRow.siteBVistoriaFileId);
+    }
+    if ((upperSide === 'LOS' || upperSide === 'BOTH') && targetRow.losFileId) {
+      fileIdsToRemove.add(targetRow.losFileId);
+    }
+
+    fileIdsToRemove.forEach((fid) => {
+      const existingFile =
+        (db.ericssonFiles || []).find((f) => f.id === fid) ||
+        db.engineeringFiles.find((f) => f.id === fid);
+      if (existingFile?.storageFileName) {
+        const diskPath = path.join(UPLOADS_DIR, existingFile.storageFileName);
+        if (fs.existsSync(diskPath)) {
+          try {
+            fs.unlinkSync(diskPath);
+          } catch {
+            // ignore
+          }
+        }
+      }
+      if (Array.isArray(db.ericssonFiles)) {
+        db.ericssonFiles = db.ericssonFiles.filter((f) => f.id !== fid);
+      }
+      db.engineeringFiles = db.engineeringFiles.filter((f) => f.id !== fid);
+    });
+
+    if (upperSide === 'A' || upperSide === 'BOTH') {
+      targetRow.siteAVistoriaStatus = 'Pendente';
+      targetRow.siteAVistoriaFileId = undefined;
+      targetRow.siteAVistoriaFolderId = undefined;
+      targetRow.siteAVistoriaFileName = undefined;
+      targetRow.siteAVistoriaFileUrl = undefined;
+      targetRow.siteAVistoriaDownloadUrl = undefined;
+      targetRow.siteAVistoriaDeliveredAt = undefined;
+      targetRow.siteAVistoriaUploadedBy = undefined;
+      targetRow.siteAVistoriaUploadedByEmail = undefined;
+      if (targetRow.siteBVistoriaStatus === 'Dispensado') {
+        targetRow.siteBVistoriaStatus = 'Pendente';
+      }
+    }
+    if (upperSide === 'B' || upperSide === 'BOTH') {
+      targetRow.siteBVistoriaStatus = 'Pendente';
+      targetRow.siteBVistoriaFileId = undefined;
+      targetRow.siteBVistoriaFolderId = undefined;
+      targetRow.siteBVistoriaFileName = undefined;
+      targetRow.siteBVistoriaFileUrl = undefined;
+      targetRow.siteBVistoriaDownloadUrl = undefined;
+      targetRow.siteBVistoriaDeliveredAt = undefined;
+      targetRow.siteBVistoriaUploadedBy = undefined;
+      targetRow.siteBVistoriaUploadedByEmail = undefined;
+      if (targetRow.siteAVistoriaStatus === 'Dispensado') {
+        targetRow.siteAVistoriaStatus = 'Pendente';
+      }
+    }
+    if (upperSide === 'LOS' || upperSide === 'BOTH') {
+      targetRow.losStatus = 'Pendente';
+      targetRow.losLinkedSiteId = undefined;
+      targetRow.losFileId = undefined;
+      targetRow.losFolderId = undefined;
+      targetRow.losFileName = undefined;
+      targetRow.losFileUrl = undefined;
+      targetRow.losDownloadUrl = undefined;
+      targetRow.losDeliveredAt = undefined;
+      targetRow.losUploadedBy = undefined;
+      targetRow.losUploadedByEmail = undefined;
+    }
+    targetRow.updatedAt = new Date().toISOString();
+
+    saveDatabase(db);
+    broadcastUpdate({
+      type: 'ERICSSON_UPDATED',
+      timestamp: targetRow.updatedAt,
+      vendor: 'ERICSSON',
+      summary: `Arquivo excluído e status (${targetRow.siteIdA} ↔ ${targetRow.siteIdB}) redefinido para Pendente`,
+    });
+
+    res.json({
+      row: targetRow,
+      ericssonRows: db.ericssonRows,
+      ericssonFolders: db.ericssonFolders || [],
+      ericssonFiles: db.ericssonFiles || [],
+    });
+  });
+
+  // 8. Independent Ericsson Users & Teams Management (separated from Nokia)
+  app.post('/api/ericsson/users', async (req, res) => {
+    const {
+      name,
+      email,
+      password,
+      role,
+      equipe,
+      telefone,
+      cpf,
+      rg,
+      atividade,
+      statusRecurso,
+      dispensadoDocumentos,
+      documents,
+    } = req.body as {
+      name?: string;
+      email?: string;
+      password?: string;
+      role?: UserRole;
+      equipe?: string;
+      telefone?: string;
+      cpf?: string;
+      rg?: string;
+      atividade?: string;
+      statusRecurso?: string;
+      dispensadoDocumentos?: boolean;
+      documents?: Array<UserMandatoryDocument & { fileBase64?: string }>;
+    };
+
+    if (!name || !email || !password) {
+      res.status(400).json({ error: 'Informe nome do recurso, e-mail e senha.' });
+      return;
+    }
+
+    if (!Array.isArray(db.ericssonUsers)) db.ericssonUsers = [];
+    const normalizedEmail = email.trim().toLowerCase();
+
+    if (db.ericssonUsers.some((u) => u.email.toLowerCase() === normalizedEmail)) {
+      res.status(409).json({
+        error: 'Já existe um colaborador cadastrado na Ericsson com este e-mail.',
+      });
+      return;
+    }
+
+    const validRole: UserRole =
+      role && ['ADM', 'Executor', 'Vistoriador'].includes(role) ? role : 'Vistoriador';
+
+    const newUserId = `eric-usr-${Date.now()}`;
+    const baseDocs = ensureUserMandatoryDocuments(documents);
+
+    if (Array.isArray(documents)) {
+      for (const incomingDoc of documents) {
+        if (incomingDoc && incomingDoc.type && incomingDoc.fileBase64 && incomingDoc.fileName) {
+          const targetDoc = baseDocs.find((d) => d.type === incomingDoc.type);
+          if (targetDoc) {
+            const cleanBase64 = incomingDoc.fileBase64.includes('base64,')
+              ? incomingDoc.fileBase64.split('base64,')[1]
+              : incomingDoc.fileBase64;
+            const buffer = Buffer.from(cleanBase64, 'base64');
+            const ext = path.extname(incomingDoc.fileName) || '.pdf';
+            const storageFileName = `ericdoc-${newUserId}-${incomingDoc.type}-${Date.now()}${ext}`;
+            fs.writeFileSync(path.join(UPLOADS_DIR, storageFileName), buffer);
+            targetDoc.fileName = incomingDoc.fileName;
+            targetDoc.fileSize = buffer.length;
+            targetDoc.uploadedAt = new Date().toISOString();
+            targetDoc.storageFileName = storageFileName;
+
+            if (!targetDoc.expiresAt) {
+              const extracted = await extractExpirationFromDocument({
+                docType: targetDoc.type,
+                fileName: incomingDoc.fileName,
+                fileBase64: incomingDoc.fileBase64,
+                buffer,
+              });
+              targetDoc.expiresAt = extracted.expiresAt;
+            }
+          }
+        }
+      }
+    }
+
+    const isExempt =
+      Boolean(dispensadoDocumentos) ||
+      (statusRecurso || '').toUpperCase() === 'DISPENSADO';
+
+    const tempUser: AmetaUser = {
+      id: newUserId,
+      name: name.trim(),
+      email: normalizedEmail,
+      role: validRole,
+      equipe: equipe?.trim() || 'Equipe 1',
+      telefone: telefone?.trim() || '',
+      cpf: cpf?.trim() || '',
+      rg: rg?.trim() || '',
+      atividade: atividade?.trim() || 'ACESSO | TX',
+      statusRecurso: isExempt ? 'DISPENSADO' : statusRecurso || 'VALIDADO',
+      dispensadoDocumentos: isExempt,
+      documents: baseDocs,
+      emailVerified: true,
+      verifiedAt: new Date().toISOString(),
+      preferredVendor: 'ERICSSON',
+      createdAt: new Date().toISOString(),
+    };
+
+    const computedStatus = evaluateUserOverallDocumentStatus(tempUser).overallStatus;
+
+    const newUser: StoredUser = {
+      ...tempUser,
+      statusRecurso: statusRecurso || computedStatus,
+      passwordHash: hashPassword(password),
+    };
+
+    db.ericssonUsers.push(newUser);
+    saveDatabase(db);
+
+    broadcastUpdate({
+      type: 'ERICSSON_UPDATED',
+      timestamp: new Date().toISOString(),
+      vendor: 'ERICSSON',
+      summary: `Colaborador Ericsson ${newUser.name} (${validRole}) cadastrado`,
+    });
+
+    res.status(201).json({
+      user: sanitizeUser(newUser),
+      ericssonUsers: db.ericssonUsers.map(sanitizeUser),
+    });
+  });
+
+  app.patch('/api/ericsson/users/:id/role', (req, res) => {
+    const { id } = req.params;
+    const { role, equipe, atividade, telefone } = req.body as {
+      role?: UserRole;
+      equipe?: string;
+      atividade?: string;
+      telefone?: string;
+    };
+
+    if (!Array.isArray(db.ericssonUsers)) db.ericssonUsers = [];
+    const target = db.ericssonUsers.find((u) => u.id === id);
+    if (!target) {
+      res.status(404).json({ error: 'Usuário Ericsson não encontrado.' });
+      return;
+    }
+
+    if (role && ['ADM', 'Executor', 'Vistoriador'].includes(role)) {
+      target.role = role;
+    }
+    if (typeof equipe === 'string') {
+      target.equipe = equipe.trim();
+    }
+    if (typeof atividade === 'string') {
+      target.atividade = atividade.trim();
+    }
+    if (typeof telefone === 'string') {
+      target.telefone = telefone.trim();
+    }
+
+    saveDatabase(db);
+    broadcastUpdate({
+      type: 'ERICSSON_UPDATED',
+      timestamp: new Date().toISOString(),
+      vendor: 'ERICSSON',
+      summary: `Cadastro de ${target.name} atualizado na Ericsson`,
+    });
+
+    res.json({
+      user: sanitizeUser(target),
+      ericssonUsers: db.ericssonUsers.map(sanitizeUser),
+    });
+  });
+
+  app.delete('/api/ericsson/users/:id', (req, res) => {
+    const { id } = req.params;
+    if (!Array.isArray(db.ericssonUsers)) db.ericssonUsers = [];
+    const target = db.ericssonUsers.find((u) => u.id === id);
+    if (!target) {
+      res.status(404).json({ error: 'Usuário Ericsson não encontrado.' });
+      return;
+    }
+    if (target.email.toLowerCase() === 'rafael.araujo@ameta.com.br') {
+      res.status(403).json({ error: 'O administrador principal não pode ser removido.' });
+      return;
+    }
+
+    db.ericssonUsers = db.ericssonUsers.filter((u) => u.id !== id);
+    saveDatabase(db);
+
+    broadcastUpdate({
+      type: 'ERICSSON_UPDATED',
+      timestamp: new Date().toISOString(),
+      vendor: 'ERICSSON',
+      summary: `Colaborador ${target.name} removido da Ericsson`,
+    });
+
+    res.json({
+      ericssonUsers: db.ericssonUsers.map(sanitizeUser),
+    });
+  });
+
+  // Assign an Ericsson team (EQUIPE) to pairs/sites in db.ericssonRows
+  app.post('/api/ericsson/equipes/assign', (req, res) => {
+    const { equipeName, rowIds, siteTokens } = req.body as {
+      equipeName?: string;
+      rowIds?: string[];
+      siteTokens?: string[];
+    };
+
+    if (!equipeName || !equipeName.trim()) {
+      res.status(400).json({ error: 'Informe o nome da Equipe da Ericsson.' });
+      return;
+    }
+
+    if (!Array.isArray(db.ericssonRows)) db.ericssonRows = [];
+    const cleanEquipe = equipeName.trim();
+    const rowIdSet = new Set(Array.isArray(rowIds) ? rowIds : []);
+    const tokenSet = new Set(
+      (Array.isArray(siteTokens) ? siteTokens : [])
+        .map((t) => String(t || '').trim().toUpperCase())
+        .filter(Boolean)
+    );
+
+    const now = new Date().toISOString();
+    let updatedCount = 0;
+
+    db.ericssonRows.forEach((row) => {
+      const matchesRow = rowIdSet.has(row.id);
+      const matchesToken =
+        tokenSet.size > 0 &&
+        (tokenSet.has(row.siteIdA.toUpperCase()) ||
+          tokenSet.has(row.siteIdB.toUpperCase()) ||
+          tokenSet.has(row.chaves.toUpperCase()));
+
+      if (matchesRow || matchesToken) {
+        row.equipe = cleanEquipe;
+        if (row.fields) {
+          row.fields['EQUIPE'] = cleanEquipe;
+        }
+        row.updatedAt = now;
+        updatedCount++;
+      }
+    });
+
+    saveDatabase(db);
+    broadcastUpdate({
+      type: 'ERICSSON_UPDATED',
+      timestamp: now,
+      vendor: 'ERICSSON',
+      summary: `${updatedCount} linha(s) vinculada(s) à ${cleanEquipe} na Ericsson`,
+    });
+
+    res.json({
+      updatedCount,
+      ericssonRows: db.ericssonRows,
+    });
   });
 
   if (process.env.NODE_ENV !== 'production') {

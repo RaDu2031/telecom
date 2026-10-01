@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   ShieldCheck,
   Users,
@@ -27,6 +27,8 @@ import {
   MandatoryDocType,
   UserMandatoryDocument,
   MANDATORY_USER_DOCUMENTS,
+  ensureUserMandatoryDocuments,
+  evaluateDocumentExpiration,
   evaluateUserOverallDocumentStatus,
 } from '../types/telecom';
 
@@ -35,6 +37,7 @@ interface AdminAccessPanelProps {
   users: AmetaUser[];
   onUsersUpdated: (nextUsers: AmetaUser[], toastMsg?: string) => void;
   onTestUserView?: (targetUser: AmetaUser) => void;
+  initialExpandedUserId?: string | null;
 }
 
 const ROLE_OPTIONS: Array<{
@@ -50,12 +53,12 @@ const ROLE_OPTIONS: Array<{
   {
     role: 'Executor',
     label: 'Executor',
-    description: 'Acesso à Pasta Engenharia',
+    description: 'Acesso à Pasta Engenharia e Vistoria',
   },
   {
     role: 'Vistoriador',
     label: 'Vistoriador',
-    description: 'Acesso apenas a Vistorias',
+    description: 'Acesso apenas à Pasta de Vistoria (sem Engenharia)',
   },
 ];
 
@@ -80,6 +83,7 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
   users,
   onUsersUpdated,
   onTestUserView,
+  initialExpandedUserId,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [roleFilter, setRoleFilter] = useState<'ALL' | UserRole>('ALL');
@@ -89,7 +93,15 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
   const [equipeFilter, setEquipeFilter] = useState<string>('ALL');
 
   // Expanded hidden panel ("tela oculta") per user ID
-  const [expandedUserId, setExpandedUserId] = useState<string | null>(null);
+  const [expandedUserId, setExpandedUserId] = useState<string | null>(
+    initialExpandedUserId || null
+  );
+
+  useEffect(() => {
+    if (initialExpandedUserId) {
+      setExpandedUserId(initialExpandedUserId);
+    }
+  }, [initialExpandedUserId]);
   const [uploadingKey, setUploadingKey] = useState<string | null>(null);
 
   // New User Modal State
@@ -229,6 +241,10 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
 
   const handleRoleChange = async (userId: string, role: UserRole, resourceName: string) => {
     setUpdatingUserId(userId);
+    onUsersUpdated(
+      users.map((u) => (u.id === userId ? { ...u, role } : u)),
+      `Perfil de ${resourceName} alterado para ${role}`
+    );
     try {
       const res = await fetch(`/api/admin/users/${encodeURIComponent(userId)}/role`, {
         method: 'PATCH',
@@ -238,7 +254,7 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
       if (res.ok) {
         const data = await res.json();
         if (Array.isArray(data.users)) {
-          onUsersUpdated(data.users, `Perfil de ${resourceName} alterado para ${role}`);
+          onUsersUpdated(data.users);
         }
       }
     } finally {
@@ -251,6 +267,28 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
     nextDispensado: boolean
   ) => {
     setUpdatingUserId(user.id);
+    const optimisticUsers = users.map((u) => {
+      if (u.id !== user.id) return u;
+      const cleanedDocs = ensureUserMandatoryDocuments(u.documents).map((d) =>
+        nextDispensado && (d.statusOverride === 'VENCIDO' || d.statusOverride === 'A_VENCER')
+          ? { ...d, statusOverride: undefined }
+          : d
+      );
+      const nextUser: AmetaUser = {
+        ...u,
+        dispensadoDocumentos: nextDispensado,
+        documents: cleanedDocs,
+        statusRecurso: nextDispensado ? 'DISPENSADO' : 'VALIDADO',
+      };
+      nextUser.statusRecurso = evaluateUserOverallDocumentStatus(nextUser).overallStatus;
+      return nextUser;
+    });
+    onUsersUpdated(
+      optimisticUsers,
+      nextDispensado
+        ? `${user.name} marcado como Dispensado de Documentos`
+        : `Exigência de documentos reativada para ${user.name}`
+    );
     try {
       const res = await fetch(`/api/admin/users/${encodeURIComponent(user.id)}/status`, {
         method: 'PATCH',
@@ -263,12 +301,7 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
       if (res.ok) {
         const data = await res.json();
         if (Array.isArray(data.users)) {
-          onUsersUpdated(
-            data.users,
-            nextDispensado
-              ? `${user.name} marcado como Dispensado de Documentos`
-              : `Exigência de documentos reativada para ${user.name}`
-          );
+          onUsersUpdated(data.users);
         }
       }
     } finally {
@@ -282,19 +315,52 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
     resourceName: string
   ) => {
     setUpdatingUserId(userId);
+    const isNextDispensado = statusRecurso === 'DISPENSADO';
+    const optimisticUsers = users.map((u) => {
+      if (u.id !== userId) return u;
+      const cleanedDocs = ensureUserMandatoryDocuments(u.documents).map((d) => {
+        if (statusRecurso === 'VALIDADO' || isNextDispensado) {
+          const nextOverride =
+            d.statusOverride === 'VENCIDO' || d.statusOverride === 'A_VENCER'
+              ? undefined
+              : d.statusOverride;
+          let nextExpires = d.expiresAt || '';
+          if (statusRecurso === 'VALIDADO' && nextExpires) {
+            const evalCheck = evaluateDocumentExpiration(
+              { ...d, statusOverride: nextOverride },
+              false
+            );
+            if (evalCheck.status === 'VENCIDO' || evalCheck.status === 'A_VENCER') {
+              nextExpires = '';
+            }
+          }
+          return { ...d, statusOverride: nextOverride, expiresAt: nextExpires };
+        }
+        return d;
+      });
+      const nextUser: AmetaUser = {
+        ...u,
+        dispensadoDocumentos: isNextDispensado,
+        documents: cleanedDocs,
+        statusRecurso,
+      };
+      nextUser.statusRecurso = evaluateUserOverallDocumentStatus(nextUser).overallStatus;
+      return nextUser;
+    });
+    onUsersUpdated(optimisticUsers, `Status de ${resourceName} alterado para ${statusRecurso}`);
     try {
       const res = await fetch(`/api/admin/users/${encodeURIComponent(userId)}/status`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           statusRecurso,
-          dispensadoDocumentos: statusRecurso === 'DISPENSADO',
+          dispensadoDocumentos: isNextDispensado,
         }),
       });
       if (res.ok) {
         const data = await res.json();
         if (Array.isArray(data.users)) {
-          onUsersUpdated(data.users, `Status de ${resourceName} alterado para ${statusRecurso}`);
+          onUsersUpdated(data.users);
         }
       }
     } finally {
@@ -317,6 +383,58 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
   ) => {
     const key = `${userId}-${docType}`;
     setUploadingKey(key);
+
+    // Immediate optimistic update in UI so removing or updating an expired document reflects in 0ms
+    if (!payload.fileBase64 && !payload.reExtractFromStoredFile) {
+      const optimisticUsers = users.map((u) => {
+        if (u.id !== userId) return u;
+        const nextDocs = ensureUserMandatoryDocuments(u.documents).map((d) => {
+          if (d.type !== docType) return d;
+          const copy = { ...d };
+          if (payload.clearFile) {
+            copy.fileName = '';
+            copy.fileSize = 0;
+            copy.uploadedAt = '';
+            copy.uploadedBy = '';
+            copy.storageFileName = '';
+            copy.expiresAt = '';
+            copy.statusOverride = undefined;
+            copy.notes = '';
+          }
+          if (typeof payload.expiresAt === 'string') {
+            copy.expiresAt = payload.expiresAt.trim();
+            if (payload.statusOverride === undefined && copy.statusOverride !== 'DISPENSADO') {
+              copy.statusOverride = undefined;
+            }
+          }
+          if (payload.statusOverride !== undefined) {
+            copy.statusOverride = payload.statusOverride ? payload.statusOverride : undefined;
+            if (
+              payload.statusOverride !== 'VENCIDO' &&
+              typeof payload.expiresAt !== 'string' &&
+              copy.expiresAt
+            ) {
+              const evalCheck = evaluateDocumentExpiration(
+                { ...copy, statusOverride: undefined },
+                false
+              );
+              if (evalCheck.status === 'VENCIDO') {
+                copy.expiresAt = '';
+              }
+            }
+          }
+          return copy;
+        });
+        const nextUser: AmetaUser = {
+          ...u,
+          documents: nextDocs,
+        };
+        nextUser.statusRecurso = evaluateUserOverallDocumentStatus(nextUser).overallStatus;
+        return nextUser;
+      });
+      onUsersUpdated(optimisticUsers, toastMessage);
+    }
+
     try {
       const res = await fetch(`/api/admin/users/${encodeURIComponent(userId)}/documents`, {
         method: 'PATCH',
@@ -335,7 +453,9 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
               ? `📎 ${docType}: Data de vencimento preenchida automaticamente (${formatDateBr(
                   data.autoExtracted.expiresAt
                 )})`
-              : toastMessage;
+              : payload.fileBase64 || payload.reExtractFromStoredFile
+              ? toastMessage
+              : undefined;
           onUsersUpdated(data.users, autoMsg);
         }
       }
@@ -525,26 +645,45 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
             {expirationAlerts.map((alert, i) => {
               const isExpired = alert.status === 'VENCIDO';
               return (
-                <button
+                <div
                   key={`${alert.user.id}-${alert.doc.type}-${i}`}
-                  type="button"
-                  onClick={() => setExpandedUserId(alert.user.id)}
-                  className={`px-2.5 py-1 rounded-lg border text-xs flex items-center gap-2 cursor-pointer transition-colors ${
+                  className={`px-2.5 py-1 rounded-lg border text-xs inline-flex items-center gap-2 transition-colors ${
                     isExpired
-                      ? 'bg-red-50 hover:bg-red-100 border-red-200 text-red-900'
-                      : 'bg-white hover:bg-amber-100/60 border-amber-200 text-slate-900'
+                      ? 'bg-red-50 border-red-200 text-red-900'
+                      : 'bg-white border-amber-200 text-slate-900'
                   }`}
                 >
-                  <span className="font-bold">{alert.user.name}:</span>
-                  <span className="font-semibold">{alert.doc.label}</span>
-                  <span className="font-mono text-[11px] opacity-80">
-                    {alert.daysRemaining !== null
-                      ? alert.daysRemaining < 0
-                        ? `(Vencido há ${Math.abs(alert.daysRemaining)}d)`
-                        : `(Vence em ${alert.daysRemaining}d)`
-                      : `(${isExpired ? 'Vencido' : 'A Vencer'})`}
-                  </span>
-                </button>
+                  <button
+                    type="button"
+                    onClick={() => setExpandedUserId(alert.user.id)}
+                    className="inline-flex items-center gap-1.5 cursor-pointer hover:underline text-left"
+                  >
+                    <span className="font-bold">{alert.user.name}:</span>
+                    <span className="font-semibold">{alert.doc.label}</span>
+                    <span className="font-mono text-[11px] opacity-80">
+                      {alert.daysRemaining !== null
+                        ? alert.daysRemaining < 0
+                          ? `(Vencido há ${Math.abs(alert.daysRemaining)}d)`
+                          : `(Vence em ${alert.daysRemaining}d)`
+                        : `(${isExpired ? 'Vencido' : 'A Vencer'})`}
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      handleUpdateUserDocument(
+                        alert.user.id,
+                        alert.doc.type,
+                        { clearFile: true, expiresAt: '', statusOverride: '' },
+                        `Documento ${alert.doc.label} de ${alert.user.name} removido`
+                      )
+                    }
+                    title={`Remover / limpar documento ${alert.doc.label} de ${alert.user.name}`}
+                    className="p-0.5 rounded hover:bg-red-200/70 text-red-700 hover:text-red-950 cursor-pointer"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
               );
             })}
           </div>
@@ -1113,6 +1252,33 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
                                             >
                                               <Download className="w-3.5 h-3.5" />
                                             </a>
+                                          )}
+
+                                          {(Boolean(doc.fileName) ||
+                                            Boolean(doc.expiresAt) ||
+                                            Boolean(doc.statusOverride) ||
+                                            doc.eval.status === 'VENCIDO' ||
+                                            doc.eval.status === 'A_VENCER') && (
+                                            <button
+                                              type="button"
+                                              disabled={isUploadingThis}
+                                              onClick={() =>
+                                                handleUpdateUserDocument(
+                                                  u.id,
+                                                  doc.type,
+                                                  {
+                                                    clearFile: true,
+                                                    expiresAt: '',
+                                                    statusOverride: '',
+                                                  },
+                                                  `Documento ${doc.label} (${u.name}) removido`
+                                                )
+                                              }
+                                              className="p-1 bg-red-50 hover:bg-red-100 text-red-600 hover:text-red-800 border border-red-200 rounded shrink-0 cursor-pointer"
+                                              title={`Remover / limpar ${doc.label}`}
+                                            >
+                                              <Trash2 className="w-3.5 h-3.5" />
+                                            </button>
                                           )}
                                         </div>
                                       </div>

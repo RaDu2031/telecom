@@ -21,7 +21,10 @@ import {
 import { TelecomSite, AmetaUser, VendorType } from '../types/telecom';
 import {
   getCellValueForColumn,
+  doesSiteMatchEquipe,
   doesSiteMatchResponsible,
+  getCanonicalDuplaName,
+  normalizeAccents,
 } from '../utils/spreadsheetUtils';
 import {
   isSiteFeito,
@@ -46,7 +49,7 @@ interface DuplasInteractiveViewProps {
     linkedEmails: string[]
   ) => Promise<void>;
   onUnassignSitesFromDupla: (siteIds: string[], duplaName: string) => Promise<void>;
-  onClearDuplaSites: (duplaName: string) => Promise<void>;
+  onClearDuplaSites: (duplaName: string, siteIdsToClear: string[]) => Promise<void>;
   onLinkEmailsToDupla: (duplaName: string, emails: string[]) => Promise<void>;
   onSimulateDuplaView: (targetUser: AmetaUser) => void;
   onOpenSiteDrawer: (siteId: string) => void;
@@ -103,6 +106,7 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = ({
   const [sitePickerUf, setSitePickerUf] = useState<string>('ALL');
   const [selectedSiteIds, setSelectedSiteIds] = useState<string[]>([]);
   const [isAssigning, setIsAssigning] = useState<boolean>(false);
+  const [isClearing, setIsClearing] = useState<boolean>(false);
 
   // Assigned sites search (right column of workspace)
   const [assignedSearch, setAssignedSearch] = useState<string>('');
@@ -113,31 +117,37 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = ({
     }
   }, [equipesDuplas, selectedDupla]);
 
-  // Compute effective linked profile emails for any Dupla (combining explicit map + users.equipe + keyword match)
+  // Compute effective linked profile emails for any Dupla (synced with server users.equipe + explicit custom emails)
   const getLinkedEmailsForDupla = (duplaName: string): string[] => {
     const emailSet = new Set<string>();
-    const explicit = duplaEmailsMap[duplaName] || [];
-    explicit.forEach((e) => {
-      if (e && e.trim()) emailSet.add(e.trim().toLowerCase());
-    });
+    const canonDupla = normalizeAccents(getCanonicalDuplaName(duplaName) || duplaName);
 
-    const dLower = duplaName.trim().toLowerCase();
     users.forEach((u) => {
-      const uEquipe = (u.equipe || '').trim().toLowerCase();
-      const uName = (u.name || '').trim().toLowerCase();
-      if (uEquipe === dLower || uName === dLower) {
+      const uCanonEq = normalizeAccents(getCanonicalDuplaName(u.equipe || '') || u.equipe || '');
+      if (uCanonEq && uCanonEq === canonDupla) {
         emailSet.add(u.email.trim().toLowerCase());
-      } else {
-        // Check if user's first/last name is part of the Dupla name (e.g. "Magno / Mateus")
-        const tokens = dLower
-          .split(/[\s/,&-]+/)
-          .map((t) => t.trim())
-          .filter((t) => t.length >= 4);
-        if (tokens.some((tk) => uName.includes(tk))) {
-          emailSet.add(u.email.trim().toLowerCase());
-        }
       }
     });
+
+    if (duplaName in duplaEmailsMap) {
+      const explicit = duplaEmailsMap[duplaName] || [];
+      explicit.forEach((e) => {
+        if (e && e.trim()) {
+          const cleanEmail = e.trim().toLowerCase();
+          const regUser = users.find((u) => u.email.trim().toLowerCase() === cleanEmail);
+          if (!regUser) {
+            emailSet.add(cleanEmail);
+          } else {
+            const regEq = normalizeAccents(
+              getCanonicalDuplaName(regUser.equipe || '') || regUser.equipe || ''
+            );
+            if (regEq === canonDupla) {
+              emailSet.add(cleanEmail);
+            }
+          }
+        }
+      });
+    }
 
     return Array.from(emailSet);
   };
@@ -203,22 +213,25 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [equipesDuplas, duplaSearch, duplaEmailsMap, users]);
 
-  // Sites currently assigned to selectedDupla (sorted: 1º Sites a Fazer -> 2º Sites Feitos)
-  const assignedSitesForSelectedDupla = useMemo(() => {
-    const targetObj = {
-      name: selectedDupla,
-      equipe: selectedDupla,
-      email: activeDuplaLinkedEmails[0] || '',
-    };
+  // Unified helper so left sidebar and right panel always compute the exact same sites for a Dupla
+  const getSitesForDupla = (duplaName: string): TelecomSite[] => {
+    const linkedEmails = getLinkedEmailsForDupla(duplaName);
     const matched = controleGeralSites.filter((s) => {
-      if (doesSiteMatchResponsible(s, selectedDupla)) return true;
-      if (doesSiteMatchResponsible(s, targetObj)) return true;
-      return activeDuplaLinkedEmails.some((em) =>
-        doesSiteMatchResponsible(s, { name: selectedDupla, equipe: selectedDupla, email: em })
+      if (doesSiteMatchEquipe(s, duplaName)) return true;
+      if (doesSiteMatchResponsible(s, duplaName)) return true;
+      return linkedEmails.some((em) =>
+        doesSiteMatchResponsible(s, { name: duplaName, equipe: duplaName, email: em })
       );
     });
     return sortSitesParaFazerFirst(matched);
-  }, [controleGeralSites, selectedDupla, activeDuplaLinkedEmails]);
+  };
+
+  // Sites currently assigned to selectedDupla (sorted: 1º Sites a Fazer -> 2º Sites Feitos)
+  const assignedSitesForSelectedDupla = useMemo(
+    () => getSitesForDupla(selectedDupla),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [controleGeralSites, selectedDupla, activeDuplaLinkedEmails, users]
+  );
 
   const filteredAssignedSites = useMemo(() => {
     const q = assignedSearch.trim().toLowerCase();
@@ -312,6 +325,19 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = ({
       setSelectedSiteIds([]);
     } finally {
       setIsAssigning(false);
+    }
+  };
+
+  const handleClearAllForSelectedDupla = async () => {
+    if (assignedSitesForSelectedDupla.length === 0 || isClearing) return;
+    setIsClearing(true);
+    try {
+      const tokensToClear = assignedSitesForSelectedDupla.flatMap((s) => [s.id, s.siteId]);
+      await onClearDuplaSites(selectedDupla, tokensToClear);
+      setAssignedSearch('');
+      setSelectedSiteIds([]);
+    } finally {
+      setIsClearing(false);
     }
   };
 
@@ -419,13 +445,7 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = ({
             const isSelected = selectedDupla === dupla;
             const isEditing = editingDupla === dupla;
             const linkedEmails = getLinkedEmailsForDupla(dupla);
-            const duplaSites = controleGeralSites.filter((s) =>
-              doesSiteMatchResponsible(s, {
-                name: dupla,
-                equipe: dupla,
-                email: linkedEmails[0] || '',
-              })
-            );
+            const duplaSites = getSitesForDupla(dupla);
             const feitosCount = duplaSites.filter((s) => isSiteFeito(s)).length;
             const fazerCount = duplaSites.length - feitosCount;
             const notasCount = duplaSites.filter((s) => isSiteNotaPendente(s)).length;
@@ -917,10 +937,11 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = ({
                 {assignedSitesForSelectedDupla.length > 0 && (
                   <button
                     type="button"
-                    onClick={() => onClearDuplaSites(selectedDupla)}
-                    className="px-2.5 py-1 bg-slate-800 hover:bg-red-600 text-slate-300 hover:text-white rounded-lg text-[11px] font-medium transition-colors cursor-pointer shrink-0"
+                    disabled={isClearing}
+                    onClick={handleClearAllForSelectedDupla}
+                    className="px-2.5 py-1 bg-red-600/90 hover:bg-red-600 disabled:opacity-50 text-white rounded-lg text-[11px] font-semibold transition-colors cursor-pointer shrink-0 shadow-2xs"
                   >
-                    Limpar Todos
+                    {isClearing ? 'Limpando...' : `Limpar Todos (${assignedSitesForSelectedDupla.length})`}
                   </button>
                 )}
               </div>
@@ -995,7 +1016,7 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = ({
                       <button
                         type="button"
                         onClick={() =>
-                          onUnassignSitesFromDupla([site.siteId], selectedDupla)
+                          onUnassignSitesFromDupla([site.id, site.siteId], selectedDupla)
                         }
                         className="p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-md cursor-pointer"
                         title="Remover este site da dupla"

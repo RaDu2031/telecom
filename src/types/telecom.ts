@@ -338,14 +338,13 @@ export function evaluateUserOverallDocumentStatus(user: AmetaUser) {
   const dispensados = evaluated.filter((d) => d.eval.status === 'DISPENSADO');
   const pendentes = evaluated.filter((d) => d.eval.status === 'PENDENTE');
 
-  const rawManual = (user.statusRecurso || '').toUpperCase();
   let overallStatus: 'VALIDADO' | 'A VENCER' | 'VENCIDO' | 'DISPENSADO' = 'VALIDADO';
 
   if (isUserDispensado || dispensados.length === docs.length) {
     overallStatus = 'DISPENSADO';
-  } else if (vencidos.length > 0 || rawManual === 'VENCIDO') {
+  } else if (vencidos.length > 0) {
     overallStatus = 'VENCIDO';
-  } else if (aVencer.length > 0 || rawManual === 'A VENCER' || rawManual === 'A_VENCER') {
+  } else if (aVencer.length > 0) {
     overallStatus = 'A VENCER';
   } else {
     overallStatus = 'VALIDADO';
@@ -405,12 +404,284 @@ export interface EngineeringFile {
   extension: string; // e.g. ".zip", ".rar", ".xlsx", ".pdf"
   fileSize: number; // in bytes
   siteId?: string; // Optional linked Site ID e.g. "SN-OI65J2"
+  ocSitePre?: string; // Optional linked Work Order / Oc Site Pre
+  tssrRowId?: string; // Optional linked row ID in TSSR TIM Nokia
   notes?: string;
   assignedTo?: string; // Responsible user name or email who should see this document in their demand
   uploadedByName: string; // Required name of the person who uploaded the file
   uploadedByEmail: string;
   uploadedAt: string;
   storageFileName?: string; // File name stored in data/uploads/
+}
+
+export const TSSR_TIM_NOKIA_ORIGINAL_COLUMNS: string[] = [
+  'Oc Site Pre',
+  'Enderecoid',
+  'Site Id',
+  'Reg',
+  'UF',
+  'Cidade',
+  'PROJETO',
+  'DETENTORA',
+  'DEMANDA RECEBIDA',
+  'STATUS Engenharia',
+  'TIPO DE DOC',
+  'Prioridade Homero',
+  'Executor',
+  'Data de demanda',
+  'Plan entrega',
+  'RECEBIDO',
+  'Enviado para NOKIA',
+  'GDC Portal',
+  'REPROVAÇÃO',
+  'RETORNO REPROVAÇÃO',
+  'OBSERVAÇÃO',
+  'DATA OBSERVAÇÃO',
+  'Modelo de Site',
+  'Tipo Site',
+  'Faturamento ASP',
+  'EXECUÇÃO DE H&S',
+  'Faturamento H&S',
+  'ITEM',
+  'SPO',
+  'SGR',
+  'NFS',
+  'DATA NFS',
+  'Envio Edcom',
+  'Status Financeiro',
+  'Observações/Motivo',
+  'Apoio',
+  'Check',
+];
+
+export const TSSR_SYSTEM_COLUMNS: string[] = [
+  'Status da vistoria',
+  'Arquivo da vistoria',
+  'Data/hora da entrega',
+  'Vistoriador que enviou',
+];
+
+export const TSSR_ALL_COLUMNS: string[] = [
+  ...TSSR_TIM_NOKIA_ORIGINAL_COLUMNS,
+  ...TSSR_SYSTEM_COLUMNS,
+];
+
+export type TssrVistoriaStatus = 'Pendente' | 'Entregue';
+
+export interface TssrRow {
+  id: string;
+  rowKey: string; // Site Id + Oc Site Pre (or Site Id)
+  vendor: VendorType;
+  tabName: string; // e.g. "TSSR TIM Nokia"
+  siteId: string; // "Site Id"
+  ocSitePre: string; // "Oc Site Pre"
+  enderecoId: string; // "Enderecoid"
+  fields: Record<string, string>; // All 37 original TSSR columns
+  // System columns (preserved across TSSR spreadsheet reloads)
+  vistoriaStatus: TssrVistoriaStatus;
+  vistoriaFileId?: string;
+  vistoriaFileName?: string;
+  vistoriaFileUrl?: string;
+  vistoriaDownloadUrl?: string;
+  vistoriaDeliveredAt?: string;
+  vistoriaUploadedBy?: string;
+  vistoriaUploadedByEmail?: string;
+  createdAt?: string;
+  updatedAt: string;
+}
+
+export interface TssrSheetMeta {
+  id: string;
+  vendor: VendorType;
+  tabName: string; // "TSSR TIM Nokia"
+  sourceFileName?: string;
+  liveSyncUrl?: string;
+  lastSyncAt: string;
+  totalRows: number;
+}
+
+export const ERICSSON_ORIGINAL_COLUMNS: string[] = [
+  '01.00. Chaves',
+  'Auxiliar',
+  '00.03.State',
+  'Registro',
+  'Meta',
+  '01.21.Site ID A',
+  'ID Detentora A',
+  '01.21.Site ID B',
+  'ID Detentora B',
+  '00.04.Site Name',
+  'Altura Definida A',
+  'Altura Definida B',
+  'Status A',
+  'Status B',
+  'CIDADE A',
+  'CIDADE B',
+  'EQUIPE',
+  '02.00.Scope',
+  'Serviço',
+  'Trabalho em Altura A',
+  'Trabalho em Altura B',
+  'Demanda Recebida',
+  'Cálculo de Desempenho Recebido',
+  'Aceite Sydle',
+  'Detentora A',
+  'ESTRUTURA',
+  'Detentora B',
+  'ESTRUTURA2',
+  'Solicitado',
+  'Solicitado3',
+  'A',
+  'B',
+  'Aprovado',
+  'Aprovado4',
+  'Validade',
+  'Validade5',
+  'Solicitado A',
+  'Solicitado B',
+  'CRQ Solicitado',
+  'Aprovado6',
+  'Validade7',
+  'SYDLE EQUIPE, CRQ e ACESSO',
+  'PLAN A',
+  'REAL A',
+  'PLAN B',
+  'REAL B',
+  'Replan',
+  'Improdutiva',
+  'Observações',
+  'Executor EHS Site Survey',
+  'EHS Site Survey Demandado',
+  'Site Survey A+B',
+  'EHS Site Survey Sydle',
+  'PPI Demanda',
+  'PPI Executor',
+  'PPI + SDC PLAN',
+  'PPI + SDC A',
+  'PPI + SDC B',
+  'PPI Overdue',
+  'PPI + SDC A Sydle',
+  'PPI + SDC B Sydle',
+  'LOS Plan',
+  'LOS Overdue',
+  'LOS na Sydle',
+  'PPI + SDC A+B Reprovado',
+  'PPI + SDC A+B Sydle',
+  'LOS Reprovado',
+  'LOS revisado na Sydle',
+  'Obs',
+  'Obra',
+  'P.O.',
+  'MIGO',
+  'Line of Sight - Up to 3 points',
+  'Site Survey MW',
+  'SCI/SDC - MW',
+  'PPI - MW',
+  'Combo Claro MW',
+  'Displacement',
+  'CR 4x4',
+  'CR Add',
+  'Observações8',
+  'LoS Multa',
+  'Multa TSSR A',
+  'Multa TSSR B',
+  'Multa PPI A',
+  'Multa PPI B',
+  'LoS Multa2',
+  'Multa TSSR A2',
+  'Multa TSSR B2',
+  'Multa PPI A2',
+  'Multa PPI B2',
+  'Liberado na Sydle Emitir Nota',
+  'Pendência Finaceira',
+  'MULTA DE H&S',
+  'MOTIVO DA MULTA DE H&S',
+  '% DE MULTA',
+  'ID',
+  'Observação',
+  'Check',
+  'Liberação de Faturamento LoS',
+  'Liberação de Faturamento TSSR',
+  'Liberação de Faturamento PPI_SDC',
+  'EHS Site Survey',
+  'CR 4x42',
+  'Adicional',
+  'Motivo',
+];
+
+export const ERICSSON_SYSTEM_COLUMNS_PER_SITE: string[] = [
+  'Status da vistoria',
+  'Arquivo da vistoria',
+  'Data/hora da entrega',
+  'Enviada por',
+];
+
+export type EricssonVistoriaStatus = 'Pendente' | 'Entregue' | 'Dispensado';
+
+export interface EricssonRow {
+  id: string;
+  rowKey: string; // Chaves + Registro + Site ID A + Site ID B
+  chaves: string;
+  registro: string;
+  state: string;
+  meta: string;
+  siteIdA: string;
+  idDetentoraA: string;
+  siteIdB: string;
+  idDetentoraB: string;
+  siteName: string;
+  statusA: string;
+  statusB: string;
+  cidadeA: string;
+  cidadeB: string;
+  equipe: string;
+  servico: string;
+  fields: Record<string, string>; // All 106 original Ericsson columns
+  // System columns for Site A (preserved across spreadsheet reloads)
+  siteAVistoriaStatus: EricssonVistoriaStatus;
+  siteAVistoriaFileId?: string;
+  siteAVistoriaFolderId?: string;
+  siteAVistoriaFileName?: string;
+  siteAVistoriaFileUrl?: string;
+  siteAVistoriaDownloadUrl?: string;
+  siteAVistoriaDeliveredAt?: string;
+  siteAVistoriaUploadedBy?: string;
+  siteAVistoriaUploadedByEmail?: string;
+  // System columns for Site B (preserved across spreadsheet reloads)
+  siteBVistoriaStatus: EricssonVistoriaStatus;
+  siteBVistoriaFileId?: string;
+  siteBVistoriaFolderId?: string;
+  siteBVistoriaFileName?: string;
+  siteBVistoriaFileUrl?: string;
+  siteBVistoriaDownloadUrl?: string;
+  siteBVistoriaDeliveredAt?: string;
+  siteBVistoriaUploadedBy?: string;
+  siteBVistoriaUploadedByEmail?: string;
+  // System columns for LOS (preserved across spreadsheet reloads)
+  losStatus?: EricssonVistoriaStatus;
+  losLinkedSiteId?: string;
+  losFileId?: string;
+  losFolderId?: string;
+  losFileName?: string;
+  losFileUrl?: string;
+  losDownloadUrl?: string;
+  losDeliveredAt?: string;
+  losUploadedBy?: string;
+  losUploadedByEmail?: string;
+  isManualRow?: boolean;
+  createdAt?: string;
+  updatedAt: string;
+}
+
+export interface EricssonSheetMeta {
+  id: string;
+  tabName: string; // "ERICSSON CLARO TX"
+  sourceFileName?: string;
+  liveSyncUrl?: string;
+  lastSyncAt: string;
+  totalRows: number;
+  totalSites: number;
+  columns: string[];
 }
 
 export interface SyncEventPayload {
@@ -426,7 +697,10 @@ export interface SyncEventPayload {
     | 'FOLDER_DELETED'
     | 'FILE_UPLOADED'
     | 'FILE_UPDATED'
-    | 'FILE_DELETED';
+    | 'FILE_DELETED'
+    | 'TSSR_UPDATED'
+    | 'ERICSSON_UPDATED'
+    | 'USER_DOCUMENT_UPDATED';
   timestamp: string;
   actorEmail?: string;
   vendor?: VendorType;

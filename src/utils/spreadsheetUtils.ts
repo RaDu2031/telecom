@@ -889,7 +889,7 @@ export function doesSiteMatchEquipe(site: TelecomSite, targetEquipe: string): bo
 
   const canonTarget = getCanonicalDuplaName(targetEquipe);
   if (canonTarget && canonSiteEq) {
-    if (canonSiteEq.toLowerCase() === canonTarget.toLowerCase()) return true;
+    if (normalizeAccents(canonSiteEq) === normalizeAccents(canonTarget)) return true;
   }
 
   const normRawSite = normalizeAccents(rawSiteEq);
@@ -931,102 +931,81 @@ export const DEFAULT_EQUIPES_DUPLAS: string[] = [
   'Usuário Teste',
 ];
 
+const GENERIC_NON_DUPLA_EQUIPES = new Set([
+  'ametatelecom',
+  'ameta telecom',
+  'campo / engenharia',
+  'campo engenharia',
+  'coordenacao / adm',
+  'coordenacao adm',
+  'equipe de teste',
+]);
+
 export function doesSiteMatchResponsible(
   site: TelecomSite,
   userOrName: { name: string; email?: string; equipe?: string } | string
 ): boolean {
-  const execVal = getCellValueForColumn(site, 'Executor');
-  const talonExecVal = getCellValueForColumn(site, 'TalonView Executor');
-  const equipeVal = getCellValueForColumn(site, 'EQUIPE EXECUTANTE');
-  const nomeEquipesVal = getCellValueForColumn(site, 'NOME');
-  const respCustomVal = getCellValueForColumn(site, 'Responsável');
+  const rawSiteEq = (
+    getCellValueForColumn(site, 'EQUIPE EXECUTANTE') ||
+    getCellValueForColumn(site, 'EQUIPE') ||
+    site.equipeParceira ||
+    ''
+  ).trim();
+  const canonSiteEq = getCanonicalDuplaName(rawSiteEq);
+
   const emailDuplaVal =
     (site.customFields &&
       (site.customFields['E-MAIL DUPLA'] ||
-        site.customFields['E-MAIL'] ||
         site.customFields['EMAIL_DUPLA'])) ||
     '';
 
-  // 1. Direct Profile Email Link check ("vinculado com e-mail deles de perfil")
-  if (typeof userOrName === 'object' && userOrName.email) {
+  // 1. If userOrName is a string (e.g. Dupla name in DuplasInteractiveView or responsavelDemandFilter)
+  if (typeof userOrName === 'string') {
+    const cleanStr = userOrName.trim();
+    if (!cleanStr) return false;
+    if (doesSiteMatchEquipe(site, cleanStr)) {
+      return true;
+    }
+    if (cleanStr.includes('@') && emailDuplaVal.toLowerCase().includes(cleanStr.toLowerCase())) {
+      return true;
+    }
+    return false;
+  }
+
+  // 2. Direct Profile Email Link check ("vinculado com e-mail deles de perfil")
+  if (userOrName.email) {
     const targetEmail = userOrName.email.trim().toLowerCase();
     if (targetEmail && emailDuplaVal.toLowerCase().includes(targetEmail)) {
+      // If site also has a Dupla set and user has a specific Dupla set, ensure they don't conflict
+      const normUserEq = normalizeAccents(userOrName.equipe || '');
+      if (
+        canonSiteEq &&
+        normUserEq &&
+        !GENERIC_NON_DUPLA_EQUIPES.has(normUserEq)
+      ) {
+        return doesSiteMatchEquipe(site, userOrName.equipe!);
+      }
       return true;
     }
   }
 
-  // 2. If userOrName is a string that represents a Dupla/Equipe (e.g. "Magno / Luchini", "Magno / Gilvan", "Mateus"),
-  // match strictly against EQUIPE EXECUTANTE so "Magno / Luchini" never pulls sites from "Magno / Gilvan" or Executor "Magno"
-  if (typeof userOrName === 'string') {
-    const cleanStr = userOrName.trim();
-    if (!cleanStr) return false;
-    if (
-      cleanStr.includes('/') ||
-      cleanStr.includes('-') ||
-      getCanonicalDuplaName(cleanStr) !== ''
-    ) {
-      if (doesSiteMatchEquipe(site, cleanStr)) {
-        return true;
-      }
-      // If it explicitly has a slash/hyphen (it is a Dupla pair), do NOT fall back to single first-name Executor match
-      if (cleanStr.includes('/') || cleanStr.includes('-')) {
-        return false;
-      }
-    }
-  }
-
   // 3. Direct Dupla / Equipe Executante Link check on user profile object
-  if (typeof userOrName === 'object' && userOrName.equipe) {
+  if (userOrName.equipe) {
     const normUserEq = normalizeAccents(userOrName.equipe);
-    if (
-      normUserEq &&
-      normUserEq !== 'ametatelecom' &&
-      normUserEq !== 'ameta telecom' &&
-      normUserEq !== 'campo / engenharia' &&
-      normUserEq !== 'equipe de teste'
-    ) {
-      if (doesSiteMatchEquipe(site, userOrName.equipe)) {
-        return true;
-      }
-      // If user profile is explicitly bound to a Dupla pair (with '/' or '-'), only show that Dupla's sites (or email-linked sites)
-      if (userOrName.equipe.includes('/') || userOrName.equipe.includes('-')) {
-        return false;
-      }
+    if (normUserEq && !GENERIC_NON_DUPLA_EQUIPES.has(normUserEq)) {
+      return doesSiteMatchEquipe(site, userOrName.equipe);
     }
   }
 
-  // 4. If user.name itself is formatted as a Dupla pair (e.g. "Magno / Luchini"), match strictly by Equipe
-  if (
-    typeof userOrName === 'object' &&
-    userOrName.name &&
-    (userOrName.name.includes('/') || userOrName.name.includes('-'))
-  ) {
-    return doesSiteMatchEquipe(site, userOrName.name);
+  // 4. Fallback to matching user's name against the site's canonical Dupla / Equipe Executante
+  if (userOrName.name) {
+    const cleanUserName = userOrName.name.replace(/\s*\(.*?\)\s*/g, '').trim();
+    if (cleanUserName && doesSiteMatchEquipe(site, cleanUserName)) {
+      return true;
+    }
   }
 
-  const keywords = getUserMatchKeywords(userOrName);
-  if (keywords.length === 0) return false;
-
-  // If this user is a test user ("teste"), match explicit assignment in EQUIPE EXECUTANTE / Executor / Responsável
-  const isTestAccount = keywords.includes('teste');
-  const fieldsToCheck = isTestAccount
-    ? [equipeVal, execVal, respCustomVal, site.equipeParceira, site.responsavelCampo, emailDuplaVal]
-    : [
-        equipeVal,
-        execVal,
-        talonExecVal,
-        nomeEquipesVal,
-        respCustomVal,
-        site.equipeParceira,
-        site.responsavelCampo,
-        emailDuplaVal,
-      ];
-
-  const combinedHaystack = normalizeAccents(fieldsToCheck.join(' '));
-  if (!combinedHaystack) return false;
-
-  const hayTokens = combinedHaystack.split(/[^a-z0-9]+/).filter(Boolean);
-  return keywords.some((kw) => hayTokens.includes(kw) || combinedHaystack.includes(kw));
+  return false;
 }
 
 export function doesDocumentMatchResponsible(

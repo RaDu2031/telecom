@@ -36,6 +36,8 @@ import {
   normalizeUserRole,
   VendorType,
   TelecomSite,
+  TssrRow,
+  TssrSheetMeta,
 } from '../types/telecom';
 import { doesDocumentMatchResponsible } from '../utils/spreadsheetUtils';
 
@@ -49,12 +51,21 @@ interface EngineeringVistoriasTabProps {
   folders: EngineeringFolder[];
   files: EngineeringFile[];
   sites: TelecomSite[];
+  tssrRows?: TssrRow[];
+  preselectedSiteId?: string | null;
+  onClearPreselectedSiteId?: () => void;
   onFoldersAndFilesUpdated: (
     nextFolders: EngineeringFolder[],
     nextFiles: EngineeringFile[],
-    toastMsg?: string
+    toastMsg?: string,
+    nextTssrRows?: TssrRow[],
+    nextTssrSheets?: TssrSheetMeta[]
   ) => void;
   onSelectSiteId: (siteId: string) => void;
+  onOpenTssrTab?: () => void;
+  mode?: 'vistoria' | 'tssr-projects';
+  initialFolderId?: string | null;
+  onBackToEngineeringControl?: () => void;
 }
 
 function formatBytes(bytes: number): string {
@@ -90,8 +101,15 @@ export const EngineeringVistoriasTab: React.FC<EngineeringVistoriasTabProps> = (
   folders,
   files,
   sites,
+  tssrRows = [],
+  preselectedSiteId = null,
+  onClearPreselectedSiteId,
   onFoldersAndFilesUpdated,
   onSelectSiteId,
+  onOpenTssrTab,
+  mode = 'vistoria',
+  initialFolderId = null,
+  onBackToEngineeringControl,
 }) => {
   const activeTargetUser = simulatedTargetUser || user;
   const currentRole: UserRole = simulatedTargetUser
@@ -99,6 +117,7 @@ export const EngineeringVistoriasTab: React.FC<EngineeringVistoriasTabProps> = (
     : effectiveRole || normalizeUserRole(user.role);
   const isAdmin = currentRole === 'ADM' && !simulatedTargetUser;
   const isVistoriador = currentRole === 'Vistoriador';
+  const isTssrProjectsMode = mode === 'tssr-projects' && !isVistoriador;
 
   // Hidden/collapsible tab state for "Demanda por Responsável" inside Documentos ("em uma aba escondida so abre se eu clicar")
   const [isDocDemandaTabOpen, setIsDocDemandaTabOpen] = useState<boolean>(false);
@@ -132,30 +151,29 @@ export const EngineeringVistoriasTab: React.FC<EngineeringVistoriasTabProps> = (
     [files, activeVendor]
   );
 
-  // Files visible to the current user (ADM sees all or filtered by docResponsavelFilter; non-ADM / Usuário Teste sees ONLY what is put for him)
-  const vendorFiles = useMemo(() => {
-    if (!isAdmin) {
-      return allVendorFiles.filter((fl) => {
-        const folder = allVendorFolders.find((f) => f.id === fl.folderId);
-        return doesDocumentMatchResponsible(fl, folder, activeTargetUser);
-      });
-    }
-    if (docResponsavelFilter === 'ALL') {
-      return allVendorFiles;
-    }
-    if (docResponsavelFilter === '__NONE__') {
-      return allVendorFiles.filter((fl) => !fl.assignedTo?.trim());
-    }
-    return allVendorFiles.filter((fl) => {
-      const folder = allVendorFolders.find((f) => f.id === fl.folderId);
-      return doesDocumentMatchResponsible(fl, folder, docResponsavelFilter);
-    });
-  }, [allVendorFiles, allVendorFolders, isAdmin, activeTargetUser, docResponsavelFilter]);
-
   const vendorFolders = useMemo(() => {
-    if (!isVistoriador) return allVendorFolders;
+    if (isTssrProjectsMode) {
+      // In TSSR Projects mode ("TSSR Entrada" & "TSSR"), show the root container + TSSR Entrada + TSSR and all their subfolders
+      const allowedIds = new Set<string>();
+      for (const f of allVendorFolders) {
+        if (f.parentId === null || f.name === 'TSSR Entrada' || f.name === 'TSSR') {
+          allowedIds.add(f.id);
+        }
+      }
+      let added = true;
+      while (added) {
+        added = false;
+        for (const f of allVendorFolders) {
+          if (f.parentId && allowedIds.has(f.parentId) && f.name !== 'Vistorias Executadas' && !allowedIds.has(f.id)) {
+            allowedIds.add(f.id);
+            added = true;
+          }
+        }
+      }
+      return allVendorFolders.filter((f) => allowedIds.has(f.id));
+    }
 
-    // Vistoriador has access ONLY to Vistorias / Vistorias Executadas (excludes TSSR Entrada and TSSR)
+    // In Vistoria mode (and always for Vistoriador), show ONLY Vistorias / Vistorias Executadas (exclude TSSR Entrada and TSSR Engineering folders)
     const blockedRootIds = new Set(
       allVendorFolders
         .filter((f) => f.name === 'TSSR Entrada' || f.name === 'TSSR')
@@ -172,7 +190,33 @@ export const EngineeringVistoriasTab: React.FC<EngineeringVistoriasTabProps> = (
       }
     }
     return allVendorFolders.filter((f) => !blockedRootIds.has(f.id));
-  }, [allVendorFolders, isVistoriador]);
+  }, [allVendorFolders, isTssrProjectsMode]);
+
+  const allowedFolderIds = useMemo(
+    () => new Set(vendorFolders.map((f) => f.id)),
+    [vendorFolders]
+  );
+
+  // Files visible to the current user (filtered to allowed folders so Vistoriador only sees Vistoria files)
+  const vendorFiles = useMemo(() => {
+    const folderScopedFiles = allVendorFiles.filter((fl) => allowedFolderIds.has(fl.folderId));
+    if (!isAdmin) {
+      return folderScopedFiles.filter((fl) => {
+        const folder = allVendorFolders.find((f) => f.id === fl.folderId);
+        return doesDocumentMatchResponsible(fl, folder, activeTargetUser);
+      });
+    }
+    if (docResponsavelFilter === 'ALL') {
+      return folderScopedFiles;
+    }
+    if (docResponsavelFilter === '__NONE__') {
+      return folderScopedFiles.filter((fl) => !fl.assignedTo?.trim());
+    }
+    return folderScopedFiles.filter((fl) => {
+      const folder = allVendorFolders.find((f) => f.id === fl.folderId);
+      return doesDocumentMatchResponsible(fl, folder, docResponsavelFilter);
+    });
+  }, [allVendorFiles, allowedFolderIds, allVendorFolders, isAdmin, activeTargetUser, docResponsavelFilter]);
 
   const rootVistoriasFolder = useMemo(
     () =>
@@ -183,8 +227,16 @@ export const EngineeringVistoriasTab: React.FC<EngineeringVistoriasTabProps> = (
   );
 
   const [currentFolderId, setCurrentFolderId] = useState<string>(() => {
+    if (initialFolderId) return initialFolderId;
     return rootVistoriasFolder?.id || `folder-${activeVendor.toLowerCase()}-vistorias`;
   });
+
+  // Sync currentFolderId when initialFolderId prop changes (e.g. clicking TSSR Entrada vs TSSR in corner)
+  React.useEffect(() => {
+    if (initialFolderId) {
+      setCurrentFolderId(initialFolderId);
+    }
+  }, [initialFolderId]);
 
   // Ensure currentFolderId belongs to activeVendor when switching vendor
   const activeFolder = useMemo(() => {
@@ -241,11 +293,19 @@ export const EngineeringVistoriasTab: React.FC<EngineeringVistoriasTabProps> = (
   const [folderError, setFolderError] = useState<string | null>(null);
   const [creatingFolder, setCreatingFolder] = useState<boolean>(false);
 
-  // Upload File (.zip / .rar / docs) Modal state
+  // Upload File (.zip / .rar / docs) Modal state with mandatory link to TSSR TIM Nokia site
   const [uploadModalOpen, setUploadModalOpen] = useState<boolean>(false);
   const [uploadTargetFolderId, setUploadTargetFolderId] = useState<string>('');
   const [uploadedByName, setUploadedByName] = useState<string>(user.name || '');
   const [uploadSiteId, setUploadSiteId] = useState<string>('');
+  const [uploadTssrRowId, setUploadTssrRowId] = useState<string>('');
+  const [uploadOcSitePre, setUploadOcSitePre] = useState<string>('');
+  const [siteSearchQuery, setSiteSearchQuery] = useState<string>('');
+  const [siteDropdownOpen, setSiteDropdownOpen] = useState<boolean>(false);
+  const [createNewTssrRow, setCreateNewTssrRow] = useState<boolean>(false);
+  const [newTssrUf, setNewTssrUf] = useState<string>('');
+  const [newTssrCidade, setNewTssrCidade] = useState<string>('');
+  const [newTssrEnderecoId, setNewTssrEnderecoId] = useState<string>('');
   const [uploadNotes, setUploadNotes] = useState<string>('');
   const [uploadAssignedTo, setUploadAssignedTo] = useState<string>('');
   const [pendingFiles, setPendingFiles] = useState<
@@ -260,6 +320,52 @@ export const EngineeringVistoriasTab: React.FC<EngineeringVistoriasTabProps> = (
   const [isDraggingOver, setIsDraggingOver] = useState<boolean>(false);
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  // TSSR TIM Nokia rows for searchable site selector
+  const tssrNokiaRows = useMemo(
+    () => tssrRows.filter((r) => r.tabName === 'TSSR TIM Nokia'),
+    [tssrRows]
+  );
+
+  // Searchable TSSR sites matching siteSearchQuery
+  const matchingTssrRows = useMemo(() => {
+    const q = siteSearchQuery.trim().toUpperCase();
+    if (!q) return tssrNokiaRows.slice(0, 60);
+    return tssrNokiaRows
+      .filter(
+        (r) =>
+          r.siteId.toUpperCase().includes(q) ||
+          (r.ocSitePre || '').toUpperCase().includes(q) ||
+          (r.enderecoId || '').toUpperCase().includes(q) ||
+          (r.fields?.['Cidade'] || '').toUpperCase().includes(q)
+      )
+      .slice(0, 60);
+  }, [tssrNokiaRows, siteSearchQuery]);
+
+  const exactTssrMatchExists = useMemo(() => {
+    const clean = (uploadSiteId || siteSearchQuery).trim().toUpperCase();
+    if (!clean) return false;
+    return tssrNokiaRows.some((r) => r.siteId.trim().toUpperCase() === clean);
+  }, [tssrNokiaRows, uploadSiteId, siteSearchQuery]);
+
+  // If navigated from TSSR TIM Nokia with a preselectedSiteId, open the upload modal for that site automatically
+  React.useEffect(() => {
+    if (preselectedSiteId) {
+      const clean = preselectedSiteId.trim().toUpperCase();
+      const matchedRow = tssrNokiaRows.find((r) => r.siteId.trim().toUpperCase() === clean);
+      const safeTargetId = uploadableFolders[0]?.id || '';
+      setUploadTargetFolderId(safeTargetId);
+      setUploadedByName(user.name || '');
+      setUploadSiteId(clean);
+      setSiteSearchQuery(clean);
+      setUploadTssrRowId(matchedRow?.id || '');
+      setUploadOcSitePre(matchedRow?.ocSitePre || '');
+      setCreateNewTssrRow(!matchedRow);
+      setUploadError(null);
+      setUploadModalOpen(true);
+      onClearPreselectedSiteId?.();
+    }
+  }, [preselectedSiteId, tssrNokiaRows, uploadableFolders, user.name, onClearPreselectedSiteId]);
 
   // Breadcrumb trail from root "Vistorias" down to activeFolder
   const breadcrumbs = useMemo(() => {
@@ -376,6 +482,13 @@ export const EngineeringVistoriasTab: React.FC<EngineeringVistoriasTabProps> = (
     setUploadTargetFolderId(safeTargetId);
     setUploadedByName(user.name || '');
     setUploadSiteId('');
+    setUploadTssrRowId('');
+    setUploadOcSitePre('');
+    setSiteSearchQuery('');
+    setCreateNewTssrRow(false);
+    setNewTssrUf('');
+    setNewTssrCidade('');
+    setNewTssrEnderecoId('');
     setUploadNotes('');
     setUploadAssignedTo(
       !isAdmin
@@ -470,12 +583,50 @@ export const EngineeringVistoriasTab: React.FC<EngineeringVistoriasTabProps> = (
     }
   };
 
+  // Helper to check if a folder is inside "TSSR Entrada" or "TSSR"
+  const isFolderInsideTssrProjects = (folderId: string): boolean => {
+    if (isTssrProjectsMode) return true;
+    let curr = allVendorFolders.find((f) => f.id === folderId);
+    const seen = new Set<string>();
+    while (curr && !seen.has(curr.id)) {
+      seen.add(curr.id);
+      if (curr.name === 'TSSR Entrada' || curr.name === 'TSSR') return true;
+      curr = curr.parentId ? allVendorFolders.find((f) => f.id === curr!.parentId) : undefined;
+    }
+    return false;
+  };
+
+  const isUploadTargetTssrProject = useMemo(
+    () => isFolderInsideTssrProjects(uploadTargetFolderId || effectiveFolderId),
+    [uploadTargetFolderId, effectiveFolderId, allVendorFolders, isTssrProjectsMode]
+  );
+
   const handleUploadSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setUploadError(null);
 
+    const finalSiteId = (uploadSiteId || '').trim().toUpperCase();
+    const requireSiteForThisUpload = !isUploadTargetTssrProject;
+
+    if (requireSiteForThisUpload && !finalSiteId) {
+      setUploadError(
+        'É obrigatório vincular um site da aba TSSR TIM Nokia (ou confirmar a criação de uma nova linha) antes de enviar o arquivo.'
+      );
+      return;
+    }
+
+    const existsInTssr = finalSiteId
+      ? tssrNokiaRows.some((r) => r.siteId.trim().toUpperCase() === finalSiteId)
+      : false;
+    if (requireSiteForThisUpload && finalSiteId && !existsInTssr && !createNewTssrRow) {
+      setUploadError(
+        `O site "${finalSiteId}" não existe na aba TSSR TIM Nokia. Clique em "+ Criar nova linha para ${finalSiteId}" abaixo para vinculá-lo.`
+      );
+      return;
+    }
+
     if (!uploadTargetFolderId) {
-      setUploadError('Selecione uma pasta válida (ex: Vistorias Executadas, TSSR Entrada ou TSSR).');
+      setUploadError('Selecione uma pasta válida para carregar os arquivos.');
       return;
     }
     if (pendingFiles.length === 0) {
@@ -493,7 +644,21 @@ export const EngineeringVistoriasTab: React.FC<EngineeringVistoriasTabProps> = (
           vendor: activeVendor,
           uploadedByName: user.name,
           uploadedByEmail: user.email,
-          siteId: uploadSiteId.trim() || undefined,
+          siteId: finalSiteId || undefined,
+          ocSitePre: uploadOcSitePre.trim() || undefined,
+          tssrRowId: uploadTssrRowId || undefined,
+          createNewTssrRow,
+          requireSiteLink: requireSiteForThisUpload,
+          updateTssrVistoria: requireSiteForThisUpload,
+          newTssrFields: createNewTssrRow
+            ? {
+                'Site Id': finalSiteId,
+                'Oc Site Pre': uploadOcSitePre.trim(),
+                Enderecoid: newTssrEnderecoId.trim(),
+                UF: newTssrUf.trim().toUpperCase(),
+                Cidade: newTssrCidade.trim(),
+              }
+            : undefined,
           notes: uploadNotes.trim() || undefined,
           assignedTo: uploadAssignedTo.trim() || undefined,
           files: pendingFiles,
@@ -507,10 +672,16 @@ export const EngineeringVistoriasTab: React.FC<EngineeringVistoriasTabProps> = (
       }
 
       if (Array.isArray(data.engineeringFolders) && Array.isArray(data.engineeringFiles)) {
+        const targetFolderName =
+          allVendorFolders.find((f) => f.id === uploadTargetFolderId)?.name || 'Pasta';
         onFoldersAndFilesUpdated(
           data.engineeringFolders,
           data.engineeringFiles,
-          `${pendingFiles.length} arquivo(s) carregado(s) por ${user.name}`
+          requireSiteForThisUpload
+            ? `Vistoria do site ${finalSiteId} entregue por ${user.name}! Status atualizado para "Entregue" na aba TSSR TIM Nokia.`
+            : `${pendingFiles.length} arquivo(s) carregado(s) com sucesso em "${targetFolderName}" por ${user.name}!`,
+          data.tssrRows,
+          data.tssrSheets
         );
       }
       setCurrentFolderId(uploadTargetFolderId);
@@ -560,7 +731,8 @@ export const EngineeringVistoriasTab: React.FC<EngineeringVistoriasTabProps> = (
         onFoldersAndFilesUpdated(
           data.engineeringFolders,
           data.engineeringFiles,
-          `Arquivo "${file.fileName}" removido`
+          `Arquivo "${file.fileName}" removido`,
+          data.tssrRows
         );
       }
     } catch {
@@ -689,91 +861,89 @@ export const EngineeringVistoriasTab: React.FC<EngineeringVistoriasTabProps> = (
             <div>
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-xs font-bold uppercase tracking-wider text-blue-600">
-                  Engenharia · {activeVendor}
+                  {isTssrProjectsMode
+                    ? `Engenharia · Pastas de Projetos · ${activeVendor}`
+                    : `Vistoria · ${activeVendor}`}
                 </span>
                 <span className="text-slate-300">•</span>
                 <h1 className="text-base font-bold text-slate-900">
-                  {isVistoriador ? 'Vistorias' : 'Pasta Engenharia · Vistorias'} —{' '}
-                  {isAtRootVistorias ? 'Selecione uma Pasta' : activeFolder?.name}
+                  {isTssrProjectsMode
+                    ? isAtRootVistorias
+                      ? 'Pastas de Projetos TSSR & TSSR de Entrada'
+                      : `Pasta ${activeFolder?.name}`
+                    : `Envio de Vistoria (Vínculo com TSSR TIM Nokia) — ${
+                        isAtRootVistorias ? 'Pastas de Vistoria' : activeFolder?.name
+                      }`}
                 </h1>
               </div>
               <p className="text-xs text-slate-500 mt-0.5">
-                {isAtRootVistorias ? (
-                  isVistoriador ? (
-                    <>
-                      Perfil <strong>Vistoriador</strong>: acesse{' '}
-                      <strong>Vistorias Executadas</strong> abaixo para carregar pacotes{' '}
-                      <strong>.ZIP / WinRAR (.RAR)</strong> nas pastas regionais.
-                    </>
-                  ) : (
-                    <>
-                      Clique em <strong>Vistorias Executadas</strong>,{' '}
-                      <strong>TSSR Entrada</strong> ou <strong>TSSR</strong> abaixo para abrir a
-                      pasta e carregar arquivos <strong>.ZIP / WinRAR (.RAR)</strong>.
-                    </>
-                  )
+                {isTssrProjectsMode ? (
+                  <>
+                    Carregamento e organização de pacotes de projetos <strong>TSSR Entrada</strong> e{' '}
+                    <strong>TSSR</strong> (.ZIP, WinRAR .RAR, planilhas, PDFs, croquis e documentos).
+                  </>
                 ) : (
                   <>
-                    Você está em <strong>{getFolderPathLabel(effectiveFolderId)}</strong>. Carregue
-                    pacotes <strong>.ZIP / WinRAR (.RAR)</strong> ou crie subpastas.
+                    Suba o arquivo da vistoria direto no site e vincule a um site da aba{' '}
+                    <strong>TSSR TIM Nokia</strong>. O status muda sozinho para{' '}
+                    <strong className="text-emerald-700">Entregue</strong> com link, data/hora e vistoriador.
                   </>
                 )}
               </p>
             </div>
           </div>
 
-          {/* Primary Action Buttons: Conditional on whether user is at Root Vistorias, Vistorias Executadas index, or Inside a Target Folder */}
-          <div className="flex items-center gap-2.5">
-            {isAtRootVistorias ? (
-              isAdmin ? (
-                <button
-                  type="button"
-                  onClick={() => openCreateFolderModal(effectiveFolderId)}
-                  className="px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer"
-                >
-                  <ShieldCheck className="w-4 h-4 text-amber-400" />
-                  <span>Nova Pasta Principal (ADM)</span>
-                </button>
-              ) : (
-                <div className="px-3 py-1.5 bg-slate-100 border border-slate-200 rounded-lg text-[11px] text-slate-500 flex items-center gap-1.5">
-                  <Lock className="w-3.5 h-3.5 text-slate-400" />
-                  <span>Criação de pastas principais restrita ao ADM</span>
-                </div>
-              )
-            ) : isAtVistoriasExecutadasIndex ? (
+          {/* Primary Action Buttons */}
+          <div className="flex flex-wrap items-center gap-2.5">
+            {onBackToEngineeringControl && (
+              <button
+                type="button"
+                onClick={onBackToEngineeringControl}
+                className="px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-lg transition-colors flex items-center gap-1.5 shadow-2xs cursor-pointer"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                <span>Voltar para Controle de Engenharia (Planilha)</span>
+              </button>
+            )}
+
+            {!isTssrProjectsMode && !isVistoriador && onOpenTssrTab && (
+              <button
+                type="button"
+                onClick={onOpenTssrTab}
+                className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-semibold rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer"
+              >
+                <FileSpreadsheet className="w-4 h-4 text-[#223585]" />
+                <span>Ver Planilha TSSR TIM Nokia</span>
+              </button>
+            )}
+
+            {!isAtRootVistorias && (
               <button
                 type="button"
                 onClick={() => openCreateFolderModal(effectiveFolderId)}
                 className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-semibold rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer"
               >
                 <FolderPlus className="w-4 h-4 text-amber-600" />
-                <span>Nova Pasta Regional</span>
+                <span>Nova Subpasta</span>
               </button>
-            ) : (
-              <>
-                <button
-                  type="button"
-                  onClick={() => openCreateFolderModal(effectiveFolderId)}
-                  className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-semibold rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer"
-                >
-                  <FolderPlus className="w-4 h-4 text-amber-600" />
-                  <span>Nova Subpasta</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => openUploadModal(effectiveFolderId)}
-                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg transition-colors flex items-center gap-2 shadow-2xs cursor-pointer"
-                >
-                  <Upload className="w-4 h-4" />
-                  <span>Carregar Arquivo (.ZIP / WinRAR / Docs)</span>
-                </button>
-              </>
             )}
+
+            <button
+              type="button"
+              onClick={() => openUploadModal(effectiveFolderId)}
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg transition-colors flex items-center gap-2 shadow-2xs cursor-pointer"
+            >
+              <Upload className="w-4 h-4" />
+              <span>
+                {isTssrProjectsMode
+                  ? 'Carregar Arquivo (.ZIP / .RAR / Docs)'
+                  : 'Subir Arquivo de Vistoria (Vincular ao Site)'}
+              </span>
+            </button>
           </div>
         </div>
 
-        {/* Quick Navigation Bar for Vistorias Main Folders */}
+        {/* Quick Navigation Bar for Main Folders */}
         <div className="pt-3 border-t border-slate-100 flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap items-center gap-2">
             {rootVistoriasFolder && (
@@ -787,7 +957,7 @@ export const EngineeringVistoriasTab: React.FC<EngineeringVistoriasTabProps> = (
                 }`}
               >
                 <Folder className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />
-                <span>Pasta Vistorias</span>
+                <span>{isTssrProjectsMode ? 'Todas as Pastas TSSR' : 'Pasta Vistorias'}</span>
               </button>
             )}
 
@@ -1100,7 +1270,9 @@ export const EngineeringVistoriasTab: React.FC<EngineeringVistoriasTabProps> = (
               </button>
             )}
 
-            <span className="text-slate-400 font-medium">Engenharia</span>
+            <span className="text-slate-400 font-medium">
+              {isTssrProjectsMode ? 'Engenharia' : 'Pasta Vistoria'}
+            </span>
             {breadcrumbs.map((crumb, idx) => {
               const isLast = idx === breadcrumbs.length - 1;
               return (
@@ -1236,9 +1408,76 @@ export const EngineeringVistoriasTab: React.FC<EngineeringVistoriasTabProps> = (
           </div>
         )}
 
+        {/* Empty State / Direct Upload Area inside Uploadable Folders (e.g. TSSR Entrada, TSSR, or Subfolders) when 0 files */}
+        {!isFolderOnlyLevel && displayedFiles.length === 0 && (
+          <div className="p-8 bg-white text-center space-y-4">
+            <div
+              onClick={() => openUploadModal(effectiveFolderId)}
+              className="max-w-xl mx-auto border-2 border-dashed border-slate-300 hover:border-blue-600 bg-slate-50/70 hover:bg-blue-50/30 rounded-2xl p-7 transition-all cursor-pointer space-y-3"
+            >
+              <div className="w-12 h-12 rounded-2xl bg-blue-100/80 border border-blue-200 text-blue-600 flex items-center justify-center mx-auto">
+                <Upload className="w-6 h-6" />
+              </div>
+              <div className="space-y-1">
+                <h3 className="text-sm font-bold text-slate-900">
+                  Pasta "{activeFolder?.name}" pronta para receber documentos e projetos
+                </h3>
+                <p className="text-xs text-slate-500">
+                  Arraste pacotes <strong>.ZIP</strong>, <strong>WinRAR (.RAR)</strong>, planilhas{' '}
+                  <strong>.XLSX</strong>, <strong>.PDF</strong> ou documentos para cá, ou clique nos botões abaixo.
+                </p>
+              </div>
+              <div
+                className="pt-2 flex flex-wrap items-center justify-center gap-2.5"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <button
+                  type="button"
+                  onClick={() => openUploadModal(effectiveFolderId)}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg shadow-2xs flex items-center gap-2 cursor-pointer"
+                >
+                  <Upload className="w-4 h-4" />
+                  <span>Carregar Arquivo (.ZIP / .RAR / Docs)</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => openCreateFolderModal(effectiveFolderId)}
+                  className="px-3.5 py-2 bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 text-xs font-semibold rounded-lg flex items-center gap-1.5 cursor-pointer"
+                >
+                  <FolderPlus className="w-4 h-4 text-amber-500" />
+                  <span>+ Criar Subpasta em {activeFolder?.name}</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Files Table: ONLY rendered when there are actual uploaded files in this folder */}
         {!isFolderOnlyLevel && displayedFiles.length > 0 && (
           <div>
+            <div className="px-5 py-2.5 bg-slate-100/70 border-b border-slate-200 flex flex-wrap items-center justify-between gap-2 text-[11px] font-bold uppercase tracking-wider text-slate-500">
+              <span>
+                Documentos e Projetos Carregados em {activeFolder?.name} ({displayedFiles.length})
+              </span>
+              <div className="flex items-center gap-3 normal-case">
+                <button
+                  type="button"
+                  onClick={() => openCreateFolderModal(effectiveFolderId)}
+                  className="text-slate-700 hover:text-blue-600 font-semibold flex items-center gap-1 cursor-pointer"
+                >
+                  <FolderPlus className="w-3.5 h-3.5 text-amber-600" />
+                  <span>+ Nova Subpasta</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => openUploadModal(effectiveFolderId)}
+                  className="text-blue-600 hover:text-blue-700 font-bold flex items-center gap-1 cursor-pointer"
+                >
+                  <Upload className="w-3.5 h-3.5" />
+                  <span>+ Carregar Arquivo Aqui</span>
+                </button>
+              </div>
+            </div>
             <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse text-xs">
                   <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 font-semibold">
@@ -1378,6 +1617,17 @@ export const EngineeringVistoriasTab: React.FC<EngineeringVistoriasTabProps> = (
 
                           <td className="py-3 px-5 text-right">
                             <div className="inline-flex items-center gap-1.5">
+                              <a
+                                href={`/api/engineering/files/${encodeURIComponent(file.id)}/view`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 font-semibold rounded-lg transition-colors inline-flex items-center gap-1"
+                                title="Abrir arquivo em nova guia"
+                              >
+                                <ExternalLink className="w-3.5 h-3.5" />
+                                <span>Abrir</span>
+                              </a>
+
                               <a
                                 href={`/api/engineering/files/${encodeURIComponent(file.id)}/download`}
                                 download={file.fileName}
@@ -1567,7 +1817,9 @@ export const EngineeringVistoriasTab: React.FC<EngineeringVistoriasTabProps> = (
               {/* Destination Folder Selector (excludes outer Vistorias root) */}
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Pasta de Destino (Vistorias Executadas, TSSR Entrada, TSSR ou Subpastas) *
+                  {isTssrProjectsMode
+                    ? 'Pasta de Destino (TSSR Entrada, TSSR ou Subpastas) *'
+                    : 'Pasta de Destino (Vistorias Executadas / Subpastas de Vistoria) *'}
                 </label>
                 <select
                   value={uploadTargetFolderId}
@@ -1625,28 +1877,180 @@ export const EngineeringVistoriasTab: React.FC<EngineeringVistoriasTabProps> = (
                 </div>
               )}
 
-              {/* Optional Site ID & Notes */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    Site ID Relacionado (Opcional)
+              {/* Site Link to TSSR TIM Nokia (Mandatory in Vistoria, Optional in TSSR Entrada / TSSR) */}
+              <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-bold text-slate-900">
+                    {isUploadTargetTssrProject
+                      ? 'Site ID Vinculado (Opcional — busque pela sigla ou deixe em branco)'
+                      : 'Vincular ao Site na aba TSSR TIM Nokia (Obrigatório) *'}
                   </label>
-                  <input
-                    type="text"
-                    list="ameta-sites-datalist"
-                    value={uploadSiteId}
-                    onChange={(e) => setUploadSiteId(e.target.value)}
-                    placeholder="Ex: SN-OI65J2"
-                    className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-mono text-slate-900 focus:outline-none focus:border-blue-600"
-                  />
-                  <datalist id="ameta-sites-datalist">
-                    {sites.slice(0, 300).map((s) => (
-                      <option key={s.id} value={s.siteId}>
-                        {s.siteName} ({s.uf})
-                      </option>
-                    ))}
-                  </datalist>
+                  {uploadSiteId && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-mono text-[11px] font-bold">
+                      <CheckCircle2 className="w-3 h-3" />
+                      <span>Site vinculado: {uploadSiteId}</span>
+                    </span>
+                  )}
                 </div>
+
+                <div className="relative">
+                  <div className="flex items-center bg-white border border-slate-300 rounded-lg px-3 py-2 focus-within:border-blue-600">
+                    <Search className="w-4 h-4 text-slate-400 mr-2 shrink-0" />
+                    <input
+                      type="text"
+                      value={siteSearchQuery}
+                      onFocus={() => setSiteDropdownOpen(true)}
+                      onChange={(e) => {
+                        const val = e.target.value.toUpperCase();
+                        setSiteSearchQuery(val);
+                        setSiteDropdownOpen(true);
+                        const exact = tssrNokiaRows.find(
+                          (r) => r.siteId.trim().toUpperCase() === val.trim()
+                        );
+                        if (exact) {
+                          setUploadSiteId(exact.siteId);
+                          setUploadTssrRowId(exact.id);
+                          setUploadOcSitePre(exact.ocSitePre || '');
+                          setCreateNewTssrRow(false);
+                        } else {
+                          setUploadSiteId(val.trim());
+                          setUploadTssrRowId('');
+                        }
+                      }}
+                      placeholder="Digite a sigla do Site (ex: SN-OI65J2) para buscar na aba TSSR TIM Nokia..."
+                      className="w-full text-xs font-mono font-bold text-slate-900 placeholder-slate-400 focus:outline-none"
+                    />
+                    {siteSearchQuery && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSiteSearchQuery('');
+                          setUploadSiteId('');
+                          setUploadTssrRowId('');
+                          setUploadOcSitePre('');
+                          setCreateNewTssrRow(false);
+                        }}
+                        className="text-slate-400 hover:text-slate-700 cursor-pointer"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+
+                  {siteDropdownOpen && matchingTssrRows.length > 0 && (
+                    <div className="mt-1 max-h-48 overflow-y-auto bg-white border border-slate-200 rounded-xl shadow-lg divide-y divide-slate-100 z-50">
+                      {matchingTssrRows.map((r) => {
+                        const isSelected =
+                          uploadTssrRowId === r.id ||
+                          (uploadSiteId === r.siteId && !uploadTssrRowId);
+                        return (
+                          <button
+                            key={r.id}
+                            type="button"
+                            onClick={() => {
+                              setUploadSiteId(r.siteId);
+                              setSiteSearchQuery(r.siteId);
+                              setUploadTssrRowId(r.id);
+                              setUploadOcSitePre(r.ocSitePre || '');
+                              setCreateNewTssrRow(false);
+                              setSiteDropdownOpen(false);
+                            }}
+                            className={`w-full px-3 py-2 text-left text-xs flex items-center justify-between gap-2 cursor-pointer ${
+                              isSelected ? 'bg-blue-50 font-bold text-blue-900' : 'hover:bg-slate-50'
+                            }`}
+                          >
+                            <div className="min-w-0">
+                              <div className="font-mono font-bold text-slate-900">
+                                {r.siteId}{' '}
+                                {r.ocSitePre && (
+                                  <span className="font-normal text-slate-500">
+                                    · OC: {r.ocSitePre}
+                                  </span>
+                                )}
+                              </div>
+                              <div className="text-[11px] text-slate-500 truncate">
+                                {r.enderecoId || '—'} · {r.fields?.['Cidade'] || '—'}/
+                                {r.fields?.['UF'] || '—'} · {r.fields?.['STATUS Engenharia'] || '—'}
+                              </div>
+                            </div>
+                            <span
+                              className={`px-2 py-0.5 rounded-full text-[10px] font-bold shrink-0 ${
+                                r.vistoriaStatus === 'Entregue'
+                                  ? 'bg-emerald-100 text-emerald-800'
+                                  : 'bg-red-100 text-red-700'
+                              }`}
+                            >
+                              {r.vistoriaStatus === 'Entregue' ? 'Entregue' : 'Pendente'}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                {/* Offer to create a new row if site does not exist in TSSR TIM Nokia */}
+                {siteSearchQuery.trim() && !exactTssrMatchExists && (
+                  <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl space-y-2.5 text-xs">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="text-amber-900">
+                        O site <strong className="font-mono">{siteSearchQuery.trim()}</strong> não
+                        existe na aba <strong>TSSR TIM Nokia</strong>.
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setCreateNewTssrRow(true);
+                          setUploadSiteId(siteSearchQuery.trim().toUpperCase());
+                          setSiteDropdownOpen(false);
+                        }}
+                        className={`px-2.5 py-1 rounded-lg font-bold text-[11px] cursor-pointer transition-colors ${
+                          createNewTssrRow
+                            ? 'bg-emerald-600 text-white'
+                            : 'bg-amber-600 hover:bg-amber-700 text-white'
+                        }`}
+                      >
+                        {createNewTssrRow
+                          ? '✓ Nova linha será criada'
+                          : `+ Criar nova linha para ${siteSearchQuery.trim().toUpperCase()}`}
+                      </button>
+                    </div>
+
+                    {createNewTssrRow && (
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
+                        <input
+                          type="text"
+                          value={uploadOcSitePre}
+                          onChange={(e) => setUploadOcSitePre(e.target.value)}
+                          placeholder="Oc Site Pre (Opcional)"
+                          className="px-2.5 py-1.5 bg-white border border-amber-300 rounded-lg text-xs font-mono"
+                        />
+                        <input
+                          type="text"
+                          value={newTssrEnderecoId}
+                          onChange={(e) => setNewTssrEnderecoId(e.target.value)}
+                          placeholder="Enderecoid (Opcional)"
+                          className="px-2.5 py-1.5 bg-white border border-amber-300 rounded-lg text-xs"
+                        />
+                        <input
+                          type="text"
+                          maxLength={2}
+                          value={newTssrUf}
+                          onChange={(e) => setNewTssrUf(e.target.value.toUpperCase())}
+                          placeholder="UF (Ex: DF)"
+                          className="px-2.5 py-1.5 bg-white border border-amber-300 rounded-lg text-xs font-mono"
+                        />
+                        <input
+                          type="text"
+                          value={newTssrCidade}
+                          onChange={(e) => setNewTssrCidade(e.target.value)}
+                          placeholder="Cidade"
+                          className="px-2.5 py-1.5 bg-white border border-amber-300 rounded-lg text-xs"
+                        />
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1">

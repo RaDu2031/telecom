@@ -52,6 +52,13 @@ import {
   SiteStatus,
   EngineeringFolder,
   EngineeringFile,
+  MandatoryDocType,
+  ensureUserMandatoryDocuments,
+  evaluateUserOverallDocumentStatus,
+  TssrRow,
+  TssrSheetMeta,
+  EricssonRow,
+  EricssonSheetMeta,
   CONTROLE_GERAL_COLUMNS,
   CONTROLE_CANCELADOS_COLUMNS,
   EQUIPES_COLUMNS,
@@ -63,6 +70,11 @@ import { SiteDetailDrawer } from './components/SiteDetailDrawer';
 import { BulkPasteModal } from './components/BulkPasteModal';
 import { NewSiteModal } from './components/NewSiteModal';
 import { EngineeringVistoriasTab } from './components/EngineeringVistoriasTab';
+import { EngineeringControlTab } from './components/EngineeringControlTab';
+import { EricssonSitesTab } from './components/EricssonSitesTab';
+import { EricssonVistoriaTab } from './components/EricssonVistoriaTab';
+import { EricssonEngenhariaTab } from './components/EricssonEngenhariaTab';
+import { computeEricssonSiteCounters } from './utils/ericssonSpreadsheetUtils';
 import { AdminAccessPanel } from './components/AdminAccessPanel';
 import {
   InteractiveSpreadsheetChart,
@@ -99,6 +111,7 @@ type TableDensity = 'comfortable' | 'compact' | 'ultra';
 type WorkspaceTopTab =
   | 'sites'
   | 'engenharia'
+  | 'vistoria'
   | 'duplas'
   | 'perfis'
   | 'novo_site'
@@ -137,6 +150,19 @@ export default function App() {
   const [sheets, setSheets] = useState<SpreadsheetMeta[]>(INITIAL_SHEETS);
   const [engineeringFolders, setEngineeringFolders] = useState<EngineeringFolder[]>([]);
   const [engineeringFiles, setEngineeringFiles] = useState<EngineeringFile[]>([]);
+  const [tssrRows, setTssrRows] = useState<TssrRow[]>([]);
+  const [tssrSheets, setTssrSheets] = useState<TssrSheetMeta[]>([]);
+  const [vistoriaPreselectedSiteId, setVistoriaPreselectedSiteId] = useState<string | null>(null);
+  const [ericssonRows, setEricssonRows] = useState<EricssonRow[]>([]);
+  const [ericssonSheetMeta, setEricssonSheetMeta] = useState<EricssonSheetMeta | undefined>(
+    undefined
+  );
+  const [ericssonUsers, setEricssonUsers] = useState<AmetaUser[]>([]);
+  const [ericssonVistoriaFocus, setEricssonVistoriaFocus] = useState<{
+    folderId?: string;
+    fileId?: string;
+    fileName?: string;
+  } | null>(null);
   const [users, setUsers] = useState<AmetaUser[]>([]);
   const [activeVendor, setActiveVendor] = useState<VendorType>('NOKIA');
 
@@ -240,70 +266,137 @@ export default function App() {
     }, 4000);
   }, []);
 
-  // Connect to Real-Time SSE stream (/api/stream) + initial fetch
+  // Connect to Real-Time SSE stream (/api/stream) + auto-reconnect + fast real-time poll fallback
   useEffect(() => {
     let eventSource: EventSource | null = null;
+    let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+    let isUnmounted = false;
 
-    const fetchInitialState = async () => {
-      try {
-        const res = await fetch('/api/state');
-        if (res.ok) {
-          const data = await res.json();
-          if (Array.isArray(data.sites)) setSites(data.sites);
-          if (Array.isArray(data.sheets)) setSheets(data.sheets);
-          if (Array.isArray(data.engineeringFolders)) {
-            setEngineeringFolders(data.engineeringFolders);
+    const applyIncomingState = (payload: Record<string, unknown>, isStreamEvent = false) => {
+      if (Array.isArray(payload.sites)) {
+        setSites(payload.sites as TelecomSite[]);
+      }
+      if (Array.isArray(payload.sheets)) {
+        setSheets(payload.sheets as SpreadsheetMeta[]);
+      }
+      if (Array.isArray(payload.engineeringFolders)) {
+        setEngineeringFolders(payload.engineeringFolders as EngineeringFolder[]);
+      }
+      if (Array.isArray(payload.engineeringFiles)) {
+        setEngineeringFiles(payload.engineeringFiles as EngineeringFile[]);
+      }
+      if (Array.isArray(payload.tssrRows)) {
+        setTssrRows(payload.tssrRows as TssrRow[]);
+      }
+      if (Array.isArray(payload.tssrSheets)) {
+        setTssrSheets(payload.tssrSheets as TssrSheetMeta[]);
+      }
+      if (Array.isArray(payload.ericssonRows)) {
+        setEricssonRows(payload.ericssonRows as EricssonRow[]);
+      }
+      if (payload.ericssonSheetMeta) {
+        setEricssonSheetMeta(payload.ericssonSheetMeta as EricssonSheetMeta);
+      }
+      if (Array.isArray(payload.ericssonUsers)) {
+        setEricssonUsers(payload.ericssonUsers as AmetaUser[]);
+      }
+      if (Array.isArray(payload.users)) {
+        const nextUsers = payload.users as AmetaUser[];
+        setUsers(nextUsers);
+        setSimulatedTargetUser((prevSim) => {
+          if (!prevSim) return null;
+          return nextUsers.find((u) => u.id === prevSim.id) || prevSim;
+        });
+        setUser((prevUser) => {
+          if (!prevUser) return null;
+          const updatedSelf = nextUsers.find(
+            (u) =>
+              u.id === prevUser.id ||
+              u.email.toLowerCase() === prevUser.email.toLowerCase()
+          );
+          if (updatedSelf) {
+            try {
+              localStorage.setItem(STORAGE_USER_KEY, JSON.stringify(updatedSelf));
+            } catch {
+              // ignore storage errors
+            }
+            return updatedSelf;
           }
-          if (Array.isArray(data.engineeringFiles)) {
-            setEngineeringFiles(data.engineeringFiles);
-          }
-          if (Array.isArray(data.users)) {
-            setUsers(data.users);
-          }
-          if (data.lastUpdated) setLastSyncTime(data.lastUpdated);
-        }
-      } catch {
-        // Fallback to initial seed if offline
+          return prevUser;
+        });
+      }
+      if (typeof payload.lastUpdated === 'string') {
+        setLastSyncTime(payload.lastUpdated);
+      }
+      if (
+        isStreamEvent &&
+        typeof payload.summary === 'string' &&
+        payload.summary &&
+        payload.type !== 'FULL_STATE'
+      ) {
+        showToast(payload.summary);
       }
     };
 
-    fetchInitialState();
-
-    try {
-      eventSource = new EventSource('/api/stream');
-      eventSource.onmessage = (event) => {
-        try {
-          const payload = JSON.parse(event.data);
-          if (Array.isArray(payload.sites)) {
-            setSites(payload.sites);
-          }
-          if (Array.isArray(payload.sheets)) {
-            setSheets(payload.sheets);
-          }
-          if (Array.isArray(payload.engineeringFolders)) {
-            setEngineeringFolders(payload.engineeringFolders);
-          }
-          if (Array.isArray(payload.engineeringFiles)) {
-            setEngineeringFiles(payload.engineeringFiles);
-          }
-          if (Array.isArray(payload.users)) {
-            setUsers(payload.users);
-          }
-          if (payload.lastUpdated) {
-            setLastSyncTime(payload.lastUpdated);
-          }
-          if (payload.summary && payload.type !== 'FULL_STATE') {
-            showToast(payload.summary);
-          }
-        } catch {
-          // ignore malformed SSE packet
+    const fetchLatestState = async () => {
+      try {
+        const res = await fetch('/api/state', { cache: 'no-store' });
+        if (res.ok && !isUnmounted) {
+          const data = await res.json();
+          applyIncomingState(data, false);
         }
-      };
-    } catch {
-      // ignore SSE error
-    }
+      } catch {
+        // Fallback to current state if offline
+      }
+    };
+
+    const connectStream = () => {
+      if (isUnmounted) return;
+      try {
+        eventSource?.close();
+        eventSource = new EventSource('/api/stream');
+        eventSource.onmessage = (event) => {
+          try {
+            const payload = JSON.parse(event.data);
+            applyIncomingState(payload, true);
+          } catch {
+            // ignore malformed SSE packet
+          }
+        };
+        eventSource.onerror = () => {
+          eventSource?.close();
+          if (!isUnmounted) {
+            if (reconnectTimer) clearTimeout(reconnectTimer);
+            reconnectTimer = setTimeout(connectStream, 2000);
+          }
+        };
+      } catch {
+        if (!isUnmounted) {
+          if (reconnectTimer) clearTimeout(reconnectTimer);
+          reconnectTimer = setTimeout(connectStream, 2500);
+        }
+      }
+    };
+
+    fetchLatestState();
+    connectStream();
+
+    // Real-time background sync every 2.5s + immediate sync on tab focus/visibility so no change is ever missed
+    const pollInterval = setInterval(fetchLatestState, 2500);
+    const handleFocusOrVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        fetchLatestState();
+      }
+    };
+    window.addEventListener('focus', handleFocusOrVisibility);
+    document.addEventListener('visibilitychange', handleFocusOrVisibility);
 
     return () => {
+      isUnmounted = true;
+      if (reconnectTimer) clearTimeout(reconnectTimer);
+      clearInterval(pollInterval);
+      window.removeEventListener('focus', handleFocusOrVisibility);
+      document.removeEventListener('visibilitychange', handleFocusOrVisibility);
       eventSource?.close();
     };
   }, [showToast]);
@@ -389,6 +482,14 @@ export default function App() {
   const handleSwitchVendor = async (vendor: VendorType) => {
     setActiveVendor(vendor);
     setActiveSheetName(vendor === 'NOKIA' ? 'Controle Geral' : 'ALL');
+    if (
+      vendor === 'ERICSSON' &&
+      activeTopTab !== 'sites' &&
+      activeTopTab !== 'engenharia' &&
+      activeTopTab !== 'vistoria'
+    ) {
+      setActiveTopTab('sites');
+    }
     resetAllInternalFilters();
     if (user) {
       try {
@@ -402,6 +503,11 @@ export default function App() {
       }
     }
   };
+
+  const ericssonSiteCounters = useMemo(
+    () => computeEricssonSiteCounters(ericssonRows),
+    [ericssonRows]
+  );
 
   // Sync logged-in user's role if updated in the users list
   const realUserRole: UserRole = useMemo(() => {
@@ -449,16 +555,19 @@ export default function App() {
   // Unified list of Duplas / Equipes Executantes (editable by ADM, canonicalized so variations of Magno/Mateus/Gilvan/Oglio are unified)
   const equipesDuplas = useMemo<string[]>(() => {
     const set = new Set<string>();
-    DEFAULT_EQUIPES_DUPLAS.forEach((d) => {
-      const c = getCanonicalDuplaName(d) || d.trim();
-      if (c) set.add(c);
-    });
     customDuplas.forEach((d) => {
       const c = getCanonicalDuplaName(d) || d.trim();
       if (c) set.add(c);
     });
     assignableUsersList.forEach((u) => {
-      if (u.equipe && u.equipe.trim() && u.equipe !== 'Ameta Telecom') {
+      if (
+        u.equipe &&
+        u.equipe.trim() &&
+        u.equipe !== 'Ameta Telecom' &&
+        u.equipe !== 'Campo / Engenharia' &&
+        u.equipe !== 'Coordenação / ADM' &&
+        u.equipe !== 'Equipe de Teste'
+      ) {
         const c = getCanonicalDuplaName(u.equipe);
         if (c) set.add(c);
       }
@@ -524,22 +633,34 @@ export default function App() {
     showToast(`Dupla atualizada de "${oldName}" para "${clean}".`);
   };
 
-  const handleDeleteDupla = (targetName: string) => {
-    const next = customDuplas.filter((d) => d !== targetName);
+  const handleDeleteDupla = async (targetName: string) => {
+    const canonTarget = getCanonicalDuplaName(targetName) || targetName;
+    const next = customDuplas.filter((d) => {
+      const canonD = getCanonicalDuplaName(d) || d;
+      return d !== targetName && canonD.toLowerCase() !== canonTarget.toLowerCase();
+    });
     saveCustomDuplas(next);
-    showToast(`Dupla "${targetName}" removida da lista.`);
+    await handleBulkAssignSitesResponsible('', '', targetName);
+    showToast(`Dupla "${targetName}" removida e sites desvinculados.`);
   };
 
-  // Enforce tab access based on effectiveRole (RA function tabs are exclusive to ADM; Sites/Minha Demanda and Engenharia are available to all)
+  const [initialExpandedUserId, setInitialExpandedUserId] = useState<string | null>(null);
+
+  // Enforce tab access based on effectiveRole (RA function tabs are exclusive to ADM; Vistoriador cannot access Engenharia, only Sites and Vistoria)
   const isRaFunctionTab =
-    activeTopTab !== 'sites' && activeTopTab !== 'engenharia';
+    activeTopTab !== 'sites' &&
+    activeTopTab !== 'engenharia' &&
+    activeTopTab !== 'vistoria';
 
   const resolvedTopTab: WorkspaceTopTab = useMemo(() => {
     if (isRaFunctionTab && (!isRealAdmin || simulatedTargetUser)) {
       return 'sites';
     }
+    if (activeTopTab === 'engenharia' && effectiveRole === 'Vistoriador') {
+      return 'vistoria';
+    }
     return activeTopTab;
-  }, [isRealAdmin, simulatedTargetUser, activeTopTab, isRaFunctionTab]);
+  }, [isRealAdmin, simulatedTargetUser, activeTopTab, isRaFunctionTab, effectiveRole]);
 
   // Vendor-specific sheets and sites
   const vendorSheets = useMemo(
@@ -1189,7 +1310,8 @@ export default function App() {
   const handleBulkAssignSitesResponsible = async (
     rawInput: string,
     targetResponsible: string,
-    clearAllForResponsible?: string
+    clearAllForResponsible?: string,
+    unassignSiteTokens?: string[]
   ) => {
     const tokens = rawInput
       .split(/[\s,;|\n\r\t]+/)
@@ -1201,11 +1323,52 @@ export default function App() {
       return;
     }
 
+    // Immediate optimistic state update when clearing all sites for a Dupla / Responsible
+    if (clearAllForResponsible) {
+      const unassignSet = new Set(
+        (unassignSiteTokens || [])
+          .map((t) => String(t || '').trim().toUpperCase())
+          .filter(Boolean)
+      );
+      setSites((prev) =>
+        prev.map((s) => {
+          if (s.vendor !== activeVendor) return s;
+          if (s.sheetName === 'Equipes' || s.sheetName === 'Controle Cancelados') return s;
+          const matchesToken =
+            unassignSet.size > 0 &&
+            (unassignSet.has(s.id.toUpperCase()) ||
+              unassignSet.has(s.siteId.trim().toUpperCase()));
+          const matchesTarget =
+            doesSiteMatchEquipe(s, clearAllForResponsible) ||
+            doesSiteMatchResponsible(s, clearAllForResponsible);
+          if (!matchesToken && !matchesTarget) return s;
+          return {
+            ...s,
+            equipeParceira: '',
+            responsavelCampo: '',
+            customFields: {
+              ...(s.customFields || {}),
+              'EQUIPE EXECUTANTE': '',
+              Executor: '',
+              Responsável: '',
+              'E-MAIL DUPLA': '',
+              ...(s.customFields && 'EQUIPE' in s.customFields ? { EQUIPE: '' } : {}),
+              ...(s.customFields && 'TalonView Executor' in s.customFields
+                ? { 'TalonView Executor': '' }
+                : {}),
+              ...(s.customFields && 'EMAIL_DUPLA' in s.customFields ? { EMAIL_DUPLA: '' } : {}),
+            },
+          };
+        })
+      );
+    }
+
     const res = await fetch('/api/sites/assign-responsible', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         siteTokens: tokens,
+        unassignSiteTokens,
         responsibleName: targetResponsible,
         vendor: activeVendor,
         clearAllForResponsible,
@@ -1217,9 +1380,14 @@ export default function App() {
       if (Array.isArray(data.sites)) {
         setSites(data.sites);
       }
+      if (Array.isArray(data.users)) {
+        setUsers(data.users);
+      }
       setQuickAssignSitesInput('');
       if (clearAllForResponsible) {
-        showToast(`Demanda de sites de "${clearAllForResponsible}" foi limpa.`);
+        showToast(
+          `Demanda de "${clearAllForResponsible}" foi limpa (${data.updatedCount || 0} site(s) removido(s)).`
+        );
       } else {
         showToast(
           `${data.updatedCount || tokens.length} site(s) colocado(s) na demanda de "${targetResponsible}"!`
@@ -1249,6 +1417,7 @@ export default function App() {
       const data = await res.json();
       if (Array.isArray(data.sites)) setSites(data.sites);
       if (Array.isArray(data.sheets)) setSheets(data.sheets);
+      if (Array.isArray(data.users)) setUsers(data.users);
       setActiveVendor(params.vendor);
       setActiveSheetName(params.sheetName);
       showToast(
@@ -1300,20 +1469,6 @@ export default function App() {
       // non-blocking
     }
   };
-
-  // Minimalist AuthGate when not logged in
-  if (!user || !user.emailVerified) {
-    return <AuthGate onAuthenticated={handleAuthenticated} />;
-  }
-
-  const userInitials = user.name
-    ? user.name
-        .split(' ')
-        .map((n) => n[0])
-        .slice(0, 2)
-        .join('')
-        .toUpperCase()
-    : 'AM';
 
   const renderStatusText = (status: SiteStatus, showHoverChevron = false) => {
     const s = String(status || '').toLowerCase();
@@ -2286,9 +2441,28 @@ export default function App() {
   );
 
   const vendorEngineeringFilesCount = useMemo(() => {
-    const allVendor = engineeringFiles.filter((f) => f.vendor === activeVendor);
+    const allFolders = engineeringFolders.filter((fd) => fd.vendor === activeVendor);
+    // Exclude TSSR Entrada and TSSR project folders from Vistoria folder count
+    const blockedFolderIds = new Set(
+      allFolders
+        .filter((fd) => fd.name === 'TSSR Entrada' || fd.name === 'TSSR')
+        .map((fd) => fd.id)
+    );
+    let added = true;
+    while (added) {
+      added = false;
+      for (const fd of allFolders) {
+        if (fd.parentId && blockedFolderIds.has(fd.parentId) && !blockedFolderIds.has(fd.id)) {
+          blockedFolderIds.add(fd.id);
+          added = true;
+        }
+      }
+    }
+
+    const allVendor = engineeringFiles.filter(
+      (f) => f.vendor === activeVendor && !blockedFolderIds.has(f.folderId)
+    );
     if (effectiveRole !== 'ADM' && activeTargetUser) {
-      const allFolders = engineeringFolders.filter((fd) => fd.vendor === activeVendor);
       return allVendor.filter((fl) => {
         const folder = allFolders.find((fd) => fd.id === fl.folderId);
         return doesDocumentMatchResponsible(fl, folder, activeTargetUser);
@@ -2297,14 +2471,31 @@ export default function App() {
     return allVendor.length;
   }, [engineeringFiles, engineeringFolders, activeVendor, effectiveRole, activeTargetUser]);
 
+  // Minimalist AuthGate when not logged in (must be after all React hooks)
+  if (!user || !user.emailVerified) {
+    return <AuthGate onAuthenticated={handleAuthenticated} />;
+  }
+
+  const userInitials = user.name
+    ? user.name
+        .split(' ')
+        .map((n) => n[0])
+        .slice(0, 2)
+        .join('')
+        .toUpperCase()
+    : 'AM';
+
   return (
-    <div className="min-h-screen bg-[#F3F4F6] text-slate-900 flex flex-col">
+    <div className="min-h-screen bg-[#F0F3FB] text-slate-900 flex flex-col">
+      {/* Top Official Brand Accent Bar (Ameta Navy #223585 -> Ameta Teal #1E8E8D) */}
+      <div className="h-1 w-full bg-gradient-to-r from-[#223585] via-[#206289] to-[#1E8E8D] shrink-0" />
+
       {/* =====================================================================
           1. HIERARQUIA VISUAL E LIMPEZA DO CABEÇALHO (HEADER SEM SOBREPOSIÇÃO)
           - Navegação enxuta à esquerda (Logo + Vendor + Sites / Engenharia)
           - Barra de Ações Secundária agrupada à direita + Menu completo no RA
          ===================================================================== */}
-      <header className="sticky top-0 z-30 bg-white border-b border-slate-200 px-4 sm:px-5 py-2.5 flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+      <header className="sticky top-0 z-30 bg-white border-b border-slate-200 px-4 sm:px-5 py-2.5 flex flex-wrap items-center justify-between gap-x-3 gap-y-2 shadow-2xs">
         {/* Left: Ameta Logo + Vendor Switcher + Main Navigation Tabs + Active RA Function Tab */}
         <div className="flex flex-wrap items-center gap-2.5 sm:gap-3.5 shrink-0">
           <button
@@ -2315,15 +2506,15 @@ export default function App() {
             <AmetaLogo size="sm" theme="light" />
           </button>
 
-          {/* Vendor Pill Switcher (Neutral Gray) */}
-          <div className="flex items-center p-0.5 bg-[#F3F4F6] border border-slate-200 rounded-lg shrink-0">
+          {/* Vendor Pill Switcher (Ameta Navy & Teal) */}
+          <div className="flex items-center p-0.5 bg-[#F0F3FB] border border-blue-200/70 rounded-lg shrink-0">
             <button
               type="button"
               onClick={() => handleSwitchVendor('NOKIA')}
               className={`px-2.5 py-1 text-[11px] font-bold rounded-md transition-colors cursor-pointer ${
                 activeVendor === 'NOKIA'
-                  ? 'bg-white text-slate-900 shadow-2xs border border-slate-200/80'
-                  : 'text-slate-500 hover:text-slate-800'
+                  ? 'bg-[#223585] text-white shadow-2xs'
+                  : 'text-slate-600 hover:text-[#223585]'
               }`}
             >
               NOKIA
@@ -2333,8 +2524,8 @@ export default function App() {
               onClick={() => handleSwitchVendor('ERICSSON')}
               className={`px-2.5 py-1 text-[11px] font-bold rounded-md transition-colors cursor-pointer ${
                 activeVendor === 'ERICSSON'
-                  ? 'bg-white text-slate-900 shadow-2xs border border-slate-200/80'
-                  : 'text-slate-500 hover:text-slate-800'
+                  ? 'bg-[#1E8E8D] text-white shadow-2xs'
+                  : 'text-slate-600 hover:text-[#1E8E8D]'
               }`}
             >
               ERICSSON
@@ -2348,40 +2539,77 @@ export default function App() {
               onClick={() => setActiveTopTab('sites')}
               className={`px-2.5 sm:px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${
                 resolvedTopTab === 'sites'
-                  ? 'bg-[#F3F4F6] text-slate-900 font-semibold border border-slate-200/80'
-                  : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'
+                  ? 'bg-[#223585]/10 text-[#223585] font-bold border border-[#223585]/25'
+                  : 'text-slate-600 hover:text-[#223585] hover:bg-slate-50'
               }`}
             >
-              <FolderKanban className="w-3.5 h-3.5 text-slate-600 shrink-0" />
-              <span>{effectiveRole === 'ADM' ? 'Sites' : 'Minha Demanda'}</span>
-              <span className="font-mono text-[11px] text-slate-400 tabular-nums">
-                ({filteredControleGeralSites.length})
+              <FolderKanban className="w-3.5 h-3.5 text-[#223585] shrink-0" />
+              <span>
+                {activeVendor === 'ERICSSON'
+                  ? 'Sites'
+                  : effectiveRole === 'ADM'
+                  ? 'Sites'
+                  : 'Minha Demanda'}
               </span>
-              {countNovos > 0 && (
+              <span className="font-mono text-[11px] text-slate-500 tabular-nums">
+                (
+                {activeVendor === 'ERICSSON'
+                  ? ericssonSiteCounters.totalSites
+                  : filteredControleGeralSites.length}
+                )
+              </span>
+              {activeVendor === 'NOKIA' && countNovos > 0 && (
                 <span className="px-1.5 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-bold rounded-full tabular-nums">
                   +{countNovos}
                 </span>
               )}
             </button>
 
+            {effectiveRole !== 'Vistoriador' && (
+              <button
+                type="button"
+                onClick={() => setActiveTopTab('engenharia')}
+                className={`px-2.5 sm:px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${
+                  resolvedTopTab === 'engenharia'
+                    ? 'bg-[#1E8E8D]/10 text-[#1E8E8D] font-bold border border-[#1E8E8D]/30'
+                    : 'text-slate-600 hover:text-[#1E8E8D] hover:bg-slate-50'
+                }`}
+              >
+                <FileSpreadsheet className="w-3.5 h-3.5 text-[#1E8E8D] shrink-0" />
+                <span>Engenharia</span>
+                {activeVendor === 'NOKIA' && (
+                  <span className="font-mono text-[11px] text-slate-500 tabular-nums">
+                    ({tssrRows.length})
+                  </span>
+                )}
+              </button>
+            )}
+
             <button
               type="button"
-              onClick={() => setActiveTopTab('engenharia')}
+              onClick={() => setActiveTopTab('vistoria')}
               className={`px-2.5 sm:px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${
-                resolvedTopTab === 'engenharia'
-                  ? 'bg-[#F3F4F6] text-slate-900 font-semibold border border-slate-200/80'
-                  : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'
+                resolvedTopTab === 'vistoria'
+                  ? 'bg-blue-600/10 text-blue-700 font-bold border border-blue-600/30'
+                  : 'text-slate-600 hover:text-blue-700 hover:bg-slate-50'
               }`}
             >
-              <FolderOpen className="w-3.5 h-3.5 text-slate-600 shrink-0" />
-              <span>{effectiveRole === 'Vistoriador' ? 'Vistorias' : 'Engenharia'}</span>
-              <span className="font-mono text-[11px] text-slate-400 tabular-nums">
-                ({vendorEngineeringFilesCount})
+              <FolderOpen className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+              <span>Vistoria</span>
+              <span className="font-mono text-[11px] text-slate-500 tabular-nums">
+                (
+                {activeVendor === 'ERICSSON'
+                  ? ericssonSiteCounters.vistoriaEntregueSites
+                  : vendorEngineeringFilesCount}
+                )
               </span>
             </button>
 
             {/* Active Tab Indicator when an RA function tab is opened */}
-            {isRealAdmin && resolvedTopTab !== 'sites' && resolvedTopTab !== 'engenharia' && (
+            {isRealAdmin &&
+              resolvedTopTab !== 'sites' &&
+              resolvedTopTab !== 'engenharia' &&
+              resolvedTopTab !== 'vistoria' && (
               <div className="flex items-center gap-1 pl-1 ml-1 border-l border-slate-200">
                 <span className="px-2.5 py-1.5 rounded-lg bg-slate-900 text-white font-semibold flex items-center gap-2 text-xs shadow-2xs">
                   <span>
@@ -2652,16 +2880,29 @@ export default function App() {
             >
               Sites ({rawControleGeralPool.length})
             </button>
+            {effectiveRole !== 'Vistoriador' && (
+              <button
+                type="button"
+                onClick={() => setActiveTopTab('engenharia')}
+                className={`px-2.5 py-1 rounded text-[11px] font-semibold cursor-pointer ${
+                  resolvedTopTab === 'engenharia'
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-slate-800 hover:bg-slate-700 text-slate-200'
+                }`}
+              >
+                Engenharia ({tssrRows.length})
+              </button>
+            )}
             <button
               type="button"
-              onClick={() => setActiveTopTab('engenharia')}
+              onClick={() => setActiveTopTab('vistoria')}
               className={`px-2.5 py-1 rounded text-[11px] font-semibold cursor-pointer ${
-                resolvedTopTab === 'engenharia'
+                resolvedTopTab === 'vistoria'
                   ? 'bg-blue-600 text-white'
                   : 'bg-slate-800 hover:bg-slate-700 text-slate-200'
               }`}
             >
-              Documentos ({vendorEngineeringFilesCount})
+              Pasta Vistoria ({vendorEngineeringFilesCount})
             </button>
             <button
               type="button"
@@ -2685,15 +2926,96 @@ export default function App() {
       {/* =====================================================================
           MAIN WORKSPACE CONTENT
          ===================================================================== */}
-      <main className="flex-1 max-w-[1800px] w-full mx-auto px-6 py-5 space-y-3">
+      <main
+        className={`flex-1 w-full mx-auto px-6 py-5 space-y-3 ${
+          resolvedTopTab === 'engenharia' ? 'max-w-full' : 'max-w-[1800px]'
+        }`}
+      >
+        {/* ===================================================================
+            SISTEMA INDEPENDENTE DA ERICSSON (SITES, ENGENHARIA, VISTORIA)
+           =================================================================== */}
+        {activeVendor === 'ERICSSON' && (
+          <>
+            {(resolvedTopTab === 'sites' ||
+              (resolvedTopTab !== 'engenharia' && resolvedTopTab !== 'vistoria')) && (
+              <EricssonSitesTab
+                user={user}
+                effectiveRole={effectiveRole}
+                rows={ericssonRows}
+                sheetMeta={ericssonSheetMeta || null}
+                ericssonUsers={ericssonUsers}
+                onUpdated={(nextRows, nextMeta, toastMsg, nextFiles) => {
+                  setEricssonRows(nextRows);
+                  if (nextMeta) setEricssonSheetMeta(nextMeta);
+                  if (Array.isArray(nextFiles)) setEngineeringFiles(nextFiles);
+                  if (toastMsg) showToast(toastMsg);
+                }}
+                onEricssonUsersUpdated={(nextUsers, toastMsg) => {
+                  setEricssonUsers(nextUsers);
+                  if (toastMsg) showToast(toastMsg);
+                }}
+                onOpenFileInVistoriaFolder={(folderId, fileId, fileName) => {
+                  setEricssonVistoriaFocus({ folderId, fileId, fileName });
+                  setActiveTopTab('vistoria');
+                }}
+              />
+            )}
+
+            {resolvedTopTab === 'engenharia' && effectiveRole !== 'Vistoriador' && (
+              <EricssonEngenhariaTab
+                user={user}
+                effectiveRole={effectiveRole}
+                rows={ericssonRows}
+                sheetMeta={ericssonSheetMeta || null}
+                onUpdated={(nextRows, nextMeta, toastMsg, nextFiles) => {
+                  setEricssonRows(nextRows);
+                  if (nextMeta) setEricssonSheetMeta(nextMeta);
+                  if (Array.isArray(nextFiles)) setEngineeringFiles(nextFiles);
+                  if (toastMsg) showToast(toastMsg);
+                }}
+                onOpenFileInVistoriaFolder={(folderId, fileId, fileName) => {
+                  setEricssonVistoriaFocus({ folderId, fileId, fileName });
+                  setActiveTopTab('vistoria');
+                }}
+              />
+            )}
+
+            {resolvedTopTab === 'vistoria' && (
+              <EricssonVistoriaTab
+                user={user}
+                effectiveRole={effectiveRole}
+                rows={ericssonRows}
+                sheetMeta={ericssonSheetMeta || null}
+                folders={engineeringFolders}
+                files={engineeringFiles}
+                focusedFolderId={ericssonVistoriaFocus?.folderId || null}
+                focusedFileId={ericssonVistoriaFocus?.fileId || null}
+                focusedFileName={ericssonVistoriaFocus?.fileName || null}
+                onClearFocus={() => setEricssonVistoriaFocus(null)}
+                onUpdated={(nextRows, nextMeta, toastMsg, nextFolders, nextFiles) => {
+                  setEricssonRows(nextRows);
+                  if (nextMeta) setEricssonSheetMeta(nextMeta);
+                  if (Array.isArray(nextFolders)) setEngineeringFolders(nextFolders);
+                  if (Array.isArray(nextFiles)) setEngineeringFiles(nextFiles);
+                  if (toastMsg) showToast(toastMsg);
+                }}
+                onOpenSitesTab={
+                  effectiveRole !== 'Vistoriador' ? () => setActiveTopTab('sites') : undefined
+                }
+              />
+            )}
+          </>
+        )}
+
         {/* -------------------------------------------------------------------
-            TAB 1: SITES — GRÁFICO INTERATIVO ENTRE MENU E PLANILHA + PASTA CONTROLE GERAL
+            SISTEMA DA NOKIA (INALTERADO) — TAB 1: SITES
            ------------------------------------------------------------------- */}
-        {resolvedTopTab === 'sites' && (
+        {activeVendor === 'NOKIA' && resolvedTopTab === 'sites' && (
           <>
             {effectiveRole === 'ADM' && (
               <InteractiveSpreadsheetChart
                 sites={rawControleGeralPool}
+                users={users}
                 activeVendor={activeVendor}
                 activeChartFilter={chartQuickFilter}
                 onSelectChartFilter={(f) => setChartQuickFilter(f)}
@@ -2704,6 +3026,63 @@ export default function App() {
                 activeUfFilter={ufFilter}
                 onSelectUfFilter={(uf) => setUfFilter(uf)}
                 onOpenSite={(siteId) => setSelectedSiteId(siteId)}
+                onOpenCollaboratorDocs={(targetUserId) => {
+                  setInitialExpandedUserId(targetUserId);
+                  setActiveTopTab('perfis');
+                }}
+                onRemoveExpiredDoc={async (targetUserId, docType, docLabel, targetUserName) => {
+                  // Immediate optimistic update
+                  setUsers((prev) =>
+                    prev.map((u) => {
+                      if (u.id !== targetUserId) return u;
+                      const nextDocs = ensureUserMandatoryDocuments(u.documents).map((d) =>
+                        d.type === docType
+                          ? {
+                              ...d,
+                              fileName: '',
+                              fileSize: 0,
+                              uploadedAt: '',
+                              uploadedBy: '',
+                              storageFileName: '',
+                              expiresAt: '',
+                              statusOverride: undefined,
+                              notes: '',
+                            }
+                          : d
+                      );
+                      const nextUser: AmetaUser = { ...u, documents: nextDocs };
+                      nextUser.statusRecurso =
+                        evaluateUserOverallDocumentStatus(nextUser).overallStatus;
+                      return nextUser;
+                    })
+                  );
+                  showToast(`Documento ${docLabel} (${targetUserName}) removido em tempo real`);
+
+                  try {
+                    const res = await fetch(
+                      `/api/admin/users/${encodeURIComponent(targetUserId)}/documents`,
+                      {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                          docType,
+                          clearFile: true,
+                          expiresAt: '',
+                          statusOverride: '',
+                          uploadedBy: user?.name || 'ADM',
+                        }),
+                      }
+                    );
+                    if (res.ok) {
+                      const data = await res.json();
+                      if (Array.isArray(data.users)) {
+                        setUsers(data.users);
+                      }
+                    }
+                  } catch {
+                    // ignore network error
+                  }
+                }}
               />
             )}
 
@@ -3071,14 +3450,20 @@ export default function App() {
                                 >
                                   <option value="TODOS_GERAL">Todos Controle Geral ({rawControleGeralPool.length})</option>
                                   <option value="NOVOS">Sites Novos ({countNovos})</option>
-                                  <option value="ENGENHARIA">Engenharia ({countEngenharia})</option>
+                                  {effectiveRole !== 'Vistoriador' && (
+                                    <option value="ENGENHARIA">Engenharia ({countEngenharia})</option>
+                                  )}
                                   <option value="ABONO">Abono ({countAbono})</option>
                                   <option value="CANCELADOS">Cancelados ({rawCanceladosPool.length})</option>
                                   <option value="SEM_CHAVES_ACESSO">Sem Chaves / Sem Acesso ({countSemChaves})</option>
                                   <option value="FINALIZADAS">Vistorias Finalizadas ({countFinalizadas})</option>
                                   <option value="LIDERANCA_5G_ANF">Liderança 5G / ANF ({countLideranca5G})</option>
-                                  <option value="FINANCEIRO">Financeiro / SPO / NF ({countFinanceiro})</option>
-                                  <option value="EQUIPES">Equipes ({rawEquipesPool.length})</option>
+                                  {effectiveRole !== 'Vistoriador' && (
+                                    <>
+                                      <option value="FINANCEIRO">Financeiro / SPO / NF ({countFinanceiro})</option>
+                                      <option value="EQUIPES">Equipes ({rawEquipesPool.length})</option>
+                                    </>
+                                  )}
                                 </select>
                               </div>
 
@@ -3702,9 +4087,49 @@ export default function App() {
           })()}
 
         {/* -------------------------------------------------------------------
-            TAB 2: ENGENHARIA / VISTORIAS (ADM & EXECUTOR: PASTA ENGENHARIA COMPLETA; VISTORIADOR: APENAS VISTORIAS)
+            TAB 2: ENGENHARIA — PLANILHA CONTROLE DE ENGENHARIA (ABA TSSR TIM NOKIA)
+            (Exclusivo para ADM e Executor — Vistoriador NÃO tem acesso à pasta de Engenharia)
            ------------------------------------------------------------------- */}
-        {resolvedTopTab === 'engenharia' && (
+        {activeVendor === 'NOKIA' &&
+          resolvedTopTab === 'engenharia' &&
+          effectiveRole !== 'Vistoriador' && (
+          <EngineeringControlTab
+            user={user}
+            effectiveRole={effectiveRole}
+            simulatedTargetUser={simulatedTargetUser}
+            onToggleSimulateUser={(target) => setSimulatedTargetUser(target)}
+            users={users}
+            activeVendor={activeVendor}
+            onSwitchVendor={handleSwitchVendor}
+            folders={engineeringFolders}
+            files={engineeringFiles}
+            sites={vendorSites}
+            onFoldersAndFilesUpdated={(nextFolders, nextFiles, toastMsg, nextTssrRows, nextTssrSheets) => {
+              setEngineeringFolders(nextFolders);
+              setEngineeringFiles(nextFiles);
+              if (Array.isArray(nextTssrRows)) setTssrRows(nextTssrRows);
+              if (Array.isArray(nextTssrSheets)) setTssrSheets(nextTssrSheets);
+              if (toastMsg) showToast(toastMsg);
+            }}
+            onSelectSiteId={(id) => setSelectedSiteId(id)}
+            tssrRows={tssrRows}
+            tssrSheets={tssrSheets}
+            onTssrUpdated={(nextRows, nextSheets, toastMsg) => {
+              setTssrRows(nextRows);
+              if (Array.isArray(nextSheets)) setTssrSheets(nextSheets);
+              if (toastMsg) showToast(toastMsg);
+            }}
+            onNavigateToVistoria={(siteId) => {
+              if (siteId) setVistoriaPreselectedSiteId(siteId);
+              setActiveTopTab('vistoria');
+            }}
+          />
+        )}
+
+        {/* -------------------------------------------------------------------
+            TAB 3: VISTORIA (ITEM SEPARADO NA BARRA SUPERIOR — ENVIO COM VÍNCULO AO SITE TSSR)
+           ------------------------------------------------------------------- */}
+        {activeVendor === 'NOKIA' && resolvedTopTab === 'vistoria' && (
           <EngineeringVistoriasTab
             user={user}
             effectiveRole={effectiveRole}
@@ -3715,21 +4140,31 @@ export default function App() {
             folders={engineeringFolders}
             files={engineeringFiles}
             sites={vendorSites}
-            onFoldersAndFilesUpdated={(nextFolders, nextFiles, toastMsg) => {
+            tssrRows={tssrRows}
+            preselectedSiteId={vistoriaPreselectedSiteId}
+            onClearPreselectedSiteId={() => setVistoriaPreselectedSiteId(null)}
+            onFoldersAndFilesUpdated={(nextFolders, nextFiles, toastMsg, nextTssrRows, nextTssrSheets) => {
               setEngineeringFolders(nextFolders);
               setEngineeringFiles(nextFiles);
+              if (Array.isArray(nextTssrRows)) setTssrRows(nextTssrRows);
+              if (Array.isArray(nextTssrSheets)) setTssrSheets(nextTssrSheets);
               if (toastMsg) showToast(toastMsg);
             }}
             onSelectSiteId={(id) => setSelectedSiteId(id)}
+            onOpenTssrTab={
+              effectiveRole !== 'Vistoriador' ? () => setActiveTopTab('engenharia') : undefined
+            }
           />
         )}
 
         {/* -------------------------------------------------------------------
             ABAS INDIVIDUAIS DO MENU RA (CADA FUNÇÃO SOLICITADA ABRE EM SUA PRÓPRIA ABA)
            ------------------------------------------------------------------- */}
-        {isRealAdmin &&
+        {activeVendor === 'NOKIA' &&
+          isRealAdmin &&
           resolvedTopTab !== 'sites' &&
-          resolvedTopTab !== 'engenharia' && (
+          resolvedTopTab !== 'engenharia' &&
+          resolvedTopTab !== 'vistoria' && (
             <div className="space-y-4">
               {/* Compact Tab Bar for the Opened RA Function */}
               <div className="bg-white border border-slate-200 rounded-xl px-4 py-2.5 flex flex-wrap items-center justify-between gap-2 shadow-2xs">
@@ -3843,6 +4278,32 @@ export default function App() {
                     }
                   }}
                   onUnassignSitesFromDupla={async (siteIds, duplaName) => {
+                    const tokenSet = new Set(
+                      siteIds.map((t) => String(t || '').trim().toUpperCase()).filter(Boolean)
+                    );
+                    setSites((prev) =>
+                      prev.map((s) => {
+                        if (s.vendor !== activeVendor) return s;
+                        if (
+                          !tokenSet.has(s.id.toUpperCase()) &&
+                          !tokenSet.has(s.siteId.trim().toUpperCase())
+                        ) {
+                          return s;
+                        }
+                        return {
+                          ...s,
+                          equipeParceira: '',
+                          responsavelCampo: '',
+                          customFields: {
+                            ...(s.customFields || {}),
+                            'EQUIPE EXECUTANTE': '',
+                            Executor: '',
+                            Responsável: '',
+                            'E-MAIL DUPLA': '',
+                          },
+                        };
+                      })
+                    );
                     const res = await fetch('/api/sites/assign-responsible', {
                       method: 'POST',
                       headers: { 'Content-Type': 'application/json' },
@@ -3857,8 +4318,8 @@ export default function App() {
                       showToast(`Site removido da demanda de "${duplaName}".`);
                     }
                   }}
-                  onClearDuplaSites={async (duplaName) => {
-                    await handleBulkAssignSitesResponsible('', '', duplaName);
+                  onClearDuplaSites={async (duplaName, siteIdsToClear) => {
+                    await handleBulkAssignSitesResponsible('', '', duplaName, siteIdsToClear);
                   }}
                   onLinkEmailsToDupla={async (duplaName, emails) => {
                     try {
@@ -3896,6 +4357,7 @@ export default function App() {
                 <AdminAccessPanel
                   currentUser={user}
                   users={users}
+                  initialExpandedUserId={initialExpandedUserId}
                   onTestUserView={(targetUser) => {
                     setSimulatedTargetUser(targetUser);
                     setActiveTopTab('sites');
