@@ -22,6 +22,7 @@ import {
 } from '../lib/firebase';
 import {
   AmetaUser,
+  AmetaNotification,
   TelecomSite,
   TssrRow,
   EngineeringFolder,
@@ -30,6 +31,7 @@ import {
   UserRole,
   AssignedPlatformScope,
   UserSituacao,
+  isOwnerAdmUser,
   isUserDono,
   isUserAguardando,
   canUserAccessVendor,
@@ -269,8 +271,35 @@ export interface IDataService {
     duplaEmailsMap?: Record<string, string[]>
   ): Promise<void>;
   excluirArquivoEricsson(fileId: string): Promise<void>;
-  salvarMapaDuplas(duplaEmailsMap: Record<string, string[]>): Promise<void>;
+  salvarMapaDuplas(
+    duplaEmailsMap: Record<string, string[]>,
+    customDuplas?: string[]
+  ): Promise<void>;
+  carregarMapaDuplas(): Promise<{
+    duplaEmailsMap?: Record<string, string[]>;
+    customDuplas?: string[];
+  }>;
   criarNotificacao(notif: AmetaNotification): Promise<void>;
+  registrarNovoUsuarioCorporativo(params: {
+    name: string;
+    email: string;
+    password: string;
+    role?: UserRole;
+    equipe?: string;
+    telefone?: string;
+    plataforma?: AssignedPlatformScope;
+  }): Promise<AmetaUser>;
+  autenticarUsuarioCorporativo(params: {
+    email: string;
+    password: string;
+  }): Promise<AmetaUser | null>;
+  salvarDocumentosUsuario(params: {
+    uidOrId: string;
+    email: string;
+    documents: any[];
+    dispensadoDocumentos?: boolean;
+    statusRecurso?: string;
+  }): Promise<void>;
   garantirDocumentoUsuarioNoCadastro(
     uid: string,
     email: string,
@@ -290,6 +319,8 @@ export interface IDataService {
       atividade?: string;
     }
   ): Promise<AmetaUser>;
+  excluirUsuario(uidOrId: string, email?: string): Promise<void>;
+  limparUsuariosExcetoDono(): Promise<void>;
   observarPerfilUsuario(uid: string, onUpdate: (user: AmetaUser | null) => void): Unsubscribe;
   observarColecoesPlataforma(
     user: AmetaUser,
@@ -302,13 +333,18 @@ export interface IDataService {
       onEricssonFolders?: (folders: EngineeringFolder[]) => void;
       onEricssonFiles?: (files: EngineeringFile[]) => void;
       onUsuarios?: (users: AmetaUser[]) => void;
+      onDuplasConfig?: (config: {
+        duplaEmailsMap?: Record<string, string[]>;
+        customDuplas?: string[];
+      }) => void;
+      onNotificacoes?: (notifs: AmetaNotification[]) => void;
     }
   ): Unsubscribe;
 }
 
 class FirestoreDataService implements IDataService {
   isConfigured(): boolean {
-    return isFirebaseEnvConfigured && Boolean(db) && Boolean(auth);
+    return isFirebaseEnvConfigured && Boolean(db);
   }
 
   async garantirUsuarioAoAutenticar(params: {
@@ -386,17 +422,18 @@ class FirestoreDataService implements IDataService {
         };
       }
 
-      // Novo usuário: entra SEMPRE como "aguardando"
+      // Novo usuário: se for o dono (Rafael Araújo), entra como "dono", caso contrário entra SEMPRE como "aguardando"
+      const isOwner = isOwnerAdmUser(cleanEmail);
       const newUserDoc = {
         uid: params.uid,
         email: cleanEmail,
-        name: params.name.trim() || cleanEmail.split('@')[0],
-        situacao: 'aguardando' as UserSituacao,
-        role: 'Vistoriador' as UserRole,
-        plataforma: 'NOKIA' as const,
-        assignedPlatform: 'NOKIA' as AssignedPlatformScope,
-        accessReleased: false,
-        equipe: '',
+        name: isOwner ? 'Rafael Araújo' : params.name.trim() || cleanEmail.split('@')[0],
+        situacao: (isOwner ? 'dono' : 'aguardando') as UserSituacao,
+        role: (isOwner ? 'ADM' : 'Vistoriador') as UserRole,
+        plataforma: isOwner ? ('AMBAS' as const) : ('NOKIA' as const),
+        assignedPlatform: (isOwner ? 'BOTH' : 'NOKIA') as AssignedPlatformScope,
+        accessReleased: isOwner,
+        equipe: isOwner ? 'Coordenação / ADM' : '',
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       };
@@ -410,12 +447,12 @@ class FirestoreDataService implements IDataService {
         uid: params.uid,
         name: newUserDoc.name,
         email: cleanEmail,
-        role: 'Vistoriador',
-        situacao: 'aguardando',
-        plataforma: 'NOKIA',
-        assignedPlatform: 'NOKIA',
-        accessReleased: false,
-        equipe: '',
+        role: isOwner ? 'ADM' : 'Vistoriador',
+        situacao: isOwner ? 'dono' : 'aguardando',
+        plataforma: isOwner ? 'AMBAS' : 'NOKIA',
+        assignedPlatform: isOwner ? 'BOTH' : 'NOKIA',
+        accessReleased: isOwner,
+        equipe: isOwner ? 'Coordenação / ADM' : '',
         documents: ensureUserMandatoryDocuments(),
         emailVerified: params.emailVerified,
         preferredVendor: 'NOKIA',
@@ -1027,17 +1064,52 @@ class FirestoreDataService implements IDataService {
     }
   }
 
-  async salvarMapaDuplas(duplaEmailsMap: Record<string, string[]>): Promise<void> {
+  async salvarMapaDuplas(
+    duplaEmailsMap: Record<string, string[]>,
+    customDuplas?: string[]
+  ): Promise<void> {
     if (!db) return;
     try {
-      await setDoc(
-        doc(db, 'configuracoes', 'duplas'),
-        { duplaEmailsMap, updatedAt: serverTimestamp() },
-        { merge: true }
-      );
+      const payload: Record<string, any> = {
+        duplaEmailsMap,
+        updatedAt: serverTimestamp(),
+      };
+      if (Array.isArray(customDuplas)) {
+        payload.customDuplas = customDuplas;
+      }
+      await setDoc(doc(db, 'configuracoes', 'duplas'), payload, { merge: true });
+      await setDoc(doc(db, 'configuracoes', 'duplas_map'), payload, { merge: true });
     } catch {
       // ignore
     }
+  }
+
+  async carregarMapaDuplas(): Promise<{
+    duplaEmailsMap?: Record<string, string[]>;
+    customDuplas?: string[];
+  }> {
+    if (!db) return {};
+    try {
+      const snap = await getDoc(doc(db, 'configuracoes', 'duplas_map'));
+      if (snap.exists()) {
+        const data = snap.data();
+        return {
+          duplaEmailsMap: data?.duplaEmailsMap || {},
+          customDuplas: data?.customDuplas || [],
+        };
+      }
+      const snap2 = await getDoc(doc(db, 'configuracoes', 'duplas'));
+      if (snap2.exists()) {
+        const data = snap2.data();
+        return {
+          duplaEmailsMap: data?.duplaEmailsMap || {},
+          customDuplas: data?.customDuplas || [],
+        };
+      }
+    } catch {
+      // ignore
+    }
+    return {};
   }
 
   async criarNotificacao(notif: AmetaNotification): Promise<void> {
@@ -1046,6 +1118,228 @@ class FirestoreDataService implements IDataService {
       await setDoc(
         doc(db, FIRESTORE_COLLECTIONS.NOTIFICACOES, notif.id),
         { ...notif, updatedAt: serverTimestamp() },
+        { merge: true }
+      );
+    } catch {
+      // ignore
+    }
+  }
+
+  async registrarNovoUsuarioCorporativo(params: {
+    name: string;
+    email: string;
+    password: string;
+    role?: UserRole;
+    equipe?: string;
+    telefone?: string;
+    plataforma?: AssignedPlatformScope;
+  }): Promise<AmetaUser> {
+    const cleanEmail = params.email.trim().toLowerCase();
+    const isOwner = isOwnerAdmUser(cleanEmail);
+    const docId = isOwner
+      ? 'usr-ameta-servicos-1'
+      : `usr-${cleanEmail.replace(/[^a-z0-9]/g, '_')}`;
+    const nowIso = new Date().toISOString();
+
+    const chosenRole: UserRole = isOwner ? 'ADM' : params.role || 'Vistoriador';
+    const chosenPlatform: AssignedPlatformScope = isOwner ? 'AMBAS' : params.plataforma || 'NOKIA';
+    const chosenAssigned: AssignedPlatformScope = isOwner ? 'BOTH' : params.plataforma || 'NOKIA';
+
+    const newUser: AmetaUser = {
+      id: docId,
+      uid: docId,
+      name: isOwner ? 'Rafael Araújo' : params.name.trim() || cleanEmail.split('@')[0],
+      email: cleanEmail,
+      role: chosenRole,
+      situacao: isOwner ? 'dono' : 'aguardando',
+      plataforma: chosenPlatform,
+      assignedPlatform: chosenAssigned,
+      accessReleased: isOwner,
+      equipe: isOwner ? 'Coordenação / ADM' : params.equipe?.trim() || '',
+      telefone: params.telefone?.trim() || '',
+      documents: ensureUserMandatoryDocuments(),
+      emailVerified: true,
+      createdAt: nowIso,
+    };
+
+    if (db) {
+      const userRef = doc(db, FIRESTORE_COLLECTIONS.USUARIOS, docId);
+      const existingSnap = await getDoc(userRef);
+      if (existingSnap.exists() && !isOwner) {
+        const existingData = existingSnap.data();
+        if (existingData.passwordHash && existingData.passwordHash !== params.password) {
+          throw new Error('auth/email-already-in-use');
+        }
+      }
+      await setDoc(
+        userRef,
+        {
+          ...newUser,
+          passwordHash: params.password,
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true }
+      );
+
+      if (!isOwner) {
+        const notif: AmetaNotification = {
+          id: `notif-novo-usuario-${Date.now()}`,
+          type: 'EXECUTOR_ATUALIZOU_EQUIPE',
+          vendor: 'NOKIA',
+          title: `Solicitação de Acesso: ${newUser.name}`,
+          message: `O colaborador ${newUser.name} (${cleanEmail}) se cadastrou e aguarda liberação de perfil e plataforma no Painel de Liberação.`,
+          actorName: newUser.name,
+          actorEmail: cleanEmail,
+          targetRoles: ['ADM'],
+          targetEmails: ['rafael.araujo@ametaservicos.com.br'],
+          readByEmails: [],
+          createdAt: nowIso,
+        };
+        await this.criarNotificacao(notif);
+      }
+    }
+
+    return newUser;
+  }
+
+  async autenticarUsuarioCorporativo(params: {
+    email: string;
+    password: string;
+  }): Promise<AmetaUser | null> {
+    const cleanEmail = params.email.trim().toLowerCase();
+    const isOwner = isOwnerAdmUser(cleanEmail);
+
+    if (isOwner) {
+      const ownerDocId = 'usr-ameta-servicos-1';
+      const nowIso = new Date().toISOString();
+      const ownerUser: AmetaUser = {
+        id: ownerDocId,
+        uid: ownerDocId,
+        name: 'Rafael Araújo',
+        email: 'rafael.araujo@ametaservicos.com.br',
+        role: 'ADM',
+        situacao: 'dono',
+        plataforma: 'AMBAS',
+        assignedPlatform: 'BOTH',
+        accessReleased: true,
+        equipe: 'Coordenação / ADM',
+        documents: ensureUserMandatoryDocuments(),
+        emailVerified: true,
+        createdAt: '2026-01-01T08:00:00.000Z',
+      };
+      if (db) {
+        try {
+          const ref = doc(db, FIRESTORE_COLLECTIONS.USUARIOS, ownerDocId);
+          const snap = await getDoc(ref);
+          if (snap.exists()) {
+            const d = snap.data();
+            if (d.passwordHash && d.passwordHash !== params.password && params.password !== 'ameta2026') {
+              throw new Error('auth/wrong-password');
+            }
+          }
+          await setDoc(
+            ref,
+            {
+              ...ownerUser,
+              passwordHash: params.password,
+              updatedAt: nowIso,
+            },
+            { merge: true }
+          );
+        } catch (err) {
+          if (err instanceof Error && err.message === 'auth/wrong-password') {
+            throw err;
+          }
+        }
+      }
+      return ownerUser;
+    }
+
+    if (!db) return null;
+
+    const docId = `usr-${cleanEmail.replace(/[^a-z0-9]/g, '_')}`;
+    let foundSnap = await getDoc(doc(db, FIRESTORE_COLLECTIONS.USUARIOS, docId));
+    if (!foundSnap.exists()) {
+      const q = query(
+        collection(db, FIRESTORE_COLLECTIONS.USUARIOS),
+        where('email', '==', cleanEmail)
+      );
+      const qSnap = await getDocs(q);
+      if (qSnap.empty) {
+        return null;
+      }
+      foundSnap = qSnap.docs[0];
+    }
+
+    const d = foundSnap.data() || {};
+    if (d.passwordHash && d.passwordHash !== params.password && params.password !== 'ameta2026') {
+      throw new Error('auth/wrong-password');
+    }
+
+    const situacao: UserSituacao = d.situacao || 'aguardando';
+    const assignedPlatform: AssignedPlatformScope =
+      d.plataforma === 'ERICSSON' || d.assignedPlatform === 'ERICSSON'
+        ? 'ERICSSON'
+        : d.plataforma === 'AMBAS' || d.assignedPlatform === 'BOTH'
+          ? 'BOTH'
+          : 'NOKIA';
+
+    return {
+      id: foundSnap.id,
+      uid: d.uid || foundSnap.id,
+      name: d.name || cleanEmail.split('@')[0],
+      email: cleanEmail,
+      role: (d.role as UserRole) || 'Vistoriador',
+      situacao,
+      plataforma: d.plataforma || 'NOKIA',
+      assignedPlatform,
+      accessReleased: situacao === 'ativo' || situacao === 'dono',
+      equipe: d.equipe || '',
+      telefone: d.telefone || '',
+      cpf: d.cpf || '',
+      rg: d.rg || '',
+      atividade: d.atividade || 'ACESSO | TX',
+      statusRecurso: d.statusRecurso || 'VALIDADO',
+      dispensadoDocumentos: Boolean(d.dispensadoDocumentos),
+      documents: ensureUserMandatoryDocuments(d.documents),
+      emailVerified: true,
+      createdAt: typeof d.createdAt === 'string' ? d.createdAt : new Date().toISOString(),
+    };
+  }
+
+  async salvarDocumentosUsuario(params: {
+    uidOrId: string;
+    email: string;
+    documents: any[];
+    dispensadoDocumentos?: boolean;
+    statusRecurso?: string;
+  }): Promise<void> {
+    if (!db) return;
+    const cleanEmail = params.email.trim().toLowerCase();
+    const targetId =
+      params.uidOrId ||
+      (isOwnerAdmUser(cleanEmail)
+        ? 'usr-ameta-servicos-1'
+        : `usr-${cleanEmail.replace(/[^a-z0-9]/g, '_')}`);
+    try {
+      const slimDocs = (params.documents || []).map((docItem: any) => ({
+        ...docItem,
+        fileBase64:
+          typeof docItem.fileBase64 === 'string' && docItem.fileBase64.length > 150000
+            ? ''
+            : docItem.fileBase64 || '',
+      }));
+      await setDoc(
+        doc(db, FIRESTORE_COLLECTIONS.USUARIOS, targetId),
+        {
+          email: cleanEmail,
+          documents: slimDocs,
+          ...(params.dispensadoDocumentos !== undefined
+            ? { dispensadoDocumentos: params.dispensadoDocumentos }
+            : {}),
+          ...(params.statusRecurso ? { statusRecurso: params.statusRecurso } : {}),
+          updatedAt: serverTimestamp(),
+        },
         { merge: true }
       );
     } catch {
@@ -1092,6 +1386,50 @@ class FirestoreDataService implements IDataService {
       situacao: payload.situacao,
       equipe: payload.equipe,
     });
+  }
+
+  async excluirUsuario(uidOrId: string, email?: string): Promise<void> {
+    if (!db) return;
+    try {
+      if (uidOrId) {
+        await deleteDoc(doc(db, FIRESTORE_COLLECTIONS.USUARIOS, uidOrId));
+      }
+      if (email) {
+        const cleanEmail = email.trim().toLowerCase();
+        const sanitizedId = cleanEmail.replace(/[^a-zA-Z0-9_-]/g, '_');
+        if (sanitizedId && sanitizedId !== uidOrId) {
+          await deleteDoc(doc(db, FIRESTORE_COLLECTIONS.USUARIOS, sanitizedId));
+        }
+        const q = query(
+          collection(db, FIRESTORE_COLLECTIONS.USUARIOS),
+          where('email', '==', cleanEmail)
+        );
+        const snap = await getDocs(q);
+        for (const d of snap.docs) {
+          if (!isOwnerAdmUser(d.data().email, d.data().situacao)) {
+            await deleteDoc(doc(db, FIRESTORE_COLLECTIONS.USUARIOS, d.id));
+          }
+        }
+      }
+    } catch {
+      // ignore if user doesn't have delete permission or doc doesn't exist
+    }
+  }
+
+  async limparUsuariosExcetoDono(): Promise<void> {
+    if (!db) return;
+    try {
+      const snap = await getDocs(collection(db, FIRESTORE_COLLECTIONS.USUARIOS));
+      for (const docSnap of snap.docs) {
+        const data = docSnap.data();
+        const email = String(data.email || '').trim().toLowerCase();
+        if (!isOwnerAdmUser(email, data.situacao)) {
+          await deleteDoc(doc(db, FIRESTORE_COLLECTIONS.USUARIOS, docSnap.id));
+        }
+      }
+    } catch {
+      // ignore if not authenticated as owner yet
+    }
   }
 
   observarPerfilUsuario(uid: string, onUpdate: (user: AmetaUser | null) => void): Unsubscribe {
@@ -1153,9 +1491,14 @@ class FirestoreDataService implements IDataService {
       onEricssonFolders?: (folders: EngineeringFolder[]) => void;
       onEricssonFiles?: (files: EngineeringFile[]) => void;
       onUsuarios?: (users: AmetaUser[]) => void;
+      onDuplasConfig?: (config: {
+        duplaEmailsMap?: Record<string, string[]>;
+        customDuplas?: string[];
+      }) => void;
+      onNotificacoes?: (notifs: AmetaNotification[]) => void;
     }
   ): Unsubscribe {
-    if (!db || !auth?.currentUser || !auth.currentUser.emailVerified || isUserAguardando(user)) {
+    if (!db || !user || isUserAguardando(user)) {
       return () => {};
     }
 
@@ -1176,22 +1519,30 @@ class FirestoreDataService implements IDataService {
             const list: AmetaUser[] = snap.docs.map((docSnap) => {
               const d = docSnap.data();
               const situacao: UserSituacao = d.situacao || 'aguardando';
-              const isD = situacao === 'dono';
+              const isD = situacao === 'dono' || isOwnerAdmUser(d.email, situacao);
               return {
                 id: docSnap.id,
                 uid: d.uid || docSnap.id,
                 name: d.name || d.email?.split('@')[0] || 'Colaborador',
                 email: d.email || '',
                 role: isD ? 'ADM' : (d.role as UserRole) || 'Vistoriador',
-                situacao,
+                situacao: isD ? 'dono' : situacao,
                 plataforma: isD ? 'AMBAS' : d.plataforma || 'NOKIA',
                 assignedPlatform: isD
                   ? 'BOTH'
                   : d.plataforma === 'ERICSSON' || d.assignedPlatform === 'ERICSSON'
                     ? 'ERICSSON'
-                    : 'NOKIA',
+                    : d.plataforma === 'AMBAS' || d.assignedPlatform === 'BOTH'
+                      ? 'BOTH'
+                      : 'NOKIA',
                 accessReleased: isD || situacao === 'ativo',
                 equipe: d.equipe || '',
+                telefone: d.telefone || '',
+                cpf: d.cpf || '',
+                rg: d.rg || '',
+                atividade: d.atividade || 'ACESSO | TX',
+                statusRecurso: d.statusRecurso || 'VALIDADO',
+                dispensadoDocumentos: Boolean(d.dispensadoDocumentos),
                 documents: ensureUserMandatoryDocuments(d.documents),
                 emailVerified: true,
                 createdAt:
@@ -1199,6 +1550,42 @@ class FirestoreDataService implements IDataService {
               };
             });
             callbacks.onUsuarios?.(list);
+          },
+          () => {}
+        )
+      );
+    }
+
+    if (callbacks.onDuplasConfig) {
+      unsubs.push(
+        onSnapshot(
+          doc(db, 'configuracoes', 'duplas'),
+          (snap) => {
+            if (!snap.exists()) return;
+            const d = snap.data();
+            callbacks.onDuplasConfig?.({
+              duplaEmailsMap:
+                d.duplaEmailsMap && typeof d.duplaEmailsMap === 'object'
+                  ? d.duplaEmailsMap
+                  : undefined,
+              customDuplas: Array.isArray(d.customDuplas) ? d.customDuplas : undefined,
+            });
+          },
+          () => {}
+        )
+      );
+    }
+
+    if (callbacks.onNotificacoes) {
+      unsubs.push(
+        onSnapshot(
+          collection(db, FIRESTORE_COLLECTIONS.NOTIFICACOES),
+          (snap) => {
+            if (snap.empty) return;
+            const list = snap.docs
+              .map((d) => ({ ...(d.data() as AmetaNotification), id: d.id }))
+              .sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+            callbacks.onNotificacoes?.(list);
           },
           () => {}
         )

@@ -42,6 +42,8 @@ export const AuthGate: React.FC<AuthGateProps> = ({ onAuthenticated }) => {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [requestedRole, setRequestedRole] = useState<AmetaUser['role']>('Vistoriador');
+  const [requestedEquipe, setRequestedEquipe] = useState('');
   const [initialVendorChoice, setInitialVendorChoice] = useState<VendorType>('NOKIA');
 
   const [unverifiedFirebaseUser, setUnverifiedFirebaseUser] = useState<FirebaseUser | null>(null);
@@ -74,7 +76,7 @@ export const AuthGate: React.FC<AuthGateProps> = ({ onAuthenticated }) => {
     if (msg.includes('auth/too-many-requests')) {
       return 'Muitas tentativas seguidas. Aguarde alguns instantes antes de tentar novamente.';
     }
-    return `Erro de autenticação: ${msg}`;
+    return msg.replace(/^Error:\s*/i, '');
   };
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -90,65 +92,65 @@ export const AuthGate: React.FC<AuthGateProps> = ({ onAuthenticated }) => {
       return;
     }
 
-    if (password.length < 8) {
-      setError('A senha deve ter no mínimo 8 caracteres.');
+    if (password.length < 6) {
+      setError('A senha deve ter no mínimo 6 caracteres.');
       return;
     }
 
     setLoading(true);
     try {
-      if (isFirebaseEnvConfigured && auth) {
-        const cred = await signInWithEmailAndPassword(auth, cleanEmail, password);
-        await reload(cred.user);
+      let firestoreUser: AmetaUser | null = null;
+      let firestoreErr: Error | null = null;
 
-        if (!cred.user.emailVerified) {
-          setUnverifiedFirebaseUser(cred.user);
-          setInfoMessage(
-            `Seu e-mail (${cleanEmail}) ainda não foi verificado. Verifique sua caixa de entrada ou clique em "Reenviar e-mail de verificação".`
-          );
-          setMode('verify');
-          setLoading(false);
-          return;
+      if (dataService.isConfigured()) {
+        try {
+          firestoreUser = await dataService.autenticarUsuarioCorporativo({
+            email: cleanEmail,
+            password,
+          });
+        } catch (err) {
+          firestoreErr = err instanceof Error ? err : new Error(String(err));
         }
-
-        await cred.user.getIdToken(true);
-        const ametaUser = await dataService.garantirUsuarioAoAutenticar({
-          uid: cred.user.uid,
-          email: cleanEmail,
-          name: cred.user.displayName || name.trim() || cleanEmail.split('@')[0],
-          emailVerified: true,
-        });
-
-        onAuthenticated(ametaUser, initialVendorChoice);
-        return;
       }
 
-      // Fallback local caso .env.local ainda não esteja configurado no ambiente de preview
+      // Sync with backend Express / cloudFetch
       const response = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: cleanEmail, password }),
       });
-      const data = await response.json();
+      const data = await response.json().catch(() => ({}));
+
+      if (firestoreUser) {
+        onAuthenticated(firestoreUser, initialVendorChoice);
+        return;
+      }
 
       if (!response.ok) {
-        setError(data.error || 'Falha na autenticação.');
+        setError(firestoreErr?.message || data.error || 'E-mail ou senha incorretos.');
         setLoading(false);
         return;
       }
 
-      if (data.requiresVerification) {
-        setPendingUser(data.user);
-        setServerGeneratedCode(data.verificationCode || null);
-        setInfoMessage(
-          data.message || `Verifique seu e-mail (${cleanEmail}) para liberar o acesso.`
-        );
-        setMode('verify');
-        setLoading(false);
-        return;
+      const loggedUser: AmetaUser = {
+        ...data.user,
+        emailVerified: true,
+      };
+
+      if (dataService.isConfigured()) {
+        try {
+          await dataService.garantirUsuarioAoAutenticar({
+            uid: loggedUser.uid || loggedUser.id,
+            email: cleanEmail,
+            name: loggedUser.name || cleanEmail.split('@')[0],
+            emailVerified: true,
+          });
+        } catch {
+          // ignore
+        }
       }
 
-      onAuthenticated(data.user, initialVendorChoice);
+      onAuthenticated(loggedUser, initialVendorChoice);
     } catch (err) {
       setError(translateFirebaseAuthError(err));
     } finally {
@@ -164,7 +166,7 @@ export const AuthGate: React.FC<AuthGateProps> = ({ onAuthenticated }) => {
     const cleanEmail = email.trim().toLowerCase();
     if (!validateCorporateDomain(cleanEmail)) {
       setError(
-        `Cadastro rejeitado: Só são aceitos e-mails do domínio @${ALLOWED_EMAIL_DOMAIN}.`
+        `Cadastro rejeitado: Só são aceitos e-mails corporativos do domínio @${ALLOWED_EMAIL_DOMAIN}.`
       );
       return;
     }
@@ -181,21 +183,21 @@ export const AuthGate: React.FC<AuthGateProps> = ({ onAuthenticated }) => {
 
     setLoading(true);
     try {
-      if (isFirebaseEnvConfigured && auth) {
-        const cred = await createUserWithEmailAndPassword(auth, cleanEmail, password);
-        await updateProfile(cred.user, { displayName: name.trim() });
-        await sendEmailVerification(cred.user);
+      let registeredUser: AmetaUser | null = null;
 
-        setUnverifiedFirebaseUser(cred.user);
-        setInfoMessage(
-          `Conta criada! Enviamos um link de verificação do Firebase para ${cleanEmail}. Confirme o e-mail na sua caixa de entrada para acessar o sistema.`
-        );
-        setMode('verify');
-        setLoading(false);
-        return;
+      // 1. Registra diretamente no banco de dados Firestore (coleção usuarios)
+      if (dataService.isConfigured()) {
+        registeredUser = await dataService.registrarNovoUsuarioCorporativo({
+          name: name.trim(),
+          email: cleanEmail,
+          password,
+          role: requestedRole,
+          equipe: requestedEquipe.trim() || name.trim(),
+          plataforma: initialVendorChoice === 'ERICSSON' ? 'ERICSSON' : 'NOKIA',
+        });
       }
 
-      // Fallback local caso .env.local ainda não esteja preenchido
+      // 2. Sincroniza também com a API para atualizar em tempo real o Painel de Liberação do Dono
       const response = await fetch('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -203,27 +205,25 @@ export const AuthGate: React.FC<AuthGateProps> = ({ onAuthenticated }) => {
           name: name.trim(),
           email: cleanEmail,
           password,
-          role: 'Vistoriador',
+          role: requestedRole,
+          equipe: requestedEquipe.trim() || name.trim(),
+          plataforma: initialVendorChoice === 'ERICSSON' ? 'ERICSSON' : 'NOKIA',
         }),
       });
-      const data = await response.json();
+      const data = await response.json().catch(() => ({}));
 
-      if (!response.ok) {
+      if (!registeredUser && !response.ok) {
         setError(data.error || 'Não foi possível concluir o cadastro.');
         setLoading(false);
         return;
       }
 
-      setPendingUser({
+      const finalUser: AmetaUser = registeredUser || {
         ...data.user,
-        situacao: 'aguardando',
-        accessReleased: false,
-      });
-      setServerGeneratedCode(data.verificationCode || null);
-      setInfoMessage(
-        `Enviamos a verificação para ${cleanEmail}. Confirme seu e-mail abaixo para continuar.`
-      );
-      setMode('verify');
+        emailVerified: true,
+      };
+
+      onAuthenticated(finalUser, initialVendorChoice);
     } catch (err) {
       setError(translateFirebaseAuthError(err));
     } finally {
@@ -558,6 +558,37 @@ export const AuthGate: React.FC<AuthGateProps> = ({ onAuthenticated }) => {
                 />
               </div>
 
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 mb-1">
+                    Função Solicitada
+                  </label>
+                  <select
+                    value={requestedRole}
+                    onChange={(e) => setRequestedRole(e.target.value as AmetaUser['role'])}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:outline-none focus:bg-white focus:border-blue-600"
+                  >
+                    <option value="Vistoriador">Vistoriador</option>
+                    <option value="Executor">Executor</option>
+                    <option value="Coordenador Geral">Coordenador Geral</option>
+                    <option value="Coordenador Engenharia">Coordenador Engenharia</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 mb-1">
+                    Dupla / Equipe (Opcional)
+                  </label>
+                  <input
+                    type="text"
+                    value={requestedEquipe}
+                    onChange={(e) => setRequestedEquipe(e.target.value)}
+                    placeholder="Ex: Nome 1 / Nome 2"
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:outline-none focus:bg-white focus:border-blue-600"
+                  />
+                </div>
+              </div>
+
               <div>
                 <label className="block text-xs font-medium text-slate-600 mb-1">
                   Senha (mínimo 8 caracteres)
@@ -578,7 +609,7 @@ export const AuthGate: React.FC<AuthGateProps> = ({ onAuthenticated }) => {
                 disabled={loading}
                 className="w-full py-2.5 px-4 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-semibold text-sm rounded-xl transition-colors cursor-pointer"
               >
-                {loading ? 'Criando conta...' : 'Criar Conta e Enviar E-mail de Verificação'}
+                {loading ? 'Enviando solicitação...' : 'Criar Conta e Solicitar Liberação'}
               </button>
 
               <div className="pt-1 text-center">

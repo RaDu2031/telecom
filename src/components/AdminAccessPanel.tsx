@@ -26,6 +26,7 @@ import {
   UserSituacao,
   AssignedPlatformScope,
   normalizeUserRole,
+  isOwnerAdmUser,
   isUserDono,
   MandatoryDocType,
   UserMandatoryDocument,
@@ -198,6 +199,107 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
       return (a.daysRemaining ?? 999) - (b.daysRemaining ?? 999);
     });
   }, [usersWithDocEval]);
+
+  const pendingApprovalUsers = useMemo(() => {
+    return users.filter(
+      (u) =>
+        !isOwnerAdmUser(u.email, u.situacao) &&
+        (u.situacao === 'aguardando' || u.situacao === 'bloqueado' || u.accessReleased === false)
+    );
+  }, [users]);
+
+  const [pendingDrafts, setPendingDrafts] = useState<
+    Record<
+      string,
+      {
+        role: UserRole;
+        plataforma: AssignedPlatformScope;
+        equipe: string;
+      }
+    >
+  >({});
+
+  const getPendingDraft = (u: AmetaUser) => {
+    const key = u.email.toLowerCase();
+    return (
+      pendingDrafts[key] || {
+        role: normalizeUserRole(u.role, u.email),
+        plataforma: (u.assignedPlatform || u.plataforma || 'NOKIA') as AssignedPlatformScope,
+        equipe: u.equipe || u.name || '',
+      }
+    );
+  };
+
+  const updatePendingDraft = (
+    u: AmetaUser,
+    patch: Partial<{ role: UserRole; plataforma: AssignedPlatformScope; equipe: string }>
+  ) => {
+    const key = u.email.toLowerCase();
+    const cur = getPendingDraft(u);
+    setPendingDrafts((prev) => ({
+      ...prev,
+      [key]: { ...cur, ...patch },
+    }));
+  };
+
+  const handleApprovePendingUser = async (target: AmetaUser) => {
+    const draft = getPendingDraft(target);
+    const resolvedEquipe =
+      draft.equipe.trim() ||
+      (draft.role.includes('Coordenador') ? `Coordenação ${draft.plataforma}` : target.name);
+    setUpdatingUserId(target.id);
+    onUsersUpdated(
+      users.map((u) =>
+        u.id === target.id || u.email.toLowerCase() === target.email.toLowerCase()
+          ? {
+              ...u,
+              role: draft.role,
+              plataforma: draft.plataforma,
+              assignedPlatform: draft.plataforma,
+              equipe: resolvedEquipe,
+              situacao: 'ativo',
+              accessReleased: true,
+            }
+          : u
+      ),
+      `Acesso de ${target.name} liberado como ${draft.role} (Dupla/Equipe: ${resolvedEquipe})!`
+    );
+    try {
+      await dataService.atualizarPermissoesUsuario(target.uid || target.id, {
+        email: target.email,
+        name: target.name,
+        situacao: 'ativo',
+        role: draft.role,
+        plataforma: draft.plataforma,
+        equipe: resolvedEquipe,
+      });
+      const res = await fetch('/api/owner/permissions/release', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ownerEmail: 'rafael.araujo@ametaservicos.com.br',
+          userId: target.uid || target.id,
+          uid: target.uid || target.id,
+          email: target.email,
+          name: target.name,
+          role: draft.role,
+          plataforma: draft.plataforma,
+          assignedPlatform: draft.plataforma,
+          situacao: 'ativo',
+          accessReleased: true,
+          equipe: resolvedEquipe,
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data.users)) {
+          onUsersUpdated(data.users);
+        }
+      }
+    } finally {
+      setUpdatingUserId(null);
+    }
+  };
 
   const countsByRole = useMemo(() => {
     let adm = 0;
@@ -627,8 +729,11 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
   };
 
   const handleDeleteResource = async (u: AmetaUser) => {
-    if (u.email.toLowerCase() === 'rafael.araujo@ameta.com.br') return;
+    if (isOwnerAdmUser(u.email, u.situacao)) return;
     try {
+      if (dataService.isConfigured()) {
+        await dataService.excluirUsuario(u.uid || u.id, u.email);
+      }
       const res = await fetch(`/api/admin/users/${encodeURIComponent(u.id)}`, {
         method: 'DELETE',
       });
@@ -668,9 +773,20 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
                 type="button"
                 onClick={() => {
                   const vist =
-                    users.find((u) => u.email.toLowerCase() === 'teste@ameta.com.br') ||
-                    users.find((u) => normalizeUserRole(u.role) === 'Vistoriador');
-                  if (vist) onTestUserView(vist);
+                    users.find((u) => normalizeUserRole(u.role) === 'Vistoriador') || {
+                      id: 'sim-vistoriador',
+                      name: 'Vistoriador (Simulação)',
+                      email: 'vistoriador.simulacao@ametaservicos.com.br',
+                      role: 'Vistoriador' as UserRole,
+                      situacao: 'ativo' as const,
+                      plataforma: 'NOKIA' as const,
+                      assignedPlatform: 'NOKIA' as const,
+                      accessReleased: true,
+                      equipe: '',
+                      emailVerified: true,
+                      createdAt: '',
+                    };
+                  onTestUserView(vist);
                 }}
                 className="px-3 py-2 bg-amber-50 hover:bg-amber-100 border border-amber-300 text-amber-900 text-xs font-semibold rounded-lg flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
                 title="Simular tela de Vistoriador (8 colunas + SI Executed liberado)"
@@ -682,9 +798,20 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
                 type="button"
                 onClick={() => {
                   const exec =
-                    users.find((u) => u.email.toLowerCase() === 'executor.teste@ameta.com.br') ||
-                    users.find((u) => normalizeUserRole(u.role) === 'Executor');
-                  if (exec) onTestUserView(exec);
+                    users.find((u) => normalizeUserRole(u.role) === 'Executor') || {
+                      id: 'sim-executor',
+                      name: 'Executor (Simulação)',
+                      email: 'executor.simulacao@ametaservicos.com.br',
+                      role: 'Executor' as UserRole,
+                      situacao: 'ativo' as const,
+                      plataforma: 'NOKIA' as const,
+                      assignedPlatform: 'NOKIA' as const,
+                      accessReleased: true,
+                      equipe: '',
+                      emailVerified: true,
+                      createdAt: '',
+                    };
+                  onTestUserView(exec);
                 }}
                 className="px-3 py-2 bg-blue-50 hover:bg-blue-100 border border-blue-300 text-blue-800 text-xs font-semibold rounded-lg flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
                 title="Simular tela de Executor de Teste"
@@ -708,6 +835,129 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
             <span>Cadastrar Recurso</span>
           </button>
         </div>
+      </div>
+
+      {/* Painel de Liberação de Novos Usuários que Solicitam Cadastro */}
+      <div className="bg-amber-50/90 border-2 border-amber-300 rounded-xl p-4 space-y-3 shadow-2xs">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-2.5">
+            <span className="px-2.5 py-0.5 rounded-full bg-amber-600 text-white font-black text-xs">
+              {pendingApprovalUsers.length}
+            </span>
+            <div>
+              <h3 className="text-xs sm:text-sm font-black uppercase tracking-wide text-amber-950">
+                Painel de Liberação de Novos Usuários (@ametaservicos.com.br)
+              </h3>
+              <p className="text-[11px] text-amber-800">
+                Novos usuários que solicitam cadastro aparecem aqui. Ao aprovar, eles também alimentam automaticamente a lista de Duplas & Demanda.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {pendingApprovalUsers.length === 0 ? (
+          <div className="p-3 rounded-lg bg-white/90 border border-amber-200 text-xs text-slate-600">
+            Nenhuma solicitação pendente no momento. Quando um colaborador criar conta com{' '}
+            <strong className="text-slate-900">@ametaservicos.com.br</strong> na tela de login, ele aparecerá aqui para você aprovar e definir a dupla/função.
+          </div>
+        ) : (
+          <div className="space-y-2.5">
+            {pendingApprovalUsers.map((u) => {
+              const draft = getPendingDraft(u);
+              const isBusy = updatingUserId === u.id;
+              return (
+                <div
+                  key={u.id}
+                  className="p-3.5 rounded-xl bg-white border border-amber-300 flex flex-col lg:flex-row lg:items-center justify-between gap-3 shadow-2xs"
+                >
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-sm text-slate-900">{u.name}</span>
+                      <span className="px-2 py-0.5 rounded bg-amber-100 border border-amber-300 text-amber-900 text-[10px] font-bold uppercase">
+                        Aguardando Liberação
+                      </span>
+                    </div>
+                    <div className="text-xs font-mono text-slate-600 mt-0.5">{u.email}</div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 flex-1 max-w-2xl">
+                    <div>
+                      <label className="block text-[10px] uppercase text-slate-500 font-bold mb-0.5">
+                        Função
+                      </label>
+                      <select
+                        value={draft.role}
+                        onChange={(e) =>
+                          updatePendingDraft(u, { role: e.target.value as UserRole })
+                        }
+                        className="w-full px-2.5 py-1.5 rounded-lg bg-slate-50 border border-slate-300 text-xs font-bold text-slate-900"
+                      >
+                        <option value="Vistoriador">Vistoriador</option>
+                        <option value="Executor">Executor</option>
+                        <option value="Coordenador Geral">Coordenador Geral</option>
+                        <option value="Coordenador Engenharia">Coordenador Engenharia</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] uppercase text-slate-500 font-bold mb-0.5">
+                        Plataforma
+                      </label>
+                      <select
+                        value={draft.plataforma}
+                        onChange={(e) =>
+                          updatePendingDraft(u, {
+                            plataforma: e.target.value as AssignedPlatformScope,
+                          })
+                        }
+                        className="w-full px-2.5 py-1.5 rounded-lg bg-slate-50 border border-slate-300 text-xs font-bold text-slate-900"
+                      >
+                        <option value="NOKIA">TIM / Nokia</option>
+                        <option value="ERICSSON">Ericsson</option>
+                        <option value="BOTH">Ambas (TIM + Ericsson)</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] uppercase text-slate-500 font-bold mb-0.5">
+                        Dupla / Equipe
+                      </label>
+                      <input
+                        type="text"
+                        value={draft.equipe}
+                        onChange={(e) => updatePendingDraft(u, { equipe: e.target.value })}
+                        placeholder="Ex: Nome 1 / Nome 2"
+                        className="w-full px-2.5 py-1.5 rounded-lg bg-slate-50 border border-slate-300 text-xs text-slate-900"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button
+                      type="button"
+                      disabled={isBusy}
+                      onClick={() => handleApprovePendingUser(u)}
+                      className="px-3.5 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                    >
+                      <CheckCircle2 className="w-4 h-4" />
+                      <span>{isBusy ? 'Liberando...' : 'Liberar Acesso'}</span>
+                    </button>
+                    <button
+                      type="button"
+                      disabled={isBusy}
+                      onClick={() => handleDeleteResource(u)}
+                      className="px-2.5 py-2 rounded-lg bg-red-50 hover:bg-red-100 border border-red-200 text-red-700 text-xs font-bold flex items-center gap-1 cursor-pointer"
+                      title="Recusar e remover solicitação"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>Recusar</span>
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* 30-Day Advance Expiration Alert Banner (only shows if any non-exempt document is expiring in <= 30 days or expired) */}
@@ -904,7 +1154,7 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
             <tbody className="divide-y divide-slate-100 bg-white">
               {filteredResources.map(({ user: u, docSummary }, idx) => {
                 const uRole = normalizeUserRole(u.role);
-                const isPrimaryAdmin = u.email.toLowerCase() === 'rafael.araujo@ameta.com.br';
+                const isPrimaryAdmin = isOwnerAdmUser(u.email, u.situacao);
                 const isSelf = u.id === currentUser.id;
                 const isUpdating = updatingUserId === u.id;
                 const isExpanded = expandedUserId === u.id;

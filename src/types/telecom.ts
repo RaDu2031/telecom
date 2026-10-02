@@ -195,13 +195,12 @@ export type UserRole =
   | 'Executor'
   | 'Vistoriador';
 
-export type AssignedPlatformScope = 'NOKIA' | 'ERICSSON' | 'BOTH';
+export type AssignedPlatformScope = 'NOKIA' | 'ERICSSON' | 'BOTH' | 'AMBAS';
 
 export type UserSituacao = 'dono' | 'aguardando' | 'ativo' | 'bloqueado';
 
 export const OWNER_ADM_EMAILS = [
   'rafael.araujo@ametaservicos.com.br',
-  'rafael.araujo@ameta.com.br',
   'rafael.araujo0797@gmail.com',
 ];
 
@@ -209,11 +208,7 @@ export function isOwnerAdmUser(email?: string | null, situacao?: UserSituacao | 
   if (situacao === 'dono') return true;
   if (!email) return false;
   const clean = email.trim().toLowerCase();
-  return (
-    OWNER_ADM_EMAILS.includes(clean) ||
-    clean.startsWith('rafael.araujo@ameta') ||
-    clean.startsWith('rafael.lima@ameta')
-  );
+  return OWNER_ADM_EMAILS.includes(clean);
 }
 
 export function isUserDono(user?: AmetaUser | null): boolean {
@@ -451,7 +446,7 @@ export interface AmetaUser {
   email: string;
   role: UserRole;
   situacao?: UserSituacao; // 'dono' | 'aguardando' | 'ativo' | 'bloqueado'
-  plataforma?: 'NOKIA' | 'ERICSSON' | 'AMBAS';
+  plataforma?: AssignedPlatformScope;
   assignedPlatform?: AssignedPlatformScope; // 'NOKIA' (TIM/Nokia), 'ERICSSON', or 'BOTH'
   accessReleased?: boolean; // Released/approved by ADM Dono
   releasedByEmail?: string;
@@ -584,6 +579,7 @@ export interface EngineeringFile {
   extension: string; // e.g. ".zip", ".rar", ".xlsx", ".pdf"
   fileSize: number; // in bytes
   siteId?: string; // Optional linked Site ID e.g. "SN-OI65J2"
+  rowId?: string; // Optional linked Ericsson or custom row ID
   ocSitePre?: string; // Optional linked Work Order / Oc Site Pre
   tssrRowId?: string; // Optional linked row ID in TSSR TIM Nokia
   notes?: string;

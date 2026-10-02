@@ -127,7 +127,7 @@ import {
 } from './utils/spreadsheetUtils';
 
 const STORAGE_USER_KEY = 'ameta_authenticated_user_v1';
-const STORAGE_DUPLAS_KEY = 'ameta_custom_duplas_v1';
+const STORAGE_DUPLAS_KEY = 'ameta_custom_duplas_v2';
 
 type TableDensity = 'comfortable' | 'compact' | 'ultra';
 
@@ -161,7 +161,28 @@ export default function App() {
       const saved = localStorage.getItem(STORAGE_USER_KEY);
       if (saved) {
         const parsed = JSON.parse(saved) as AmetaUser;
-        if (parsed && parsed.emailVerified) return parsed;
+        if (parsed && parsed.emailVerified) {
+          if (isOwnerAdmUser(parsed.email)) {
+            const normalizedOwner: AmetaUser = {
+              ...parsed,
+              name: 'Rafael Araújo',
+              email: 'rafael.araujo@ametaservicos.com.br',
+              role: 'ADM',
+              situacao: 'dono',
+              plataforma: 'AMBAS',
+              assignedPlatform: 'BOTH',
+              accessReleased: true,
+            };
+            localStorage.setItem(STORAGE_USER_KEY, JSON.stringify(normalizedOwner));
+            return normalizedOwner;
+          }
+          if (!localStorage.getItem('ameta_non_owner_session_cleared_v1')) {
+            localStorage.setItem('ameta_non_owner_session_cleared_v1', '1');
+            localStorage.removeItem(STORAGE_USER_KEY);
+            return null;
+          }
+          return parsed;
+        }
       }
     } catch {
       // ignore storage errors
@@ -245,6 +266,7 @@ export default function App() {
   // Editable Duplas (Equipe Executante) state
   const [customDuplas, setCustomDuplas] = useState<string[]>(() => {
     try {
+      localStorage.removeItem('ameta_custom_duplas_v1');
       const saved = localStorage.getItem(STORAGE_DUPLAS_KEY);
       if (saved) {
         const parsed = JSON.parse(saved);
@@ -260,11 +282,6 @@ export default function App() {
   const [editingDuplaTarget, setEditingDuplaTarget] = useState<string | null>(null);
   const [editingDuplaValue, setEditingDuplaValue] = useState<string>('');
   const [isRaMenuOpen, setIsRaMenuOpen] = useState<boolean>(false);
-  const [firebaseCloudStatus, setFirebaseCloudStatus] = useState<{
-    connected: boolean;
-    email: string | null;
-  }>({ connected: false, email: null });
-  const [isSyncingFirebase, setIsSyncingFirebase] = useState<boolean>(false);
 
   // Top bar quick search state
   const [quickSiteQuery, setQuickSiteQuery] = useState<string>('');
@@ -428,9 +445,25 @@ export default function App() {
     subscribeToCloudWorkspaceUpdates(() => {
       fetchLatestState();
     });
-    const unsubFirebaseAuth = subscribeToFirebaseAuthStatus((status) => {
-      setFirebaseCloudStatus(status);
+    const unsubFirebaseAuth = subscribeToFirebaseAuthStatus(() => {
+      // Firebase is always active in the background
     });
+
+    // Ensure non-owner seeded users are purged once on startup
+    if (!localStorage.getItem('ameta_api_users_purged_v1')) {
+      localStorage.setItem('ameta_api_users_purged_v1', '1');
+      fetch('/api/admin/users/purge-non-owner', { method: 'POST' })
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data) => {
+          if (data && Array.isArray(data.users)) {
+            setUsers(data.users);
+          }
+          if (data && Array.isArray(data.ericssonUsers)) {
+            setEricssonUsers(data.ericssonUsers);
+          }
+        })
+        .catch(() => {});
+    }
 
     // Real-time background sync every 2.5s + immediate sync on tab focus/visibility so no change is ever missed
     const pollInterval = setInterval(fetchLatestState, 2500);
@@ -453,72 +486,37 @@ export default function App() {
     };
   }, [showToast]);
 
-  const handleConnectFirebaseCloud = async () => {
-    if (isSyncingFirebase) return;
-    setIsSyncingFirebase(true);
-    try {
-      const result = await connectAndSyncFirebaseCloud({
-        sites,
-        users,
-        ericssonUsers,
-        duplaEmailsMap: serverDuplaEmailsMap,
-        notifications,
-        engineeringFolders,
-        engineeringFiles,
-        ericssonRows,
-        ericssonFolders,
-        ericssonFiles,
-        tssrRows,
-      });
-      if (result.state) {
-        if (Array.isArray(result.state.sites) && result.state.sites.length > 0) {
-          setSites(result.state.sites);
+  // Keep Firebase Cloud permanently connected and synchronized in the background
+  useEffect(() => {
+    if (!user || !user.emailVerified || !isFirebaseEnvConfigured) return;
+    let cancelled = false;
+    const autoSyncFirebase = async () => {
+      try {
+        if (isOwnerAdmUser(user.email) && !localStorage.getItem('ameta_firestore_owner_purge_v2')) {
+          await dataService.limparUsuariosExcetoDono();
+          localStorage.setItem('ameta_firestore_owner_purge_v2', '1');
         }
-        if (Array.isArray(result.state.users) && result.state.users.length > 0) {
-          setUsers(result.state.users);
+        const result = await connectAndSyncFirebaseCloud();
+        if (!cancelled && result.state) {
+          if (Array.isArray(result.state.users) && result.state.users.length > 0) {
+            setUsers(result.state.users);
+          }
+          if (Array.isArray(result.state.ericssonUsers)) {
+            setEricssonUsers(result.state.ericssonUsers);
+          }
+          if (result.state.duplaEmailsMap && typeof result.state.duplaEmailsMap === 'object') {
+            setServerDuplaEmailsMap(result.state.duplaEmailsMap);
+          }
         }
-        if (Array.isArray(result.state.ericssonUsers)) {
-          setEricssonUsers(result.state.ericssonUsers);
-        }
-        if (result.state.duplaEmailsMap) {
-          setServerDuplaEmailsMap(result.state.duplaEmailsMap);
-        }
-        if (Array.isArray(result.state.notifications)) {
-          setNotifications(result.state.notifications);
-        }
-        if (Array.isArray(result.state.engineeringFolders)) {
-          setEngineeringFolders(result.state.engineeringFolders);
-        }
-        if (Array.isArray(result.state.engineeringFiles)) {
-          setEngineeringFiles(result.state.engineeringFiles);
-        }
-        if (Array.isArray(result.state.ericssonRows)) {
-          setEricssonRows(result.state.ericssonRows);
-        }
-        if (Array.isArray(result.state.ericssonFolders)) {
-          setEricssonFolders(result.state.ericssonFolders);
-        }
-        if (Array.isArray(result.state.ericssonFiles)) {
-          setEricssonFiles(result.state.ericssonFiles);
-        }
-        if (Array.isArray(result.state.tssrRows)) {
-          setTssrRows(result.state.tssrRows);
-        }
+      } catch {
+        // background auto-sync silent fallback
       }
-      setLastSyncTime(new Date().toISOString());
-      showToast(
-        `Firebase Cloud ligado e sincronizado (${result.firebaseEmail || 'Nuvem Ativa'})!`
-      );
-    } catch (err) {
-      showToast(
-        err instanceof Error
-          ? `Atenção ao conectar Firebase: ${err.message}`
-          : 'Não foi possível abrir o login do Firebase Cloud.'
-      );
-    } finally {
-      setIsSyncingFirebase(false);
-    }
-  };
+    };
+    autoSyncFirebase();
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id, user?.email, user?.emailVerified]);
 
   // Listen for direct Ctrl+V anywhere on the workspace (Nokia only)
   useEffect(() => {
@@ -649,13 +647,19 @@ export default function App() {
           if (remoteUsers.length > 0) {
             setUsers((prev) => {
               const byEmail = new Map<string, AmetaUser>();
-              for (const p of prev) {
-                byEmail.set(p.email.trim().toLowerCase(), p);
+              const ownerInPrev = prev.find((p) => isOwnerAdmUser(p.email));
+              if (ownerInPrev) {
+                byEmail.set('rafael.araujo@ametaservicos.com.br', {
+                  ...ownerInPrev,
+                  email: 'rafael.araujo@ametaservicos.com.br',
+                });
               }
               for (const r of remoteUsers) {
-                const em = r.email.trim().toLowerCase();
+                const em = isOwnerAdmUser(r.email)
+                  ? 'rafael.araujo@ametaservicos.com.br'
+                  : r.email.trim().toLowerCase();
                 const existing = byEmail.get(em);
-                byEmail.set(em, existing ? { ...existing, ...r } : r);
+                byEmail.set(em, existing ? { ...existing, ...r, email: em } : { ...r, email: em });
               }
               const mergedList = Array.from(byEmail.values());
               updateCachedClientState({ users: mergedList });
@@ -802,71 +806,77 @@ export default function App() {
   const testUserAccount = useMemo<AmetaUser>(() => {
     const found = users.find(
       (u) =>
-        u.email.toLowerCase() === 'teste@ameta.com.br' ||
-        u.name.toLowerCase().includes('teste')
+        !isOwnerAdmUser(u.email, u.situacao) &&
+        normalizeUserRole(u.role) === 'Executor'
     );
     if (found) return found;
     return {
       id: 'usr-teste-1',
-      name: 'Usuário Teste',
-      email: 'teste@ameta.com.br',
+      name: 'Executor (Simulação)',
+      email: 'executor.simulacao@ametaservicos.com.br',
       role: 'Executor',
-      equipe: 'Equipe de Teste',
+      situacao: 'ativo',
+      plataforma: 'NOKIA',
+      assignedPlatform: 'NOKIA',
+      accessReleased: true,
+      equipe: '',
       emailVerified: true,
       createdAt: '',
     };
   }, [users]);
 
   const assignableUsersList = useMemo<AmetaUser[]>(() => {
-    const nonAdm = users.filter((u) => normalizeUserRole(u.role) !== 'ADM');
-    if (nonAdm.some((u) => u.email.toLowerCase() === testUserAccount.email.toLowerCase())) {
-      return nonAdm;
-    }
-    return [testUserAccount, ...nonAdm];
-  }, [users, testUserAccount]);
+    return users.filter(
+      (u) => normalizeUserRole(u.role) !== 'ADM' && !isOwnerAdmUser(u.email, u.situacao)
+    );
+  }, [users]);
 
-  // Unified list of Duplas / Equipes Executantes shared between TIM/Nokia and Ericsson
+  const pendingReleaseCount = useMemo<number>(() => {
+    return users.filter(
+      (u) =>
+        !isOwnerAdmUser(u.email, u.situacao) &&
+        (u.situacao === 'aguardando' || u.situacao === 'bloqueado' || u.accessReleased === false)
+    ).length;
+  }, [users]);
+
+  // Unified list of Duplas / Equipes Executantes — starts zeroed out and is fed by newly registered users & customDuplas
   const equipesDuplas = useMemo<string[]>(() => {
     const set = new Set<string>();
     customDuplas.forEach((d) => {
       const c = getCanonicalDuplaName(d) || d.trim();
       if (c) set.add(c);
     });
+    Object.keys(serverDuplaEmailsMap || {}).forEach((d) => {
+      const c = getCanonicalDuplaName(d) || d.trim();
+      if (c) set.add(c);
+    });
     const addFromUserList = (list: AmetaUser[]) => {
       list.forEach((u) => {
+        if (isOwnerAdmUser(u.email, u.situacao) || normalizeUserRole(u.role) === 'ADM') return;
+        const roleNorm = normalizeUserRole(u.role, u.email);
+        if (roleNorm.includes('Coordenador')) return;
+        const rawEq = (u.equipe || '').trim();
         if (
-          u.equipe &&
-          u.equipe.trim() &&
-          u.equipe !== 'Ameta Telecom' &&
-          u.equipe !== 'Campo / Engenharia' &&
-          u.equipe !== 'Coordenação / ADM' &&
-          !u.equipe.startsWith('Coordenação') &&
-          u.equipe !== 'Equipe de Teste'
+          rawEq &&
+          rawEq !== 'Ameta Telecom' &&
+          rawEq !== 'Campo / Engenharia' &&
+          rawEq !== 'Campo / Execução' &&
+          rawEq !== 'Coordenação / ADM' &&
+          !rawEq.startsWith('Coordenação') &&
+          rawEq !== 'Equipe de Teste'
         ) {
-          const c = getCanonicalDuplaName(u.equipe) || u.equipe.trim();
+          const c = getCanonicalDuplaName(rawEq) || rawEq;
           if (c) set.add(c);
+        } else if (u.name && u.name.trim()) {
+          set.add(u.name.trim());
         }
       });
     };
     addFromUserList(assignableUsersList);
     addFromUserList(ericssonUsers);
 
-    sites.forEach((s) => {
-      const eq = (getCellValueForColumn(s, 'EQUIPE EXECUTANTE') || s.equipeParceira || '').trim();
-      const canon = getCanonicalDuplaName(eq);
-      if (canon) set.add(canon);
-    });
-
-    ericssonRows.forEach((r) => {
-      const eq = (r.equipe || r.fields?.['EQUIPE'] || '').trim();
-      if (eq && eq !== '—' && eq !== '-') {
-        const canon = getCanonicalDuplaName(eq) || eq;
-        if (canon) set.add(canon);
-      }
-    });
-
     return Array.from(set);
-  }, [customDuplas, assignableUsersList, ericssonUsers, sites, ericssonRows]);
+  }, [customDuplas, serverDuplaEmailsMap, assignableUsersList, ericssonUsers]);
 
   const saveCustomDuplas = (nextList: string[]) => {
     setCustomDuplas(nextList);
@@ -3163,50 +3173,21 @@ export default function App() {
             />
 
             {isOwnerAdm && !simulatedTargetUser && (
-              <>
-                <button
-                  type="button"
-                  onClick={handleConnectFirebaseCloud}
-                  disabled={isSyncingFirebase}
-                  className={`hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-bold text-xs shadow-sm transition-colors cursor-pointer ${
-                    firebaseCloudStatus.connected
-                      ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
-                      : 'bg-slate-900 hover:bg-slate-800 text-white'
-                  }`}
-                  title={
-                    firebaseCloudStatus.connected
-                      ? `Firebase Cloud conectado (${firebaseCloudStatus.email}) — Clique para sincronizar agora`
-                      : 'Clique para ligar e sincronizar com o banco Firebase Cloud'
-                  }
-                >
-                  <Cloud
-                    className={`w-3.5 h-3.5 ${
-                      isSyncingFirebase
-                        ? 'animate-bounce text-amber-300'
-                        : firebaseCloudStatus.connected
-                        ? 'text-emerald-200'
-                        : 'text-emerald-400'
-                    }`}
-                  />
-                  <span>
-                    {isSyncingFirebase
-                      ? 'Sincronizando...'
-                      : firebaseCloudStatus.connected
-                      ? 'Firebase Ligado'
-                      : 'Ligar Firebase'}
+              <button
+                type="button"
+                onClick={() => setOwnerPermissionsModalOpen(true)}
+                className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-[11px] sm:text-xs shadow-sm transition-colors cursor-pointer"
+                title="Painel de Liberação de Novos Usuários e Permissões (ADM Dono)"
+              >
+                <ShieldCheck className="w-3.5 h-3.5 shrink-0" />
+                <span className="hidden md:inline">Painel de Liberação</span>
+                <span className="md:hidden">Liberar</span>
+                {pendingReleaseCount > 0 && (
+                  <span className="px-1.5 py-0.5 rounded-full bg-slate-950 text-amber-300 text-[10px] font-mono font-black">
+                    {pendingReleaseCount}
                   </span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setOwnerPermissionsModalOpen(true)}
-                  className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs shadow-sm transition-colors cursor-pointer"
-                  title="Painel Exclusivo ADM Dono — Escolher cargos e liberar permissões"
-                >
-                  <ShieldCheck className="w-3.5 h-3.5" />
-                  <span>Liberar Permissões (ADM Dono)</span>
-                </button>
-              </>
+                )}
+              </button>
             )}
 
             {isRealAdmin && !simulatedTargetUser ? (
@@ -3246,61 +3227,22 @@ export default function App() {
                       </div>
 
                       {isOwnerAdm && (
-                        <>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setIsRaMenuOpen(false);
-                              handleConnectFirebaseCloud();
-                            }}
-                            className={`w-full px-3.5 py-2.5 sm:py-2 text-left flex items-center justify-between font-bold border-b cursor-pointer ${
-                              firebaseCloudStatus.connected
-                                ? 'bg-emerald-50 hover:bg-emerald-100 text-emerald-950 border-emerald-200/70'
-                                : 'bg-slate-900 hover:bg-slate-800 text-white border-slate-800'
-                            }`}
-                          >
-                            <span className="flex items-center gap-2">
-                              <Cloud
-                                className={`w-4 h-4 ${
-                                  firebaseCloudStatus.connected
-                                    ? 'text-emerald-600'
-                                    : 'text-emerald-400'
-                                }`}
-                              />
-                              <span>
-                                {firebaseCloudStatus.connected
-                                  ? 'Firebase Cloud (Sincronizar)'
-                                  : 'Ligar no Firebase Agora'}
-                              </span>
-                            </span>
-                            <span
-                              className={`text-[9px] font-black uppercase px-1.5 py-0.5 rounded ${
-                                firebaseCloudStatus.connected
-                                  ? 'bg-emerald-200/80 text-emerald-950'
-                                  : 'bg-emerald-500 text-slate-950'
-                              }`}
-                            >
-                              {firebaseCloudStatus.connected ? 'LIGADO' : 'LIGAR'}
-                            </span>
-                          </button>
-
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setIsRaMenuOpen(false);
-                              setOwnerPermissionsModalOpen(true);
-                            }}
-                            className="w-full px-3.5 py-2.5 sm:py-2 text-left flex items-center justify-between bg-amber-50 hover:bg-amber-100 text-amber-900 font-bold border-b border-amber-200/70 cursor-pointer"
-                          >
-                            <span className="flex items-center gap-2">
-                              <ShieldCheck className="w-4 h-4 text-amber-600" />
-                              <span>Painel ADM Dono (Liberar)</span>
-                            </span>
-                            <span className="text-[9px] font-black uppercase bg-amber-200/80 px-1.5 py-0.5 rounded">
-                              DONO
-                            </span>
-                          </button>
-                        </>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsRaMenuOpen(false);
+                            setOwnerPermissionsModalOpen(true);
+                          }}
+                          className="w-full px-3.5 py-2.5 sm:py-2 text-left flex items-center justify-between bg-amber-50 hover:bg-amber-100 text-amber-900 font-bold border-b border-amber-200/70 cursor-pointer"
+                        >
+                          <span className="flex items-center gap-2">
+                            <ShieldCheck className="w-4 h-4 text-amber-600" />
+                            <span>Painel ADM Dono (Liberar)</span>
+                          </span>
+                          <span className="text-[9px] font-black uppercase bg-amber-200/80 px-1.5 py-0.5 rounded">
+                            DONO
+                          </span>
+                        </button>
                       )}
 
                       <button
@@ -3433,8 +3375,8 @@ export default function App() {
                                   name: `Coordenador Geral (${activeVendor})`,
                                   email:
                                     activeVendor === 'ERICSSON'
-                                      ? 'coord.geral.ericsson@ameta.com.br'
-                                      : 'coord.geral.tim@ameta.com.br',
+                                      ? 'coord.geral.ericsson@ametaservicos.com.br'
+                                      : 'coord.geral.tim@ametaservicos.com.br',
                                   role: 'Coordenador Geral' as UserRole,
                                   assignedPlatform: activeVendor,
                                   equipe: `Coordenação Geral ${activeVendor}`,
@@ -3465,8 +3407,8 @@ export default function App() {
                                   name: `Coordenador Engenharia (${activeVendor})`,
                                   email:
                                     activeVendor === 'ERICSSON'
-                                      ? 'coord.engenharia.ericsson@ameta.com.br'
-                                      : 'coord.engenharia.tim@ameta.com.br',
+                                      ? 'coord.engenharia.ericsson@ametaservicos.com.br'
+                                      : 'coord.engenharia.tim@ametaservicos.com.br',
                                   role: 'Coordenador Engenharia' as UserRole,
                                   assignedPlatform: activeVendor,
                                   equipe: `Coordenação Engenharia ${activeVendor}`,
@@ -3492,14 +3434,23 @@ export default function App() {
                             type="button"
                             onClick={() => {
                               const vist =
-                                users.find((u) => u.email.toLowerCase() === 'teste@ameta.com.br') ||
-                                users.find((u) => u.role === 'Vistoriador');
+                                users.find((u) => u.role === 'Vistoriador') || {
+                                  id: 'sim-vistoriador',
+                                  name: `Vistoriador (${activeVendor})`,
+                                  email: 'vistoriador.simulacao@ametaservicos.com.br',
+                                  role: 'Vistoriador' as UserRole,
+                                  situacao: 'ativo' as const,
+                                  plataforma: activeVendor,
+                                  assignedPlatform: activeVendor,
+                                  accessReleased: true,
+                                  equipe: '',
+                                  emailVerified: true,
+                                  createdAt: '',
+                                };
                               setIsRaMenuOpen(false);
-                              if (vist) {
-                                setSimulatedTargetUser(vist);
-                                setActiveTopTab('sites');
-                                showToast(`Testando perfil Vistoriador: ${vist.name}`);
-                              }
+                              setSimulatedTargetUser(vist);
+                              setActiveTopTab('sites');
+                              showToast(`Testando perfil Vistoriador: ${vist.name}`);
                             }}
                             className="w-full px-3.5 py-2 sm:py-1.5 text-left flex items-center justify-between hover:bg-amber-50 text-amber-800 font-medium cursor-pointer"
                           >
@@ -3513,15 +3464,23 @@ export default function App() {
                             type="button"
                             onClick={() => {
                               const exec =
-                                users.find(
-                                  (u) => u.email.toLowerCase() === 'executor.teste@ameta.com.br'
-                                ) || users.find((u) => u.role === 'Executor');
+                                users.find((u) => u.role === 'Executor') || {
+                                  id: 'sim-executor',
+                                  name: `Executor (${activeVendor})`,
+                                  email: 'executor.simulacao@ametaservicos.com.br',
+                                  role: 'Executor' as UserRole,
+                                  situacao: 'ativo' as const,
+                                  plataforma: activeVendor,
+                                  assignedPlatform: activeVendor,
+                                  accessReleased: true,
+                                  equipe: '',
+                                  emailVerified: true,
+                                  createdAt: '',
+                                };
                               setIsRaMenuOpen(false);
-                              if (exec) {
-                                setSimulatedTargetUser(exec);
-                                setActiveTopTab('sites');
-                                showToast(`Testando perfil Executor: ${exec.name}`);
-                              }
+                              setSimulatedTargetUser(exec);
+                              setActiveTopTab('sites');
+                              showToast(`Testando perfil Executor: ${exec.name}`);
                             }}
                             className="w-full px-3.5 py-2 sm:py-1.5 text-left flex items-center justify-between hover:bg-blue-50 text-blue-700 font-medium cursor-pointer"
                           >
@@ -3788,6 +3747,34 @@ export default function App() {
           )}
         </div>
       </header>
+
+      {/* Pending New User Requests Banner for Owner */}
+      {isOwnerAdm && !simulatedTargetUser && pendingReleaseCount > 0 && (
+        <div className="bg-amber-500 text-slate-950 px-4 sm:px-6 py-2.5 flex flex-wrap items-center justify-between gap-3 text-xs font-bold shadow-xs">
+          <div className="flex items-center gap-2">
+            <UserCheck className="w-4 h-4 shrink-0" />
+            <span>
+              Você possui <strong>{pendingReleaseCount}</strong> nova(s) solicitação(ões) de cadastro (@ametaservicos.com.br) aguardando liberação de acesso!
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setOwnerPermissionsModalOpen(true)}
+              className="px-3 py-1 bg-slate-950 hover:bg-slate-800 text-amber-300 font-black rounded-lg text-[11px] uppercase tracking-wide cursor-pointer"
+            >
+              Abrir Painel de Liberação ({pendingReleaseCount})
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTopTab('perfis')}
+              className="px-3 py-1 bg-white/90 hover:bg-white text-slate-950 font-bold rounded-lg text-[11px] cursor-pointer"
+            >
+              Ver em Perfis & Acessos
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Active User Simulation Banner (Clean Neutral Slate Banner) */}
       {simulatedTargetUser && (
@@ -5789,10 +5776,13 @@ export default function App() {
               .filter(Boolean)
           )
         )}
-        onPermissionsUpdated={(nextNokia, nextEricsson, nextNotifs, toastMsg) => {
+        onPermissionsUpdated={(nextNokia, nextEricsson, nextNotifs, toastMsg, nextDuplaMap) => {
           setUsers(nextNokia);
           setEricssonUsers(nextEricsson);
           setNotifications(nextNotifs);
+          if (nextDuplaMap && typeof nextDuplaMap === 'object') {
+            setServerDuplaEmailsMap(nextDuplaMap);
+          }
           if (toastMsg) showToast(toastMsg);
         }}
         onSimulateUser={(simUser) => {

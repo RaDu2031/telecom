@@ -6,7 +6,7 @@ export const INITIAL_SHEETS: SpreadsheetMeta[] = [
     "vendor": "NOKIA",
     "name": "Controle Geral",
     "description": "Controle Geral Site Investigation Nokia 2026 (Coluna A: Oc Site Pre até Coluna AT: Observações/Motivo — 46 colunas, 523 linhas).",
-    "lastSyncAt": "2026-09-30T01:22:50.363Z",
+    "lastSyncAt": "2026-10-01T09:18:47.532Z",
     "sourceFileName": "Controle Geral Site Investigation_Nokia_2026.xlsx",
     "liveSyncUrl": "https://onedrive.live.com/:x:/g/personal/d82e752e01e5afdd/IQDcw0HcZ-LlSoZJ2-F639WkAfY227y1eEeinz8BeY6qoHg?rtime=cbEF2o8e30g&redeem=aHR0cHM6Ly8xZHJ2Lm1zL3gvYy9kODJlNzUyZTAxZTVhZmRkL0lRRGN3MEhjWi1MbFNvWkoyLUY2MzlXa0FmWTIyN3kxZUVlaW56OEJlWTZxb0hnP2U9Nk1YT2Rv",
     "columns": [
@@ -183,10 +183,10 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "TIM",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "16/02/2026",
+    "dataIntegracao": "05/03/2026",
     "dataAtivacao": "09/03/2026",
-    "responsavelCampo": "Magno",
-    "equipeParceira": "Magno/Luchini",
+    "responsavelCampo": "",
+    "equipeParceira": "",
     "ordemServico": "1360413",
     "alarmesAtivos": "NF Emitida postada Edicom",
     "observacoes": "",
@@ -206,10 +206,10 @@ export const INITIAL_SITES: TelecomSite[] = [
       "APOIO": "",
       "CallOff Solicitado": "25/02/2026",
       "DEC": "27/02/2026",
-      "EQUIPE EXECUTANTE": "Magno/Luchini",
+      "EQUIPE EXECUTANTE": "",
       "SI Planned": "05/03/2026",
       "SI Executed": "09/03/2026",
-      "Executor": "Magno",
+      "Executor": "",
       "NDPc TalonView": "11/03/2026",
       "SI Report GDC Portal": "10/03/2026",
       "Comentários": "",
@@ -236,10 +236,13 @@ export const INITIAL_SITES: TelecomSite[] = [
       "DATA NF": "04/06/2026",
       "Envio Edcom": "12/06/2026",
       "Status Financeiro": "NF Emitida postada Edicom",
-      "Observações/Motivo": ""
+      "Observações/Motivo": "",
+      "Responsável": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:43:40.267Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false,
+    "createdAt": "2026-10-01T08:53:21.623Z"
   },
   {
     "id": "nk-cg-2",
@@ -269,10 +272,10 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "BANCO DO BRASIL",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "16/02/2026",
+    "dataIntegracao": "11/03/2026",
     "dataAtivacao": "21/03/2026",
-    "responsavelCampo": "Magno",
-    "equipeParceira": "Magno/Luchini",
+    "responsavelCampo": "",
+    "equipeParceira": "",
     "ordemServico": "1361730",
     "alarmesAtivos": "NF Emitida postada Edicom",
     "observacoes": "Nota cancelada 36246",
@@ -292,10 +295,10 @@ export const INITIAL_SITES: TelecomSite[] = [
       "APOIO": "",
       "CallOff Solicitado": "25/02/2026",
       "DEC": "01/03/2026",
-      "EQUIPE EXECUTANTE": "Magno/Luchini",
+      "EQUIPE EXECUTANTE": "",
       "SI Planned": "11/03/2026",
       "SI Executed": "21/03/2026",
-      "Executor": "Magno",
+      "Executor": "",
       "NDPc TalonView": "22/03/2026",
       "SI Report GDC Portal": "23/03/2026",
       "Comentários": "23/03/2026 - Solicitado Abono a sala de medição do QM TIM, sem chave se sem responsável na faculdade.",
@@ -322,10 +325,13 @@ export const INITIAL_SITES: TelecomSite[] = [
       "DATA NF": "03/06/2026",
       "Envio Edcom": "18/06/2026",
       "Status Financeiro": "NF Emitida postada Edicom",
-      "Observações/Motivo": "Nota cancelada 36246"
+      "Observações/Motivo": "Nota cancelada 36246",
+      "Responsável": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:43:40.267Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false,
+    "createdAt": "2026-10-01T08:53:21.623Z"
   },
   {
     "id": "nk-cg-3",
@@ -355,10 +361,10 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "27/02/2026",
+    "dataIntegracao": "08/03/2026",
     "dataAtivacao": "04/03/2026",
-    "responsavelCampo": "Magno",
-    "equipeParceira": "Magno/Luchini",
+    "responsavelCampo": "",
+    "equipeParceira": "",
     "ordemServico": "1360486",
     "alarmesAtivos": "NF Emitida postada Edicom",
     "observacoes": "Nota cancelada 36228",
@@ -378,10 +384,10 @@ export const INITIAL_SITES: TelecomSite[] = [
       "APOIO": "",
       "CallOff Solicitado": "03/03/2026",
       "DEC": "04/03/2026",
-      "EQUIPE EXECUTANTE": "Magno/Luchini",
+      "EQUIPE EXECUTANTE": "",
       "SI Planned": "08/03/2026",
       "SI Executed": "04/03/2026",
-      "Executor": "Magno",
+      "Executor": "",
       "NDPc TalonView": "07/03/2026",
       "SI Report GDC Portal": "05/03/2026",
       "Comentários": "",
@@ -408,10 +414,13 @@ export const INITIAL_SITES: TelecomSite[] = [
       "DATA NF": "02/06/2026",
       "Envio Edcom": "12/06/2026",
       "Status Financeiro": "NF Emitida postada Edicom",
-      "Observações/Motivo": "Nota cancelada 36228"
+      "Observações/Motivo": "Nota cancelada 36228",
+      "Responsável": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:43:40.267Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false,
+    "createdAt": "2026-10-01T08:53:21.623Z"
   },
   {
     "id": "nk-cg-4",
@@ -441,10 +450,10 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SECRETARIA DE ESTADO DE AGRICULTURA, PECUARIA E ABASTECIMENTO - SEAPA",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "27/02/2026",
+    "dataIntegracao": "15/03/2026",
     "dataAtivacao": "08/03/2026",
-    "responsavelCampo": "Magno",
-    "equipeParceira": "Magno/Luchini",
+    "responsavelCampo": "",
+    "equipeParceira": "",
     "ordemServico": "1360656",
     "alarmesAtivos": "NF Emitida postada Edicom",
     "observacoes": "Nota cancelada 36222",
@@ -464,10 +473,10 @@ export const INITIAL_SITES: TelecomSite[] = [
       "APOIO": "",
       "CallOff Solicitado": "03/03/2026",
       "DEC": "04/03/2026",
-      "EQUIPE EXECUTANTE": "Magno/Luchini",
+      "EQUIPE EXECUTANTE": "",
       "SI Planned": "15/03/2026",
       "SI Executed": "08/03/2026",
-      "Executor": "Magno",
+      "Executor": "",
       "NDPc TalonView": "08/03/2026",
       "SI Report GDC Portal": "12/03/2026",
       "Comentários": "",
@@ -494,10 +503,13 @@ export const INITIAL_SITES: TelecomSite[] = [
       "DATA NF": "02/06/2026",
       "Envio Edcom": "12/06/2026",
       "Status Financeiro": "NF Emitida postada Edicom",
-      "Observações/Motivo": "Nota cancelada 36222"
+      "Observações/Motivo": "Nota cancelada 36222",
+      "Responsável": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:43:40.267Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false,
+    "createdAt": "2026-10-01T08:53:21.623Z"
   },
   {
     "id": "nk-cg-5",
@@ -526,11 +538,11 @@ export const INITIAL_SITES: TelecomSite[] = [
     "vlanOm": "",
     "energiaRetificadora": "TIM",
     "status": "Acesso - Solicitado p/ Nokia",
-    "progressoRollout": 60,
-    "dataIntegracao": "28/02/2026",
+    "progressoRollout": 65,
+    "dataIntegracao": "14/06/2026",
     "dataAtivacao": "",
     "responsavelCampo": "",
-    "equipeParceira": "Magno/Gilvan",
+    "equipeParceira": "",
     "ordemServico": "1360192",
     "alarmesAtivos": "Aguardando SGR",
     "observacoes": "18/05/2026 - Necessário vistoria em conjunta para abertura da sala Oi 06/05/2026 - Equipe ligou para o Sr. Felipe, conforme informado por e-mail do site 05/05/2026, só que o mesmo não tende, sem sucesso. 15/04/2026 - Site Replanejado, ficando dentro do Ministério das Comunicações, aguardando acesso. Team de Acesso mandou e-mail para o Ministério mais não teve retorno.  (e-mail do Team de acesso nokia dia 07/04/2026).",
@@ -550,10 +562,10 @@ export const INITIAL_SITES: TelecomSite[] = [
       "APOIO": "",
       "CallOff Solicitado": "03/03/2026",
       "DEC": "04/03/2026",
-      "EQUIPE EXECUTANTE": "Magno/Gilvan",
+      "EQUIPE EXECUTANTE": "",
       "SI Planned": "14/06/2026",
       "SI Executed": "",
-      "Executor": "",
+      "Executor": "Usuário Teste",
       "NDPc TalonView": "",
       "SI Report GDC Portal": "",
       "Comentários": "18/05/2026 - Necessário vistoria em conjunta para abertura da sala Oi 06/05/2026 - Equipe ligou para o Sr. Felipe, conforme informado por e-mail do site 05/05/2026, só que o mesmo não tende, sem sucesso. 15/04/2026 - Site Replanejado, ficando dentro do Ministério das Comunicações, aguardando acesso. Team de Acesso mandou e-mail para o Ministério mais não teve retorno.  (e-mail do Team de acesso nokia dia 07/04/2026).",
@@ -580,10 +592,13 @@ export const INITIAL_SITES: TelecomSite[] = [
       "DATA NF": "",
       "Envio Edcom": "",
       "Status Financeiro": "Aguardando SGR",
-      "Observações/Motivo": ""
+      "Observações/Motivo": "",
+      "Responsável": "Usuário Teste"
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-02T10:09:58.825Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false,
+    "createdAt": "2026-10-01T08:53:21.623Z"
   },
   {
     "id": "nk-cg-6",
@@ -613,10 +628,10 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "27/02/2026",
+    "dataIntegracao": "15/03/2026",
     "dataAtivacao": "15/03/2026",
-    "responsavelCampo": "Magno",
-    "equipeParceira": "Magno/Luchini",
+    "responsavelCampo": "",
+    "equipeParceira": "",
     "ordemServico": "1360315",
     "alarmesAtivos": "NF Emitida postada Edicom",
     "observacoes": "",
@@ -636,10 +651,10 @@ export const INITIAL_SITES: TelecomSite[] = [
       "APOIO": "",
       "CallOff Solicitado": "03/03/2026",
       "DEC": "04/03/2026",
-      "EQUIPE EXECUTANTE": "Magno/Luchini",
+      "EQUIPE EXECUTANTE": "",
       "SI Planned": "15/03/2026",
       "SI Executed": "15/03/2026",
-      "Executor": "Magno",
+      "Executor": "",
       "NDPc TalonView": "15/03/2026",
       "SI Report GDC Portal": "17/03/2026",
       "Comentários": "",
@@ -666,10 +681,12 @@ export const INITIAL_SITES: TelecomSite[] = [
       "DATA NF": "04/06/2026",
       "Envio Edcom": "12/06/2026",
       "Status Financeiro": "NF Emitida postada Edicom",
-      "Observações/Motivo": ""
+      "Observações/Motivo": "",
+      "Responsável": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:43:40.267Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-7",
@@ -699,7 +716,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "27/02/2026",
+    "dataIntegracao": "02/03/2026",
     "dataAtivacao": "11/03/2026",
     "responsavelCampo": "Mateus",
     "equipeParceira": "Mateus/Oglio",
@@ -754,8 +771,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-8",
@@ -784,11 +802,11 @@ export const INITIAL_SITES: TelecomSite[] = [
     "vlanOm": "",
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Sem Acesso",
-    "progressoRollout": 60,
-    "dataIntegracao": "28/02/2026",
+    "progressoRollout": 65,
+    "dataIntegracao": "30/05/2026",
     "dataAtivacao": "",
     "responsavelCampo": "",
-    "equipeParceira": "Magno/Gilvan",
+    "equipeParceira": "",
     "ordemServico": "1360232",
     "alarmesAtivos": "Aguardando SGR",
     "observacoes": "24/03/2026 - Alinhado com a Oi, site com telecomando off line, abertura somente com TAG ou resposável da Oi;",
@@ -808,7 +826,7 @@ export const INITIAL_SITES: TelecomSite[] = [
       "APOIO": "",
       "CallOff Solicitado": "03/03/2026",
       "DEC": "04/03/2026",
-      "EQUIPE EXECUTANTE": "Magno/Gilvan",
+      "EQUIPE EXECUTANTE": "",
       "SI Planned": "30/05/2026",
       "SI Executed": "",
       "Executor": "",
@@ -838,10 +856,12 @@ export const INITIAL_SITES: TelecomSite[] = [
       "DATA NF": "",
       "Envio Edcom": "",
       "Status Financeiro": "Aguardando SGR",
-      "Observações/Motivo": ""
+      "Observações/Motivo": "",
+      "Responsável": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:43:34.865Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-9",
@@ -871,10 +891,10 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "28/02/2026",
+    "dataIntegracao": "26/03/2026",
     "dataAtivacao": "17/03/2026",
-    "responsavelCampo": "Magno",
-    "equipeParceira": "Magno/Luchini",
+    "responsavelCampo": "",
+    "equipeParceira": "",
     "ordemServico": "1360277",
     "alarmesAtivos": "NF Emitida postada Edicom",
     "observacoes": "Nota cancelada 36238",
@@ -894,10 +914,10 @@ export const INITIAL_SITES: TelecomSite[] = [
       "APOIO": "",
       "CallOff Solicitado": "03/03/2026",
       "DEC": "04/03/2026",
-      "EQUIPE EXECUTANTE": "Magno/Luchini",
+      "EQUIPE EXECUTANTE": "",
       "SI Planned": "26/03/2026",
       "SI Executed": "17/03/2026",
-      "Executor": "Magno",
+      "Executor": "",
       "NDPc TalonView": "19/03/2026",
       "SI Report GDC Portal": "17/03/2026",
       "Comentários": "",
@@ -924,10 +944,12 @@ export const INITIAL_SITES: TelecomSite[] = [
       "DATA NF": "03/06/2026",
       "Envio Edcom": "19/06/2026",
       "Status Financeiro": "NF Emitida postada Edicom",
-      "Observações/Motivo": "Nota cancelada 36238"
+      "Observações/Motivo": "Nota cancelada 36238",
+      "Responsável": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:43:40.267Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-10",
@@ -957,10 +979,10 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "28/02/2026",
+    "dataIntegracao": "28/03/2026",
     "dataAtivacao": "23/03/2026",
-    "responsavelCampo": "Magno",
-    "equipeParceira": "Magno/Luchini",
+    "responsavelCampo": "",
+    "equipeParceira": "",
     "ordemServico": "1360545",
     "alarmesAtivos": "NF Emitida postada Edicom",
     "observacoes": "Nota cancelada 36243",
@@ -980,10 +1002,10 @@ export const INITIAL_SITES: TelecomSite[] = [
       "APOIO": "",
       "CallOff Solicitado": "03/03/2026",
       "DEC": "04/03/2026",
-      "EQUIPE EXECUTANTE": "Magno/Luchini",
+      "EQUIPE EXECUTANTE": "",
       "SI Planned": "28/03/2026",
       "SI Executed": "23/03/2026",
-      "Executor": "Magno",
+      "Executor": "",
       "NDPc TalonView": "25/03/2026",
       "SI Report GDC Portal": "23/03/2026",
       "Comentários": "",
@@ -1010,10 +1032,12 @@ export const INITIAL_SITES: TelecomSite[] = [
       "DATA NF": "03/06/2026",
       "Envio Edcom": "20/05/2026",
       "Status Financeiro": "NF Emitida postada Edicom",
-      "Observações/Motivo": "Nota cancelada 36243"
+      "Observações/Motivo": "Nota cancelada 36243",
+      "Responsável": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:43:40.267Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-11",
@@ -1043,10 +1067,10 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "28/02/2026",
+    "dataIntegracao": "19/03/2026",
     "dataAtivacao": "11/03/2026",
-    "responsavelCampo": "Magno",
-    "equipeParceira": "Magno/Luchini",
+    "responsavelCampo": "",
+    "equipeParceira": "",
     "ordemServico": "1360773",
     "alarmesAtivos": "NF Emitida postada Edicom",
     "observacoes": "Nota cancelada 36219",
@@ -1066,10 +1090,10 @@ export const INITIAL_SITES: TelecomSite[] = [
       "APOIO": "",
       "CallOff Solicitado": "03/03/2026",
       "DEC": "04/03/2026",
-      "EQUIPE EXECUTANTE": "Magno/Luchini",
+      "EQUIPE EXECUTANTE": "",
       "SI Planned": "19/03/2026",
       "SI Executed": "11/03/2026",
-      "Executor": "Magno",
+      "Executor": "",
       "NDPc TalonView": "14/03/2026",
       "SI Report GDC Portal": "12/03/2026",
       "Comentários": "",
@@ -1096,10 +1120,12 @@ export const INITIAL_SITES: TelecomSite[] = [
       "DATA NF": "02/06/2026",
       "Envio Edcom": "19/06/2026",
       "Status Financeiro": "NF Emitida postada Edicom",
-      "Observações/Motivo": "Nota cancelada 36219"
+      "Observações/Motivo": "Nota cancelada 36219",
+      "Responsável": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:43:40.267Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-12",
@@ -1129,10 +1155,10 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "TBSA - CLARO",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "16/02/2026",
+    "dataIntegracao": "10/04/2026",
     "dataAtivacao": "10/04/2026",
-    "responsavelCampo": "Magno",
-    "equipeParceira": "Magno/Gilvan",
+    "responsavelCampo": "",
+    "equipeParceira": "",
     "ordemServico": "1360137",
     "alarmesAtivos": "NF Emitida postada Edicom",
     "observacoes": "Nota cancelada 36201",
@@ -1152,10 +1178,10 @@ export const INITIAL_SITES: TelecomSite[] = [
       "APOIO": "",
       "CallOff Solicitado": "25/02/2026",
       "DEC": "10/03/2026",
-      "EQUIPE EXECUTANTE": "Magno/Gilvan",
+      "EQUIPE EXECUTANTE": "",
       "SI Planned": "10/04/2026",
       "SI Executed": "10/04/2026",
-      "Executor": "Magno",
+      "Executor": "",
       "NDPc TalonView": "10/04/2026",
       "SI Report GDC Portal": "11/04/2026",
       "Comentários": "10/04/2026 - Repalnejado devido técnico da claro trocar o cadeado no final do dia de ontém. 18/03/2026 - Cadeado foi trocado, chave padrão Claro não abre mais o site; 10/03/2026 - Chamado: TADFBSB0109 03/03/2026 - Não encontrado no Signal, solicitar novo calloff",
@@ -1182,10 +1208,12 @@ export const INITIAL_SITES: TelecomSite[] = [
       "DATA NF": "22/05/2026",
       "Envio Edcom": "12/06/2026",
       "Status Financeiro": "NF Emitida postada Edicom",
-      "Observações/Motivo": "Nota cancelada 36201"
+      "Observações/Motivo": "Nota cancelada 36201",
+      "Responsável": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:43:34.865Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-13",
@@ -1215,10 +1243,10 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "16/02/2026",
+    "dataIntegracao": "13/03/2026",
     "dataAtivacao": "16/03/2026",
-    "responsavelCampo": "Magno",
-    "equipeParceira": "Magno/Luchini",
+    "responsavelCampo": "",
+    "equipeParceira": "",
     "ordemServico": "1360779",
     "alarmesAtivos": "NF Pronta p/ Envio EdIcom",
     "observacoes": "Nota cancelada 36244",
@@ -1238,10 +1266,10 @@ export const INITIAL_SITES: TelecomSite[] = [
       "APOIO": "",
       "CallOff Solicitado": "25/02/2026",
       "DEC": "01/03/2026",
-      "EQUIPE EXECUTANTE": "Magno/Luchini",
+      "EQUIPE EXECUTANTE": "",
       "SI Planned": "13/03/2026",
       "SI Executed": "16/03/2026",
-      "Executor": "Magno",
+      "Executor": "",
       "NDPc TalonView": "17/03/2026",
       "SI Report GDC Portal": "17/03/2026",
       "Comentários": "",
@@ -1268,10 +1296,12 @@ export const INITIAL_SITES: TelecomSite[] = [
       "DATA NF": "03/06/2026",
       "Envio Edcom": "18/06/2026",
       "Status Financeiro": "NF Pronta p/ Envio EdIcom",
-      "Observações/Motivo": "Nota cancelada 36244"
+      "Observações/Motivo": "Nota cancelada 36244",
+      "Responsável": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:43:40.267Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-14",
@@ -1301,10 +1331,10 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "TBSA - CLARO",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "16/02/2026",
+    "dataIntegracao": "10/03/2026",
     "dataAtivacao": "03/03/2026",
-    "responsavelCampo": "Magno",
-    "equipeParceira": "Magno/Luchini",
+    "responsavelCampo": "",
+    "equipeParceira": "",
     "ordemServico": "1360702",
     "alarmesAtivos": "NF Emitida postada Edicom",
     "observacoes": "Nota cancelada 36203",
@@ -1324,10 +1354,10 @@ export const INITIAL_SITES: TelecomSite[] = [
       "APOIO": "",
       "CallOff Solicitado": "25/02/2026",
       "DEC": "03/03/2026",
-      "EQUIPE EXECUTANTE": "Magno/Luchini",
+      "EQUIPE EXECUTANTE": "",
       "SI Planned": "10/03/2026",
       "SI Executed": "03/03/2026",
-      "Executor": "Magno",
+      "Executor": "",
       "NDPc TalonView": "06/03/2026",
       "SI Report GDC Portal": "04/03/2026",
       "Comentários": "",
@@ -1354,10 +1384,12 @@ export const INITIAL_SITES: TelecomSite[] = [
       "DATA NF": "02/06/2026",
       "Envio Edcom": "07/06/2026",
       "Status Financeiro": "NF Emitida postada Edicom",
-      "Observações/Motivo": "Nota cancelada 36203"
+      "Observações/Motivo": "Nota cancelada 36203",
+      "Responsável": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:43:40.267Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-15",
@@ -1387,7 +1419,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "27/02/2026",
+    "dataIntegracao": "03/03/2026",
     "dataAtivacao": "18/03/2026",
     "responsavelCampo": "Mateus",
     "equipeParceira": "Mateus/Oglio",
@@ -1442,8 +1474,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": "Nota cancelada 36225"
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-16",
@@ -1473,7 +1506,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "16/02/2026",
+    "dataIntegracao": "14/03/2026",
     "dataAtivacao": "11/03/2026",
     "responsavelCampo": "Mateus",
     "equipeParceira": "Mateus/Oglio",
@@ -1528,8 +1561,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": "Nota cancelada 36220"
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-17",
@@ -1559,10 +1593,10 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "27/02/2026",
+    "dataIntegracao": "07/03/2026",
     "dataAtivacao": "04/03/2026",
-    "responsavelCampo": "Magno",
-    "equipeParceira": "Magno/Luchini",
+    "responsavelCampo": "",
+    "equipeParceira": "",
     "ordemServico": "1360695",
     "alarmesAtivos": "NF Emitida postada Edicom",
     "observacoes": "",
@@ -1582,10 +1616,10 @@ export const INITIAL_SITES: TelecomSite[] = [
       "APOIO": "",
       "CallOff Solicitado": "03/03/2026",
       "DEC": "04/03/2026",
-      "EQUIPE EXECUTANTE": "Magno/Luchini",
+      "EQUIPE EXECUTANTE": "",
       "SI Planned": "07/03/2026",
       "SI Executed": "04/03/2026",
-      "Executor": "Magno",
+      "Executor": "",
       "NDPc TalonView": "07/03/2026",
       "SI Report GDC Portal": "05/03/2026",
       "Comentários": "",
@@ -1612,10 +1646,12 @@ export const INITIAL_SITES: TelecomSite[] = [
       "DATA NF": "04/06/2026",
       "Envio Edcom": "12/06/2026",
       "Status Financeiro": "NF Emitida postada Edicom",
-      "Observações/Motivo": ""
+      "Observações/Motivo": "",
+      "Responsável": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:43:40.267Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-18",
@@ -1645,10 +1681,10 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "28/02/2026",
+    "dataIntegracao": "23/03/2026",
     "dataAtivacao": "06/03/2026",
-    "responsavelCampo": "Magno",
-    "equipeParceira": "Magno/Luchini",
+    "responsavelCampo": "",
+    "equipeParceira": "",
     "ordemServico": "1360175",
     "alarmesAtivos": "NF Emitida postada Edicom",
     "observacoes": "Nota cancelada 36236",
@@ -1668,10 +1704,10 @@ export const INITIAL_SITES: TelecomSite[] = [
       "APOIO": "",
       "CallOff Solicitado": "03/03/2026",
       "DEC": "04/03/2026",
-      "EQUIPE EXECUTANTE": "Magno/Luchini",
+      "EQUIPE EXECUTANTE": "",
       "SI Planned": "23/03/2026",
       "SI Executed": "06/03/2026",
-      "Executor": "Magno",
+      "Executor": "",
       "NDPc TalonView": "08/03/2026",
       "SI Report GDC Portal": "10/03/2026",
       "Comentários": "06/03/2026 - solicitar abono de fotos do QM pois não tivemos autorização para acessar a sala de eletricidade do hotel.",
@@ -1698,10 +1734,12 @@ export const INITIAL_SITES: TelecomSite[] = [
       "DATA NF": "03/06/2026",
       "Envio Edcom": "19/06/2026",
       "Status Financeiro": "NF Emitida postada Edicom",
-      "Observações/Motivo": "Nota cancelada 36236"
+      "Observações/Motivo": "Nota cancelada 36236",
+      "Responsável": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:43:40.267Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-19",
@@ -1731,7 +1769,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "16/02/2026",
+    "dataIntegracao": "13/03/2026",
     "dataAtivacao": "17/03/2026",
     "responsavelCampo": "Mateus",
     "equipeParceira": "Mateus/Oglio",
@@ -1786,8 +1824,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": "Nota cancelada 36221"
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-20",
@@ -1817,10 +1856,10 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "EMBRATEL",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "16/02/2026",
+    "dataIntegracao": "28/02/2026",
     "dataAtivacao": "24/03/2026",
-    "responsavelCampo": "Magno",
-    "equipeParceira": "Magno/Luchini",
+    "responsavelCampo": "",
+    "equipeParceira": "",
     "ordemServico": "1360288",
     "alarmesAtivos": "NF Emitida postada Edicom",
     "observacoes": "nota cancelada 36198",
@@ -1840,10 +1879,10 @@ export const INITIAL_SITES: TelecomSite[] = [
       "APOIO": "",
       "CallOff Solicitado": "25/02/2026",
       "DEC": "27/02/2026",
-      "EQUIPE EXECUTANTE": "Magno/Luchini",
+      "EQUIPE EXECUTANTE": "",
       "SI Planned": "28/02/2026",
       "SI Executed": "24/03/2026",
-      "Executor": "Magno",
+      "Executor": "",
       "NDPc TalonView": "24/03/2026",
       "SI Report GDC Portal": "25/03/2026",
       "Comentários": "",
@@ -1870,10 +1909,12 @@ export const INITIAL_SITES: TelecomSite[] = [
       "DATA NF": "02/06/2026",
       "Envio Edcom": "07/06/2026",
       "Status Financeiro": "NF Emitida postada Edicom",
-      "Observações/Motivo": "nota cancelada 36198"
+      "Observações/Motivo": "nota cancelada 36198",
+      "Responsável": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:43:40.267Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-21",
@@ -1903,10 +1944,10 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "IHS BRAZIL",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "27/02/2026",
+    "dataIntegracao": "17/03/2026",
     "dataAtivacao": "05/03/2026",
-    "responsavelCampo": "Magno",
-    "equipeParceira": "Magno/Luchini",
+    "responsavelCampo": "",
+    "equipeParceira": "",
     "ordemServico": "1361715",
     "alarmesAtivos": "NF Emitida postada Edicom",
     "observacoes": "12/03/2026 - Recebido da Nokia informações solicitados no abono; 06/03/2026 - Solicitado abono para QM, entrada compartilhada, QM TIM em instalação.",
@@ -1926,10 +1967,10 @@ export const INITIAL_SITES: TelecomSite[] = [
       "APOIO": "",
       "CallOff Solicitado": "03/03/2026",
       "DEC": "04/03/2026",
-      "EQUIPE EXECUTANTE": "Magno/Luchini",
+      "EQUIPE EXECUTANTE": "",
       "SI Planned": "17/03/2026",
       "SI Executed": "05/03/2026",
-      "Executor": "Magno",
+      "Executor": "",
       "NDPc TalonView": "05/03/2026",
       "SI Report GDC Portal": "10/03/2026",
       "Comentários": "12/03/2026 - Recebido da Nokia informações solicitados no abono; 06/03/2026 - Solicitado abono para QM, entrada compartilhada, QM TIM em instalação.",
@@ -1956,10 +1997,12 @@ export const INITIAL_SITES: TelecomSite[] = [
       "DATA NF": "04/06/2026",
       "Envio Edcom": "12/06/2026",
       "Status Financeiro": "NF Emitida postada Edicom",
-      "Observações/Motivo": ""
+      "Observações/Motivo": "",
+      "Responsável": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:43:40.267Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-22",
@@ -1989,7 +2032,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "HIGHLINE",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "28/02/2026",
+    "dataIntegracao": "24/03/2026",
     "dataAtivacao": "19/03/2026",
     "responsavelCampo": "Mateus",
     "equipeParceira": "Mateus/Oglio",
@@ -2044,8 +2087,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": "Nota cancelada 36237"
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-23",
@@ -2075,10 +2119,10 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "28/02/2026",
+    "dataIntegracao": "14/04/2026",
     "dataAtivacao": "09/04/2026",
-    "responsavelCampo": "Magno",
-    "equipeParceira": "Magno/Gilvan",
+    "responsavelCampo": "",
+    "equipeParceira": "",
     "ordemServico": "1360275",
     "alarmesAtivos": "NF Emitida postada Edicom",
     "observacoes": "",
@@ -2098,10 +2142,10 @@ export const INITIAL_SITES: TelecomSite[] = [
       "APOIO": "",
       "CallOff Solicitado": "03/03/2026",
       "DEC": "04/03/2026",
-      "EQUIPE EXECUTANTE": "Magno/Gilvan",
+      "EQUIPE EXECUTANTE": "",
       "SI Planned": "14/04/2026",
       "SI Executed": "09/04/2026",
-      "Executor": "Magno",
+      "Executor": "",
       "NDPc TalonView": "09/04/2026",
       "SI Report GDC Portal": "10/04/2026",
       "Comentários": "",
@@ -2128,10 +2172,12 @@ export const INITIAL_SITES: TelecomSite[] = [
       "DATA NF": "04/06/2026",
       "Envio Edcom": "19/06/2026",
       "Status Financeiro": "NF Emitida postada Edicom",
-      "Observações/Motivo": ""
+      "Observações/Motivo": "",
+      "Responsável": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:43:34.865Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-24",
@@ -2161,10 +2207,10 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "28/02/2026",
+    "dataIntegracao": "13/04/2026",
     "dataAtivacao": "08/04/2026",
-    "responsavelCampo": "Magno",
-    "equipeParceira": "Magno/Gilvan",
+    "responsavelCampo": "",
+    "equipeParceira": "",
     "ordemServico": "1360492",
     "alarmesAtivos": "NF Emitida postada Edicom",
     "observacoes": "Nota cancelada 36240",
@@ -2184,10 +2230,10 @@ export const INITIAL_SITES: TelecomSite[] = [
       "APOIO": "",
       "CallOff Solicitado": "03/03/2026",
       "DEC": "04/03/2026",
-      "EQUIPE EXECUTANTE": "Magno/Gilvan",
+      "EQUIPE EXECUTANTE": "",
       "SI Planned": "13/04/2026",
       "SI Executed": "08/04/2026",
-      "Executor": "Magno",
+      "Executor": "",
       "NDPc TalonView": "09/04/2026",
       "SI Report GDC Portal": "09/04/2026",
       "Comentários": "06/04/2026 - Carta de acesso ainda não foi entregue pela detentora ao condominio, já informado por e-mail. 19/03/2026 - Sindico não quer a carta em mão pelo celular",
@@ -2214,10 +2260,12 @@ export const INITIAL_SITES: TelecomSite[] = [
       "DATA NF": "03/06/2026",
       "Envio Edcom": "20/05/2026",
       "Status Financeiro": "NF Emitida postada Edicom",
-      "Observações/Motivo": "Nota cancelada 36240"
+      "Observações/Motivo": "Nota cancelada 36240",
+      "Responsável": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:43:34.865Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-25",
@@ -2247,10 +2295,10 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "28/02/2026",
+    "dataIntegracao": "19/03/2026",
     "dataAtivacao": "17/03/2026",
-    "responsavelCampo": "Magno",
-    "equipeParceira": "Magno/Luchini",
+    "responsavelCampo": "",
+    "equipeParceira": "",
     "ordemServico": "1360780",
     "alarmesAtivos": "NF Emitida postada Edicom",
     "observacoes": "Nota cancelada 36231",
@@ -2270,10 +2318,10 @@ export const INITIAL_SITES: TelecomSite[] = [
       "APOIO": "",
       "CallOff Solicitado": "03/03/2026",
       "DEC": "04/03/2026",
-      "EQUIPE EXECUTANTE": "Magno/Luchini",
+      "EQUIPE EXECUTANTE": "",
       "SI Planned": "19/03/2026",
       "SI Executed": "17/03/2026",
-      "Executor": "Magno",
+      "Executor": "",
       "NDPc TalonView": "19/03/2026",
       "SI Report GDC Portal": "17/03/2026",
       "Comentários": "",
@@ -2300,10 +2348,12 @@ export const INITIAL_SITES: TelecomSite[] = [
       "DATA NF": "03/06/2026",
       "Envio Edcom": "07/06/2026",
       "Status Financeiro": "NF Emitida postada Edicom",
-      "Observações/Motivo": "Nota cancelada 36231"
+      "Observações/Motivo": "Nota cancelada 36231",
+      "Responsável": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:43:40.267Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-26",
@@ -2333,10 +2383,10 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "16/02/2026",
+    "dataIntegracao": "26/02/2026",
     "dataAtivacao": "27/02/2026",
-    "responsavelCampo": "Magno",
-    "equipeParceira": "Magno/Luchini",
+    "responsavelCampo": "",
+    "equipeParceira": "",
     "ordemServico": "1360692",
     "alarmesAtivos": "NF Emitida postada Edicom",
     "observacoes": "27/02/2026 - Chave não abriu o portão do QM, não foi possível tirar fotos e fazer as medições, enviado e-mail solicitando abono.",
@@ -2356,10 +2406,10 @@ export const INITIAL_SITES: TelecomSite[] = [
       "APOIO": "",
       "CallOff Solicitado": "25/02/2026",
       "DEC": "26/02/2026",
-      "EQUIPE EXECUTANTE": "Magno/Luchini",
+      "EQUIPE EXECUTANTE": "",
       "SI Planned": "26/02/2026",
       "SI Executed": "27/02/2026",
-      "Executor": "Magno",
+      "Executor": "",
       "NDPc TalonView": "06/03/2026",
       "SI Report GDC Portal": "03/03/2026",
       "Comentários": "27/02/2026 - Chave não abriu o portão do QM, não foi possível tirar fotos e fazer as medições, enviado e-mail solicitando abono.",
@@ -2386,10 +2436,12 @@ export const INITIAL_SITES: TelecomSite[] = [
       "DATA NF": "04/06/2026",
       "Envio Edcom": "12/06/2026",
       "Status Financeiro": "NF Emitida postada Edicom",
-      "Observações/Motivo": ""
+      "Observações/Motivo": "",
+      "Responsável": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:43:40.267Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-27",
@@ -2419,10 +2471,10 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "27/02/2026",
+    "dataIntegracao": "06/03/2026",
     "dataAtivacao": "06/03/2026",
-    "responsavelCampo": "Magno",
-    "equipeParceira": "Magno/Luchini",
+    "responsavelCampo": "",
+    "equipeParceira": "",
     "ordemServico": "1360584",
     "alarmesAtivos": "NF Emitida postada Edicom",
     "observacoes": "Nota cancelada 36226",
@@ -2442,10 +2494,10 @@ export const INITIAL_SITES: TelecomSite[] = [
       "APOIO": "",
       "CallOff Solicitado": "03/03/2026",
       "DEC": "04/03/2026",
-      "EQUIPE EXECUTANTE": "Magno/Luchini",
+      "EQUIPE EXECUTANTE": "",
       "SI Planned": "06/03/2026",
       "SI Executed": "06/03/2026",
-      "Executor": "Magno",
+      "Executor": "",
       "NDPc TalonView": "07/03/2026",
       "SI Report GDC Portal": "08/03/2026",
       "Comentários": "",
@@ -2472,10 +2524,12 @@ export const INITIAL_SITES: TelecomSite[] = [
       "DATA NF": "02/06/2026",
       "Envio Edcom": "19/05/2026",
       "Status Financeiro": "NF Emitida postada Edicom",
-      "Observações/Motivo": "Nota cancelada 36226"
+      "Observações/Motivo": "Nota cancelada 36226",
+      "Responsável": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:43:40.267Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-28",
@@ -2505,10 +2559,10 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "28/02/2026",
+    "dataIntegracao": "18/03/2026",
     "dataAtivacao": "19/03/2026",
-    "responsavelCampo": "Magno",
-    "equipeParceira": "Magno/Luchini",
+    "responsavelCampo": "",
+    "equipeParceira": "",
     "ordemServico": "1360771",
     "alarmesAtivos": "NF Emitida postada Edicom",
     "observacoes": "Nota cancelada 36218",
@@ -2528,10 +2582,10 @@ export const INITIAL_SITES: TelecomSite[] = [
       "APOIO": "",
       "CallOff Solicitado": "03/03/2026",
       "DEC": "04/03/2026",
-      "EQUIPE EXECUTANTE": "Magno/Luchini",
+      "EQUIPE EXECUTANTE": "",
       "SI Planned": "18/03/2026",
       "SI Executed": "19/03/2026",
-      "Executor": "Magno",
+      "Executor": "",
       "NDPc TalonView": "22/03/2026",
       "SI Report GDC Portal": "19/03/2026",
       "Comentários": "",
@@ -2558,10 +2612,12 @@ export const INITIAL_SITES: TelecomSite[] = [
       "DATA NF": "02/06/2026",
       "Envio Edcom": "19/06/2026",
       "Status Financeiro": "NF Emitida postada Edicom",
-      "Observações/Motivo": "Nota cancelada 36218"
+      "Observações/Motivo": "Nota cancelada 36218",
+      "Responsável": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:43:40.267Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-29",
@@ -2591,10 +2647,10 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "28/02/2026",
+    "dataIntegracao": "21/03/2026",
     "dataAtivacao": "13/03/2026",
-    "responsavelCampo": "Magno",
-    "equipeParceira": "Magno/Luchini",
+    "responsavelCampo": "",
+    "equipeParceira": "",
     "ordemServico": "1360653",
     "alarmesAtivos": "NF Emitida postada Edicom",
     "observacoes": "Nota cancelada 36234",
@@ -2614,10 +2670,10 @@ export const INITIAL_SITES: TelecomSite[] = [
       "APOIO": "",
       "CallOff Solicitado": "03/03/2026",
       "DEC": "04/03/2026",
-      "EQUIPE EXECUTANTE": "Magno/Luchini",
+      "EQUIPE EXECUTANTE": "",
       "SI Planned": "21/03/2026",
       "SI Executed": "13/03/2026",
-      "Executor": "Magno",
+      "Executor": "",
       "NDPc TalonView": "14/03/2026",
       "SI Report GDC Portal": "13/03/2026",
       "Comentários": "",
@@ -2644,10 +2700,12 @@ export const INITIAL_SITES: TelecomSite[] = [
       "DATA NF": "03/06/2026",
       "Envio Edcom": "19/06/2026",
       "Status Financeiro": "NF Emitida postada Edicom",
-      "Observações/Motivo": "Nota cancelada 36234"
+      "Observações/Motivo": "Nota cancelada 36234",
+      "Responsável": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:43:40.267Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-30",
@@ -2677,10 +2735,10 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "16/02/2026",
+    "dataIntegracao": "04/03/2026",
     "dataAtivacao": "02/03/2026",
-    "responsavelCampo": "Magno",
-    "equipeParceira": "Magno/Luchini",
+    "responsavelCampo": "",
+    "equipeParceira": "",
     "ordemServico": "1360528",
     "alarmesAtivos": "NF Emitida postada Edicom",
     "observacoes": "Nota cancelada 36241",
@@ -2700,10 +2758,10 @@ export const INITIAL_SITES: TelecomSite[] = [
       "APOIO": "",
       "CallOff Solicitado": "25/02/2026",
       "DEC": "01/03/2026",
-      "EQUIPE EXECUTANTE": "Magno/Luchini",
+      "EQUIPE EXECUTANTE": "",
       "SI Planned": "04/03/2026",
       "SI Executed": "02/03/2026",
-      "Executor": "Magno",
+      "Executor": "",
       "NDPc TalonView": "06/03/2026",
       "SI Report GDC Portal": "03/03/2026",
       "Comentários": "",
@@ -2730,10 +2788,12 @@ export const INITIAL_SITES: TelecomSite[] = [
       "DATA NF": "03/06/2026",
       "Envio Edcom": "12/06/2026",
       "Status Financeiro": "NF Emitida postada Edicom",
-      "Observações/Motivo": "Nota cancelada 36241"
+      "Observações/Motivo": "Nota cancelada 36241",
+      "Responsável": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:43:40.267Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-31",
@@ -2763,10 +2823,10 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "27/02/2026",
+    "dataIntegracao": "17/03/2026",
     "dataAtivacao": "15/03/2026",
-    "responsavelCampo": "Magno",
-    "equipeParceira": "Magno/Luchini",
+    "responsavelCampo": "",
+    "equipeParceira": "",
     "ordemServico": "1360338",
     "alarmesAtivos": "NF Emitida postada Edicom",
     "observacoes": "Nota cancelada 36223",
@@ -2786,10 +2846,10 @@ export const INITIAL_SITES: TelecomSite[] = [
       "APOIO": "",
       "CallOff Solicitado": "03/03/2026",
       "DEC": "04/03/2026",
-      "EQUIPE EXECUTANTE": "Magno/Luchini",
+      "EQUIPE EXECUTANTE": "",
       "SI Planned": "17/03/2026",
       "SI Executed": "15/03/2026",
-      "Executor": "Magno",
+      "Executor": "",
       "NDPc TalonView": "15/03/2026",
       "SI Report GDC Portal": "17/03/2026",
       "Comentários": "",
@@ -2816,10 +2876,12 @@ export const INITIAL_SITES: TelecomSite[] = [
       "DATA NF": "02/06/2026",
       "Envio Edcom": "12/06/2026",
       "Status Financeiro": "NF Emitida postada Edicom",
-      "Observações/Motivo": "Nota cancelada 36223"
+      "Observações/Motivo": "Nota cancelada 36223",
+      "Responsável": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:43:40.267Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-32",
@@ -2849,10 +2911,10 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "CSS",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "28/02/2026",
+    "dataIntegracao": "21/04/2026",
     "dataAtivacao": "06/04/2026",
-    "responsavelCampo": "Magno",
-    "equipeParceira": "Magno/Gilvan",
+    "responsavelCampo": "",
+    "equipeParceira": "",
     "ordemServico": "1361025",
     "alarmesAtivos": "NF Emitida postada Edicom",
     "observacoes": "Nota cancelada 36227",
@@ -2872,10 +2934,10 @@ export const INITIAL_SITES: TelecomSite[] = [
       "APOIO": "",
       "CallOff Solicitado": "03/03/2026",
       "DEC": "04/03/2026",
-      "EQUIPE EXECUTANTE": "Magno/Gilvan",
+      "EQUIPE EXECUTANTE": "",
       "SI Planned": "21/04/2026",
       "SI Executed": "06/04/2026",
-      "Executor": "Magno",
+      "Executor": "",
       "NDPc TalonView": "06/04/2026",
       "SI Report GDC Portal": "07/04/2026",
       "Comentários": "",
@@ -2902,10 +2964,12 @@ export const INITIAL_SITES: TelecomSite[] = [
       "DATA NF": "02/06/2026",
       "Envio Edcom": "19/06/2026",
       "Status Financeiro": "NF Emitida postada Edicom",
-      "Observações/Motivo": "Nota cancelada 36227"
+      "Observações/Motivo": "Nota cancelada 36227",
+      "Responsável": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:43:34.865Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-33",
@@ -2935,7 +2999,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "28/02/2026",
+    "dataIntegracao": "22/03/2026",
     "dataAtivacao": "11/03/2026",
     "responsavelCampo": "Mateus",
     "equipeParceira": "Mateus/Oglio",
@@ -2990,8 +3054,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": "Nota cancelada 36235"
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-34",
@@ -3021,10 +3086,10 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "EMPRESA BRASILEIRA DE PESQUISA AGROPECUARIA",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "27/02/2026",
+    "dataIntegracao": "16/03/2026",
     "dataAtivacao": "08/03/2026",
-    "responsavelCampo": "Magno",
-    "equipeParceira": "Magno/Luchini",
+    "responsavelCampo": "",
+    "equipeParceira": "",
     "ordemServico": "1360524",
     "alarmesAtivos": "NF Emitida postada Edicom",
     "observacoes": "",
@@ -3044,10 +3109,10 @@ export const INITIAL_SITES: TelecomSite[] = [
       "APOIO": "",
       "CallOff Solicitado": "03/03/2026",
       "DEC": "04/03/2026",
-      "EQUIPE EXECUTANTE": "Magno/Luchini",
+      "EQUIPE EXECUTANTE": "",
       "SI Planned": "16/03/2026",
       "SI Executed": "08/03/2026",
-      "Executor": "Magno",
+      "Executor": "",
       "NDPc TalonView": "09/03/2026",
       "SI Report GDC Portal": "10/03/2026",
       "Comentários": "",
@@ -3074,10 +3139,12 @@ export const INITIAL_SITES: TelecomSite[] = [
       "DATA NF": "04/06/2026",
       "Envio Edcom": "12/06/2026",
       "Status Financeiro": "NF Emitida postada Edicom",
-      "Observações/Motivo": ""
+      "Observações/Motivo": "",
+      "Responsável": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:43:40.267Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-35",
@@ -3107,10 +3174,10 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA TORRES",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "28/02/2026",
+    "dataIntegracao": "30/03/2026",
     "dataAtivacao": "16/03/2026",
-    "responsavelCampo": "Magno",
-    "equipeParceira": "Magno/Luchini",
+    "responsavelCampo": "",
+    "equipeParceira": "",
     "ordemServico": "1361713",
     "alarmesAtivos": "NF Emitida postada Edicom",
     "observacoes": "Nota cancelada 36245",
@@ -3130,10 +3197,10 @@ export const INITIAL_SITES: TelecomSite[] = [
       "APOIO": "",
       "CallOff Solicitado": "03/03/2026",
       "DEC": "11/03/2026",
-      "EQUIPE EXECUTANTE": "Magno/Luchini",
+      "EQUIPE EXECUTANTE": "",
       "SI Planned": "30/03/2026",
       "SI Executed": "16/03/2026",
-      "Executor": "Magno",
+      "Executor": "",
       "NDPc TalonView": "16/03/2026",
       "SI Report GDC Portal": "17/03/2026",
       "Comentários": "",
@@ -3160,10 +3227,12 @@ export const INITIAL_SITES: TelecomSite[] = [
       "DATA NF": "03/06/2026",
       "Envio Edcom": "20/05/2026",
       "Status Financeiro": "NF Emitida postada Edicom",
-      "Observações/Motivo": "Nota cancelada 36245"
+      "Observações/Motivo": "Nota cancelada 36245",
+      "Responsável": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:43:40.267Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-36",
@@ -3193,10 +3262,10 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "28/02/2026",
+    "dataIntegracao": "20/03/2026",
     "dataAtivacao": "14/03/2026",
-    "responsavelCampo": "Magno",
-    "equipeParceira": "Magno/Luchini",
+    "responsavelCampo": "",
+    "equipeParceira": "",
     "ordemServico": "1360101",
     "alarmesAtivos": "NF Emitida postada Edicom",
     "observacoes": "Nota cancelada 36233",
@@ -3216,10 +3285,10 @@ export const INITIAL_SITES: TelecomSite[] = [
       "APOIO": "",
       "CallOff Solicitado": "03/03/2026",
       "DEC": "04/03/2026",
-      "EQUIPE EXECUTANTE": "Magno/Luchini",
+      "EQUIPE EXECUTANTE": "",
       "SI Planned": "20/03/2026",
       "SI Executed": "14/03/2026",
-      "Executor": "Magno",
+      "Executor": "",
       "NDPc TalonView": "19/03/2026",
       "SI Report GDC Portal": "17/03/2026",
       "Comentários": "17/03/2026 - Solicitado abono, pois o QM indicado pelo técnico responsável do Hotel é monofásico e o sistema AC que a TIM está utilizando é trifásico, não foi possivel localizar mesmo seguindo os cabos.",
@@ -3246,10 +3315,12 @@ export const INITIAL_SITES: TelecomSite[] = [
       "DATA NF": "03/06/2026",
       "Envio Edcom": "19/06/2026",
       "Status Financeiro": "NF Emitida postada Edicom",
-      "Observações/Motivo": "Nota cancelada 36233"
+      "Observações/Motivo": "Nota cancelada 36233",
+      "Responsável": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:43:40.267Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-37",
@@ -3279,10 +3350,10 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "28/02/2026",
+    "dataIntegracao": "23/03/2026",
     "dataAtivacao": "22/03/2026",
-    "responsavelCampo": "Magno",
-    "equipeParceira": "Magno/Luchini",
+    "responsavelCampo": "",
+    "equipeParceira": "",
     "ordemServico": "1360191",
     "alarmesAtivos": "NF Emitida postada Edicom",
     "observacoes": "23/03/2026 - Solicitado abono, sem acesso a sala de medição do prédio",
@@ -3302,10 +3373,10 @@ export const INITIAL_SITES: TelecomSite[] = [
       "APOIO": "",
       "CallOff Solicitado": "03/03/2026",
       "DEC": "04/03/2026",
-      "EQUIPE EXECUTANTE": "Magno/Luchini",
+      "EQUIPE EXECUTANTE": "",
       "SI Planned": "23/03/2026",
       "SI Executed": "22/03/2026",
-      "Executor": "Magno",
+      "Executor": "",
       "NDPc TalonView": "22/03/2026",
       "SI Report GDC Portal": "23/03/2026",
       "Comentários": "23/03/2026 - Solicitado abono, sem acesso a sala de medição do prédio",
@@ -3332,10 +3403,12 @@ export const INITIAL_SITES: TelecomSite[] = [
       "DATA NF": "04/06/2026",
       "Envio Edcom": "19/06/2026",
       "Status Financeiro": "NF Emitida postada Edicom",
-      "Observações/Motivo": ""
+      "Observações/Motivo": "",
+      "Responsável": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:43:40.267Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-38",
@@ -3365,10 +3438,10 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "27/02/2026",
+    "dataIntegracao": "03/03/2026",
     "dataAtivacao": "10/03/2026",
-    "responsavelCampo": "Magno",
-    "equipeParceira": "Magno/Luchini",
+    "responsavelCampo": "",
+    "equipeParceira": "",
     "ordemServico": "1360313",
     "alarmesAtivos": "NF Emitida postada Edicom",
     "observacoes": "",
@@ -3388,10 +3461,10 @@ export const INITIAL_SITES: TelecomSite[] = [
       "APOIO": "",
       "CallOff Solicitado": "03/03/2026",
       "DEC": "04/03/2026",
-      "EQUIPE EXECUTANTE": "Magno/Luchini",
+      "EQUIPE EXECUTANTE": "",
       "SI Planned": "03/03/2026",
       "SI Executed": "10/03/2026",
-      "Executor": "Magno",
+      "Executor": "",
       "NDPc TalonView": "13/03/2026",
       "SI Report GDC Portal": "12/03/2026",
       "Comentários": "",
@@ -3418,10 +3491,12 @@ export const INITIAL_SITES: TelecomSite[] = [
       "DATA NF": "02/06/2026",
       "Envio Edcom": "07/06/2026",
       "Status Financeiro": "NF Emitida postada Edicom",
-      "Observações/Motivo": ""
+      "Observações/Motivo": "",
+      "Responsável": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:43:40.267Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-39",
@@ -3451,7 +3526,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "28/02/2026",
+    "dataIntegracao": "18/03/2026",
     "dataAtivacao": "18/03/2026",
     "responsavelCampo": "Mateus",
     "equipeParceira": "Mateus/Oglio",
@@ -3506,8 +3581,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": "Nota cancelada 36216"
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-40",
@@ -3537,10 +3613,10 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "TIM | HIGHLINE",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "28/02/2026",
+    "dataIntegracao": "16/04/2026",
     "dataAtivacao": "03/04/2026",
-    "responsavelCampo": "Magno",
-    "equipeParceira": "Magno/Gilvan",
+    "responsavelCampo": "",
+    "equipeParceira": "",
     "ordemServico": "1361088",
     "alarmesAtivos": "NF Emitida postada Edicom",
     "observacoes": "Nota 36388 não recebida e GR em aberto",
@@ -3560,10 +3636,10 @@ export const INITIAL_SITES: TelecomSite[] = [
       "APOIO": "",
       "CallOff Solicitado": "03/03/2026",
       "DEC": "04/03/2026",
-      "EQUIPE EXECUTANTE": "Magno/Gilvan",
+      "EQUIPE EXECUTANTE": "",
       "SI Planned": "16/04/2026",
       "SI Executed": "03/04/2026",
-      "Executor": "Magno",
+      "Executor": "",
       "NDPc TalonView": "04/04/2026",
       "SI Report GDC Portal": "04/04/2026",
       "Comentários": "",
@@ -3590,10 +3666,12 @@ export const INITIAL_SITES: TelecomSite[] = [
       "DATA NF": "04/06/2026",
       "Envio Edcom": "12/06/2026",
       "Status Financeiro": "NF Emitida postada Edicom",
-      "Observações/Motivo": "Nota 36388 não recebida e GR em aberto"
+      "Observações/Motivo": "Nota 36388 não recebida e GR em aberto",
+      "Responsável": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:43:34.865Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-41",
@@ -3623,7 +3701,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "28/02/2026",
+    "dataIntegracao": "27/03/2026",
     "dataAtivacao": "14/03/2026",
     "responsavelCampo": "Mateus",
     "equipeParceira": "Mateus/Oglio",
@@ -3678,8 +3756,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": "Nota cancelada 36242"
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-42",
@@ -3709,7 +3788,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "IHS BRAZIL",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "27/02/2026",
+    "dataIntegracao": "05/03/2026",
     "dataAtivacao": "09/03/2026",
     "responsavelCampo": "Mateus",
     "equipeParceira": "Mateus/Oglio",
@@ -3764,8 +3843,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": "Nota cancelada 36229"
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-43",
@@ -3795,10 +3875,10 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "28/02/2026",
+    "dataIntegracao": "26/03/2026",
     "dataAtivacao": "13/03/2026",
-    "responsavelCampo": "Magno",
-    "equipeParceira": "Magno/Luchini",
+    "responsavelCampo": "",
+    "equipeParceira": "",
     "ordemServico": "1360458",
     "alarmesAtivos": "NF Emitida postada Edicom",
     "observacoes": "Nota cancelada 36239",
@@ -3818,10 +3898,10 @@ export const INITIAL_SITES: TelecomSite[] = [
       "APOIO": "",
       "CallOff Solicitado": "03/03/2026",
       "DEC": "04/03/2026",
-      "EQUIPE EXECUTANTE": "Magno/Luchini",
+      "EQUIPE EXECUTANTE": "",
       "SI Planned": "26/03/2026",
       "SI Executed": "13/03/2026",
-      "Executor": "Magno",
+      "Executor": "",
       "NDPc TalonView": "13/03/2026",
       "SI Report GDC Portal": "14/03/2026",
       "Comentários": "",
@@ -3848,10 +3928,12 @@ export const INITIAL_SITES: TelecomSite[] = [
       "DATA NF": "03/06/2026",
       "Envio Edcom": "19/06/2026",
       "Status Financeiro": "NF Emitida postada Edicom",
-      "Observações/Motivo": "Nota cancelada 36239"
+      "Observações/Motivo": "Nota cancelada 36239",
+      "Responsável": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:43:40.267Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-44",
@@ -3881,10 +3963,10 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "16/02/2026",
+    "dataIntegracao": "27/02/2026",
     "dataAtivacao": "28/02/2026",
-    "responsavelCampo": "Magno",
-    "equipeParceira": "Magno/Luchini",
+    "responsavelCampo": "",
+    "equipeParceira": "",
     "ordemServico": "1361084",
     "alarmesAtivos": "NF Emitida postada Edicom",
     "observacoes": "Nota cancelada 36204",
@@ -3904,10 +3986,10 @@ export const INITIAL_SITES: TelecomSite[] = [
       "APOIO": "",
       "CallOff Solicitado": "25/02/2026",
       "DEC": "27/02/2026",
-      "EQUIPE EXECUTANTE": "Magno/Luchini",
+      "EQUIPE EXECUTANTE": "",
       "SI Planned": "27/02/2026",
       "SI Executed": "28/02/2026",
-      "Executor": "Magno",
+      "Executor": "",
       "NDPc TalonView": "06/03/2026",
       "SI Report GDC Portal": "03/03/2026",
       "Comentários": "",
@@ -3934,10 +4016,12 @@ export const INITIAL_SITES: TelecomSite[] = [
       "DATA NF": "02/06/2026",
       "Envio Edcom": "07/06/2026",
       "Status Financeiro": "NF Emitida postada Edicom",
-      "Observações/Motivo": "Nota cancelada 36204"
+      "Observações/Motivo": "Nota cancelada 36204",
+      "Responsável": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:43:40.267Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-45",
@@ -3967,10 +4051,10 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "27/02/2026",
+    "dataIntegracao": "08/03/2026",
     "dataAtivacao": "05/03/2026",
-    "responsavelCampo": "Magno",
-    "equipeParceira": "Magno/Luchini",
+    "responsavelCampo": "",
+    "equipeParceira": "",
     "ordemServico": "1360608",
     "alarmesAtivos": "NF Emitida postada Edicom",
     "observacoes": "",
@@ -3990,10 +4074,10 @@ export const INITIAL_SITES: TelecomSite[] = [
       "APOIO": "",
       "CallOff Solicitado": "03/03/2026",
       "DEC": "04/03/2026",
-      "EQUIPE EXECUTANTE": "Magno/Luchini",
+      "EQUIPE EXECUTANTE": "",
       "SI Planned": "08/03/2026",
       "SI Executed": "05/03/2026",
-      "Executor": "Magno",
+      "Executor": "",
       "NDPc TalonView": "05/03/2026",
       "SI Report GDC Portal": "10/03/2026",
       "Comentários": "",
@@ -4020,10 +4104,12 @@ export const INITIAL_SITES: TelecomSite[] = [
       "DATA NF": "04/06/2026",
       "Envio Edcom": "12/06/2026",
       "Status Financeiro": "NF Emitida postada Edicom",
-      "Observações/Motivo": ""
+      "Observações/Motivo": "",
+      "Responsável": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:43:40.267Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-46",
@@ -4053,10 +4139,10 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "28/02/2026",
+    "dataIntegracao": "25/03/2026",
     "dataAtivacao": "14/03/2026",
-    "responsavelCampo": "Magno",
-    "equipeParceira": "Magno/Luchini",
+    "responsavelCampo": "",
+    "equipeParceira": "",
     "ordemServico": "1360276",
     "alarmesAtivos": "NF Emitida postada Edicom",
     "observacoes": "",
@@ -4076,10 +4162,10 @@ export const INITIAL_SITES: TelecomSite[] = [
       "APOIO": "",
       "CallOff Solicitado": "03/03/2026",
       "DEC": "04/03/2026",
-      "EQUIPE EXECUTANTE": "Magno/Luchini",
+      "EQUIPE EXECUTANTE": "",
       "SI Planned": "25/03/2026",
       "SI Executed": "14/03/2026",
-      "Executor": "Magno",
+      "Executor": "",
       "NDPc TalonView": "14/03/2026",
       "SI Report GDC Portal": "17/03/2026",
       "Comentários": "",
@@ -4106,10 +4192,12 @@ export const INITIAL_SITES: TelecomSite[] = [
       "DATA NF": "04/06/2026",
       "Envio Edcom": "19/06/2026",
       "Status Financeiro": "NF Emitida postada Edicom",
-      "Observações/Motivo": ""
+      "Observações/Motivo": "",
+      "Responsável": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:43:40.267Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-47",
@@ -4139,7 +4227,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "16/02/2026",
+    "dataIntegracao": "14/03/2026",
     "dataAtivacao": "14/03/2026",
     "responsavelCampo": "Mateus",
     "equipeParceira": "Mateus/Oglio",
@@ -4194,8 +4282,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": "Nota cancelada 36247"
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-48",
@@ -4225,10 +4314,10 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "TBSA - CLARO",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "16/02/2026",
+    "dataIntegracao": "04/03/2026",
     "dataAtivacao": "09/03/2026",
-    "responsavelCampo": "Magno",
-    "equipeParceira": "Magno/Luchini",
+    "responsavelCampo": "",
+    "equipeParceira": "",
     "ordemServico": "1360633",
     "alarmesAtivos": "NF Emitida postada Edicom",
     "observacoes": "Nota cancelada 36208",
@@ -4248,10 +4337,10 @@ export const INITIAL_SITES: TelecomSite[] = [
       "APOIO": "",
       "CallOff Solicitado": "25/02/2026",
       "DEC": "01/03/2026",
-      "EQUIPE EXECUTANTE": "Magno/Luchini",
+      "EQUIPE EXECUTANTE": "",
       "SI Planned": "04/03/2026",
       "SI Executed": "09/03/2026",
-      "Executor": "Magno",
+      "Executor": "",
       "NDPc TalonView": "11/03/2026",
       "SI Report GDC Portal": "10/03/2026",
       "Comentários": "03/03/2026 - Site sem chave, cadeado multilock Claro",
@@ -4278,10 +4367,12 @@ export const INITIAL_SITES: TelecomSite[] = [
       "DATA NF": "02/06/2026",
       "Envio Edcom": "07/06/2026",
       "Status Financeiro": "NF Emitida postada Edicom",
-      "Observações/Motivo": "Nota cancelada 36208"
+      "Observações/Motivo": "Nota cancelada 36208",
+      "Responsável": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:43:40.267Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-49",
@@ -4311,10 +4402,10 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "QMC",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "28/02/2026",
+    "dataIntegracao": "29/03/2026",
     "dataAtivacao": "23/03/2026",
-    "responsavelCampo": "Magno",
-    "equipeParceira": "Magno/Luchini",
+    "responsavelCampo": "",
+    "equipeParceira": "",
     "ordemServico": "1360926",
     "alarmesAtivos": "NF Emitida postada Edicom",
     "observacoes": "",
@@ -4334,10 +4425,10 @@ export const INITIAL_SITES: TelecomSite[] = [
       "APOIO": "",
       "CallOff Solicitado": "03/03/2026",
       "DEC": "04/03/2026",
-      "EQUIPE EXECUTANTE": "Magno/Luchini",
+      "EQUIPE EXECUTANTE": "",
       "SI Planned": "29/03/2026",
       "SI Executed": "23/03/2026",
-      "Executor": "Magno",
+      "Executor": "",
       "NDPc TalonView": "23/03/2026",
       "SI Report GDC Portal": "23/03/2026",
       "Comentários": "",
@@ -4364,10 +4455,12 @@ export const INITIAL_SITES: TelecomSite[] = [
       "DATA NF": "04/06/2026",
       "Envio Edcom": "20/05/2026",
       "Status Financeiro": "NF Emitida postada Edicom",
-      "Observações/Motivo": ""
+      "Observações/Motivo": "",
+      "Responsável": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:43:40.267Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-50",
@@ -4397,10 +4490,10 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "TIM",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "16/02/2026",
+    "dataIntegracao": "12/03/2026",
     "dataAtivacao": "19/03/2026",
-    "responsavelCampo": "Magno",
-    "equipeParceira": "Magno/Luchini",
+    "responsavelCampo": "",
+    "equipeParceira": "",
     "ordemServico": "1360374",
     "alarmesAtivos": "NF Emitida postada Edicom",
     "observacoes": "Nota cancelada 36207",
@@ -4420,10 +4513,10 @@ export const INITIAL_SITES: TelecomSite[] = [
       "APOIO": "",
       "CallOff Solicitado": "25/02/2026",
       "DEC": "01/03/2026",
-      "EQUIPE EXECUTANTE": "Magno/Luchini",
+      "EQUIPE EXECUTANTE": "",
       "SI Planned": "12/03/2026",
       "SI Executed": "19/03/2026",
-      "Executor": "Magno",
+      "Executor": "",
       "NDPc TalonView": "20/03/2026",
       "SI Report GDC Portal": "19/03/2026",
       "Comentários": "19/03/2026 - Solicitado abono para a sala de medição do shopping, não autorizado pelo bombeiro responsável pela manutenção.",
@@ -4450,10 +4543,12 @@ export const INITIAL_SITES: TelecomSite[] = [
       "DATA NF": "02/06/2026",
       "Envio Edcom": "20/05/2026",
       "Status Financeiro": "NF Emitida postada Edicom",
-      "Observações/Motivo": "Nota cancelada 36207"
+      "Observações/Motivo": "Nota cancelada 36207",
+      "Responsável": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:43:40.267Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-51",
@@ -4483,10 +4578,10 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "28/02/2026",
+    "dataIntegracao": "28/03/2026",
     "dataAtivacao": "11/03/2026",
-    "responsavelCampo": "Magno",
-    "equipeParceira": "Magno/Luchini",
+    "responsavelCampo": "",
+    "equipeParceira": "",
     "ordemServico": "1360694",
     "alarmesAtivos": "NF Emitida postada Edicom",
     "observacoes": "Nota cancelada 36212",
@@ -4506,10 +4601,10 @@ export const INITIAL_SITES: TelecomSite[] = [
       "APOIO": "",
       "CallOff Solicitado": "03/03/2026",
       "DEC": "04/03/2026",
-      "EQUIPE EXECUTANTE": "Magno/Luchini",
+      "EQUIPE EXECUTANTE": "",
       "SI Planned": "28/03/2026",
       "SI Executed": "11/03/2026",
-      "Executor": "Magno",
+      "Executor": "",
       "NDPc TalonView": "13/03/2026",
       "SI Report GDC Portal": "12/03/2026",
       "Comentários": "",
@@ -4536,10 +4631,12 @@ export const INITIAL_SITES: TelecomSite[] = [
       "DATA NF": "02/06/2026",
       "Envio Edcom": "20/05/2026",
       "Status Financeiro": "NF Emitida postada Edicom",
-      "Observações/Motivo": "Nota cancelada 36212"
+      "Observações/Motivo": "Nota cancelada 36212",
+      "Responsável": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:43:40.267Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-52",
@@ -4569,10 +4666,10 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "27/02/2026",
+    "dataIntegracao": "07/03/2026",
     "dataAtivacao": "07/03/2026",
-    "responsavelCampo": "Magno",
-    "equipeParceira": "Magno/Luchini",
+    "responsavelCampo": "",
+    "equipeParceira": "",
     "ordemServico": "1360586",
     "alarmesAtivos": "NF Emitida postada Edicom",
     "observacoes": "",
@@ -4592,10 +4689,10 @@ export const INITIAL_SITES: TelecomSite[] = [
       "APOIO": "",
       "CallOff Solicitado": "03/03/2026",
       "DEC": "04/03/2026",
-      "EQUIPE EXECUTANTE": "Magno/Luchini",
+      "EQUIPE EXECUTANTE": "",
       "SI Planned": "07/03/2026",
       "SI Executed": "07/03/2026",
-      "Executor": "Magno",
+      "Executor": "",
       "NDPc TalonView": "09/03/2026",
       "SI Report GDC Portal": "10/03/2026",
       "Comentários": "",
@@ -4622,10 +4719,12 @@ export const INITIAL_SITES: TelecomSite[] = [
       "DATA NF": "04/06/2026",
       "Envio Edcom": "12/06/2026",
       "Status Financeiro": "NF Emitida postada Edicom",
-      "Observações/Motivo": ""
+      "Observações/Motivo": "",
+      "Responsável": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:43:40.267Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-53",
@@ -4655,7 +4754,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "TIM",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "28/02/2026",
+    "dataIntegracao": "22/03/2026",
     "dataAtivacao": "13/03/2026",
     "responsavelCampo": "Mateus",
     "equipeParceira": "Mateus/Oglio",
@@ -4710,8 +4809,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": "Nota cancelada 36215"
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-54",
@@ -4741,10 +4841,10 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "TBSA - CLARO",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "16/02/2026",
+    "dataIntegracao": "02/03/2026",
     "dataAtivacao": "02/03/2026",
-    "responsavelCampo": "Magno",
-    "equipeParceira": "Magno/Luchini",
+    "responsavelCampo": "",
+    "equipeParceira": "",
     "ordemServico": "1360371",
     "alarmesAtivos": "NF Emitida postada Edicom",
     "observacoes": "Nota cancelada 36209",
@@ -4764,10 +4864,10 @@ export const INITIAL_SITES: TelecomSite[] = [
       "APOIO": "",
       "CallOff Solicitado": "25/02/2026",
       "DEC": "01/03/2026",
-      "EQUIPE EXECUTANTE": "Magno/Luchini",
+      "EQUIPE EXECUTANTE": "",
       "SI Planned": "02/03/2026",
       "SI Executed": "02/03/2026",
-      "Executor": "Magno",
+      "Executor": "",
       "NDPc TalonView": "06/03/2026",
       "SI Report GDC Portal": "03/03/2026",
       "Comentários": "",
@@ -4794,10 +4894,12 @@ export const INITIAL_SITES: TelecomSite[] = [
       "DATA NF": "02/06/2026",
       "Envio Edcom": "07/06/2026",
       "Status Financeiro": "NF Emitida postada Edicom",
-      "Observações/Motivo": "Nota cancelada 36209"
+      "Observações/Motivo": "Nota cancelada 36209",
+      "Responsável": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:43:40.267Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-55",
@@ -4827,7 +4929,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "28/02/2026",
+    "dataIntegracao": "29/03/2026",
     "dataAtivacao": "17/03/2026",
     "responsavelCampo": "Mateus",
     "equipeParceira": "Mateus/Oglio",
@@ -4882,8 +4984,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": "Nota cancelada 36217"
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-56",
@@ -4913,10 +5016,10 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "16/02/2026",
+    "dataIntegracao": "28/02/2026",
     "dataAtivacao": "28/02/2026",
-    "responsavelCampo": "Magno",
-    "equipeParceira": "Magno/Luchini",
+    "responsavelCampo": "",
+    "equipeParceira": "",
     "ordemServico": "1360674",
     "alarmesAtivos": "NF Emitida postada Edicom",
     "observacoes": "Nota cancelada 36249",
@@ -4936,10 +5039,10 @@ export const INITIAL_SITES: TelecomSite[] = [
       "APOIO": "",
       "CallOff Solicitado": "25/02/2026",
       "DEC": "27/02/2026",
-      "EQUIPE EXECUTANTE": "Magno/Luchini",
+      "EQUIPE EXECUTANTE": "",
       "SI Planned": "28/02/2026",
       "SI Executed": "28/02/2026",
-      "Executor": "Magno",
+      "Executor": "",
       "NDPc TalonView": "06/03/2026",
       "SI Report GDC Portal": "03/03/2026",
       "Comentários": "",
@@ -4966,10 +5069,12 @@ export const INITIAL_SITES: TelecomSite[] = [
       "DATA NF": "03/06/2026",
       "Envio Edcom": "20/05/2026",
       "Status Financeiro": "NF Emitida postada Edicom",
-      "Observações/Motivo": "Nota cancelada 36249"
+      "Observações/Motivo": "Nota cancelada 36249",
+      "Responsável": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:43:40.267Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-57",
@@ -4999,10 +5104,10 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "TBSA - CLARO",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "16/02/2026",
+    "dataIntegracao": "10/03/2026",
     "dataAtivacao": "03/03/2026",
-    "responsavelCampo": "Magno",
-    "equipeParceira": "Magno/Luchini",
+    "responsavelCampo": "",
+    "equipeParceira": "",
     "ordemServico": "1360750",
     "alarmesAtivos": "NF Emitida postada Edicom",
     "observacoes": "36989 cancelada-duplicidade com 35835",
@@ -5022,10 +5127,10 @@ export const INITIAL_SITES: TelecomSite[] = [
       "APOIO": "",
       "CallOff Solicitado": "25/02/2026",
       "DEC": "03/03/2026",
-      "EQUIPE EXECUTANTE": "Magno/Luchini",
+      "EQUIPE EXECUTANTE": "",
       "SI Planned": "10/03/2026",
       "SI Executed": "03/03/2026",
-      "Executor": "Magno",
+      "Executor": "",
       "NDPc TalonView": "06/03/2026",
       "SI Report GDC Portal": "04/03/2026",
       "Comentários": "",
@@ -5052,10 +5157,12 @@ export const INITIAL_SITES: TelecomSite[] = [
       "DATA NF": "22/05/2026",
       "Envio Edcom": "22/05/2026",
       "Status Financeiro": "NF Emitida postada Edicom",
-      "Observações/Motivo": "36989 cancelada-duplicidade com 35835"
+      "Observações/Motivo": "36989 cancelada-duplicidade com 35835",
+      "Responsável": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:43:40.267Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-58",
@@ -5085,10 +5192,10 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA TORRES",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "13/03/2026",
+    "dataIntegracao": "17/03/2026",
     "dataAtivacao": "17/03/2026",
-    "responsavelCampo": "Magno",
-    "equipeParceira": "Magno/Luchini",
+    "responsavelCampo": "",
+    "equipeParceira": "",
     "ordemServico": "1360246",
     "alarmesAtivos": "NF Emitida postada Edicom",
     "observacoes": "nota 35837 cancelada",
@@ -5108,10 +5215,10 @@ export const INITIAL_SITES: TelecomSite[] = [
       "APOIO": "",
       "CallOff Solicitado": "13/03/2026",
       "DEC": "16/03/2026",
-      "EQUIPE EXECUTANTE": "Magno/Luchini",
+      "EQUIPE EXECUTANTE": "",
       "SI Planned": "17/03/2026",
       "SI Executed": "17/03/2026",
-      "Executor": "Magno",
+      "Executor": "",
       "NDPc TalonView": "17/03/2026",
       "SI Report GDC Portal": "17/03/2026",
       "Comentários": "",
@@ -5138,10 +5245,12 @@ export const INITIAL_SITES: TelecomSite[] = [
       "DATA NF": "20/05/2026",
       "Envio Edcom": "20/05/2026",
       "Status Financeiro": "NF Emitida postada Edicom",
-      "Observações/Motivo": "nota 35837 cancelada"
+      "Observações/Motivo": "nota 35837 cancelada",
+      "Responsável": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:43:40.267Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-59",
@@ -5171,10 +5280,10 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA TORRES",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "12/03/2026",
+    "dataIntegracao": "13/03/2026",
     "dataAtivacao": "15/03/2026",
-    "responsavelCampo": "Magno",
-    "equipeParceira": "Magno/Luchini",
+    "responsavelCampo": "",
+    "equipeParceira": "",
     "ordemServico": "1360242",
     "alarmesAtivos": "NF Emitida postada Edicom",
     "observacoes": "Nota 35839 cancelada",
@@ -5194,10 +5303,10 @@ export const INITIAL_SITES: TelecomSite[] = [
       "APOIO": "",
       "CallOff Solicitado": "12/03/2026",
       "DEC": "13/03/2026",
-      "EQUIPE EXECUTANTE": "Magno/Luchini",
+      "EQUIPE EXECUTANTE": "",
       "SI Planned": "13/03/2026",
       "SI Executed": "15/03/2026",
-      "Executor": "Magno",
+      "Executor": "",
       "NDPc TalonView": "15/03/2026",
       "SI Report GDC Portal": "16/03/2026",
       "Comentários": "",
@@ -5224,10 +5333,12 @@ export const INITIAL_SITES: TelecomSite[] = [
       "DATA NF": "20/05/2026",
       "Envio Edcom": "20/05/2026",
       "Status Financeiro": "NF Emitida postada Edicom",
-      "Observações/Motivo": "Nota 35839 cancelada"
+      "Observações/Motivo": "Nota 35839 cancelada",
+      "Responsável": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:43:40.267Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-60",
@@ -5259,8 +5370,8 @@ export const INITIAL_SITES: TelecomSite[] = [
     "progressoRollout": 100,
     "dataIntegracao": "13/03/2026",
     "dataAtivacao": "13/03/2026",
-    "responsavelCampo": "Magno",
-    "equipeParceira": "Magno/Luchini",
+    "responsavelCampo": "",
+    "equipeParceira": "",
     "ordemServico": "1360571",
     "alarmesAtivos": "NF Emitida postada Edicom",
     "observacoes": "NOTA 35840 CANCELADA",
@@ -5280,10 +5391,10 @@ export const INITIAL_SITES: TelecomSite[] = [
       "APOIO": "",
       "CallOff Solicitado": "25/02/2026",
       "DEC": "13/03/2026",
-      "EQUIPE EXECUTANTE": "Magno/Luchini",
+      "EQUIPE EXECUTANTE": "",
       "SI Planned": "13/03/2026",
       "SI Executed": "13/03/2026",
-      "Executor": "Magno",
+      "Executor": "",
       "NDPc TalonView": "13/03/2026",
       "SI Report GDC Portal": "14/03/2026",
       "Comentários": "",
@@ -5310,10 +5421,12 @@ export const INITIAL_SITES: TelecomSite[] = [
       "DATA NF": "20/05/2026",
       "Envio Edcom": "20/05/2026",
       "Status Financeiro": "NF Emitida postada Edicom",
-      "Observações/Motivo": "NOTA 35840 CANCELADA"
+      "Observações/Motivo": "NOTA 35840 CANCELADA",
+      "Responsável": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:43:40.267Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-61",
@@ -5343,7 +5456,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "14/03/2026",
+    "dataIntegracao": "30/03/2026",
     "dataAtivacao": "31/03/2026",
     "responsavelCampo": "Mateus",
     "equipeParceira": "Malta/Luís",
@@ -5398,8 +5511,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": "NOTA 35849 CANCELADA"
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-62",
@@ -5429,7 +5543,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "Phoenix",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "14/03/2026",
+    "dataIntegracao": "14/04/2026",
     "dataAtivacao": "12/05/2026",
     "responsavelCampo": "Mateus",
     "equipeParceira": "Malta/Luís",
@@ -5484,8 +5598,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Pronta p/ Envio EdIcom",
       "Observações/Motivo": "15/06/2026 - Liberado pelo Sávio"
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-63",
@@ -5515,7 +5630,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "14/03/2026",
+    "dataIntegracao": "07/04/2026",
     "dataAtivacao": "12/04/2026",
     "responsavelCampo": "Mateus",
     "equipeParceira": "Malta/Luís",
@@ -5570,8 +5685,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": "NOTA 35851 CANCELADA"
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-64",
@@ -5601,7 +5717,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "IHS BRAZIL",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "14/03/2026",
+    "dataIntegracao": "07/04/2026",
     "dataAtivacao": "23/04/2026",
     "responsavelCampo": "Mateus",
     "equipeParceira": "Malta/Luís",
@@ -5656,8 +5772,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": "Nota cancelada 36257"
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-65",
@@ -5687,7 +5804,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "HIGHLINE",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "14/03/2026",
+    "dataIntegracao": "06/04/2026",
     "dataAtivacao": "02/04/2026",
     "responsavelCampo": "ANA PAULA",
     "equipeParceira": "Malta/Luís",
@@ -5742,8 +5859,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": "Nota 35856 cancelada"
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-66",
@@ -5773,7 +5891,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "14/03/2026",
+    "dataIntegracao": "11/04/2026",
     "dataAtivacao": "12/04/2026",
     "responsavelCampo": "Mateus",
     "equipeParceira": "Malta/Luís",
@@ -5828,8 +5946,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": "NOTA 35857 CANCELADA"
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-67",
@@ -5859,7 +5978,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "14/03/2026",
+    "dataIntegracao": "17/04/2026",
     "dataAtivacao": "06/05/2026",
     "responsavelCampo": "Mateus",
     "equipeParceira": "Malta/Luís",
@@ -5914,8 +6033,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": "15/06/2026 - Liberado pelo Sávio"
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-68",
@@ -5945,7 +6065,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "IHS BRAZIL",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "14/03/2026",
+    "dataIntegracao": "10/04/2026",
     "dataAtivacao": "10/04/2026",
     "responsavelCampo": "Mateus",
     "equipeParceira": "Malta/Luís",
@@ -6000,8 +6120,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": "NOTA 35860 CANCELADA"
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-69",
@@ -6031,7 +6152,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "14/03/2026",
+    "dataIntegracao": "21/04/2026",
     "dataAtivacao": "23/04/2026",
     "responsavelCampo": "Mateus",
     "equipeParceira": "Malta/Luís",
@@ -6086,8 +6207,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": "Nota cancelada 36261"
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-70",
@@ -6117,7 +6239,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "14/03/2026",
+    "dataIntegracao": "08/04/2026",
     "dataAtivacao": "31/03/2026",
     "responsavelCampo": "Mateus",
     "equipeParceira": "Malta/Luís",
@@ -6172,8 +6294,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": "NOTA 35886 CANCELADA"
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-71",
@@ -6203,7 +6326,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "Phoenix",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "14/03/2026",
+    "dataIntegracao": "15/04/2026",
     "dataAtivacao": "15/04/2026",
     "responsavelCampo": "Mateus",
     "equipeParceira": "Malta/Luís",
@@ -6258,8 +6381,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": "Nota cancelada 36262"
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-72",
@@ -6289,7 +6413,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "IHS BRAZIL",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "14/03/2026",
+    "dataIntegracao": "31/03/2026",
     "dataAtivacao": "31/03/2026",
     "responsavelCampo": "ANA PAULA",
     "equipeParceira": "Malta/Luís",
@@ -6344,8 +6468,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": "NOTA 35879 CANCELADA"
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-73",
@@ -6375,7 +6500,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "14/03/2026",
+    "dataIntegracao": "30/03/2026",
     "dataAtivacao": "30/03/2026",
     "responsavelCampo": "LUCHINI",
     "equipeParceira": "Malta/Luís",
@@ -6430,8 +6555,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": "Nota 35880 cancelada"
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-74",
@@ -6461,7 +6587,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "IHS BRAZIL",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "14/03/2026",
+    "dataIntegracao": "17/04/2026",
     "dataAtivacao": "07/04/2026",
     "responsavelCampo": "Mateus",
     "equipeParceira": "Malta/Luís",
@@ -6516,8 +6642,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": "Nota 35881 CANCELADA"
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-75",
@@ -6547,7 +6674,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "14/03/2026",
+    "dataIntegracao": "13/04/2026",
     "dataAtivacao": "22/04/2026",
     "responsavelCampo": "ANA PAULA",
     "equipeParceira": "Malta/Luís",
@@ -6602,8 +6729,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": "Nota cancelada 36255"
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-76",
@@ -6633,7 +6761,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "14/03/2026",
+    "dataIntegracao": "05/04/2026",
     "dataAtivacao": "30/03/2026",
     "responsavelCampo": "LUCHINI",
     "equipeParceira": "Malta/Luís",
@@ -6688,8 +6816,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": "Nota 35918 cancelada"
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-77",
@@ -6719,7 +6848,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "14/03/2026",
+    "dataIntegracao": "08/04/2026",
     "dataAtivacao": "02/04/2026",
     "responsavelCampo": "Mateus",
     "equipeParceira": "Malta/Luís",
@@ -6774,8 +6903,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": "Nota 35884 cancelada"
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-78",
@@ -6804,8 +6934,8 @@ export const INITIAL_SITES: TelecomSite[] = [
     "vlanOm": "",
     "energiaRetificadora": "CONDOMINIO VILLA MALAGA",
     "status": "Acesso - Solicitado p/ Nokia",
-    "progressoRollout": 60,
-    "dataIntegracao": "14/03/2026",
+    "progressoRollout": 65,
+    "dataIntegracao": "29/05/2026",
     "dataAtivacao": "",
     "responsavelCampo": "Rafael Araujo",
     "equipeParceira": "Malta/Luís",
@@ -6860,8 +6990,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "Aguardando SGR",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-79",
@@ -6891,7 +7022,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "14/03/2026",
+    "dataIntegracao": "08/04/2026",
     "dataAtivacao": "06/04/2026",
     "responsavelCampo": "Mateus",
     "equipeParceira": "Malta/Luís",
@@ -6946,8 +7077,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": "NOTA 35885 CANCELADA"
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-80",
@@ -6977,7 +7109,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "14/03/2026",
+    "dataIntegracao": "27/03/2026",
     "dataAtivacao": "28/03/2026",
     "responsavelCampo": "LUCHINI",
     "equipeParceira": "Malta/Luís",
@@ -7032,8 +7164,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": "Nota 35866 cancelada"
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-81",
@@ -7063,7 +7196,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "14/03/2026",
+    "dataIntegracao": "20/04/2026",
     "dataAtivacao": "09/04/2026",
     "responsavelCampo": "Mateus",
     "equipeParceira": "Malta/Luís",
@@ -7118,8 +7251,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": "Nota 35887 cancelada"
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-82",
@@ -7149,7 +7283,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "TBSA - CLARO",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "14/03/2026",
+    "dataIntegracao": "07/04/2026",
     "dataAtivacao": "01/04/2026",
     "responsavelCampo": "Mateus",
     "equipeParceira": "Malta/Luís",
@@ -7204,8 +7338,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-83",
@@ -7235,7 +7370,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "14/03/2026",
+    "dataIntegracao": "16/04/2026",
     "dataAtivacao": "13/04/2026",
     "responsavelCampo": "Mateus",
     "equipeParceira": "Malta/Luís",
@@ -7290,8 +7425,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": "Nota cancelada 36256"
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-84",
@@ -7321,7 +7457,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "14/03/2026",
+    "dataIntegracao": "02/04/2026",
     "dataAtivacao": "07/04/2026",
     "responsavelCampo": "Mateus",
     "equipeParceira": "Malta/Luís",
@@ -7376,8 +7512,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": "nota 35889 cancelada"
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-85",
@@ -7407,10 +7544,10 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA TORRES",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "15/03/2026",
+    "dataIntegracao": "01/04/2026",
     "dataAtivacao": "01/04/2026",
-    "responsavelCampo": "Magno",
-    "equipeParceira": "Magno/Gilvan",
+    "responsavelCampo": "",
+    "equipeParceira": "",
     "ordemServico": "1360214",
     "alarmesAtivos": "NF Emitida postada Edicom",
     "observacoes": "NOTA 35904 CANCELADA",
@@ -7430,10 +7567,10 @@ export const INITIAL_SITES: TelecomSite[] = [
       "APOIO": "",
       "CallOff Solicitado": "16/03/2026",
       "DEC": "19/03/2026",
-      "EQUIPE EXECUTANTE": "Magno/Gilvan",
+      "EQUIPE EXECUTANTE": "",
       "SI Planned": "01/04/2026",
       "SI Executed": "01/04/2026",
-      "Executor": "Magno",
+      "Executor": "",
       "NDPc TalonView": "01/04/2026",
       "SI Report GDC Portal": "01/04/2026",
       "Comentários": "24/03/2026 - Mesmo com o acesso liberado e carta em mãos o responsável do condominiou não autorizou a entrada, alegando não ter recebido a carta.",
@@ -7460,10 +7597,12 @@ export const INITIAL_SITES: TelecomSite[] = [
       "DATA NF": "20/05/2026",
       "Envio Edcom": "20/05/2026",
       "Status Financeiro": "NF Emitida postada Edicom",
-      "Observações/Motivo": "NOTA 35904 CANCELADA"
+      "Observações/Motivo": "NOTA 35904 CANCELADA",
+      "Responsável": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:43:34.865Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-86",
@@ -7493,7 +7632,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA TORRES",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "18/03/2026",
+    "dataIntegracao": "02/04/2026",
     "dataAtivacao": "07/04/2026",
     "responsavelCampo": "Mateus",
     "equipeParceira": "Mateus/Oglio",
@@ -7548,8 +7687,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": "Nota 35912 CANCELADA"
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-87",
@@ -7579,7 +7719,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA TORRES",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "18/03/2026",
+    "dataIntegracao": "09/04/2026",
     "dataAtivacao": "08/04/2026",
     "responsavelCampo": "Mateus",
     "equipeParceira": "Mateus/Oglio",
@@ -7634,8 +7774,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-88",
@@ -7665,7 +7806,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA TORRES",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "18/03/2026",
+    "dataIntegracao": "06/04/2026",
     "dataAtivacao": "01/04/2026",
     "responsavelCampo": "Mateus",
     "equipeParceira": "Mateus/Oglio",
@@ -7720,8 +7861,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-89",
@@ -7751,7 +7893,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA TORRES",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "18/03/2026",
+    "dataIntegracao": "02/04/2026",
     "dataAtivacao": "04/04/2026",
     "responsavelCampo": "Mateus",
     "equipeParceira": "Mateus/Oglio",
@@ -7806,8 +7948,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": "15/06/2026 - Liberado pelo Sávio"
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-90",
@@ -7837,7 +7980,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA TORRES",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "18/03/2026",
+    "dataIntegracao": "07/04/2026",
     "dataAtivacao": "30/03/2026",
     "responsavelCampo": "Mateus",
     "equipeParceira": "Mateus/Oglio",
@@ -7892,8 +8035,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": "Nota 35915 cancelada"
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-91",
@@ -7923,7 +8067,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA TORRES",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "18/03/2026",
+    "dataIntegracao": "28/03/2026",
     "dataAtivacao": "27/03/2026",
     "responsavelCampo": "Mateus",
     "equipeParceira": "Mateus/Oglio",
@@ -7978,8 +8122,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-92",
@@ -8009,7 +8154,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA TORRES",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "18/03/2026",
+    "dataIntegracao": "06/04/2026",
     "dataAtivacao": "02/04/2026",
     "responsavelCampo": "Mateus",
     "equipeParceira": "Mateus/Oglio",
@@ -8064,8 +8209,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": "Nota 35919 cancelada"
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-93",
@@ -8095,7 +8241,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA TORRES",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "18/03/2026",
+    "dataIntegracao": "12/06/2026",
     "dataAtivacao": "04/06/2026",
     "responsavelCampo": "Mateus",
     "equipeParceira": "Mateus/Oglio",
@@ -8150,8 +8296,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-94",
@@ -8181,10 +8328,10 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA TORRES",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "13/03/2026",
+    "dataIntegracao": "19/03/2026",
     "dataAtivacao": "19/03/2026",
-    "responsavelCampo": "Magno",
-    "equipeParceira": "Magno/Luchini",
+    "responsavelCampo": "",
+    "equipeParceira": "",
     "ordemServico": "1360541",
     "alarmesAtivos": "NF Pronta p/ Envio EdIcom",
     "observacoes": "",
@@ -8204,10 +8351,10 @@ export const INITIAL_SITES: TelecomSite[] = [
       "APOIO": "",
       "CallOff Solicitado": "13/03/2026",
       "DEC": "17/03/2026",
-      "EQUIPE EXECUTANTE": "Magno/Luchini",
+      "EQUIPE EXECUTANTE": "",
       "SI Planned": "19/03/2026",
       "SI Executed": "19/03/2026",
-      "Executor": "Magno",
+      "Executor": "",
       "NDPc TalonView": "22/03/2026",
       "SI Report GDC Portal": "19/03/2026",
       "Comentários": "",
@@ -8234,10 +8381,12 @@ export const INITIAL_SITES: TelecomSite[] = [
       "DATA NF": "10/05/2026",
       "Envio Edcom": "",
       "Status Financeiro": "NF Pronta p/ Envio EdIcom",
-      "Observações/Motivo": ""
+      "Observações/Motivo": "",
+      "Responsável": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:43:40.267Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-95",
@@ -8267,10 +8416,10 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA TORRES",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "13/03/2026",
+    "dataIntegracao": "23/03/2026",
     "dataAtivacao": "23/03/2026",
-    "responsavelCampo": "Magno",
-    "equipeParceira": "Magno/Luchini",
+    "responsavelCampo": "",
+    "equipeParceira": "",
     "ordemServico": "1360455",
     "alarmesAtivos": "NF Emitida postada Edicom",
     "observacoes": "",
@@ -8290,10 +8439,10 @@ export const INITIAL_SITES: TelecomSite[] = [
       "APOIO": "",
       "CallOff Solicitado": "13/03/2026",
       "DEC": "17/03/2026",
-      "EQUIPE EXECUTANTE": "Magno/Luchini",
+      "EQUIPE EXECUTANTE": "",
       "SI Planned": "23/03/2026",
       "SI Executed": "23/03/2026",
-      "Executor": "Magno",
+      "Executor": "",
       "NDPc TalonView": "26/03/2026",
       "SI Report GDC Portal": "25/03/2026",
       "Comentários": "",
@@ -8320,10 +8469,12 @@ export const INITIAL_SITES: TelecomSite[] = [
       "DATA NF": "",
       "Envio Edcom": "",
       "Status Financeiro": "NF Emitida postada Edicom",
-      "Observações/Motivo": ""
+      "Observações/Motivo": "",
+      "Responsável": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:43:40.267Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-96",
@@ -8353,10 +8504,10 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA TORRES",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "13/03/2026",
+    "dataIntegracao": "18/03/2026",
     "dataAtivacao": "18/03/2026",
-    "responsavelCampo": "Magno",
-    "equipeParceira": "Magno/Luchini",
+    "responsavelCampo": "",
+    "equipeParceira": "",
     "ordemServico": "1360153",
     "alarmesAtivos": "NF Pronta p/ Envio EdIcom",
     "observacoes": "Nota cancelada 37763",
@@ -8376,10 +8527,10 @@ export const INITIAL_SITES: TelecomSite[] = [
       "APOIO": "",
       "CallOff Solicitado": "13/03/2026",
       "DEC": "17/03/2026",
-      "EQUIPE EXECUTANTE": "Magno/Luchini",
+      "EQUIPE EXECUTANTE": "",
       "SI Planned": "18/03/2026",
       "SI Executed": "18/03/2026",
-      "Executor": "Magno",
+      "Executor": "",
       "NDPc TalonView": "19/03/2026",
       "SI Report GDC Portal": "19/03/2026",
       "Comentários": "",
@@ -8406,10 +8557,12 @@ export const INITIAL_SITES: TelecomSite[] = [
       "DATA NF": "07/08/2026",
       "Envio Edcom": "",
       "Status Financeiro": "NF Pronta p/ Envio EdIcom",
-      "Observações/Motivo": "Nota cancelada 37763"
+      "Observações/Motivo": "Nota cancelada 37763",
+      "Responsável": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:43:40.267Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-97",
@@ -8439,10 +8592,10 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA TORRES",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "13/03/2026",
+    "dataIntegracao": "20/03/2026",
     "dataAtivacao": "20/03/2026",
-    "responsavelCampo": "Magno",
-    "equipeParceira": "Magno/Luchini",
+    "responsavelCampo": "",
+    "equipeParceira": "",
     "ordemServico": "1361757",
     "alarmesAtivos": "NF Pronta p/ Envio EdIcom",
     "observacoes": "Nota cancelada 37764",
@@ -8462,10 +8615,10 @@ export const INITIAL_SITES: TelecomSite[] = [
       "APOIO": "",
       "CallOff Solicitado": "13/03/2026",
       "DEC": "17/03/2026",
-      "EQUIPE EXECUTANTE": "Magno/Luchini",
+      "EQUIPE EXECUTANTE": "",
       "SI Planned": "20/03/2026",
       "SI Executed": "20/03/2026",
-      "Executor": "Magno",
+      "Executor": "",
       "NDPc TalonView": "23/03/2026",
       "SI Report GDC Portal": "21/03/2026",
       "Comentários": "",
@@ -8492,10 +8645,12 @@ export const INITIAL_SITES: TelecomSite[] = [
       "DATA NF": "07/08/2026",
       "Envio Edcom": "",
       "Status Financeiro": "NF Pronta p/ Envio EdIcom",
-      "Observações/Motivo": "Nota cancelada 37764"
+      "Observações/Motivo": "Nota cancelada 37764",
+      "Responsável": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:43:40.267Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-98",
@@ -8525,10 +8680,10 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA TORRES",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "13/03/2026",
+    "dataIntegracao": "21/03/2026",
     "dataAtivacao": "21/03/2026",
-    "responsavelCampo": "Magno",
-    "equipeParceira": "Magno/Luchini",
+    "responsavelCampo": "",
+    "equipeParceira": "",
     "ordemServico": "1360617",
     "alarmesAtivos": "NF Emitida postada Edicom",
     "observacoes": "Nota cancelada 36253",
@@ -8548,10 +8703,10 @@ export const INITIAL_SITES: TelecomSite[] = [
       "APOIO": "",
       "CallOff Solicitado": "13/03/2026",
       "DEC": "17/03/2026",
-      "EQUIPE EXECUTANTE": "Magno/Luchini",
+      "EQUIPE EXECUTANTE": "",
       "SI Planned": "21/03/2026",
       "SI Executed": "21/03/2026",
-      "Executor": "Magno",
+      "Executor": "",
       "NDPc TalonView": "23/03/2026",
       "SI Report GDC Portal": "23/03/2026",
       "Comentários": "",
@@ -8578,10 +8733,12 @@ export const INITIAL_SITES: TelecomSite[] = [
       "DATA NF": "03/06/2026",
       "Envio Edcom": "20/05/2026",
       "Status Financeiro": "NF Emitida postada Edicom",
-      "Observações/Motivo": "Nota cancelada 36253"
+      "Observações/Motivo": "Nota cancelada 36253",
+      "Responsável": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:43:40.267Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-99",
@@ -8611,7 +8768,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA TORRES",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "18/03/2026",
+    "dataIntegracao": "29/03/2026",
     "dataAtivacao": "30/03/2026",
     "responsavelCampo": "Mateus",
     "equipeParceira": "Mateus/Oglio",
@@ -8666,8 +8823,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-100",
@@ -8697,7 +8855,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA TORRES",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "18/03/2026",
+    "dataIntegracao": "30/03/2026",
     "dataAtivacao": "30/03/2026",
     "responsavelCampo": "Mateus",
     "equipeParceira": "Mateus/Oglio",
@@ -8752,8 +8910,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Pronta p/ Envio EdIcom",
       "Observações/Motivo": "Nota cancelada 37765"
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-101",
@@ -8783,7 +8942,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA TORRES",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "18/03/2026",
+    "dataIntegracao": "25/03/2026",
     "dataAtivacao": "25/03/2026",
     "responsavelCampo": "Mateus",
     "equipeParceira": "Mateus/Oglio",
@@ -8838,8 +8997,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Pronta p/ Envio EdIcom",
       "Observações/Motivo": "Nota cancelada 37766"
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-102",
@@ -8869,10 +9029,10 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA TORRES",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "13/03/2026",
+    "dataIntegracao": "20/03/2026",
     "dataAtivacao": "20/03/2026",
-    "responsavelCampo": "Magno",
-    "equipeParceira": "Magno/Luchini",
+    "responsavelCampo": "",
+    "equipeParceira": "",
     "ordemServico": "1360223",
     "alarmesAtivos": "NF Emitida postada Edicom",
     "observacoes": "",
@@ -8892,10 +9052,10 @@ export const INITIAL_SITES: TelecomSite[] = [
       "APOIO": "",
       "CallOff Solicitado": "13/03/2026",
       "DEC": "17/03/2026",
-      "EQUIPE EXECUTANTE": "Magno/Luchini",
+      "EQUIPE EXECUTANTE": "",
       "SI Planned": "20/03/2026",
       "SI Executed": "20/03/2026",
-      "Executor": "Magno",
+      "Executor": "",
       "NDPc TalonView": "22/04/2026",
       "SI Report GDC Portal": "21/03/2026",
       "Comentários": "",
@@ -8922,10 +9082,12 @@ export const INITIAL_SITES: TelecomSite[] = [
       "DATA NF": "",
       "Envio Edcom": "",
       "Status Financeiro": "NF Emitida postada Edicom",
-      "Observações/Motivo": ""
+      "Observações/Motivo": "",
+      "Responsável": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:43:40.267Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-103",
@@ -8955,7 +9117,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA TORRES",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "18/03/2026",
+    "dataIntegracao": "30/03/2026",
     "dataAtivacao": "27/03/2026",
     "responsavelCampo": "Mateus",
     "equipeParceira": "Mateus/Oglio",
@@ -9010,8 +9172,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Pronta p/ Envio EdIcom",
       "Observações/Motivo": "Nota 35572 camcelada"
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-104",
@@ -9041,7 +9204,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA TORRES",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "13/03/2026",
+    "dataIntegracao": "20/03/2026",
     "dataAtivacao": "20/03/2026",
     "responsavelCampo": "Mateus",
     "equipeParceira": "Mateus/Oglio",
@@ -9096,8 +9259,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": "Nota cancelada 36260"
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-105",
@@ -9127,10 +9291,10 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA TORRES",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "13/03/2026",
+    "dataIntegracao": "02/04/2026",
     "dataAtivacao": "02/04/2026",
-    "responsavelCampo": "Magno",
-    "equipeParceira": "Magno/Gilvan",
+    "responsavelCampo": "",
+    "equipeParceira": "",
     "ordemServico": "1360980",
     "alarmesAtivos": "NF Pronta p/ Envio EdIcom",
     "observacoes": "Nota cancelada 37767",
@@ -9150,10 +9314,10 @@ export const INITIAL_SITES: TelecomSite[] = [
       "APOIO": "",
       "CallOff Solicitado": "13/03/2026",
       "DEC": "17/03/2026",
-      "EQUIPE EXECUTANTE": "Magno/Gilvan",
+      "EQUIPE EXECUTANTE": "",
       "SI Planned": "02/04/2026",
       "SI Executed": "02/04/2026",
-      "Executor": "Magno",
+      "Executor": "",
       "NDPc TalonView": "02/04/2026",
       "SI Report GDC Portal": "03/04/2026",
       "Comentários": "02-03-2026 - Vistoria Parcial, aguardando projeto para seguir com documentação e-mail enviado para nokia  02-03-2026",
@@ -9180,10 +9344,12 @@ export const INITIAL_SITES: TelecomSite[] = [
       "DATA NF": "07/08/2026",
       "Envio Edcom": "",
       "Status Financeiro": "NF Pronta p/ Envio EdIcom",
-      "Observações/Motivo": "Nota cancelada 37767"
+      "Observações/Motivo": "Nota cancelada 37767",
+      "Responsável": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:43:34.865Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-106",
@@ -9213,10 +9379,10 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "13/03/2026",
+    "dataIntegracao": "02/04/2026",
     "dataAtivacao": "02/04/2026",
-    "responsavelCampo": "Magno",
-    "equipeParceira": "Magno/Gilvan",
+    "responsavelCampo": "",
+    "equipeParceira": "",
     "ordemServico": "1360118",
     "alarmesAtivos": "NF Pronta p/ Envio EdIcom",
     "observacoes": "Nota cancelada 37768",
@@ -9236,10 +9402,10 @@ export const INITIAL_SITES: TelecomSite[] = [
       "APOIO": "",
       "CallOff Solicitado": "13/03/2026",
       "DEC": "17/03/2026",
-      "EQUIPE EXECUTANTE": "Magno/Gilvan",
+      "EQUIPE EXECUTANTE": "",
       "SI Planned": "02/04/2026",
       "SI Executed": "02/04/2026",
-      "Executor": "Magno",
+      "Executor": "",
       "NDPc TalonView": "02/04/2026",
       "SI Report GDC Portal": "03/04/2026",
       "Comentários": "",
@@ -9266,10 +9432,12 @@ export const INITIAL_SITES: TelecomSite[] = [
       "DATA NF": "07/08/2026",
       "Envio Edcom": "",
       "Status Financeiro": "NF Pronta p/ Envio EdIcom",
-      "Observações/Motivo": "Nota cancelada 37768"
+      "Observações/Motivo": "Nota cancelada 37768",
+      "Responsável": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:43:34.865Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-107",
@@ -9299,10 +9467,10 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA TORRES",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "13/03/2026",
+    "dataIntegracao": "23/03/2026",
     "dataAtivacao": "23/03/2026",
-    "responsavelCampo": "Magno",
-    "equipeParceira": "Magno/Luchini",
+    "responsavelCampo": "",
+    "equipeParceira": "",
     "ordemServico": "1360348",
     "alarmesAtivos": "NF Pronta p/ Envio EdIcom",
     "observacoes": "Nota cancelada 37769",
@@ -9322,10 +9490,10 @@ export const INITIAL_SITES: TelecomSite[] = [
       "APOIO": "",
       "CallOff Solicitado": "13/03/2026",
       "DEC": "17/03/2026",
-      "EQUIPE EXECUTANTE": "Magno/Luchini",
+      "EQUIPE EXECUTANTE": "",
       "SI Planned": "23/03/2026",
       "SI Executed": "23/03/2026",
-      "Executor": "Magno",
+      "Executor": "",
       "NDPc TalonView": "24/03/2026",
       "SI Report GDC Portal": "25/03/2026",
       "Comentários": "",
@@ -9352,10 +9520,12 @@ export const INITIAL_SITES: TelecomSite[] = [
       "DATA NF": "07/08/2026",
       "Envio Edcom": "",
       "Status Financeiro": "NF Pronta p/ Envio EdIcom",
-      "Observações/Motivo": "Nota cancelada 37769"
+      "Observações/Motivo": "Nota cancelada 37769",
+      "Responsável": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:43:40.267Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-108",
@@ -9385,7 +9555,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "IHS BRAZIL",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "14/03/2026",
+    "dataIntegracao": "16/04/2026",
     "dataAtivacao": "17/04/2026",
     "responsavelCampo": "Mateus",
     "equipeParceira": "Malta/Luís",
@@ -9440,8 +9610,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": "Nota cancelada 36265"
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-109",
@@ -9471,7 +9642,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "IHS BRAZIL",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "14/03/2026",
+    "dataIntegracao": "20/04/2026",
     "dataAtivacao": "15/04/2026",
     "responsavelCampo": "Mateus",
     "equipeParceira": "Malta/Luís",
@@ -9526,8 +9697,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": "Nota cancelada 36264"
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-110",
@@ -9557,7 +9729,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "IHS BRAZIL",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "14/03/2026",
+    "dataIntegracao": "14/04/2026",
     "dataAtivacao": "10/04/2026",
     "responsavelCampo": "Mateus",
     "equipeParceira": "Malta/Luís",
@@ -9612,8 +9784,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": "Nota cancelada 36263"
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-111",
@@ -9643,7 +9816,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA TORRES",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "13/03/2026",
+    "dataIntegracao": "20/03/2026",
     "dataAtivacao": "20/03/2026",
     "responsavelCampo": "Mateus",
     "equipeParceira": "Mateus/Oglio",
@@ -9698,8 +9871,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": "Nota cancelada 36250"
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-112",
@@ -9729,7 +9903,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "IHS BRAZIL",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "08/04/2026",
+    "dataIntegracao": "07/05/2026",
     "dataAtivacao": "07/05/2026",
     "responsavelCampo": "Rafael Araujo",
     "equipeParceira": "Diego/Vagner",
@@ -9784,8 +9958,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Pronta p/ Envio EdIcom",
       "Observações/Motivo": "15/06/2026 - Liberado pelo Sávio"
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-113",
@@ -9815,7 +9990,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "IHS BRAZIL",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "08/04/2026",
+    "dataIntegracao": "23/04/2026",
     "dataAtivacao": "23/04/2026",
     "responsavelCampo": "Rafael Araujo",
     "equipeParceira": "Diego/Vagner",
@@ -9870,8 +10045,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-114",
@@ -9901,7 +10077,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA TORRES | OI",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "08/04/2026",
+    "dataIntegracao": "28/04/2026",
     "dataAtivacao": "28/04/2026",
     "responsavelCampo": "MAGNO",
     "equipeParceira": "Diego/Vagner",
@@ -9956,8 +10132,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-115",
@@ -9987,7 +10164,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "08/04/2026",
+    "dataIntegracao": "28/04/2026",
     "dataAtivacao": "28/04/2026",
     "responsavelCampo": "MAGNO",
     "equipeParceira": "Diego/Vagner",
@@ -10042,8 +10219,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-116",
@@ -10073,7 +10251,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "TIM",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "08/04/2026",
+    "dataIntegracao": "27/04/2026",
     "dataAtivacao": "27/04/2026",
     "responsavelCampo": "MAGNO",
     "equipeParceira": "Diego/Vagner",
@@ -10128,8 +10306,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": "nota 36369 cancelada valor do IRRF incorreto"
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-117",
@@ -10159,7 +10338,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "IHS BRAZIL",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "08/04/2026",
+    "dataIntegracao": "27/04/2026",
     "dataAtivacao": "27/04/2026",
     "responsavelCampo": "Rafael Araujo",
     "equipeParceira": "Diego/Vagner",
@@ -10214,8 +10393,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": "15/06/2026 - Liberado pelo Sávio"
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-118",
@@ -10245,7 +10425,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA TORRES",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "08/04/2026",
+    "dataIntegracao": "04/05/2026",
     "dataAtivacao": "04/05/2026",
     "responsavelCampo": "MAGNO",
     "equipeParceira": "Diego/Vagner",
@@ -10300,8 +10480,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Pronta p/ Envio EdIcom",
       "Observações/Motivo": "15/06/2026 - Liberado pelo Sávio"
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-119",
@@ -10331,7 +10512,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "TELXIUS TORRES BRAZIL | ATC",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "08/04/2026",
+    "dataIntegracao": "02/05/2026",
     "dataAtivacao": "02/05/2026",
     "responsavelCampo": "MAGNO",
     "equipeParceira": "Diego/Vagner",
@@ -10386,8 +10567,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": "36374-cancelada duplicidade 36029"
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-120",
@@ -10417,7 +10599,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA TORRES",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "08/04/2026",
+    "dataIntegracao": "06/05/2026",
     "dataAtivacao": "06/05/2026",
     "responsavelCampo": "MAGNO",
     "equipeParceira": "Diego/Vagner",
@@ -10472,8 +10654,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": "15/06/2026 - Liberado pelo Sávio"
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-121",
@@ -10503,7 +10686,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "IHS BRAZIL",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "08/04/2026",
+    "dataIntegracao": "07/05/2026",
     "dataAtivacao": "07/05/2026",
     "responsavelCampo": "Rafael Araujo",
     "equipeParceira": "Diego/Vagner",
@@ -10558,8 +10741,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": "15/06/2026 - Liberado pelo Sávio"
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-122",
@@ -10589,7 +10773,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "12/04/2026",
+    "dataIntegracao": "30/04/2026",
     "dataAtivacao": "30/04/2026",
     "responsavelCampo": "MATEUS",
     "equipeParceira": "MATEUS",
@@ -10644,8 +10828,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": "15/06/2026 - Liberado pelo Sávio"
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-123",
@@ -10675,7 +10860,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "TIM",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "08/04/2026",
+    "dataIntegracao": "27/04/2026",
     "dataAtivacao": "27/04/2026",
     "responsavelCampo": "MAGNO",
     "equipeParceira": "Diego/Vagner",
@@ -10730,8 +10915,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-124",
@@ -10761,10 +10947,10 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "12/04/2026",
+    "dataIntegracao": "03/05/2026",
     "dataAtivacao": "03/05/2026",
-    "responsavelCampo": "Magno",
-    "equipeParceira": "MAGNO-GILVAN",
+    "responsavelCampo": "",
+    "equipeParceira": "",
     "ordemServico": "1362836",
     "alarmesAtivos": "NF Emitida postada Edicom",
     "observacoes": "15/06/2026 - Liberado pelo Sávio",
@@ -10784,10 +10970,10 @@ export const INITIAL_SITES: TelecomSite[] = [
       "APOIO": "",
       "CallOff Solicitado": "14/04/2026",
       "DEC": "16/04/2026",
-      "EQUIPE EXECUTANTE": "MAGNO-GILVAN",
+      "EQUIPE EXECUTANTE": "",
       "SI Planned": "03/05/2026",
       "SI Executed": "03/05/2026",
-      "Executor": "Magno",
+      "Executor": "",
       "NDPc TalonView": "04/05/2026",
       "SI Report GDC Portal": "04/05/2026",
       "Comentários": "",
@@ -10814,10 +11000,12 @@ export const INITIAL_SITES: TelecomSite[] = [
       "DATA NF": "06/07/2026",
       "Envio Edcom": "10/07/2026",
       "Status Financeiro": "NF Emitida postada Edicom",
-      "Observações/Motivo": "15/06/2026 - Liberado pelo Sávio"
+      "Observações/Motivo": "15/06/2026 - Liberado pelo Sávio",
+      "Responsável": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:43:34.865Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-125",
@@ -10847,7 +11035,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "IHS BRAZIL",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "08/04/2026",
+    "dataIntegracao": "27/04/2026",
     "dataAtivacao": "27/04/2026",
     "responsavelCampo": "MAGNO",
     "equipeParceira": "Diego/Vagner",
@@ -10902,8 +11090,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-126",
@@ -10933,7 +11122,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "TELXIUS TORRES BRAZIL | ATC",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "08/04/2026",
+    "dataIntegracao": "29/04/2026",
     "dataAtivacao": "29/04/2026",
     "responsavelCampo": "MAGNO",
     "equipeParceira": "Diego/Vagner",
@@ -10988,8 +11177,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": "15/06/2026 - Liberado pelo Sávio"
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-127",
@@ -11019,7 +11209,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "IHS BRAZIL",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "08/04/2026",
+    "dataIntegracao": "07/05/2026",
     "dataAtivacao": "07/05/2026",
     "responsavelCampo": "MAGNO",
     "equipeParceira": "Diego/Vagner",
@@ -11074,8 +11264,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": "15/06/2026 - Liberado pelo Sávio"
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-128",
@@ -11105,7 +11296,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA TORRES",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "08/04/2026",
+    "dataIntegracao": "04/05/2026",
     "dataAtivacao": "04/05/2026",
     "responsavelCampo": "Rafael Araujo",
     "equipeParceira": "Diego/Vagner",
@@ -11160,8 +11351,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": "15/06/2026 - Liberado pelo Sávio"
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-129",
@@ -11191,7 +11383,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "CLARO",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "08/04/2026",
+    "dataIntegracao": "02/05/2026",
     "dataAtivacao": "02/05/2026",
     "responsavelCampo": "MAGNO",
     "equipeParceira": "Diego/Vagner",
@@ -11246,8 +11438,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": "36373-cancelada - duplicidade 36031"
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-130",
@@ -11277,10 +11470,10 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "GENNE VIANA SILVA",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "12/04/2026",
+    "dataIntegracao": "27/04/2026",
     "dataAtivacao": "27/04/2026",
-    "responsavelCampo": "Magno",
-    "equipeParceira": "Gilvan/Magno",
+    "responsavelCampo": "",
+    "equipeParceira": "",
     "ordemServico": "1362979",
     "alarmesAtivos": "NF Emitida postada Edicom",
     "observacoes": "15/06/2026 - Liberado pelo Sávio",
@@ -11300,10 +11493,10 @@ export const INITIAL_SITES: TelecomSite[] = [
       "APOIO": "",
       "CallOff Solicitado": "14/04/2026",
       "DEC": "16/04/2026",
-      "EQUIPE EXECUTANTE": "Gilvan/Magno",
+      "EQUIPE EXECUTANTE": "",
       "SI Planned": "27/04/2026",
       "SI Executed": "27/04/2026",
-      "Executor": "Magno",
+      "Executor": "",
       "NDPc TalonView": "27/04/2026",
       "SI Report GDC Portal": "27/04/2026",
       "Comentários": "",
@@ -11330,10 +11523,12 @@ export const INITIAL_SITES: TelecomSite[] = [
       "DATA NF": "06/07/2026",
       "Envio Edcom": "10/07/2026",
       "Status Financeiro": "NF Emitida postada Edicom",
-      "Observações/Motivo": "15/06/2026 - Liberado pelo Sávio"
+      "Observações/Motivo": "15/06/2026 - Liberado pelo Sávio",
+      "Responsável": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:43:34.865Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-131",
@@ -11363,7 +11558,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "TIM",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "08/04/2026",
+    "dataIntegracao": "27/04/2026",
     "dataAtivacao": "27/04/2026",
     "responsavelCampo": "Rafael Araujo",
     "equipeParceira": "Diego/Vagner",
@@ -11418,8 +11613,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": "15/06/2026 - Liberado pelo Sávio"
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-132",
@@ -11449,7 +11645,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "08/04/2026",
+    "dataIntegracao": "30/04/2026",
     "dataAtivacao": "30/04/2026",
     "responsavelCampo": "MAGNO",
     "equipeParceira": "Diego/Vagner",
@@ -11504,8 +11700,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-133",
@@ -11535,7 +11732,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "TBSA - CLARO",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "08/04/2026",
+    "dataIntegracao": "01/05/2026",
     "dataAtivacao": "01/05/2026",
     "responsavelCampo": "MAGNO",
     "equipeParceira": "Diego/Vagner",
@@ -11590,8 +11787,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": "15/06/2026 - Liberado pelo Sávio"
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-134",
@@ -11621,7 +11819,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "IHS BRAZIL",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "08/04/2026",
+    "dataIntegracao": "24/04/2026",
     "dataAtivacao": "24/04/2026",
     "responsavelCampo": "MAGNO",
     "equipeParceira": "Diego/Vagner",
@@ -11676,8 +11874,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-135",
@@ -11707,7 +11906,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "08/04/2026",
+    "dataIntegracao": "30/04/2026",
     "dataAtivacao": "30/04/2026",
     "responsavelCampo": "Rafael Araujo",
     "equipeParceira": "Diego/Vagner",
@@ -11762,8 +11961,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": "15/06/2026 - Liberado pelo Sávio"
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-136",
@@ -11793,7 +11993,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "TIM | SBA TORRES",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "08/04/2026",
+    "dataIntegracao": "29/04/2026",
     "dataAtivacao": "29/04/2026",
     "responsavelCampo": "MAGNO",
     "equipeParceira": "Diego/Vagner",
@@ -11848,8 +12048,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-137",
@@ -11879,7 +12080,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "08/04/2026",
+    "dataIntegracao": "26/04/2026",
     "dataAtivacao": "26/04/2026",
     "responsavelCampo": "MAGNO",
     "equipeParceira": "Diego/Vagner",
@@ -11934,8 +12135,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-138",
@@ -11965,10 +12167,10 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "12/04/2026",
+    "dataIntegracao": "03/05/2026",
     "dataAtivacao": "03/05/2026",
-    "responsavelCampo": "Magno",
-    "equipeParceira": "Gilvan/Magno",
+    "responsavelCampo": "",
+    "equipeParceira": "",
     "ordemServico": "1362772",
     "alarmesAtivos": "NF Emitida postada Edicom",
     "observacoes": "04/05/2026 - E-mail enviado solicitando abono da Torre devido ninho de gavião e abono do gabinete Gepon/TX.",
@@ -11988,10 +12190,10 @@ export const INITIAL_SITES: TelecomSite[] = [
       "APOIO": "",
       "CallOff Solicitado": "14/04/2026",
       "DEC": "16/04/2026",
-      "EQUIPE EXECUTANTE": "Gilvan/Magno",
+      "EQUIPE EXECUTANTE": "",
       "SI Planned": "03/05/2026",
       "SI Executed": "03/05/2026",
-      "Executor": "Magno",
+      "Executor": "",
       "NDPc TalonView": "04/05/2026",
       "SI Report GDC Portal": "04/05/2026",
       "Comentários": "04/05/2026 - E-mail enviado solicitando abono da Torre devido ninho de gavião e abono do gabinete Gepon/TX.",
@@ -12018,10 +12220,12 @@ export const INITIAL_SITES: TelecomSite[] = [
       "DATA NF": "17/06/2026",
       "Envio Edcom": "18/06/2026",
       "Status Financeiro": "NF Emitida postada Edicom",
-      "Observações/Motivo": ""
+      "Observações/Motivo": "",
+      "Responsável": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:43:34.865Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-139",
@@ -12051,7 +12255,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "IHS BRAZIL",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "08/04/2026",
+    "dataIntegracao": "24/04/2026",
     "dataAtivacao": "24/04/2026",
     "responsavelCampo": "MAGNO",
     "equipeParceira": "Diego/Vagner",
@@ -12106,8 +12310,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": "36371 - cancelada - duplicidade com nota 36035"
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-140",
@@ -12137,7 +12342,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "12/04/2026",
+    "dataIntegracao": "06/05/2026",
     "dataAtivacao": "06/05/2026",
     "responsavelCampo": "MATEUS",
     "equipeParceira": "MATEUS",
@@ -12192,8 +12397,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-141",
@@ -12223,7 +12429,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "QMC",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "08/04/2026",
+    "dataIntegracao": "28/04/2026",
     "dataAtivacao": "28/04/2026",
     "responsavelCampo": "MAGNO",
     "equipeParceira": "Diego/Vagner",
@@ -12278,8 +12484,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": "36372 - cancelada - duplicidade com nota 36036"
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-142",
@@ -12309,7 +12516,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "12/04/2026",
+    "dataIntegracao": "27/04/2026",
     "dataAtivacao": "27/04/2026",
     "responsavelCampo": "MATEUS",
     "equipeParceira": "MATEUS",
@@ -12364,8 +12571,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": "15/06/2026 - Liberado pelo Sávio"
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-143",
@@ -12395,10 +12603,10 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "12/04/2026",
+    "dataIntegracao": "01/05/2026",
     "dataAtivacao": "01/05/2026",
-    "responsavelCampo": "Magno",
-    "equipeParceira": "MAGNO-GILVAN",
+    "responsavelCampo": "",
+    "equipeParceira": "",
     "ordemServico": "1362652",
     "alarmesAtivos": "NF Emitida postada Edicom",
     "observacoes": "15/06/2026 - Liberado pelo Sávio",
@@ -12418,10 +12626,10 @@ export const INITIAL_SITES: TelecomSite[] = [
       "APOIO": "",
       "CallOff Solicitado": "14/04/2026",
       "DEC": "16/04/2026",
-      "EQUIPE EXECUTANTE": "MAGNO-GILVAN",
+      "EQUIPE EXECUTANTE": "",
       "SI Planned": "01/05/2026",
       "SI Executed": "01/05/2026",
-      "Executor": "Magno",
+      "Executor": "",
       "NDPc TalonView": "01/05/2026",
       "SI Report GDC Portal": "02/05/2026",
       "Comentários": "",
@@ -12448,10 +12656,12 @@ export const INITIAL_SITES: TelecomSite[] = [
       "DATA NF": "06/07/2026",
       "Envio Edcom": "10/07/2026",
       "Status Financeiro": "NF Emitida postada Edicom",
-      "Observações/Motivo": "15/06/2026 - Liberado pelo Sávio"
+      "Observações/Motivo": "15/06/2026 - Liberado pelo Sávio",
+      "Responsável": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:43:34.865Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-144",
@@ -12481,7 +12691,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "12/04/2026",
+    "dataIntegracao": "29/04/2026",
     "dataAtivacao": "29/04/2026",
     "responsavelCampo": "MATEUS",
     "equipeParceira": "MATEUS",
@@ -12536,8 +12746,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-145",
@@ -12567,7 +12778,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "12/04/2026",
+    "dataIntegracao": "08/06/2026",
     "dataAtivacao": "05/06/2026",
     "responsavelCampo": "Magno",
     "equipeParceira": "Magno/ Mateus",
@@ -12622,8 +12833,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-146",
@@ -12653,7 +12865,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "12/04/2026",
+    "dataIntegracao": "03/05/2026",
     "dataAtivacao": "03/05/2026",
     "responsavelCampo": "MATEUS",
     "equipeParceira": "Mateus",
@@ -12708,8 +12920,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-147",
@@ -12739,7 +12952,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "08/04/2026",
+    "dataIntegracao": "05/05/2026",
     "dataAtivacao": "05/05/2026",
     "responsavelCampo": "MAGNO",
     "equipeParceira": "Diego/Vagner",
@@ -12794,8 +13007,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": "15/06/2026 - Liberado pelo Sávio"
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-148",
@@ -12825,7 +13039,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "12/04/2026",
+    "dataIntegracao": "02/05/2026",
     "dataAtivacao": "02/05/2026",
     "responsavelCampo": "MATEUS",
     "equipeParceira": "MATEUS",
@@ -12880,8 +13094,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-149",
@@ -12911,7 +13126,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "08/04/2026",
+    "dataIntegracao": "03/05/2026",
     "dataAtivacao": "03/05/2026",
     "responsavelCampo": "MAGNO",
     "equipeParceira": "Diego/Vagner",
@@ -12966,8 +13181,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": "36378-cancelada-duplicidade 36037"
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-150",
@@ -12997,7 +13213,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "12/04/2026",
+    "dataIntegracao": "21/04/2026",
     "dataAtivacao": "21/04/2026",
     "responsavelCampo": "MATEUS",
     "equipeParceira": "MATEUS",
@@ -13052,8 +13268,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-151",
@@ -13083,7 +13300,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "12/04/2026",
+    "dataIntegracao": "01/05/2026",
     "dataAtivacao": "01/05/2026",
     "responsavelCampo": "MATEUS",
     "equipeParceira": "MATEUS",
@@ -13138,8 +13355,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-152",
@@ -13169,10 +13387,10 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "HIGHLINE",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "12/04/2026",
+    "dataIntegracao": "04/05/2026",
     "dataAtivacao": "04/05/2026",
-    "responsavelCampo": "Magno",
-    "equipeParceira": "Gilvan/Magno",
+    "responsavelCampo": "",
+    "equipeParceira": "",
     "ordemServico": "1362773",
     "alarmesAtivos": "NF Emitida postada Edicom",
     "observacoes": "",
@@ -13192,10 +13410,10 @@ export const INITIAL_SITES: TelecomSite[] = [
       "APOIO": "",
       "CallOff Solicitado": "14/04/2026",
       "DEC": "16/04/2026",
-      "EQUIPE EXECUTANTE": "Gilvan/Magno",
+      "EQUIPE EXECUTANTE": "",
       "SI Planned": "04/05/2026",
       "SI Executed": "04/05/2026",
-      "Executor": "Magno",
+      "Executor": "",
       "NDPc TalonView": "05/05/2026",
       "SI Report GDC Portal": "04/05/2026",
       "Comentários": "",
@@ -13222,10 +13440,12 @@ export const INITIAL_SITES: TelecomSite[] = [
       "DATA NF": "17/06/2026",
       "Envio Edcom": "18/06/2026",
       "Status Financeiro": "NF Emitida postada Edicom",
-      "Observações/Motivo": ""
+      "Observações/Motivo": "",
+      "Responsável": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:43:34.865Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-153",
@@ -13255,7 +13475,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "08/04/2026",
+    "dataIntegracao": "22/04/2026",
     "dataAtivacao": "22/04/2026",
     "responsavelCampo": "Rafael Araujo",
     "equipeParceira": "Diego/Vagner",
@@ -13310,8 +13530,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": "15/06/2026 - Liberado pelo Sávio"
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-154",
@@ -13341,10 +13562,10 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "TBSA - CLARO",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "12/04/2026",
+    "dataIntegracao": "18/04/2026",
     "dataAtivacao": "18/04/2026",
-    "responsavelCampo": "Magno",
-    "equipeParceira": "MAGNO-GILVAN",
+    "responsavelCampo": "",
+    "equipeParceira": "",
     "ordemServico": "1362975",
     "alarmesAtivos": "NF Emitida postada Edicom",
     "observacoes": "15/06/2026 - Liberado pelo Sávio",
@@ -13364,10 +13585,10 @@ export const INITIAL_SITES: TelecomSite[] = [
       "APOIO": "",
       "CallOff Solicitado": "14/04/2026",
       "DEC": "16/04/2026",
-      "EQUIPE EXECUTANTE": "MAGNO-GILVAN",
+      "EQUIPE EXECUTANTE": "",
       "SI Planned": "18/04/2026",
       "SI Executed": "18/04/2026",
-      "Executor": "Magno",
+      "Executor": "",
       "NDPc TalonView": "20/04/2026",
       "SI Report GDC Portal": "20/04/2026",
       "Comentários": "",
@@ -13394,10 +13615,12 @@ export const INITIAL_SITES: TelecomSite[] = [
       "DATA NF": "06/07/2026",
       "Envio Edcom": "10/07/2026",
       "Status Financeiro": "NF Emitida postada Edicom",
-      "Observações/Motivo": "15/06/2026 - Liberado pelo Sávio"
+      "Observações/Motivo": "15/06/2026 - Liberado pelo Sávio",
+      "Responsável": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:43:34.865Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-155",
@@ -13427,7 +13650,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "TBSA - CLARO",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "12/04/2026",
+    "dataIntegracao": "05/05/2026",
     "dataAtivacao": "05/05/2026",
     "responsavelCampo": "Mateus",
     "equipeParceira": "MATEUS",
@@ -13482,8 +13705,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-156",
@@ -13513,7 +13737,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "12/04/2026",
+    "dataIntegracao": "24/04/2026",
     "dataAtivacao": "24/04/2026",
     "responsavelCampo": "MATEUS",
     "equipeParceira": "MATEUS",
@@ -13568,8 +13792,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-157",
@@ -13599,7 +13824,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "TBSA - CLARO",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "13/03/2026",
+    "dataIntegracao": "22/03/2026",
     "dataAtivacao": "22/03/2026",
     "responsavelCampo": "Magno",
     "equipeParceira": "Mateus/Oglio",
@@ -13654,8 +13879,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": "Nota cancelada 36251"
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-158",
@@ -13685,10 +13911,10 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "12/04/2026",
+    "dataIntegracao": "02/05/2026",
     "dataAtivacao": "02/05/2026",
-    "responsavelCampo": "Magno",
-    "equipeParceira": "Gilvan/Magno",
+    "responsavelCampo": "",
+    "equipeParceira": "",
     "ordemServico": "1362774",
     "alarmesAtivos": "NF Pronta p/ Envio EdIcom",
     "observacoes": "",
@@ -13708,10 +13934,10 @@ export const INITIAL_SITES: TelecomSite[] = [
       "APOIO": "",
       "CallOff Solicitado": "14/04/2026",
       "DEC": "16/04/2026",
-      "EQUIPE EXECUTANTE": "Gilvan/Magno",
+      "EQUIPE EXECUTANTE": "",
       "SI Planned": "02/05/2026",
       "SI Executed": "02/05/2026",
-      "Executor": "Magno",
+      "Executor": "",
       "NDPc TalonView": "03/05/2026",
       "SI Report GDC Portal": "04/05/2026",
       "Comentários": "",
@@ -13738,10 +13964,12 @@ export const INITIAL_SITES: TelecomSite[] = [
       "DATA NF": "17/06/2026",
       "Envio Edcom": "",
       "Status Financeiro": "NF Pronta p/ Envio EdIcom",
-      "Observações/Motivo": ""
+      "Observações/Motivo": "",
+      "Responsável": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:43:34.865Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-159",
@@ -13771,10 +13999,10 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "TIM",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "12/04/2026",
+    "dataIntegracao": "21/04/2026",
     "dataAtivacao": "21/04/2026",
-    "responsavelCampo": "Magno",
-    "equipeParceira": "Gilvan/Magno",
+    "responsavelCampo": "",
+    "equipeParceira": "",
     "ordemServico": "1362960",
     "alarmesAtivos": "NF Emitida postada Edicom",
     "observacoes": "Nota cancelada 36266",
@@ -13794,10 +14022,10 @@ export const INITIAL_SITES: TelecomSite[] = [
       "APOIO": "",
       "CallOff Solicitado": "14/04/2026",
       "DEC": "16/04/2026",
-      "EQUIPE EXECUTANTE": "Gilvan/Magno",
+      "EQUIPE EXECUTANTE": "",
       "SI Planned": "21/04/2026",
       "SI Executed": "21/04/2026",
-      "Executor": "Magno",
+      "Executor": "",
       "NDPc TalonView": "22/04/2026",
       "SI Report GDC Portal": "22/04/2026",
       "Comentários": "",
@@ -13824,10 +14052,12 @@ export const INITIAL_SITES: TelecomSite[] = [
       "DATA NF": "03/06/2026",
       "Envio Edcom": "20/05/2026",
       "Status Financeiro": "NF Emitida postada Edicom",
-      "Observações/Motivo": "Nota cancelada 36266"
+      "Observações/Motivo": "Nota cancelada 36266",
+      "Responsável": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:43:34.865Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-160",
@@ -13857,7 +14087,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "12/04/2026",
+    "dataIntegracao": "19/04/2026",
     "dataAtivacao": "19/04/2026",
     "responsavelCampo": "MAGNO",
     "equipeParceira": "MATEUS",
@@ -13912,8 +14142,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-161",
@@ -13943,10 +14174,10 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "12/04/2026",
+    "dataIntegracao": "21/04/2026",
     "dataAtivacao": "21/04/2026",
-    "responsavelCampo": "Magno",
-    "equipeParceira": "MAGNO-GILVAN",
+    "responsavelCampo": "",
+    "equipeParceira": "",
     "ordemServico": "1362958",
     "alarmesAtivos": "NF Emitida postada Edicom",
     "observacoes": "22-04-2026 - Aguardando e-mail de abono, sem acesso ao gradil onde esta o gabinete.",
@@ -13966,10 +14197,10 @@ export const INITIAL_SITES: TelecomSite[] = [
       "APOIO": "",
       "CallOff Solicitado": "14/04/2026",
       "DEC": "16/04/2026",
-      "EQUIPE EXECUTANTE": "MAGNO-GILVAN",
+      "EQUIPE EXECUTANTE": "",
       "SI Planned": "21/04/2026",
       "SI Executed": "21/04/2026",
-      "Executor": "Magno",
+      "Executor": "",
       "NDPc TalonView": "22/04/2026",
       "SI Report GDC Portal": "22/04/2026",
       "Comentários": "22-04-2026 - Aguardando e-mail de abono, sem acesso ao gradil onde esta o gabinete.",
@@ -13996,10 +14227,12 @@ export const INITIAL_SITES: TelecomSite[] = [
       "DATA NF": "06/07/2026",
       "Envio Edcom": "12/07/2026",
       "Status Financeiro": "NF Emitida postada Edicom",
-      "Observações/Motivo": ""
+      "Observações/Motivo": "",
+      "Responsável": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:43:34.865Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-162",
@@ -14029,7 +14262,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "CONDOMINIO RESIDENCIAL KALAHARI",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "12/04/2026",
+    "dataIntegracao": "28/04/2026",
     "dataAtivacao": "28/04/2026",
     "responsavelCampo": "MATEUS",
     "equipeParceira": "MATEUS",
@@ -14084,8 +14317,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-163",
@@ -14115,7 +14349,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "12/04/2026",
+    "dataIntegracao": "26/04/2026",
     "dataAtivacao": "26/04/2026",
     "responsavelCampo": "MATEUS",
     "equipeParceira": "MATEUS",
@@ -14170,8 +14404,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-164",
@@ -14201,10 +14436,10 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "12/04/2026",
+    "dataIntegracao": "22/04/2026",
     "dataAtivacao": "22/04/2026",
-    "responsavelCampo": "Magno",
-    "equipeParceira": "MAGNO-GILVAN",
+    "responsavelCampo": "",
+    "equipeParceira": "",
     "ordemServico": "1362760",
     "alarmesAtivos": "NF Emitida postada Edicom",
     "observacoes": "15/06/2026 - Liberado pelo Sávio",
@@ -14224,10 +14459,10 @@ export const INITIAL_SITES: TelecomSite[] = [
       "APOIO": "",
       "CallOff Solicitado": "14/04/2026",
       "DEC": "16/04/2026",
-      "EQUIPE EXECUTANTE": "MAGNO-GILVAN",
+      "EQUIPE EXECUTANTE": "",
       "SI Planned": "22/04/2026",
       "SI Executed": "22/04/2026",
-      "Executor": "Magno",
+      "Executor": "",
       "NDPc TalonView": "23/04/2026",
       "SI Report GDC Portal": "22/04/2026",
       "Comentários": "",
@@ -14254,10 +14489,12 @@ export const INITIAL_SITES: TelecomSite[] = [
       "DATA NF": "06/07/2026",
       "Envio Edcom": "10/07/2026",
       "Status Financeiro": "NF Emitida postada Edicom",
-      "Observações/Motivo": "15/06/2026 - Liberado pelo Sávio"
+      "Observações/Motivo": "15/06/2026 - Liberado pelo Sávio",
+      "Responsável": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:43:34.865Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-165",
@@ -14287,10 +14524,10 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "TBSA - CLARO",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "12/04/2026",
+    "dataIntegracao": "26/04/2026",
     "dataAtivacao": "26/04/2026",
-    "responsavelCampo": "Magno",
-    "equipeParceira": "MAGNO-GILVAN",
+    "responsavelCampo": "",
+    "equipeParceira": "",
     "ordemServico": "1362880",
     "alarmesAtivos": "NF Emitida postada Edicom",
     "observacoes": "15/06/2026 - Liberado pelo Sávio",
@@ -14310,10 +14547,10 @@ export const INITIAL_SITES: TelecomSite[] = [
       "APOIO": "",
       "CallOff Solicitado": "14/04/2026",
       "DEC": "16/04/2026",
-      "EQUIPE EXECUTANTE": "MAGNO-GILVAN",
+      "EQUIPE EXECUTANTE": "",
       "SI Planned": "26/04/2026",
       "SI Executed": "26/04/2026",
-      "Executor": "Magno",
+      "Executor": "",
       "NDPc TalonView": "27/04/2026",
       "SI Report GDC Portal": "27/04/2026",
       "Comentários": "",
@@ -14340,10 +14577,12 @@ export const INITIAL_SITES: TelecomSite[] = [
       "DATA NF": "06/07/2026",
       "Envio Edcom": "10/07/2026",
       "Status Financeiro": "NF Emitida postada Edicom",
-      "Observações/Motivo": "15/06/2026 - Liberado pelo Sávio"
+      "Observações/Motivo": "15/06/2026 - Liberado pelo Sávio",
+      "Responsável": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:43:34.865Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-166",
@@ -14373,10 +14612,10 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "TBSA - CLARO",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "12/04/2026",
+    "dataIntegracao": "02/05/2026",
     "dataAtivacao": "02/05/2026",
-    "responsavelCampo": "Magno",
-    "equipeParceira": "MAGNO-GILVAN",
+    "responsavelCampo": "",
+    "equipeParceira": "",
     "ordemServico": "1362860",
     "alarmesAtivos": "NF Emitida postada Edicom",
     "observacoes": "",
@@ -14396,10 +14635,10 @@ export const INITIAL_SITES: TelecomSite[] = [
       "APOIO": "",
       "CallOff Solicitado": "14/04/2026",
       "DEC": "16/04/2026",
-      "EQUIPE EXECUTANTE": "MAGNO-GILVAN",
+      "EQUIPE EXECUTANTE": "",
       "SI Planned": "02/05/2026",
       "SI Executed": "02/05/2026",
-      "Executor": "Magno",
+      "Executor": "",
       "NDPc TalonView": "03/05/2026",
       "SI Report GDC Portal": "04/05/2026",
       "Comentários": "",
@@ -14426,10 +14665,12 @@ export const INITIAL_SITES: TelecomSite[] = [
       "DATA NF": "17/06/2026",
       "Envio Edcom": "18/06/2026",
       "Status Financeiro": "NF Emitida postada Edicom",
-      "Observações/Motivo": ""
+      "Observações/Motivo": "",
+      "Responsável": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:43:34.865Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-167",
@@ -14459,10 +14700,10 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "TBSA - CLARO",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "12/04/2026",
+    "dataIntegracao": "05/05/2026",
     "dataAtivacao": "05/05/2026",
-    "responsavelCampo": "Magno",
-    "equipeParceira": "Gilvan/Magno",
+    "responsavelCampo": "",
+    "equipeParceira": "",
     "ordemServico": "1362981",
     "alarmesAtivos": "NF Emitida postada Edicom",
     "observacoes": "15/06/2026 - Liberado pelo Sávio",
@@ -14482,10 +14723,10 @@ export const INITIAL_SITES: TelecomSite[] = [
       "APOIO": "",
       "CallOff Solicitado": "14/04/2026",
       "DEC": "16/04/2026",
-      "EQUIPE EXECUTANTE": "Gilvan/Magno",
+      "EQUIPE EXECUTANTE": "",
       "SI Planned": "05/05/2026",
       "SI Executed": "05/05/2026",
-      "Executor": "Magno",
+      "Executor": "",
       "NDPc TalonView": "06/05/2026",
       "SI Report GDC Portal": "06/05/2026",
       "Comentários": "",
@@ -14512,10 +14753,12 @@ export const INITIAL_SITES: TelecomSite[] = [
       "DATA NF": "06/07/2026",
       "Envio Edcom": "10/07/2026",
       "Status Financeiro": "NF Emitida postada Edicom",
-      "Observações/Motivo": "15/06/2026 - Liberado pelo Sávio"
+      "Observações/Motivo": "15/06/2026 - Liberado pelo Sávio",
+      "Responsável": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:43:34.865Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-168",
@@ -14545,10 +14788,10 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "12/04/2026",
+    "dataIntegracao": "24/04/2026",
     "dataAtivacao": "24/04/2026",
-    "responsavelCampo": "Magno",
-    "equipeParceira": "Gilvan/Magno",
+    "responsavelCampo": "",
+    "equipeParceira": "",
     "ordemServico": "1362660",
     "alarmesAtivos": "NF Emitida postada Edicom",
     "observacoes": "15/06/2026 - Liberado pelo Sávio",
@@ -14568,10 +14811,10 @@ export const INITIAL_SITES: TelecomSite[] = [
       "APOIO": "",
       "CallOff Solicitado": "14/04/2026",
       "DEC": "16/04/2026",
-      "EQUIPE EXECUTANTE": "Gilvan/Magno",
+      "EQUIPE EXECUTANTE": "",
       "SI Planned": "24/04/2026",
       "SI Executed": "24/04/2026",
-      "Executor": "Magno",
+      "Executor": "",
       "NDPc TalonView": "25/04/2026",
       "SI Report GDC Portal": "25/04/2026",
       "Comentários": "",
@@ -14598,10 +14841,12 @@ export const INITIAL_SITES: TelecomSite[] = [
       "DATA NF": "06/07/2026",
       "Envio Edcom": "10/07/2026",
       "Status Financeiro": "NF Emitida postada Edicom",
-      "Observações/Motivo": "15/06/2026 - Liberado pelo Sávio"
+      "Observações/Motivo": "15/06/2026 - Liberado pelo Sávio",
+      "Responsável": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:43:34.865Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-169",
@@ -14630,8 +14875,8 @@ export const INITIAL_SITES: TelecomSite[] = [
     "vlanOm": "550080942320260001",
     "energiaRetificadora": "TBSA - CLARO",
     "status": "Vistoria - A Executar",
-    "progressoRollout": 60,
-    "dataIntegracao": "12/04/2026",
+    "progressoRollout": 65,
+    "dataIntegracao": "08/06/2026",
     "dataAtivacao": "20/07/2026",
     "responsavelCampo": "",
     "equipeParceira": "Magno/Mateus",
@@ -14686,8 +14931,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Pronta p/ Envio EdIcom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-170",
@@ -14717,7 +14963,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "GRUPO TORRESUR | TIM",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "08/04/2026",
+    "dataIntegracao": "13/05/2026",
     "dataAtivacao": "13/05/2026",
     "responsavelCampo": "MAGNO",
     "equipeParceira": "Diego/Vagner",
@@ -14772,8 +15018,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": "15/06/2026 - Liberado pelo Sávio"
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-171",
@@ -14803,10 +15050,10 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "IHS BRAZIL",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "12/04/2026",
+    "dataIntegracao": "18/04/2026",
     "dataAtivacao": "18/04/2026",
-    "responsavelCampo": "Magno",
-    "equipeParceira": "Gilvan/Magno",
+    "responsavelCampo": "",
+    "equipeParceira": "",
     "ordemServico": "1362939",
     "alarmesAtivos": "NF Emitida postada Edicom",
     "observacoes": "15/06/2026 - Liberado pelo Sávio",
@@ -14826,10 +15073,10 @@ export const INITIAL_SITES: TelecomSite[] = [
       "APOIO": "",
       "CallOff Solicitado": "14/04/2026",
       "DEC": "16/04/2026",
-      "EQUIPE EXECUTANTE": "Gilvan/Magno",
+      "EQUIPE EXECUTANTE": "",
       "SI Planned": "18/04/2026",
       "SI Executed": "18/04/2026",
-      "Executor": "Magno",
+      "Executor": "",
       "NDPc TalonView": "20/04/2026",
       "SI Report GDC Portal": "20/04/2026",
       "Comentários": "",
@@ -14856,10 +15103,12 @@ export const INITIAL_SITES: TelecomSite[] = [
       "DATA NF": "06/07/2026",
       "Envio Edcom": "10/07/2026",
       "Status Financeiro": "NF Emitida postada Edicom",
-      "Observações/Motivo": "15/06/2026 - Liberado pelo Sávio"
+      "Observações/Motivo": "15/06/2026 - Liberado pelo Sávio",
+      "Responsável": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:43:34.865Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-172",
@@ -14889,10 +15138,10 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "12/04/2026",
+    "dataIntegracao": "28/04/2026",
     "dataAtivacao": "28/04/2026",
-    "responsavelCampo": "Magno",
-    "equipeParceira": "Gilvan/Magno",
+    "responsavelCampo": "",
+    "equipeParceira": "",
     "ordemServico": "1362863",
     "alarmesAtivos": "NF Emitida postada Edicom",
     "observacoes": "",
@@ -14912,10 +15161,10 @@ export const INITIAL_SITES: TelecomSite[] = [
       "APOIO": "",
       "CallOff Solicitado": "14/04/2026",
       "DEC": "16/04/2026",
-      "EQUIPE EXECUTANTE": "Gilvan/Magno",
+      "EQUIPE EXECUTANTE": "",
       "SI Planned": "28/04/2026",
       "SI Executed": "28/04/2026",
-      "Executor": "Magno",
+      "Executor": "",
       "NDPc TalonView": "29/04/2026",
       "SI Report GDC Portal": "28/04/2026",
       "Comentários": "",
@@ -14942,10 +15191,12 @@ export const INITIAL_SITES: TelecomSite[] = [
       "DATA NF": "17/06/2026",
       "Envio Edcom": "18/06/2026",
       "Status Financeiro": "NF Emitida postada Edicom",
-      "Observações/Motivo": ""
+      "Observações/Motivo": "",
+      "Responsável": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:43:34.865Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-173",
@@ -14975,10 +15226,10 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "12/04/2026",
+    "dataIntegracao": "30/04/2026",
     "dataAtivacao": "30/04/2026",
-    "responsavelCampo": "Magno",
-    "equipeParceira": "MAGNO-GILVAN",
+    "responsavelCampo": "",
+    "equipeParceira": "",
     "ordemServico": "1362963",
     "alarmesAtivos": "NF Emitida postada Edicom",
     "observacoes": "",
@@ -14998,10 +15249,10 @@ export const INITIAL_SITES: TelecomSite[] = [
       "APOIO": "",
       "CallOff Solicitado": "14/04/2026",
       "DEC": "16/04/2026",
-      "EQUIPE EXECUTANTE": "MAGNO-GILVAN",
+      "EQUIPE EXECUTANTE": "",
       "SI Planned": "30/04/2026",
       "SI Executed": "30/04/2026",
-      "Executor": "Magno",
+      "Executor": "",
       "NDPc TalonView": "01/05/2026",
       "SI Report GDC Portal": "01/05/2026",
       "Comentários": "",
@@ -15028,10 +15279,12 @@ export const INITIAL_SITES: TelecomSite[] = [
       "DATA NF": "17/06/2026",
       "Envio Edcom": "18/06/2026",
       "Status Financeiro": "NF Emitida postada Edicom",
-      "Observações/Motivo": ""
+      "Observações/Motivo": "",
+      "Responsável": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:43:34.865Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-174",
@@ -15061,10 +15314,10 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "12/04/2026",
+    "dataIntegracao": "19/04/2026",
     "dataAtivacao": "19/04/2026",
-    "responsavelCampo": "Magno",
-    "equipeParceira": "Gilvan/Magno",
+    "responsavelCampo": "",
+    "equipeParceira": "",
     "ordemServico": "1362937",
     "alarmesAtivos": "NF Emitida postada Edicom",
     "observacoes": "15/06/2026 - Liberado pelo Sávio",
@@ -15084,10 +15337,10 @@ export const INITIAL_SITES: TelecomSite[] = [
       "APOIO": "",
       "CallOff Solicitado": "14/04/2026",
       "DEC": "16/04/2026",
-      "EQUIPE EXECUTANTE": "Gilvan/Magno",
+      "EQUIPE EXECUTANTE": "",
       "SI Planned": "19/04/2026",
       "SI Executed": "19/04/2026",
-      "Executor": "Magno",
+      "Executor": "",
       "NDPc TalonView": "20/04/2026",
       "SI Report GDC Portal": "20/04/2026",
       "Comentários": "",
@@ -15114,10 +15367,12 @@ export const INITIAL_SITES: TelecomSite[] = [
       "DATA NF": "06/07/2026",
       "Envio Edcom": "10/07/2026",
       "Status Financeiro": "NF Emitida postada Edicom",
-      "Observações/Motivo": "15/06/2026 - Liberado pelo Sávio"
+      "Observações/Motivo": "15/06/2026 - Liberado pelo Sávio",
+      "Responsável": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:43:34.865Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-175",
@@ -15147,10 +15402,10 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "12/04/2026",
+    "dataIntegracao": "26/04/2026",
     "dataAtivacao": "26/04/2026",
-    "responsavelCampo": "Magno",
-    "equipeParceira": "Gilvan/Magno",
+    "responsavelCampo": "",
+    "equipeParceira": "",
     "ordemServico": "1362771",
     "alarmesAtivos": "NF Emitida postada Edicom",
     "observacoes": "15/06/2026 - Liberado pelo Sávio",
@@ -15170,10 +15425,10 @@ export const INITIAL_SITES: TelecomSite[] = [
       "APOIO": "",
       "CallOff Solicitado": "14/04/2026",
       "DEC": "16/04/2026",
-      "EQUIPE EXECUTANTE": "Gilvan/Magno",
+      "EQUIPE EXECUTANTE": "",
       "SI Planned": "26/04/2026",
       "SI Executed": "26/04/2026",
-      "Executor": "Magno",
+      "Executor": "",
       "NDPc TalonView": "27/04/2026",
       "SI Report GDC Portal": "27/04/2026",
       "Comentários": "",
@@ -15200,10 +15455,12 @@ export const INITIAL_SITES: TelecomSite[] = [
       "DATA NF": "06/07/2026",
       "Envio Edcom": "10/07/2026",
       "Status Financeiro": "NF Emitida postada Edicom",
-      "Observações/Motivo": "15/06/2026 - Liberado pelo Sávio"
+      "Observações/Motivo": "15/06/2026 - Liberado pelo Sávio",
+      "Responsável": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:43:34.865Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-176",
@@ -15233,10 +15490,10 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "12/04/2026",
+    "dataIntegracao": "01/05/2026",
     "dataAtivacao": "01/05/2026",
-    "responsavelCampo": "Magno",
-    "equipeParceira": "Gilvan/Magno",
+    "responsavelCampo": "",
+    "equipeParceira": "",
     "ordemServico": "1362879",
     "alarmesAtivos": "NF Emitida postada Edicom",
     "observacoes": "",
@@ -15256,10 +15513,10 @@ export const INITIAL_SITES: TelecomSite[] = [
       "APOIO": "",
       "CallOff Solicitado": "14/04/2026",
       "DEC": "16/04/2026",
-      "EQUIPE EXECUTANTE": "Gilvan/Magno",
+      "EQUIPE EXECUTANTE": "",
       "SI Planned": "01/05/2026",
       "SI Executed": "01/05/2026",
-      "Executor": "Magno",
+      "Executor": "",
       "NDPc TalonView": "02/05/2026",
       "SI Report GDC Portal": "02/05/2026",
       "Comentários": "",
@@ -15286,10 +15543,12 @@ export const INITIAL_SITES: TelecomSite[] = [
       "DATA NF": "17/06/2026",
       "Envio Edcom": "18/06/2026",
       "Status Financeiro": "NF Emitida postada Edicom",
-      "Observações/Motivo": ""
+      "Observações/Motivo": "",
+      "Responsável": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:43:34.865Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-177",
@@ -15319,7 +15578,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "12/04/2026",
+    "dataIntegracao": "22/04/2026",
     "dataAtivacao": "22/04/2026",
     "responsavelCampo": "MATEUS",
     "equipeParceira": "MATEUS",
@@ -15374,8 +15633,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-178",
@@ -15405,7 +15665,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "IHS BRAZIL",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "08/04/2026",
+    "dataIntegracao": "24/04/2026",
     "dataAtivacao": "24/04/2026",
     "responsavelCampo": "MAGNO",
     "equipeParceira": "Diego/Vagner",
@@ -15460,8 +15720,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": "15/06/2026 - Liberado pelo Sávio"
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-179",
@@ -15491,7 +15752,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA TORRES",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "30/03/2026",
+    "dataIntegracao": "27/04/2026",
     "dataAtivacao": "27/04/2026",
     "responsavelCampo": "MATEUS",
     "equipeParceira": "MATEUS",
@@ -15546,8 +15807,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-180",
@@ -15577,10 +15839,10 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA TORRES",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "30/03/2026",
+    "dataIntegracao": "17/04/2026",
     "dataAtivacao": "17/04/2026",
-    "responsavelCampo": "Magno",
-    "equipeParceira": "Gilvan/Magno",
+    "responsavelCampo": "",
+    "equipeParceira": "",
     "ordemServico": "1362681",
     "alarmesAtivos": "NF Emitida postada Edicom",
     "observacoes": "15/06/2026 - Liberado pelo Sávio",
@@ -15600,10 +15862,10 @@ export const INITIAL_SITES: TelecomSite[] = [
       "APOIO": "",
       "CallOff Solicitado": "01/04/2026",
       "DEC": "06/04/2026",
-      "EQUIPE EXECUTANTE": "Gilvan/Magno",
+      "EQUIPE EXECUTANTE": "",
       "SI Planned": "17/04/2026",
       "SI Executed": "17/04/2026",
-      "Executor": "Magno",
+      "Executor": "",
       "NDPc TalonView": "17/04/2026",
       "SI Report GDC Portal": "18/04/2026",
       "Comentários": "",
@@ -15630,10 +15892,12 @@ export const INITIAL_SITES: TelecomSite[] = [
       "DATA NF": "06/07/2026",
       "Envio Edcom": "10/07/2026",
       "Status Financeiro": "NF Emitida postada Edicom",
-      "Observações/Motivo": "15/06/2026 - Liberado pelo Sávio"
+      "Observações/Motivo": "15/06/2026 - Liberado pelo Sávio",
+      "Responsável": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:43:34.865Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-181",
@@ -15663,10 +15927,10 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA TORRES",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "30/03/2026",
+    "dataIntegracao": "15/04/2026",
     "dataAtivacao": "15/04/2026",
-    "responsavelCampo": "Magno",
-    "equipeParceira": "Gilvan/Magno",
+    "responsavelCampo": "",
+    "equipeParceira": "",
     "ordemServico": "1362720",
     "alarmesAtivos": "NF Emitida postada Edicom",
     "observacoes": "15/06/2026 - Liberado pelo Sávio",
@@ -15686,10 +15950,10 @@ export const INITIAL_SITES: TelecomSite[] = [
       "APOIO": "",
       "CallOff Solicitado": "01/04/2026",
       "DEC": "06/04/2026",
-      "EQUIPE EXECUTANTE": "Gilvan/Magno",
+      "EQUIPE EXECUTANTE": "",
       "SI Planned": "15/04/2026",
       "SI Executed": "15/04/2026",
-      "Executor": "Magno",
+      "Executor": "",
       "NDPc TalonView": "15/04/2026",
       "SI Report GDC Portal": "16/04/2026",
       "Comentários": "",
@@ -15716,10 +15980,12 @@ export const INITIAL_SITES: TelecomSite[] = [
       "DATA NF": "06/07/2026",
       "Envio Edcom": "10/07/2026",
       "Status Financeiro": "NF Emitida postada Edicom",
-      "Observações/Motivo": "15/06/2026 - Liberado pelo Sávio"
+      "Observações/Motivo": "15/06/2026 - Liberado pelo Sávio",
+      "Responsável": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:43:34.865Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-182",
@@ -15749,7 +16015,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "19/04/2026",
+    "dataIntegracao": "11/05/2026",
     "dataAtivacao": "11/05/2026",
     "responsavelCampo": "MAGNO",
     "equipeParceira": "Bruno/ Kleber",
@@ -15804,8 +16070,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": "15/06/2026 - Liberado pelo Sávio"
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-183",
@@ -15835,7 +16102,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "CLARO",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "19/04/2026",
+    "dataIntegracao": "11/05/2026",
     "dataAtivacao": "11/05/2026",
     "responsavelCampo": "MAGNO",
     "equipeParceira": "Diego/Vagner",
@@ -15890,8 +16157,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-184",
@@ -15921,10 +16189,10 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA TORRES",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "30/03/2026",
+    "dataIntegracao": "19/04/2026",
     "dataAtivacao": "19/04/2026",
-    "responsavelCampo": "Magno",
-    "equipeParceira": "MAGNO-GILVAN",
+    "responsavelCampo": "",
+    "equipeParceira": "",
     "ordemServico": "1362426",
     "alarmesAtivos": "NF Emitida postada Edicom",
     "observacoes": "15/06/2026 - Liberado pelo Sávio",
@@ -15944,10 +16212,10 @@ export const INITIAL_SITES: TelecomSite[] = [
       "APOIO": "",
       "CallOff Solicitado": "01/04/2026",
       "DEC": "06/04/2026",
-      "EQUIPE EXECUTANTE": "MAGNO-GILVAN",
+      "EQUIPE EXECUTANTE": "",
       "SI Planned": "19/04/2026",
       "SI Executed": "19/04/2026",
-      "Executor": "Magno",
+      "Executor": "",
       "NDPc TalonView": "20/04/2026",
       "SI Report GDC Portal": "20/04/2026",
       "Comentários": "",
@@ -15974,10 +16242,12 @@ export const INITIAL_SITES: TelecomSite[] = [
       "DATA NF": "06/07/2026",
       "Envio Edcom": "10/07/2026",
       "Status Financeiro": "NF Emitida postada Edicom",
-      "Observações/Motivo": "15/06/2026 - Liberado pelo Sávio"
+      "Observações/Motivo": "15/06/2026 - Liberado pelo Sávio",
+      "Responsável": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:43:34.865Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-185",
@@ -16007,7 +16277,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "IHS BRAZIL",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "19/04/2026",
+    "dataIntegracao": "11/05/2026",
     "dataAtivacao": "11/05/2026",
     "responsavelCampo": "MAGNO",
     "equipeParceira": "Diego/Vagner",
@@ -16062,8 +16332,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": "15/06/2026 - Liberado pelo Sávio"
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-186",
@@ -16093,7 +16364,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "19/04/2026",
+    "dataIntegracao": "20/05/2026",
     "dataAtivacao": "20/05/2026",
     "responsavelCampo": "MAGNO",
     "equipeParceira": "Bruno/ Kleber",
@@ -16148,8 +16419,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-187",
@@ -16179,7 +16451,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "19/04/2026",
+    "dataIntegracao": "09/05/2026",
     "dataAtivacao": "09/05/2026",
     "responsavelCampo": "Rafael araujo",
     "equipeParceira": "Bruno/ Kleber",
@@ -16234,8 +16506,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-188",
@@ -16265,7 +16538,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA TORRES",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "30/03/2026",
+    "dataIntegracao": "14/04/2026",
     "dataAtivacao": "14/04/2026",
     "responsavelCampo": "Mateus",
     "equipeParceira": "Mateus-Oglio",
@@ -16320,8 +16593,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": "15/06/2026 - Liberado pelo Sávio"
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-189",
@@ -16351,7 +16625,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "HIGHLINE",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "05/04/2026",
+    "dataIntegracao": "14/04/2026",
     "dataAtivacao": "17/04/2026",
     "responsavelCampo": "Mateus",
     "equipeParceira": "Malta/Luís",
@@ -16406,8 +16680,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": "15/06/2026 - Liberado pelo Sávio"
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-190",
@@ -16437,7 +16712,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "QMC",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "19/04/2026",
+    "dataIntegracao": "09/05/2026",
     "dataAtivacao": "09/05/2026",
     "responsavelCampo": "MAGNO",
     "equipeParceira": "Diego/Vagner",
@@ -16492,8 +16767,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": "15/06/2026 - Liberado pelo Sávio"
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-191",
@@ -16523,10 +16799,10 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA TORRES",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "30/03/2026",
+    "dataIntegracao": "17/04/2026",
     "dataAtivacao": "17/04/2026",
-    "responsavelCampo": "Magno",
-    "equipeParceira": "MAGNO-GILVAN",
+    "responsavelCampo": "",
+    "equipeParceira": "",
     "ordemServico": "1362443",
     "alarmesAtivos": "NF Emitida postada Edicom",
     "observacoes": "",
@@ -16546,10 +16822,10 @@ export const INITIAL_SITES: TelecomSite[] = [
       "APOIO": "",
       "CallOff Solicitado": "01/04/2026",
       "DEC": "06/04/2026",
-      "EQUIPE EXECUTANTE": "MAGNO-GILVAN",
+      "EQUIPE EXECUTANTE": "",
       "SI Planned": "17/04/2026",
       "SI Executed": "17/04/2026",
-      "Executor": "Magno",
+      "Executor": "",
       "NDPc TalonView": "17/04/2026",
       "SI Report GDC Portal": "18/04/2026",
       "Comentários": "",
@@ -16576,10 +16852,12 @@ export const INITIAL_SITES: TelecomSite[] = [
       "DATA NF": "18/06/2026",
       "Envio Edcom": "18/06/2026",
       "Status Financeiro": "NF Emitida postada Edicom",
-      "Observações/Motivo": ""
+      "Observações/Motivo": "",
+      "Responsável": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:43:34.865Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-192",
@@ -16609,7 +16887,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA TORRES",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "30/03/2026",
+    "dataIntegracao": "12/04/2026",
     "dataAtivacao": "12/04/2026",
     "responsavelCampo": "Mateus",
     "equipeParceira": "Mateus-Oglio",
@@ -16664,8 +16942,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-193",
@@ -16695,7 +16974,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "19/04/2026",
+    "dataIntegracao": "10/05/2026",
     "dataAtivacao": "10/05/2026",
     "responsavelCampo": "Rafael araujo",
     "equipeParceira": "Bruno/ Kleber",
@@ -16750,8 +17029,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-194",
@@ -16781,7 +17061,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "19/04/2026",
+    "dataIntegracao": "01/05/2026",
     "dataAtivacao": "01/05/2026",
     "responsavelCampo": "Rafael araujo",
     "equipeParceira": "Bruno/ Kleber",
@@ -16836,8 +17116,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-195",
@@ -16867,7 +17148,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA TORRES",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "19/04/2026",
+    "dataIntegracao": "17/05/2026",
     "dataAtivacao": "17/05/2026",
     "responsavelCampo": "Rafael araujo",
     "equipeParceira": "Bruno/ Kleber",
@@ -16922,8 +17203,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-196",
@@ -16953,7 +17235,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "19/04/2026",
+    "dataIntegracao": "10/05/2026",
     "dataAtivacao": "10/05/2026",
     "responsavelCampo": "Rafael araujo",
     "equipeParceira": "Bruno/ Kleber",
@@ -17008,8 +17290,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-197",
@@ -17039,7 +17322,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "19/04/2026",
+    "dataIntegracao": "01/05/2026",
     "dataAtivacao": "01/05/2026",
     "responsavelCampo": "Rafael araujo",
     "equipeParceira": "Bruno/ Kleber",
@@ -17094,8 +17377,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-198",
@@ -17125,7 +17409,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA TORRES",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "19/04/2026",
+    "dataIntegracao": "24/05/2026",
     "dataAtivacao": "24/05/2026",
     "responsavelCampo": "MAgno",
     "equipeParceira": "Bruno/ Kleber",
@@ -17180,8 +17464,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Pronta p/ Envio EdIcom",
       "Observações/Motivo": "15/06/2026 - Liberado pelo Sávio"
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-199",
@@ -17211,7 +17496,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "ATC",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "19/04/2026",
+    "dataIntegracao": "13/05/2026",
     "dataAtivacao": "13/05/2026",
     "responsavelCampo": "Rafael araujo",
     "equipeParceira": "Bruno/ Kleber",
@@ -17266,8 +17551,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-200",
@@ -17297,7 +17583,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "ATC",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "19/04/2026",
+    "dataIntegracao": "17/05/2026",
     "dataAtivacao": "17/05/2026",
     "responsavelCampo": "Rafael araujo",
     "equipeParceira": "Bruno/ Kleber",
@@ -17352,8 +17638,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-201",
@@ -17383,7 +17670,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA TORRES",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "19/04/2026",
+    "dataIntegracao": "15/05/2026",
     "dataAtivacao": "15/05/2026",
     "responsavelCampo": "Rafael araujo",
     "equipeParceira": "Bruno/ Kleber",
@@ -17438,8 +17725,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-202",
@@ -17469,7 +17757,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "19/04/2026",
+    "dataIntegracao": "24/05/2026",
     "dataAtivacao": "24/05/2026",
     "responsavelCampo": "MAgno",
     "equipeParceira": "Bruno/ Kleber",
@@ -17524,8 +17812,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-203",
@@ -17555,7 +17844,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "19/04/2026",
+    "dataIntegracao": "21/05/2026",
     "dataAtivacao": "21/05/2026",
     "responsavelCampo": "Rafael araujo",
     "equipeParceira": "Bruno/ Kleber",
@@ -17610,8 +17899,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-204",
@@ -17641,7 +17931,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "TBSA - CLARO",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "19/04/2026",
+    "dataIntegracao": "17/05/2026",
     "dataAtivacao": "17/05/2026",
     "responsavelCampo": "MAgno",
     "equipeParceira": "Bruno/ Kleber",
@@ -17696,8 +17986,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-205",
@@ -17727,7 +18018,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "19/04/2026",
+    "dataIntegracao": "26/05/2026",
     "dataAtivacao": "26/05/2026",
     "responsavelCampo": "Rafael araujo",
     "equipeParceira": "Bruno/ Kleber",
@@ -17782,8 +18073,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-206",
@@ -17813,7 +18105,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "IHS BRAZIL",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "19/04/2026",
+    "dataIntegracao": "13/05/2026",
     "dataAtivacao": "13/05/2026",
     "responsavelCampo": "Rafael Araujo",
     "equipeParceira": "Bruno/ Kleber",
@@ -17868,8 +18160,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-207",
@@ -17899,7 +18192,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "IHS BRAZIL",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "19/04/2026",
+    "dataIntegracao": "12/05/2026",
     "dataAtivacao": "12/05/2026",
     "responsavelCampo": "Rafael araujo",
     "equipeParceira": "Bruno/ Kleber",
@@ -17954,8 +18247,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-208",
@@ -17985,7 +18279,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "IHS BRAZIL",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "19/04/2026",
+    "dataIntegracao": "17/05/2026",
     "dataAtivacao": "17/05/2026",
     "responsavelCampo": "Rafael araujo",
     "equipeParceira": "Bruno/ Kleber",
@@ -18040,8 +18334,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-209",
@@ -18071,7 +18366,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "19/04/2026",
+    "dataIntegracao": "24/05/2026",
     "dataAtivacao": "24/05/2026",
     "responsavelCampo": "Rafael araujo",
     "equipeParceira": "Bruno/ Kleber",
@@ -18126,8 +18421,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-210",
@@ -18157,10 +18453,10 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA TORRES",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "30/03/2026",
+    "dataIntegracao": "11/04/2026",
     "dataAtivacao": "11/04/2026",
-    "responsavelCampo": "Magno",
-    "equipeParceira": "Magno-Gilvan",
+    "responsavelCampo": "",
+    "equipeParceira": "",
     "ordemServico": "1362588",
     "alarmesAtivos": "NF Emitida postada Edicom",
     "observacoes": "",
@@ -18180,10 +18476,10 @@ export const INITIAL_SITES: TelecomSite[] = [
       "APOIO": "",
       "CallOff Solicitado": "01/04/2026",
       "DEC": "06/04/2026",
-      "EQUIPE EXECUTANTE": "Magno-Gilvan",
+      "EQUIPE EXECUTANTE": "",
       "SI Planned": "11/04/2026",
       "SI Executed": "11/04/2026",
-      "Executor": "Magno",
+      "Executor": "",
       "NDPc TalonView": "11/04/2026",
       "SI Report GDC Portal": "13/04/2026",
       "Comentários": "",
@@ -18210,10 +18506,12 @@ export const INITIAL_SITES: TelecomSite[] = [
       "DATA NF": "18/06/2026",
       "Envio Edcom": "18/06/2026",
       "Status Financeiro": "NF Emitida postada Edicom",
-      "Observações/Motivo": ""
+      "Observações/Motivo": "",
+      "Responsável": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:43:34.865Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-211",
@@ -18243,10 +18541,10 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA TORRES",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "30/03/2026",
+    "dataIntegracao": "29/04/2026",
     "dataAtivacao": "29/04/2026",
-    "responsavelCampo": "Magno",
-    "equipeParceira": "Gilvan/Magno",
+    "responsavelCampo": "",
+    "equipeParceira": "",
     "ordemServico": "1362707",
     "alarmesAtivos": "NF Emitida postada Edicom",
     "observacoes": "29/04/2026 - E-mail enviado solicitando abono do QM (Relógio) sem acesso (Não Localizado).",
@@ -18266,10 +18564,10 @@ export const INITIAL_SITES: TelecomSite[] = [
       "APOIO": "",
       "CallOff Solicitado": "01/04/2026",
       "DEC": "06/04/2026",
-      "EQUIPE EXECUTANTE": "Gilvan/Magno",
+      "EQUIPE EXECUTANTE": "",
       "SI Planned": "29/04/2026",
       "SI Executed": "29/04/2026",
-      "Executor": "Magno",
+      "Executor": "",
       "NDPc TalonView": "30/04/2026",
       "SI Report GDC Portal": "29/04/2026",
       "Comentários": "29/04/2026 - E-mail enviado solicitando abono do QM (Relógio) sem acesso (Não Localizado).",
@@ -18296,10 +18594,12 @@ export const INITIAL_SITES: TelecomSite[] = [
       "DATA NF": "18/06/2026",
       "Envio Edcom": "18/06/2026",
       "Status Financeiro": "NF Emitida postada Edicom",
-      "Observações/Motivo": ""
+      "Observações/Motivo": "",
+      "Responsável": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:43:34.865Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-212",
@@ -18329,7 +18629,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "19/04/2026",
+    "dataIntegracao": "16/05/2026",
     "dataAtivacao": "16/05/2026",
     "responsavelCampo": "MAgno",
     "equipeParceira": "Bruno/ Kleber",
@@ -18384,8 +18684,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-213",
@@ -18415,10 +18716,10 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA TORRES",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "30/03/2026",
+    "dataIntegracao": "13/04/2026",
     "dataAtivacao": "13/04/2026",
-    "responsavelCampo": "Magno",
-    "equipeParceira": "Magno-Gilvan",
+    "responsavelCampo": "",
+    "equipeParceira": "",
     "ordemServico": "1362430",
     "alarmesAtivos": "NF Pronta p/ Envio EdIcom",
     "observacoes": "15/06/2026 - Liberado pelo Sávio",
@@ -18438,10 +18739,10 @@ export const INITIAL_SITES: TelecomSite[] = [
       "APOIO": "",
       "CallOff Solicitado": "01/04/2026",
       "DEC": "06/04/2026",
-      "EQUIPE EXECUTANTE": "Magno-Gilvan",
+      "EQUIPE EXECUTANTE": "",
       "SI Planned": "13/04/2026",
       "SI Executed": "13/04/2026",
-      "Executor": "Magno",
+      "Executor": "",
       "NDPc TalonView": "15/04/2026",
       "SI Report GDC Portal": "14/04/2026",
       "Comentários": "",
@@ -18468,10 +18769,12 @@ export const INITIAL_SITES: TelecomSite[] = [
       "DATA NF": "20/07/2026",
       "Envio Edcom": "",
       "Status Financeiro": "NF Pronta p/ Envio EdIcom",
-      "Observações/Motivo": "15/06/2026 - Liberado pelo Sávio"
+      "Observações/Motivo": "15/06/2026 - Liberado pelo Sávio",
+      "Responsável": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:43:34.865Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-214",
@@ -18501,10 +18804,10 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA TORRES",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "30/03/2026",
+    "dataIntegracao": "24/04/2026",
     "dataAtivacao": "24/04/2026",
-    "responsavelCampo": "Magno",
-    "equipeParceira": "MAGNO-GILVAN",
+    "responsavelCampo": "",
+    "equipeParceira": "",
     "ordemServico": "1362620",
     "alarmesAtivos": "NF Emitida postada Edicom",
     "observacoes": "",
@@ -18524,10 +18827,10 @@ export const INITIAL_SITES: TelecomSite[] = [
       "APOIO": "",
       "CallOff Solicitado": "01/04/2026",
       "DEC": "06/04/2026",
-      "EQUIPE EXECUTANTE": "MAGNO-GILVAN",
+      "EQUIPE EXECUTANTE": "",
       "SI Planned": "24/04/2026",
       "SI Executed": "24/04/2026",
-      "Executor": "Magno",
+      "Executor": "",
       "NDPc TalonView": "25/04/2026",
       "SI Report GDC Portal": "25/04/2026",
       "Comentários": "",
@@ -18554,10 +18857,12 @@ export const INITIAL_SITES: TelecomSite[] = [
       "DATA NF": "18/06/2026",
       "Envio Edcom": "18/06/2026",
       "Status Financeiro": "NF Emitida postada Edicom",
-      "Observações/Motivo": ""
+      "Observações/Motivo": "",
+      "Responsável": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:43:34.865Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-215",
@@ -18587,7 +18892,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA TORRES",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "30/03/2026",
+    "dataIntegracao": "18/04/2026",
     "dataAtivacao": "18/04/2026",
     "responsavelCampo": "METUS",
     "equipeParceira": "MATEUS",
@@ -18642,8 +18947,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-216",
@@ -18673,7 +18979,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA TORRES",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "19/04/2026",
+    "dataIntegracao": "10/05/2026",
     "dataAtivacao": "10/05/2026",
     "responsavelCampo": "Rafael araujo",
     "equipeParceira": "Bruno/ Kleber",
@@ -18728,8 +19034,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-217",
@@ -18759,10 +19066,10 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA TORRES",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "30/03/2026",
+    "dataIntegracao": "20/04/2026",
     "dataAtivacao": "20/04/2026",
-    "responsavelCampo": "Magno",
-    "equipeParceira": "MAGNO-GILVAN",
+    "responsavelCampo": "",
+    "equipeParceira": "",
     "ordemServico": "1362722",
     "alarmesAtivos": "NF Emitida postada Edicom",
     "observacoes": "",
@@ -18782,10 +19089,10 @@ export const INITIAL_SITES: TelecomSite[] = [
       "APOIO": "",
       "CallOff Solicitado": "01/04/2026",
       "DEC": "06/04/2026",
-      "EQUIPE EXECUTANTE": "MAGNO-GILVAN",
+      "EQUIPE EXECUTANTE": "",
       "SI Planned": "20/04/2026",
       "SI Executed": "20/04/2026",
-      "Executor": "Magno",
+      "Executor": "",
       "NDPc TalonView": "21/04/2026",
       "SI Report GDC Portal": "21/04/2026",
       "Comentários": "",
@@ -18812,10 +19119,12 @@ export const INITIAL_SITES: TelecomSite[] = [
       "DATA NF": "18/06/2026",
       "Envio Edcom": "18/06/2026",
       "Status Financeiro": "NF Emitida postada Edicom",
-      "Observações/Motivo": ""
+      "Observações/Motivo": "",
+      "Responsável": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:43:34.865Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-218",
@@ -18845,7 +19154,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "IHS BRAZIL",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "19/04/2026",
+    "dataIntegracao": "26/05/2026",
     "dataAtivacao": "26/05/2026",
     "responsavelCampo": "Rafael araujo",
     "equipeParceira": "Bruno/ Kleber",
@@ -18900,8 +19209,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Pronta p/ Envio EdIcom",
       "Observações/Motivo": "51652620 - SPO anterior não está mais liberado para Ameta"
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-219",
@@ -18931,10 +19241,10 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA TORRES",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "30/03/2026",
+    "dataIntegracao": "30/04/2026",
     "dataAtivacao": "30/04/2026",
-    "responsavelCampo": "Magno",
-    "equipeParceira": "Gilvan/Magno",
+    "responsavelCampo": "",
+    "equipeParceira": "",
     "ordemServico": "1362706",
     "alarmesAtivos": "NF Emitida postada Edicom",
     "observacoes": "",
@@ -18954,10 +19264,10 @@ export const INITIAL_SITES: TelecomSite[] = [
       "APOIO": "",
       "CallOff Solicitado": "01/04/2026",
       "DEC": "06/04/2026",
-      "EQUIPE EXECUTANTE": "Gilvan/Magno",
+      "EQUIPE EXECUTANTE": "",
       "SI Planned": "30/04/2026",
       "SI Executed": "30/04/2026",
-      "Executor": "Magno",
+      "Executor": "",
       "NDPc TalonView": "01/05/2026",
       "SI Report GDC Portal": "01/05/2026",
       "Comentários": "",
@@ -18984,10 +19294,12 @@ export const INITIAL_SITES: TelecomSite[] = [
       "DATA NF": "18/06/2026",
       "Envio Edcom": "18/06/2026",
       "Status Financeiro": "NF Emitida postada Edicom",
-      "Observações/Motivo": ""
+      "Observações/Motivo": "",
+      "Responsável": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:43:34.865Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-220",
@@ -19017,10 +19329,10 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA TORRES",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "30/03/2026",
+    "dataIntegracao": "04/05/2026",
     "dataAtivacao": "04/05/2026",
-    "responsavelCampo": "Magno",
-    "equipeParceira": "MAGNO-GILVAN",
+    "responsavelCampo": "",
+    "equipeParceira": "",
     "ordemServico": "1362417",
     "alarmesAtivos": "NF Emitida postada Edicom",
     "observacoes": "",
@@ -19040,10 +19352,10 @@ export const INITIAL_SITES: TelecomSite[] = [
       "APOIO": "",
       "CallOff Solicitado": "01/04/2026",
       "DEC": "06/04/2026",
-      "EQUIPE EXECUTANTE": "MAGNO-GILVAN",
+      "EQUIPE EXECUTANTE": "",
       "SI Planned": "04/05/2026",
       "SI Executed": "04/05/2026",
-      "Executor": "Magno",
+      "Executor": "",
       "NDPc TalonView": "05/05/2026",
       "SI Report GDC Portal": "04/05/2026",
       "Comentários": "",
@@ -19070,10 +19382,12 @@ export const INITIAL_SITES: TelecomSite[] = [
       "DATA NF": "17/06/2026",
       "Envio Edcom": "18/06/2026",
       "Status Financeiro": "NF Emitida postada Edicom",
-      "Observações/Motivo": ""
+      "Observações/Motivo": "",
+      "Responsável": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:43:34.865Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-221",
@@ -19103,10 +19417,10 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA TORRES",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "30/03/2026",
+    "dataIntegracao": "28/04/2026",
     "dataAtivacao": "28/04/2026",
-    "responsavelCampo": "Magno",
-    "equipeParceira": "MAGNO-GILVAN",
+    "responsavelCampo": "",
+    "equipeParceira": "",
     "ordemServico": "1362708",
     "alarmesAtivos": "NF Emitida postada Edicom",
     "observacoes": "",
@@ -19126,10 +19440,10 @@ export const INITIAL_SITES: TelecomSite[] = [
       "APOIO": "",
       "CallOff Solicitado": "01/04/2026",
       "DEC": "06/04/2026",
-      "EQUIPE EXECUTANTE": "MAGNO-GILVAN",
+      "EQUIPE EXECUTANTE": "",
       "SI Planned": "28/04/2026",
       "SI Executed": "28/04/2026",
-      "Executor": "Magno",
+      "Executor": "",
       "NDPc TalonView": "29/04/2026",
       "SI Report GDC Portal": "28/04/2026",
       "Comentários": "",
@@ -19156,10 +19470,12 @@ export const INITIAL_SITES: TelecomSite[] = [
       "DATA NF": "18/06/2026",
       "Envio Edcom": "18/06/2026",
       "Status Financeiro": "NF Emitida postada Edicom",
-      "Observações/Motivo": ""
+      "Observações/Motivo": "",
+      "Responsável": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:43:34.865Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-222",
@@ -19189,7 +19505,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA TORRES",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "30/03/2026",
+    "dataIntegracao": "04/05/2026",
     "dataAtivacao": "04/05/2026",
     "responsavelCampo": "MATEUS",
     "equipeParceira": "MATEUS-OGLIO",
@@ -19244,8 +19560,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-223",
@@ -19275,10 +19592,10 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA TORRES",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "30/03/2026",
+    "dataIntegracao": "23/04/2026",
     "dataAtivacao": "23/04/2026",
-    "responsavelCampo": "Magno",
-    "equipeParceira": "Gilvan/Magno",
+    "responsavelCampo": "",
+    "equipeParceira": "",
     "ordemServico": "1362753",
     "alarmesAtivos": "NF Emitida postada Edicom",
     "observacoes": "",
@@ -19298,10 +19615,10 @@ export const INITIAL_SITES: TelecomSite[] = [
       "APOIO": "",
       "CallOff Solicitado": "01/04/2026",
       "DEC": "06/04/2026",
-      "EQUIPE EXECUTANTE": "Gilvan/Magno",
+      "EQUIPE EXECUTANTE": "",
       "SI Planned": "23/04/2026",
       "SI Executed": "23/04/2026",
-      "Executor": "Magno",
+      "Executor": "",
       "NDPc TalonView": "24/04/2026",
       "SI Report GDC Portal": "23/04/2026",
       "Comentários": "",
@@ -19328,10 +19645,12 @@ export const INITIAL_SITES: TelecomSite[] = [
       "DATA NF": "18/06/2026",
       "Envio Edcom": "18/06/2026",
       "Status Financeiro": "NF Emitida postada Edicom",
-      "Observações/Motivo": ""
+      "Observações/Motivo": "",
+      "Responsável": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:43:34.865Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-224",
@@ -19361,10 +19680,10 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA TORRES",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "30/03/2026",
+    "dataIntegracao": "27/04/2026",
     "dataAtivacao": "27/04/2026",
-    "responsavelCampo": "Magno",
-    "equipeParceira": "MAGNO-GILVAN",
+    "responsavelCampo": "",
+    "equipeParceira": "",
     "ordemServico": "1362625",
     "alarmesAtivos": "NF Emitida postada Edicom",
     "observacoes": "15/06/2026 - Liberado pelo Sávio",
@@ -19384,10 +19703,10 @@ export const INITIAL_SITES: TelecomSite[] = [
       "APOIO": "",
       "CallOff Solicitado": "01/04/2026",
       "DEC": "06/04/2026",
-      "EQUIPE EXECUTANTE": "MAGNO-GILVAN",
+      "EQUIPE EXECUTANTE": "",
       "SI Planned": "27/04/2026",
       "SI Executed": "27/04/2026",
-      "Executor": "Magno",
+      "Executor": "",
       "NDPc TalonView": "28/04/2026",
       "SI Report GDC Portal": "28/04/2026",
       "Comentários": "",
@@ -19414,10 +19733,12 @@ export const INITIAL_SITES: TelecomSite[] = [
       "DATA NF": "06/07/2026",
       "Envio Edcom": "10/07/2026",
       "Status Financeiro": "NF Emitida postada Edicom",
-      "Observações/Motivo": "15/06/2026 - Liberado pelo Sávio"
+      "Observações/Motivo": "15/06/2026 - Liberado pelo Sávio",
+      "Responsável": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:43:34.865Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-225",
@@ -19447,7 +19768,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA TORRES",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "30/03/2026",
+    "dataIntegracao": "27/05/2026",
     "dataAtivacao": "05/06/2026",
     "responsavelCampo": "Magno",
     "equipeParceira": "Magno/ Mateus",
@@ -19502,8 +19823,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-226",
@@ -19533,7 +19855,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA TORRES",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "30/03/2026",
+    "dataIntegracao": "12/04/2026",
     "dataAtivacao": "12/04/2026",
     "responsavelCampo": "Mateus",
     "equipeParceira": "Mateus/Oglio",
@@ -19588,8 +19910,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": "15/06/2026 - Liberado pelo Sávio"
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-227",
@@ -19619,7 +19942,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA TORRES",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "19/04/2026",
+    "dataIntegracao": "16/05/2026",
     "dataAtivacao": "16/05/2026",
     "responsavelCampo": "Rafael araujo",
     "equipeParceira": "Bruno/ Kleber",
@@ -19674,8 +19997,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-228",
@@ -19705,10 +20029,10 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA TORRES",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "30/03/2026",
+    "dataIntegracao": "14/04/2026",
     "dataAtivacao": "14/04/2026",
-    "responsavelCampo": "Magno",
-    "equipeParceira": "Magno-Gilvan",
+    "responsavelCampo": "",
+    "equipeParceira": "",
     "ordemServico": "1362419",
     "alarmesAtivos": "NF Emitida postada Edicom",
     "observacoes": "15/06/2026 - Liberado pelo Sávio",
@@ -19728,10 +20052,10 @@ export const INITIAL_SITES: TelecomSite[] = [
       "APOIO": "",
       "CallOff Solicitado": "01/04/2026",
       "DEC": "06/04/2026",
-      "EQUIPE EXECUTANTE": "Magno-Gilvan",
+      "EQUIPE EXECUTANTE": "",
       "SI Planned": "14/04/2026",
       "SI Executed": "14/04/2026",
-      "Executor": "Magno",
+      "Executor": "",
       "NDPc TalonView": "14/04/2026",
       "SI Report GDC Portal": "15/04/2026",
       "Comentários": "",
@@ -19758,10 +20082,12 @@ export const INITIAL_SITES: TelecomSite[] = [
       "DATA NF": "06/07/2026",
       "Envio Edcom": "12/07/2026",
       "Status Financeiro": "NF Emitida postada Edicom",
-      "Observações/Motivo": "15/06/2026 - Liberado pelo Sávio"
+      "Observações/Motivo": "15/06/2026 - Liberado pelo Sávio",
+      "Responsável": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:43:34.865Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-229",
@@ -19791,7 +20117,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA TORRES",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "30/03/2026",
+    "dataIntegracao": "09/04/2026",
     "dataAtivacao": "09/04/2026",
     "responsavelCampo": "Mateus",
     "equipeParceira": "Mateus-Oglio",
@@ -19846,8 +20172,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": "15/06/2026 - Liberado pelo Sávio"
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-230",
@@ -19877,7 +20204,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA TORRES",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "19/04/2026",
+    "dataIntegracao": "11/05/2026",
     "dataAtivacao": "11/05/2026",
     "responsavelCampo": "Rafael araujo",
     "equipeParceira": "Bruno/ Kleber",
@@ -19932,8 +20259,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Pronta p/ Envio EdIcom",
       "Observações/Motivo": "15/06/2026 - Liberado pelo Sávio"
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-231",
@@ -19963,7 +20291,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "05/04/2026",
+    "dataIntegracao": "20/04/2026",
     "dataAtivacao": "14/04/2026",
     "responsavelCampo": "Mateus",
     "equipeParceira": "Malta/Luís",
@@ -20018,8 +20346,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": "15/06/2026 - Liberado pelo Sávio"
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-232",
@@ -20049,7 +20378,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "19/04/2026",
+    "dataIntegracao": "26/05/2026",
     "dataAtivacao": "26/05/2026",
     "responsavelCampo": "Rafael araujo",
     "equipeParceira": "Bruno/ Kleber",
@@ -20104,8 +20433,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": "Nota 36983 não recebida e GR em aberto"
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-233",
@@ -20135,10 +20465,10 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA TORRES",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "30/03/2026",
+    "dataIntegracao": "12/04/2026",
     "dataAtivacao": "12/04/2026",
-    "responsavelCampo": "Magno",
-    "equipeParceira": "Magno-Gilvan",
+    "responsavelCampo": "",
+    "equipeParceira": "",
     "ordemServico": "1362433",
     "alarmesAtivos": "NF Emitida postada Edicom",
     "observacoes": "",
@@ -20158,10 +20488,10 @@ export const INITIAL_SITES: TelecomSite[] = [
       "APOIO": "",
       "CallOff Solicitado": "01/04/2026",
       "DEC": "06/04/2026",
-      "EQUIPE EXECUTANTE": "Magno-Gilvan",
+      "EQUIPE EXECUTANTE": "",
       "SI Planned": "12/04/2026",
       "SI Executed": "12/04/2026",
-      "Executor": "Magno",
+      "Executor": "",
       "NDPc TalonView": "12/04/2026",
       "SI Report GDC Portal": "13/04/2026",
       "Comentários": "",
@@ -20188,10 +20518,12 @@ export const INITIAL_SITES: TelecomSite[] = [
       "DATA NF": "17/06/2026",
       "Envio Edcom": "18/06/2026",
       "Status Financeiro": "NF Emitida postada Edicom",
-      "Observações/Motivo": ""
+      "Observações/Motivo": "",
+      "Responsável": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:43:34.865Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-234",
@@ -20221,10 +20553,10 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA TORRES",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "30/03/2026",
+    "dataIntegracao": "16/04/2026",
     "dataAtivacao": "16/04/2026",
-    "responsavelCampo": "Magno",
-    "equipeParceira": "Gilvan/Magno",
+    "responsavelCampo": "",
+    "equipeParceira": "",
     "ordemServico": "1362711",
     "alarmesAtivos": "NF Emitida postada Edicom",
     "observacoes": "",
@@ -20244,10 +20576,10 @@ export const INITIAL_SITES: TelecomSite[] = [
       "APOIO": "",
       "CallOff Solicitado": "01/04/2026",
       "DEC": "06/04/2026",
-      "EQUIPE EXECUTANTE": "Gilvan/Magno",
+      "EQUIPE EXECUTANTE": "",
       "SI Planned": "16/04/2026",
       "SI Executed": "16/04/2026",
-      "Executor": "Magno",
+      "Executor": "",
       "NDPc TalonView": "16/04/2026",
       "SI Report GDC Portal": "17/04/2026",
       "Comentários": "",
@@ -20274,10 +20606,12 @@ export const INITIAL_SITES: TelecomSite[] = [
       "DATA NF": "18/06/2026",
       "Envio Edcom": "18/06/2026",
       "Status Financeiro": "NF Emitida postada Edicom",
-      "Observações/Motivo": ""
+      "Observações/Motivo": "",
+      "Responsável": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:43:34.865Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-235",
@@ -20307,10 +20641,10 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA TORRES",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "30/03/2026",
+    "dataIntegracao": "12/04/2026",
     "dataAtivacao": "13/04/2026",
-    "responsavelCampo": "Magno",
-    "equipeParceira": "Magno-Gilvan",
+    "responsavelCampo": "",
+    "equipeParceira": "",
     "ordemServico": "1362383",
     "alarmesAtivos": "NF Emitida postada Edicom",
     "observacoes": "15/06/2026 - Liberado pelo Sávio",
@@ -20330,10 +20664,10 @@ export const INITIAL_SITES: TelecomSite[] = [
       "APOIO": "",
       "CallOff Solicitado": "01/04/2026",
       "DEC": "06/04/2026",
-      "EQUIPE EXECUTANTE": "Magno-Gilvan",
+      "EQUIPE EXECUTANTE": "",
       "SI Planned": "12/04/2026",
       "SI Executed": "13/04/2026",
-      "Executor": "Magno",
+      "Executor": "",
       "NDPc TalonView": "15/04/2026",
       "SI Report GDC Portal": "14/04/2026",
       "Comentários": "",
@@ -20360,10 +20694,12 @@ export const INITIAL_SITES: TelecomSite[] = [
       "DATA NF": "06/07/2026",
       "Envio Edcom": "12/07/2026",
       "Status Financeiro": "NF Emitida postada Edicom",
-      "Observações/Motivo": "15/06/2026 - Liberado pelo Sávio"
+      "Observações/Motivo": "15/06/2026 - Liberado pelo Sávio",
+      "Responsável": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:43:34.865Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-236",
@@ -20393,7 +20729,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA TORRES",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "30/03/2026",
+    "dataIntegracao": "11/04/2026",
     "dataAtivacao": "11/04/2026",
     "responsavelCampo": "Mateus",
     "equipeParceira": "Mateus/Oglio",
@@ -20448,8 +20784,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": "15/06/2026 - Liberado pelo Sávio"
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-237",
@@ -20479,7 +20816,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "05/04/2026",
+    "dataIntegracao": "18/04/2026",
     "dataAtivacao": "22/04/2026",
     "responsavelCampo": "Mateus",
     "equipeParceira": "Malta/Luís",
@@ -20534,8 +20871,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": "15/06/2026 - Liberado pelo Sávio"
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-238",
@@ -20565,7 +20903,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA TORRES",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "30/03/2026",
+    "dataIntegracao": "10/04/2026",
     "dataAtivacao": "10/04/2026",
     "responsavelCampo": "Mateus",
     "equipeParceira": "Mateus-Oglio",
@@ -20620,8 +20958,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Pronta p/ Envio EdIcom",
       "Observações/Motivo": "15/06/2026 - Liberado pelo Sávio"
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-239",
@@ -20651,10 +20990,10 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA TORRES",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "30/03/2026",
+    "dataIntegracao": "11/04/2026",
     "dataAtivacao": "14/04/2026",
-    "responsavelCampo": "Magno",
-    "equipeParceira": "Magno-Gilvan",
+    "responsavelCampo": "",
+    "equipeParceira": "",
     "ordemServico": "1362734",
     "alarmesAtivos": "NF Emitida postada Edicom",
     "observacoes": "15/06/2026 - Liberado pelo Sávio",
@@ -20674,10 +21013,10 @@ export const INITIAL_SITES: TelecomSite[] = [
       "APOIO": "",
       "CallOff Solicitado": "01/04/2026",
       "DEC": "06/04/2026",
-      "EQUIPE EXECUTANTE": "Magno-Gilvan",
+      "EQUIPE EXECUTANTE": "",
       "SI Planned": "11/04/2026",
       "SI Executed": "14/04/2026",
-      "Executor": "Magno",
+      "Executor": "",
       "NDPc TalonView": "14/04/2026",
       "SI Report GDC Portal": "15/04/2026",
       "Comentários": "",
@@ -20704,10 +21043,12 @@ export const INITIAL_SITES: TelecomSite[] = [
       "DATA NF": "06/07/2026",
       "Envio Edcom": "12/07/2026",
       "Status Financeiro": "NF Emitida postada Edicom",
-      "Observações/Motivo": "15/06/2026 - Liberado pelo Sávio"
+      "Observações/Motivo": "15/06/2026 - Liberado pelo Sávio",
+      "Responsável": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:43:34.865Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-240",
@@ -20737,7 +21078,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA TORRES",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "30/03/2026",
+    "dataIntegracao": "16/04/2026",
     "dataAtivacao": "16/04/2026",
     "responsavelCampo": "MATEUS",
     "equipeParceira": "MATEUS",
@@ -20792,8 +21133,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": "15/06/2026 - Liberado pelo Sávio"
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-241",
@@ -20823,7 +21165,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA TORRES",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "30/03/2026",
+    "dataIntegracao": "20/04/2026",
     "dataAtivacao": "20/04/2026",
     "responsavelCampo": "MATEUS",
     "equipeParceira": "MATEUS",
@@ -20878,8 +21220,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": "15/06/2026 - Liberado pelo Sávio"
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-242",
@@ -20909,7 +21252,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "05/04/2026",
+    "dataIntegracao": "05/06/2026",
     "dataAtivacao": "06/06/2026",
     "responsavelCampo": "Mateus",
     "equipeParceira": "Malta/Luís",
@@ -20964,8 +21307,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-243",
@@ -20995,10 +21339,10 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA TORRES",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "30/03/2026",
+    "dataIntegracao": "22/04/2026",
     "dataAtivacao": "22/04/2026",
-    "responsavelCampo": "Magno",
-    "equipeParceira": "Gilvan/Magno",
+    "responsavelCampo": "",
+    "equipeParceira": "",
     "ordemServico": "1362632",
     "alarmesAtivos": "NF Emitida postada Edicom",
     "observacoes": "15/06/2026 - Liberado pelo Sávio",
@@ -21018,10 +21362,10 @@ export const INITIAL_SITES: TelecomSite[] = [
       "APOIO": "",
       "CallOff Solicitado": "01/04/2026",
       "DEC": "06/04/2026",
-      "EQUIPE EXECUTANTE": "Gilvan/Magno",
+      "EQUIPE EXECUTANTE": "",
       "SI Planned": "22/04/2026",
       "SI Executed": "22/04/2026",
-      "Executor": "Magno",
+      "Executor": "",
       "NDPc TalonView": "23/04/2026",
       "SI Report GDC Portal": "22/04/2026",
       "Comentários": "",
@@ -21048,10 +21392,12 @@ export const INITIAL_SITES: TelecomSite[] = [
       "DATA NF": "06/07/2026",
       "Envio Edcom": "10/07/2026",
       "Status Financeiro": "NF Emitida postada Edicom",
-      "Observações/Motivo": "15/06/2026 - Liberado pelo Sávio"
+      "Observações/Motivo": "15/06/2026 - Liberado pelo Sávio",
+      "Responsável": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:43:34.865Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-244",
@@ -21081,10 +21427,10 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA TORRES",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "30/03/2026",
+    "dataIntegracao": "15/04/2026",
     "dataAtivacao": "15/04/2026",
-    "responsavelCampo": "Magno",
-    "equipeParceira": "Magno-Gilvan",
+    "responsavelCampo": "",
+    "equipeParceira": "",
     "ordemServico": "1362682",
     "alarmesAtivos": "NF Pronta p/ Envio EdIcom",
     "observacoes": "15/06/2026 - Liberado pelo Sávio",
@@ -21104,10 +21450,10 @@ export const INITIAL_SITES: TelecomSite[] = [
       "APOIO": "",
       "CallOff Solicitado": "01/04/2026",
       "DEC": "06/04/2026",
-      "EQUIPE EXECUTANTE": "Magno-Gilvan",
+      "EQUIPE EXECUTANTE": "",
       "SI Planned": "15/04/2026",
       "SI Executed": "15/04/2026",
-      "Executor": "Magno",
+      "Executor": "",
       "NDPc TalonView": "15/04/2026",
       "SI Report GDC Portal": "16/04/2026",
       "Comentários": "",
@@ -21134,10 +21480,12 @@ export const INITIAL_SITES: TelecomSite[] = [
       "DATA NF": "20/07/2026",
       "Envio Edcom": "",
       "Status Financeiro": "NF Pronta p/ Envio EdIcom",
-      "Observações/Motivo": "15/06/2026 - Liberado pelo Sávio"
+      "Observações/Motivo": "15/06/2026 - Liberado pelo Sávio",
+      "Responsável": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:43:34.865Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-245",
@@ -21167,10 +21515,10 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA TORRES",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "30/03/2026",
+    "dataIntegracao": "20/04/2026",
     "dataAtivacao": "20/04/2026",
-    "responsavelCampo": "Magno",
-    "equipeParceira": "Gilvan/Magno",
+    "responsavelCampo": "",
+    "equipeParceira": "",
     "ordemServico": "1362418",
     "alarmesAtivos": "NF Emitida postada Edicom",
     "observacoes": "15/06/2026 - Liberado pelo Sávio",
@@ -21190,10 +21538,10 @@ export const INITIAL_SITES: TelecomSite[] = [
       "APOIO": "",
       "CallOff Solicitado": "01/04/2026",
       "DEC": "06/04/2026",
-      "EQUIPE EXECUTANTE": "Gilvan/Magno",
+      "EQUIPE EXECUTANTE": "",
       "SI Planned": "20/04/2026",
       "SI Executed": "20/04/2026",
-      "Executor": "Magno",
+      "Executor": "",
       "NDPc TalonView": "21/04/2026",
       "SI Report GDC Portal": "21/04/2026",
       "Comentários": "",
@@ -21220,10 +21568,12 @@ export const INITIAL_SITES: TelecomSite[] = [
       "DATA NF": "06/07/2026",
       "Envio Edcom": "10/07/2026",
       "Status Financeiro": "NF Emitida postada Edicom",
-      "Observações/Motivo": "15/06/2026 - Liberado pelo Sávio"
+      "Observações/Motivo": "15/06/2026 - Liberado pelo Sávio",
+      "Responsável": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:43:34.865Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-246",
@@ -21253,7 +21603,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "19/04/2026",
+    "dataIntegracao": "27/05/2026",
     "dataAtivacao": "27/05/2026",
     "responsavelCampo": "Rafael araujo",
     "equipeParceira": "Bruno/ Kleber",
@@ -21308,8 +21658,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-247",
@@ -21339,7 +21690,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA TORRES",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "30/03/2026",
+    "dataIntegracao": "17/04/2026",
     "dataAtivacao": "17/04/2026",
     "responsavelCampo": "MATEUS",
     "equipeParceira": "MATEUS",
@@ -21394,8 +21745,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-248",
@@ -21425,7 +21777,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "19/04/2026",
+    "dataIntegracao": "11/05/2026",
     "dataAtivacao": "11/05/2026",
     "responsavelCampo": "Rafael araujo",
     "equipeParceira": "Bruno/ Kleber",
@@ -21480,8 +21832,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-249",
@@ -21511,10 +21864,10 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA TORRES",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "30/03/2026",
+    "dataIntegracao": "27/04/2026",
     "dataAtivacao": "27/04/2026",
-    "responsavelCampo": "Magno",
-    "equipeParceira": "MAGNO-GILVAN",
+    "responsavelCampo": "",
+    "equipeParceira": "",
     "ordemServico": "1362390",
     "alarmesAtivos": "NF Emitida postada Edicom",
     "observacoes": "",
@@ -21534,10 +21887,10 @@ export const INITIAL_SITES: TelecomSite[] = [
       "APOIO": "",
       "CallOff Solicitado": "01/04/2026",
       "DEC": "06/04/2026",
-      "EQUIPE EXECUTANTE": "MAGNO-GILVAN",
+      "EQUIPE EXECUTANTE": "",
       "SI Planned": "27/04/2026",
       "SI Executed": "27/04/2026",
-      "Executor": "Magno",
+      "Executor": "",
       "NDPc TalonView": "27/04/2026",
       "SI Report GDC Portal": "27/04/2026",
       "Comentários": "",
@@ -21564,10 +21917,12 @@ export const INITIAL_SITES: TelecomSite[] = [
       "DATA NF": "18/06/2026",
       "Envio Edcom": "18/06/2026",
       "Status Financeiro": "NF Emitida postada Edicom",
-      "Observações/Motivo": ""
+      "Observações/Motivo": "",
+      "Responsável": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:43:34.865Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-250",
@@ -21597,7 +21952,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA TORRES",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "30/03/2026",
+    "dataIntegracao": "14/04/2026",
     "dataAtivacao": "14/04/2026",
     "responsavelCampo": "Mateus",
     "equipeParceira": "Mateus-Oglio",
@@ -21652,8 +22007,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": "15/06/2026 - Liberado pelo Sávio"
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-251",
@@ -21683,10 +22039,10 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA TORRES",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "30/03/2026",
+    "dataIntegracao": "29/04/2026",
     "dataAtivacao": "29/04/2026",
-    "responsavelCampo": "Magno",
-    "equipeParceira": "MAGNO-GILVAN",
+    "responsavelCampo": "",
+    "equipeParceira": "",
     "ordemServico": "1362597",
     "alarmesAtivos": "NF Emitida postada Edicom",
     "observacoes": "",
@@ -21706,10 +22062,10 @@ export const INITIAL_SITES: TelecomSite[] = [
       "APOIO": "",
       "CallOff Solicitado": "01/04/2026",
       "DEC": "06/04/2026",
-      "EQUIPE EXECUTANTE": "MAGNO-GILVAN",
+      "EQUIPE EXECUTANTE": "",
       "SI Planned": "29/04/2026",
       "SI Executed": "29/04/2026",
-      "Executor": "Magno",
+      "Executor": "",
       "NDPc TalonView": "30/04/2026",
       "SI Report GDC Portal": "29/04/2026",
       "Comentários": "",
@@ -21736,10 +22092,12 @@ export const INITIAL_SITES: TelecomSite[] = [
       "DATA NF": "17/06/2026",
       "Envio Edcom": "17/06/2026",
       "Status Financeiro": "NF Emitida postada Edicom",
-      "Observações/Motivo": ""
+      "Observações/Motivo": "",
+      "Responsável": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:43:34.865Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-252",
@@ -21769,7 +22127,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "19/04/2026",
+    "dataIntegracao": "21/05/2026",
     "dataAtivacao": "21/05/2026",
     "responsavelCampo": "Rafael araujo",
     "equipeParceira": "Bruno/ Kleber",
@@ -21824,8 +22182,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": "15/06/2026 - Liberado pelo Sávio"
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-253",
@@ -21855,7 +22214,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "19/04/2026",
+    "dataIntegracao": "05/05/2026",
     "dataAtivacao": "05/05/2026",
     "responsavelCampo": "Rafael araujo",
     "equipeParceira": "Bruno/ Kleber",
@@ -21910,8 +22269,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": "15/06/2026 - Liberado pelo Sávio"
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-254",
@@ -21941,7 +22301,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "19/04/2026",
+    "dataIntegracao": "21/05/2026",
     "dataAtivacao": "21/05/2026",
     "responsavelCampo": "Rafael araujo",
     "equipeParceira": "Bruno/ Kleber",
@@ -21996,8 +22356,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": "15/06/2026 - Liberado pelo Sávio"
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-255",
@@ -22027,7 +22388,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "19/04/2026",
+    "dataIntegracao": "23/05/2026",
     "dataAtivacao": "23/05/2026",
     "responsavelCampo": "MAGNO",
     "equipeParceira": "Bruno/ Kleber",
@@ -22082,8 +22443,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-256",
@@ -22113,7 +22475,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "19/04/2026",
+    "dataIntegracao": "28/05/2026",
     "dataAtivacao": "28/05/2026",
     "responsavelCampo": "MAGNO",
     "equipeParceira": "Bruno/ Kleber",
@@ -22168,8 +22530,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-257",
@@ -22199,7 +22562,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "19/04/2026",
+    "dataIntegracao": "02/05/2026",
     "dataAtivacao": "02/05/2026",
     "responsavelCampo": "MAGNO",
     "equipeParceira": "Bruno/ Kleber",
@@ -22254,8 +22617,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-258",
@@ -22285,7 +22649,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA TORRES",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "19/04/2026",
+    "dataIntegracao": "17/05/2026",
     "dataAtivacao": "17/05/2026",
     "responsavelCampo": "MAgno",
     "equipeParceira": "Bruno/ Kleber",
@@ -22340,8 +22704,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-259",
@@ -22371,7 +22736,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA TORRES",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "19/04/2026",
+    "dataIntegracao": "10/05/2026",
     "dataAtivacao": "10/05/2026",
     "responsavelCampo": "MAGNO",
     "equipeParceira": "Bruno/ Kleber",
@@ -22426,8 +22791,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-260",
@@ -22457,7 +22823,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "IHS BRAZIL",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "19/04/2026",
+    "dataIntegracao": "28/05/2026",
     "dataAtivacao": "28/05/2026",
     "responsavelCampo": "Rafael Araujo",
     "equipeParceira": "Bruno/ Kleber",
@@ -22512,8 +22878,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-261",
@@ -22543,7 +22910,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "IHS BRAZIL",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "19/04/2026",
+    "dataIntegracao": "26/05/2026",
     "dataAtivacao": "26/05/2026",
     "responsavelCampo": "MAgno",
     "equipeParceira": "Bruno/ Kleber",
@@ -22598,8 +22965,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-262",
@@ -22629,7 +22997,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "IHS BRAZIL",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "19/04/2026",
+    "dataIntegracao": "19/05/2026",
     "dataAtivacao": "19/05/2026",
     "responsavelCampo": "MAGNO",
     "equipeParceira": "Bruno/ Kleber",
@@ -22684,8 +23052,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-263",
@@ -22715,7 +23084,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA TORRES",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "19/04/2026",
+    "dataIntegracao": "11/05/2026",
     "dataAtivacao": "11/05/2026",
     "responsavelCampo": "MAGNO",
     "equipeParceira": "Bruno/ Kleber",
@@ -22770,8 +23139,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-264",
@@ -22801,7 +23171,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA TORRES",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "19/04/2026",
+    "dataIntegracao": "16/05/2026",
     "dataAtivacao": "16/05/2026",
     "responsavelCampo": "MAGNO",
     "equipeParceira": "Bruno/ Kleber",
@@ -22856,8 +23226,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-265",
@@ -22887,7 +23258,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA TORRES",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "19/04/2026",
+    "dataIntegracao": "21/05/2026",
     "dataAtivacao": "21/05/2026",
     "responsavelCampo": "MAGNO",
     "equipeParceira": "Bruno/ Kleber",
@@ -22942,8 +23313,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": "15/06/2026 - Liberado pelo Sávio"
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-266",
@@ -22973,7 +23345,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "TBSA - CLARO",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "19/04/2026",
+    "dataIntegracao": "08/05/2026",
     "dataAtivacao": "08/05/2026",
     "responsavelCampo": "MAGNO",
     "equipeParceira": "Bruno/ Kleber",
@@ -23028,8 +23400,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": "15/06/2026 - Liberado pelo Sávio"
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-267",
@@ -23059,7 +23432,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA TORRES",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "19/04/2026",
+    "dataIntegracao": "16/05/2026",
     "dataAtivacao": "16/05/2026",
     "responsavelCampo": "MAGNO",
     "equipeParceira": "Bruno/ Kleber",
@@ -23114,8 +23487,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-268",
@@ -23145,7 +23519,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "IHS BRAZIL",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "19/04/2026",
+    "dataIntegracao": "11/05/2026",
     "dataAtivacao": "11/05/2026",
     "responsavelCampo": "Rafael araujo",
     "equipeParceira": "Bruno/ Kleber",
@@ -23200,8 +23574,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-269",
@@ -23231,7 +23606,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA TORRES",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "19/04/2026",
+    "dataIntegracao": "10/05/2026",
     "dataAtivacao": "10/05/2026",
     "responsavelCampo": "MAGNO",
     "equipeParceira": "Bruno/ Kleber",
@@ -23286,8 +23661,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-270",
@@ -23317,7 +23693,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "IHS BRAZIL",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "19/04/2026",
+    "dataIntegracao": "12/05/2026",
     "dataAtivacao": "12/05/2026",
     "responsavelCampo": "MAGNO",
     "equipeParceira": "Bruno/ Kleber",
@@ -23372,8 +23748,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": "15/06/2026 - Liberado pelo Sávio"
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-271",
@@ -23403,7 +23780,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "ATC",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "19/04/2026",
+    "dataIntegracao": "08/05/2026",
     "dataAtivacao": "08/05/2026",
     "responsavelCampo": "Rafael araujo",
     "equipeParceira": "Bruno/ Kleber",
@@ -23458,8 +23835,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": "15/06/2026 - Liberado pelo Sávio"
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-272",
@@ -23489,7 +23867,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "IHS BRAZIL",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "19/04/2026",
+    "dataIntegracao": "25/06/2026",
     "dataAtivacao": "25/05/2026",
     "responsavelCampo": "MAGNO",
     "equipeParceira": "Bruno/ Kleber",
@@ -23544,8 +23922,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-273",
@@ -23575,7 +23954,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "IHS BRAZIL",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "19/04/2026",
+    "dataIntegracao": "24/05/2026",
     "dataAtivacao": "24/05/2026",
     "responsavelCampo": "MAGNO",
     "equipeParceira": "Bruno/ Kleber",
@@ -23630,8 +24009,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-274",
@@ -23661,7 +24041,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA TORRES",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "19/04/2026",
+    "dataIntegracao": "15/05/2026",
     "dataAtivacao": "15/05/2026",
     "responsavelCampo": "MAgno",
     "equipeParceira": "Bruno/ Kleber",
@@ -23716,8 +24096,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-275",
@@ -23747,7 +24128,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "ATC",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "19/04/2026",
+    "dataIntegracao": "28/05/2026",
     "dataAtivacao": "28/05/2026",
     "responsavelCampo": "MAgno",
     "equipeParceira": "Bruno/ Kleber",
@@ -23802,8 +24183,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-276",
@@ -23833,7 +24215,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "19/04/2026",
+    "dataIntegracao": "09/05/2026",
     "dataAtivacao": "09/05/2026",
     "responsavelCampo": "MAGNO",
     "equipeParceira": "Bruno/ Kleber",
@@ -23888,8 +24270,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-277",
@@ -23919,7 +24302,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "19/04/2026",
+    "dataIntegracao": "19/05/2026",
     "dataAtivacao": "19/05/2026",
     "responsavelCampo": "MAGNO",
     "equipeParceira": "Bruno/ Kleber",
@@ -23974,8 +24357,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-278",
@@ -24005,7 +24389,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "19/04/2026",
+    "dataIntegracao": "23/05/2026",
     "dataAtivacao": "23/05/2026",
     "responsavelCampo": "MAGNO",
     "equipeParceira": "Bruno/ Kleber",
@@ -24060,8 +24444,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-279",
@@ -24091,7 +24476,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "19/04/2026",
+    "dataIntegracao": "09/05/2026",
     "dataAtivacao": "09/05/2026",
     "responsavelCampo": "Rafael araujo",
     "equipeParceira": "Bruno/ Kleber",
@@ -24146,8 +24531,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": "15/06/2026 - Liberado pelo Sávio"
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-280",
@@ -24177,7 +24563,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA TORRES",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "30/03/2026",
+    "dataIntegracao": "23/04/2026",
     "dataAtivacao": "23/04/2026",
     "responsavelCampo": "MATEUS",
     "equipeParceira": "MATEUS",
@@ -24232,8 +24618,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Pronta p/ Envio EdIcom",
       "Observações/Motivo": "15/06/2026 - Liberado pelo Sávio"
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-281",
@@ -24263,7 +24650,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA TORRES",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "19/04/2026",
+    "dataIntegracao": "02/05/2026",
     "dataAtivacao": "02/05/2026",
     "responsavelCampo": "Rafael araujo",
     "equipeParceira": "Bruno/ Kleber",
@@ -24318,8 +24705,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-282",
@@ -24349,7 +24737,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "IHS BRAZIL",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "19/04/2026",
+    "dataIntegracao": "12/05/2026",
     "dataAtivacao": "12/05/2026",
     "responsavelCampo": "MAGNO",
     "equipeParceira": "Bruno/ Kleber",
@@ -24404,8 +24792,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-283",
@@ -24435,7 +24824,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "19/04/2026",
+    "dataIntegracao": "21/05/2026",
     "dataAtivacao": "21/05/2026",
     "responsavelCampo": "Rafael Araujo",
     "equipeParceira": "Bruno/ Kleber",
@@ -24490,8 +24879,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": "15/06/2026 - Liberado pelo Sávio"
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-284",
@@ -24521,7 +24911,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "IHS BRAZIL",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "19/04/2026",
+    "dataIntegracao": "18/05/2026",
     "dataAtivacao": "18/05/2026",
     "responsavelCampo": "MAgno",
     "equipeParceira": "Bruno/ Kleber",
@@ -24576,8 +24966,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-285",
@@ -24607,7 +24998,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA TORRES",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "19/04/2026",
+    "dataIntegracao": "18/05/2026",
     "dataAtivacao": "18/05/2026",
     "responsavelCampo": "Rafael Araujo",
     "equipeParceira": "Bruno/ Kleber",
@@ -24662,8 +25053,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-286",
@@ -24693,7 +25085,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "IHS BRAZIL",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "19/04/2026",
+    "dataIntegracao": "01/05/2026",
     "dataAtivacao": "01/05/2026",
     "responsavelCampo": "Rafael araujo",
     "equipeParceira": "Bruno/ Kleber",
@@ -24748,8 +25140,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Pronta p/ Envio EdIcom",
       "Observações/Motivo": "15/06/2026 - Liberado pelo Sávio"
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-287",
@@ -24779,7 +25172,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "19/04/2026",
+    "dataIntegracao": "12/05/2026",
     "dataAtivacao": "12/05/2026",
     "responsavelCampo": "Rafael araujo",
     "equipeParceira": "Bruno/ Kleber",
@@ -24834,8 +25227,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Pronta p/ Envio EdIcom",
       "Observações/Motivo": "15/06/2026 - Liberado pelo Sávio"
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-288",
@@ -24865,7 +25259,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "IHS BRAZIL",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "19/04/2026",
+    "dataIntegracao": "19/05/2026",
     "dataAtivacao": "19/05/2026",
     "responsavelCampo": "MAGNO",
     "equipeParceira": "Bruno/ Kleber",
@@ -24920,8 +25314,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Pronta p/ Envio EdIcom",
       "Observações/Motivo": "15/06/2026 - Liberado pelo Sávio"
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-289",
@@ -24951,7 +25346,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "IHS BRAZIL",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "19/04/2026",
+    "dataIntegracao": "01/05/2026",
     "dataAtivacao": "01/05/2026",
     "responsavelCampo": "Rafael araujo",
     "equipeParceira": "Bruno/ Kleber",
@@ -25006,8 +25401,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-290",
@@ -25037,7 +25433,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "ATC",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "19/04/2026",
+    "dataIntegracao": "23/05/2026",
     "dataAtivacao": "23/05/2026",
     "responsavelCampo": "Rafael araujo",
     "equipeParceira": "Bruno/ Kleber",
@@ -25092,8 +25488,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-291",
@@ -25123,7 +25520,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "19/04/2026",
+    "dataIntegracao": "09/05/2026",
     "dataAtivacao": "09/05/2026",
     "responsavelCampo": "Rafael araujo",
     "equipeParceira": "Bruno/ Kleber",
@@ -25178,8 +25575,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-292",
@@ -25209,7 +25607,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA TORRES",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "19/04/2026",
+    "dataIntegracao": "17/05/2026",
     "dataAtivacao": "17/05/2026",
     "responsavelCampo": "Rafael araujo",
     "equipeParceira": "Bruno/ Kleber",
@@ -25264,8 +25662,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-293",
@@ -25295,7 +25694,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA TORRES",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "30/03/2026",
+    "dataIntegracao": "14/04/2026",
     "dataAtivacao": "14/04/2026",
     "responsavelCampo": "Mateus",
     "equipeParceira": "Mateus",
@@ -25350,8 +25749,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-294",
@@ -25381,7 +25781,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "IHS BRAZIL",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "19/04/2026",
+    "dataIntegracao": "25/06/2026",
     "dataAtivacao": "25/05/2026",
     "responsavelCampo": "MAGNO",
     "equipeParceira": "Bruno/ Kleber",
@@ -25436,8 +25836,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-295",
@@ -25467,7 +25868,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "HIGHLINE",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "05/04/2026",
+    "dataIntegracao": "20/04/2026",
     "dataAtivacao": "16/04/2026",
     "responsavelCampo": "Mateus",
     "equipeParceira": "Malta/Luís",
@@ -25522,8 +25923,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": "15/06/2026 - Liberado pelo Sávio"
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-296",
@@ -25553,7 +25955,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "TBSA - CLARO",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "19/04/2026",
+    "dataIntegracao": "18/05/2026",
     "dataAtivacao": "18/05/2026",
     "responsavelCampo": "MAGNO",
     "equipeParceira": "Bruno/ Kleber",
@@ -25608,8 +26010,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-297",
@@ -25639,7 +26042,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA TORRES",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "19/04/2026",
+    "dataIntegracao": "08/05/2026",
     "dataAtivacao": "08/05/2026",
     "responsavelCampo": "Rafael araujo",
     "equipeParceira": "Bruno/ Kleber",
@@ -25694,8 +26097,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-298",
@@ -25725,7 +26129,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "05/04/2026",
+    "dataIntegracao": "21/04/2026",
     "dataAtivacao": "13/04/2026",
     "responsavelCampo": "Mateus",
     "equipeParceira": "Malta/Luís",
@@ -25780,8 +26184,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": "15/06/2026 - Liberado pelo Sávio"
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-299",
@@ -25811,7 +26216,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "19/04/2026",
+    "dataIntegracao": "07/05/2026",
     "dataAtivacao": "07/05/2026",
     "responsavelCampo": "Rafael araujo",
     "equipeParceira": "Bruno/ Kleber",
@@ -25866,8 +26271,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": "15/06/2026 - Liberado pelo Sávio"
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-300",
@@ -25897,7 +26303,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "IHS BRAZIL",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "19/04/2026",
+    "dataIntegracao": "26/05/2026",
     "dataAtivacao": "26/05/2026",
     "responsavelCampo": "Rafael araujo",
     "equipeParceira": "Bruno/ Kleber",
@@ -25952,8 +26358,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Pronta p/ Envio EdIcom",
       "Observações/Motivo": "51652790 - SPO anterior não está mais liberado para Ameta"
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-301",
@@ -25983,7 +26390,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "19/04/2026",
+    "dataIntegracao": "15/05/2026",
     "dataAtivacao": "15/05/2026",
     "responsavelCampo": "Rafael araujo",
     "equipeParceira": "Bruno/ Kleber",
@@ -26038,8 +26445,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-302",
@@ -26069,7 +26477,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "19/04/2026",
+    "dataIntegracao": "24/05/2026",
     "dataAtivacao": "24/05/2026",
     "responsavelCampo": "Rafael araujo",
     "equipeParceira": "Bruno/ Kleber",
@@ -26124,8 +26532,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-303",
@@ -26155,7 +26564,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA TORRES",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "19/04/2026",
+    "dataIntegracao": "13/05/2026",
     "dataAtivacao": "13/05/2026",
     "responsavelCampo": "Rafael araujo",
     "equipeParceira": "Bruno/ Kleber",
@@ -26210,8 +26619,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Pronta p/ Envio EdIcom",
       "Observações/Motivo": "15/06/2026 - Liberado pelo Sávio"
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-304",
@@ -26241,7 +26651,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "19/04/2026",
+    "dataIntegracao": "25/06/2026",
     "dataAtivacao": "25/05/2026",
     "responsavelCampo": "Magno",
     "equipeParceira": "Bruno/ Kleber",
@@ -26296,8 +26706,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-305",
@@ -26327,7 +26738,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "19/04/2026",
+    "dataIntegracao": "19/05/2026",
     "dataAtivacao": "19/05/2026",
     "responsavelCampo": "Rafael araujo",
     "equipeParceira": "Bruno/ Kleber",
@@ -26382,8 +26793,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-306",
@@ -26413,7 +26825,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "19/04/2026",
+    "dataIntegracao": "12/05/2026",
     "dataAtivacao": "12/05/2026",
     "responsavelCampo": "Rafael araujo",
     "equipeParceira": "Bruno/ Kleber",
@@ -26468,8 +26880,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Pronta p/ Envio EdIcom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-307",
@@ -26499,10 +26912,10 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA TORRES",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "30/03/2026",
+    "dataIntegracao": "27/04/2026",
     "dataAtivacao": "27/04/2026",
-    "responsavelCampo": "Magno",
-    "equipeParceira": "Gilvan/Magno",
+    "responsavelCampo": "",
+    "equipeParceira": "",
     "ordemServico": "1362716",
     "alarmesAtivos": "NF Emitida postada Edicom",
     "observacoes": "",
@@ -26522,10 +26935,10 @@ export const INITIAL_SITES: TelecomSite[] = [
       "APOIO": "",
       "CallOff Solicitado": "01/04/2026",
       "DEC": "06/04/2026",
-      "EQUIPE EXECUTANTE": "Gilvan/Magno",
+      "EQUIPE EXECUTANTE": "",
       "SI Planned": "27/04/2026",
       "SI Executed": "27/04/2026",
-      "Executor": "Magno",
+      "Executor": "",
       "NDPc TalonView": "28/04/2026",
       "SI Report GDC Portal": "28/04/2026",
       "Comentários": "",
@@ -26552,10 +26965,12 @@ export const INITIAL_SITES: TelecomSite[] = [
       "DATA NF": "18/06/2026",
       "Envio Edcom": "18/06/2026",
       "Status Financeiro": "NF Emitida postada Edicom",
-      "Observações/Motivo": ""
+      "Observações/Motivo": "",
+      "Responsável": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:43:34.865Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-308",
@@ -26585,7 +27000,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "HIGHLINE",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "05/04/2026",
+    "dataIntegracao": "13/04/2026",
     "dataAtivacao": "16/04/2026",
     "responsavelCampo": "Mateus",
     "equipeParceira": "Malta/Luís",
@@ -26640,8 +27055,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": "15/06/2026 - Liberado pelo Sávio"
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-309",
@@ -26671,7 +27087,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "05/04/2026",
+    "dataIntegracao": "17/04/2026",
     "dataAtivacao": "23/04/2026",
     "responsavelCampo": "Mateus",
     "equipeParceira": "Malta/Luís",
@@ -26726,8 +27142,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-310",
@@ -26757,7 +27174,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "IHS BRAZIL",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "19/04/2026",
+    "dataIntegracao": "20/05/2026",
     "dataAtivacao": "20/05/2026",
     "responsavelCampo": "MAgno",
     "equipeParceira": "Bruno/ Kleber",
@@ -26812,8 +27229,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-311",
@@ -26843,7 +27261,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "30/03/2026",
+    "dataIntegracao": "11/04/2026",
     "dataAtivacao": "13/04/2026",
     "responsavelCampo": "Mateus",
     "equipeParceira": "Mateus",
@@ -26898,8 +27316,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": "15/06/2026 - Liberado pelo Sávio"
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-312",
@@ -26929,10 +27348,10 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA TORRES",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "30/03/2026",
+    "dataIntegracao": "11/04/2026",
     "dataAtivacao": "11/04/2026",
-    "responsavelCampo": "Magno",
-    "equipeParceira": "Magno-Gilvan",
+    "responsavelCampo": "",
+    "equipeParceira": "",
     "ordemServico": "1362695",
     "alarmesAtivos": "NF Emitida postada Edicom",
     "observacoes": "15/06/2026 - Liberado pelo Sávio",
@@ -26952,10 +27371,10 @@ export const INITIAL_SITES: TelecomSite[] = [
       "APOIO": "",
       "CallOff Solicitado": "01/04/2026",
       "DEC": "06/04/2026",
-      "EQUIPE EXECUTANTE": "Magno-Gilvan",
+      "EQUIPE EXECUTANTE": "",
       "SI Planned": "11/04/2026",
       "SI Executed": "11/04/2026",
-      "Executor": "Magno",
+      "Executor": "",
       "NDPc TalonView": "12/04/2026",
       "SI Report GDC Portal": "13/04/2026",
       "Comentários": "",
@@ -26982,10 +27401,12 @@ export const INITIAL_SITES: TelecomSite[] = [
       "DATA NF": "06/07/2026",
       "Envio Edcom": "12/07/2026",
       "Status Financeiro": "NF Emitida postada Edicom",
-      "Observações/Motivo": "15/06/2026 - Liberado pelo Sávio"
+      "Observações/Motivo": "15/06/2026 - Liberado pelo Sávio",
+      "Responsável": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:43:34.865Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-313",
@@ -27015,7 +27436,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "19/04/2026",
+    "dataIntegracao": "09/05/2026",
     "dataAtivacao": "09/05/2026",
     "responsavelCampo": "Rafael araujo",
     "equipeParceira": "Bruno/ Kleber",
@@ -27070,8 +27491,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-314",
@@ -27101,7 +27523,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA TORRES",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "30/03/2026",
+    "dataIntegracao": "12/04/2026",
     "dataAtivacao": "12/04/2026",
     "responsavelCampo": "Mateus",
     "equipeParceira": "Mateus",
@@ -27156,8 +27578,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": "15/06/2026 - Liberado pelo Sávio"
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-315",
@@ -27187,7 +27610,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "30/03/2026",
+    "dataIntegracao": "27/04/2026",
     "dataAtivacao": "04/05/2026",
     "responsavelCampo": "MATEUS",
     "equipeParceira": "Mateus -Oglio",
@@ -27242,8 +27665,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": "15/06/2026 - Liberado pelo Sávio"
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-316",
@@ -27273,7 +27697,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "TBSA - CLARO",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "19/04/2026",
+    "dataIntegracao": "28/05/2026",
     "dataAtivacao": "28/05/2026",
     "responsavelCampo": "Rafael araujo",
     "equipeParceira": "Bruno/ Kleber",
@@ -27328,8 +27752,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Pronta p/ Envio EdIcom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-317",
@@ -27359,7 +27784,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA TORRES",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "30/03/2026",
+    "dataIntegracao": "15/04/2026",
     "dataAtivacao": "15/04/2026",
     "responsavelCampo": "Mateus",
     "equipeParceira": "Mateus",
@@ -27414,8 +27839,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": "15/06/2026 - Liberado pelo Sávio"
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-318",
@@ -27445,10 +27871,10 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA TORRES",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "30/03/2026",
+    "dataIntegracao": "23/04/2026",
     "dataAtivacao": "23/04/2026",
-    "responsavelCampo": "Magno",
-    "equipeParceira": "MAGNO-GILVAN",
+    "responsavelCampo": "",
+    "equipeParceira": "",
     "ordemServico": "1362508",
     "alarmesAtivos": "NF Pronta p/ Envio EdIcom",
     "observacoes": "",
@@ -27468,10 +27894,10 @@ export const INITIAL_SITES: TelecomSite[] = [
       "APOIO": "",
       "CallOff Solicitado": "01/04/2026",
       "DEC": "06/04/2026",
-      "EQUIPE EXECUTANTE": "MAGNO-GILVAN",
+      "EQUIPE EXECUTANTE": "",
       "SI Planned": "23/04/2026",
       "SI Executed": "23/04/2026",
-      "Executor": "Magno",
+      "Executor": "",
       "NDPc TalonView": "24/04/2026",
       "SI Report GDC Portal": "23/04/2026",
       "Comentários": "",
@@ -27498,10 +27924,12 @@ export const INITIAL_SITES: TelecomSite[] = [
       "DATA NF": "18/06/2026",
       "Envio Edcom": "",
       "Status Financeiro": "NF Pronta p/ Envio EdIcom",
-      "Observações/Motivo": ""
+      "Observações/Motivo": "",
+      "Responsável": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:43:34.865Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-319",
@@ -27531,7 +27959,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "19/04/2026",
+    "dataIntegracao": "20/05/2026",
     "dataAtivacao": "20/05/2026",
     "responsavelCampo": "MAGNO",
     "equipeParceira": "Bruno/ Kleber",
@@ -27586,8 +28014,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-320",
@@ -27617,7 +28046,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "IHS BRAZIL",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "19/04/2026",
+    "dataIntegracao": "01/05/2026",
     "dataAtivacao": "01/05/2026",
     "responsavelCampo": "Rafael araujo",
     "equipeParceira": "Bruno/ Kleber",
@@ -27672,8 +28101,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-321",
@@ -27703,7 +28133,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "IHS BRAZIL",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "19/04/2026",
+    "dataIntegracao": "17/05/2026",
     "dataAtivacao": "17/05/2026",
     "responsavelCampo": "MAGNO",
     "equipeParceira": "Bruno/ Kleber",
@@ -27758,8 +28188,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-322",
@@ -27789,7 +28220,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "TBSA - CLARO",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "19/04/2026",
+    "dataIntegracao": "11/05/2026",
     "dataAtivacao": "11/05/2026",
     "responsavelCampo": "MAGNO",
     "equipeParceira": "Bruno/ Kleber",
@@ -27844,8 +28275,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-323",
@@ -27875,7 +28307,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA TORRES",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "19/04/2026",
+    "dataIntegracao": "13/05/2026",
     "dataAtivacao": "13/05/2026",
     "responsavelCampo": "MAgno",
     "equipeParceira": "Bruno/ Kleber",
@@ -27930,8 +28362,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-324",
@@ -27961,7 +28394,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA TORRES",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "19/04/2026",
+    "dataIntegracao": "12/05/2026",
     "dataAtivacao": "12/05/2026",
     "responsavelCampo": "MAGNO",
     "equipeParceira": "Bruno/ Kleber",
@@ -28016,8 +28449,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-325",
@@ -28047,7 +28481,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "19/04/2026",
+    "dataIntegracao": "18/05/2026",
     "dataAtivacao": "18/05/2026",
     "responsavelCampo": "MAGNO",
     "equipeParceira": "Bruno/ Kleber",
@@ -28102,8 +28536,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Emitida postada Edicom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-326",
@@ -28133,10 +28568,10 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA TORRES",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "30/03/2026",
+    "dataIntegracao": "16/04/2026",
     "dataAtivacao": "16/04/2026",
-    "responsavelCampo": "Magno",
-    "equipeParceira": "Magno/Gilvan",
+    "responsavelCampo": "",
+    "equipeParceira": "",
     "ordemServico": "1362456",
     "alarmesAtivos": "NF Emitida postada Edicom",
     "observacoes": "15/06/2026 - Liberado pelo Sávio",
@@ -28156,10 +28591,10 @@ export const INITIAL_SITES: TelecomSite[] = [
       "APOIO": "",
       "CallOff Solicitado": "01/04/2026",
       "DEC": "06/04/2026",
-      "EQUIPE EXECUTANTE": "Magno/Gilvan",
+      "EQUIPE EXECUTANTE": "",
       "SI Planned": "16/04/2026",
       "SI Executed": "16/04/2026",
-      "Executor": "Magno",
+      "Executor": "",
       "NDPc TalonView": "16/04/2026",
       "SI Report GDC Portal": "17/04/2026",
       "Comentários": "",
@@ -28186,10 +28621,12 @@ export const INITIAL_SITES: TelecomSite[] = [
       "DATA NF": "06/07/2026",
       "Envio Edcom": "10/07/2026",
       "Status Financeiro": "NF Emitida postada Edicom",
-      "Observações/Motivo": "15/06/2026 - Liberado pelo Sávio"
+      "Observações/Motivo": "15/06/2026 - Liberado pelo Sávio",
+      "Responsável": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:43:34.865Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-327",
@@ -28219,10 +28656,10 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "31/03/2026",
+    "dataIntegracao": "07/04/2026",
     "dataAtivacao": "07/04/2026",
-    "responsavelCampo": "Magno",
-    "equipeParceira": "Magno/Gilvan",
+    "responsavelCampo": "",
+    "equipeParceira": "",
     "ordemServico": "1360316",
     "alarmesAtivos": "NF Emitida postada Edicom",
     "observacoes": "15/06/2026 - Liberado pelo Sávio",
@@ -28242,10 +28679,10 @@ export const INITIAL_SITES: TelecomSite[] = [
       "APOIO": "",
       "CallOff Solicitado": "02/04/2026",
       "DEC": "06/04/2026",
-      "EQUIPE EXECUTANTE": "Magno/Gilvan",
+      "EQUIPE EXECUTANTE": "",
       "SI Planned": "07/04/2026",
       "SI Executed": "07/04/2026",
-      "Executor": "Magno",
+      "Executor": "",
       "NDPc TalonView": "07/04/2026",
       "SI Report GDC Portal": "08/04/2026",
       "Comentários": "06/04/2026 - Vistoria replanejada devido á chuva.",
@@ -28272,10 +28709,12 @@ export const INITIAL_SITES: TelecomSite[] = [
       "DATA NF": "06/07/2026",
       "Envio Edcom": "12/07/2026",
       "Status Financeiro": "NF Emitida postada Edicom",
-      "Observações/Motivo": "15/06/2026 - Liberado pelo Sávio"
+      "Observações/Motivo": "15/06/2026 - Liberado pelo Sávio",
+      "Responsável": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:43:34.865Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-328",
@@ -28305,10 +28744,10 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "31/03/2026",
+    "dataIntegracao": "07/04/2026",
     "dataAtivacao": "07/04/2026",
-    "responsavelCampo": "Magno",
-    "equipeParceira": "Magno/Gilvan",
+    "responsavelCampo": "",
+    "equipeParceira": "",
     "ordemServico": "1360337",
     "alarmesAtivos": "NF Emitida postada Edicom",
     "observacoes": "15/06/2026 - Liberado pelo Sávio",
@@ -28328,10 +28767,10 @@ export const INITIAL_SITES: TelecomSite[] = [
       "APOIO": "",
       "CallOff Solicitado": "02/04/2026",
       "DEC": "06/04/2026",
-      "EQUIPE EXECUTANTE": "Magno/Gilvan",
+      "EQUIPE EXECUTANTE": "",
       "SI Planned": "07/04/2026",
       "SI Executed": "07/04/2026",
-      "Executor": "Magno",
+      "Executor": "",
       "NDPc TalonView": "07/04/2026",
       "SI Report GDC Portal": "08/04/2026",
       "Comentários": "",
@@ -28358,10 +28797,12 @@ export const INITIAL_SITES: TelecomSite[] = [
       "DATA NF": "06/07/2026",
       "Envio Edcom": "12/07/2026",
       "Status Financeiro": "NF Emitida postada Edicom",
-      "Observações/Motivo": "15/06/2026 - Liberado pelo Sávio"
+      "Observações/Motivo": "15/06/2026 - Liberado pelo Sávio",
+      "Responsável": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:43:34.865Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-329",
@@ -28391,10 +28832,10 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "31/03/2026",
+    "dataIntegracao": "07/04/2026",
     "dataAtivacao": "07/04/2026",
-    "responsavelCampo": "Magno",
-    "equipeParceira": "Magno/Gilvan",
+    "responsavelCampo": "",
+    "equipeParceira": "",
     "ordemServico": "1360314",
     "alarmesAtivos": "NF Emitida postada Edicom",
     "observacoes": "15/06/2026 - Liberado pelo Sávio",
@@ -28414,10 +28855,10 @@ export const INITIAL_SITES: TelecomSite[] = [
       "APOIO": "",
       "CallOff Solicitado": "02/04/2026",
       "DEC": "06/04/2026",
-      "EQUIPE EXECUTANTE": "Magno/Gilvan",
+      "EQUIPE EXECUTANTE": "",
       "SI Planned": "07/04/2026",
       "SI Executed": "07/04/2026",
-      "Executor": "Magno",
+      "Executor": "",
       "NDPc TalonView": "07/04/2026",
       "SI Report GDC Portal": "08/04/2026",
       "Comentários": "",
@@ -28444,10 +28885,12 @@ export const INITIAL_SITES: TelecomSite[] = [
       "DATA NF": "06/07/2026",
       "Envio Edcom": "10/07/2026",
       "Status Financeiro": "NF Emitida postada Edicom",
-      "Observações/Motivo": "15/06/2026 - Liberado pelo Sávio"
+      "Observações/Motivo": "15/06/2026 - Liberado pelo Sávio",
+      "Responsável": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:43:34.865Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-330",
@@ -28476,8 +28919,8 @@ export const INITIAL_SITES: TelecomSite[] = [
     "vlanOm": "550081308320260001",
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - A Executar",
-    "progressoRollout": 60,
-    "dataIntegracao": "09/05/2026",
+    "progressoRollout": 65,
+    "dataIntegracao": "03/06/2026",
     "dataAtivacao": "07/06/2026",
     "responsavelCampo": "Mateus",
     "equipeParceira": "Magno/ Mateus",
@@ -28532,8 +28975,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Pronta p/ Envio EdIcom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-331",
@@ -28563,7 +29007,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "09/05/2026",
+    "dataIntegracao": "04/06/2026",
     "dataAtivacao": "02/06/2026",
     "responsavelCampo": "Mateus",
     "equipeParceira": "Magno/ Mateus",
@@ -28618,8 +29062,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Pronta p/ Envio EdIcom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-332",
@@ -28649,7 +29094,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "09/05/2026",
+    "dataIntegracao": "07/06/2026",
     "dataAtivacao": "02/06/2026",
     "responsavelCampo": "Mateus",
     "equipeParceira": "Magno/ Mateus",
@@ -28704,8 +29149,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Pronta p/ Envio EdIcom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-333",
@@ -28735,7 +29181,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "09/05/2026",
+    "dataIntegracao": "05/06/2026",
     "dataAtivacao": "03/06/2026",
     "responsavelCampo": "Magno",
     "equipeParceira": "Magno/ Mateus",
@@ -28790,8 +29236,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Pronta p/ Envio EdIcom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-334",
@@ -28821,7 +29268,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "09/05/2026",
+    "dataIntegracao": "06/06/2026",
     "dataAtivacao": "03/06/2026",
     "responsavelCampo": "Magno",
     "equipeParceira": "Magno/ Mateus",
@@ -28876,8 +29323,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Pronta p/ Envio EdIcom",
       "Observações/Motivo": "37560 - NF deverá ser cancelada"
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-335",
@@ -28907,7 +29355,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "09/05/2026",
+    "dataIntegracao": "04/06/2026",
     "dataAtivacao": "31/05/2026",
     "responsavelCampo": "Magno",
     "equipeParceira": "Magno/ Mateus",
@@ -28962,8 +29410,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Pronta p/ Envio EdIcom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-336",
@@ -28993,7 +29442,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "TBSA - CLARO",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "09/05/2026",
+    "dataIntegracao": "23/05/2026",
     "dataAtivacao": "23/05/2026",
     "responsavelCampo": "Magno",
     "equipeParceira": "Magno/ Mateus",
@@ -29048,8 +29497,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Pronta p/ Envio EdIcom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-337",
@@ -29079,7 +29529,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "09/05/2026",
+    "dataIntegracao": "28/05/2026",
     "dataAtivacao": "24/05/2026",
     "responsavelCampo": "Magno",
     "equipeParceira": "Magno/ Mateus",
@@ -29134,8 +29584,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Pronta p/ Envio EdIcom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-338",
@@ -29165,7 +29616,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA TORRES",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "07/05/2026",
+    "dataIntegracao": "28/05/2026",
     "dataAtivacao": "27/05/2026",
     "responsavelCampo": "Magno",
     "equipeParceira": "Magno/ Mateus",
@@ -29220,8 +29671,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Pronta p/ Envio EdIcom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-339",
@@ -29251,7 +29703,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "09/05/2026",
+    "dataIntegracao": "28/05/2026",
     "dataAtivacao": "24/05/2026",
     "responsavelCampo": "Magno",
     "equipeParceira": "Magno/ Mateus",
@@ -29306,8 +29758,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Pronta p/ Envio EdIcom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-340",
@@ -29337,7 +29790,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA TORRES",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "07/05/2026",
+    "dataIntegracao": "21/05/2026",
     "dataAtivacao": "21/05/2026",
     "responsavelCampo": "Mateus",
     "equipeParceira": "Magno/ Mateus",
@@ -29392,8 +29845,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Pronta p/ Envio EdIcom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-341",
@@ -29423,7 +29877,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA TORRES",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "18/03/2026",
+    "dataIntegracao": "06/04/2026",
     "dataAtivacao": "30/03/2026",
     "responsavelCampo": "Mateus",
     "equipeParceira": "Mateus/Oglio",
@@ -29478,8 +29932,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Pronta p/ Envio EdIcom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-342",
@@ -29509,10 +29964,10 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "16/02/2026",
+    "dataIntegracao": "01/04/2026",
     "dataAtivacao": "01/04/2026",
-    "responsavelCampo": "Magno",
-    "equipeParceira": "Magno/Gilvan",
+    "responsavelCampo": "",
+    "equipeParceira": "",
     "ordemServico": "1360731",
     "alarmesAtivos": "NF Pronta p/ Envio EdIcom",
     "observacoes": "51337173 - SPO anterior não está mais liberado para Ameta",
@@ -29532,10 +29987,10 @@ export const INITIAL_SITES: TelecomSite[] = [
       "APOIO": "",
       "CallOff Solicitado": "25/02/2026",
       "DEC": "01/04/2026",
-      "EQUIPE EXECUTANTE": "Magno/Gilvan",
+      "EQUIPE EXECUTANTE": "",
       "SI Planned": "01/04/2026",
       "SI Executed": "01/04/2026",
-      "Executor": "Magno",
+      "Executor": "",
       "NDPc TalonView": "02/04/2026",
       "SI Report GDC Portal": "01/04/2026",
       "Comentários": "",
@@ -29562,10 +30017,12 @@ export const INITIAL_SITES: TelecomSite[] = [
       "DATA NF": "18/08/2026",
       "Envio Edcom": "",
       "Status Financeiro": "NF Pronta p/ Envio EdIcom",
-      "Observações/Motivo": "51337173 - SPO anterior não está mais liberado para Ameta"
+      "Observações/Motivo": "51337173 - SPO anterior não está mais liberado para Ameta",
+      "Responsável": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:43:34.865Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-343",
@@ -29595,7 +30052,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "09/05/2026",
+    "dataIntegracao": "02/06/2026",
     "dataAtivacao": "01/06/2026",
     "responsavelCampo": "Magno",
     "equipeParceira": "Magno/ Mateus",
@@ -29650,8 +30107,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Pronta p/ Envio EdIcom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-344",
@@ -29681,7 +30139,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA TORRES",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "07/05/2026",
+    "dataIntegracao": "22/05/2026",
     "dataAtivacao": "22/05/2026",
     "responsavelCampo": "Magno",
     "equipeParceira": "Magno/ Mateus",
@@ -29736,8 +30194,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Pronta p/ Envio EdIcom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-345",
@@ -29767,7 +30226,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "09/05/2026",
+    "dataIntegracao": "03/06/2026",
     "dataAtivacao": "30/05/2026",
     "responsavelCampo": "Magno",
     "equipeParceira": "Magno/ Mateus",
@@ -29822,8 +30281,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Pronta p/ Envio EdIcom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-346",
@@ -29853,10 +30313,10 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA TORRES",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "29/03/2026",
+    "dataIntegracao": "14/06/2026",
     "dataAtivacao": "08/06/2026",
-    "responsavelCampo": "Mateus",
-    "equipeParceira": "Magno/Gilvan",
+    "responsavelCampo": "",
+    "equipeParceira": "",
     "ordemServico": "1360765",
     "alarmesAtivos": "Aguardando SGR",
     "observacoes": "06/05/2026 - Equipe ligou para o SR. João Eduardo conforme e-mail do dia 20/04/2026 e o mesmo aflou que não tinha nenhuma carta de acesso com os nomes dos técnicos. 23/04/2026 - Acesso autorizado o senhor João autorizou a passar o contato dele para os técnicos, pois assim ele entra em contato direto com a portaria para conseguir a liberação da equipe, ele informou que outros técnicos seguem essa instrução para quando não conseguem acesso ao local. 34 9199-3139 - Joao Eduardo 10/04/2026 - Voltamos ao site conforme informado pela Fernanda Deus que ira mandar novamente o acesso, só que voltamos ao site e não tivemos acesso novamente. 08/04/2026 - Visada ao site, só que ainda continua sem carta de acesso na portaria e na administração, mesmo com o email da SBA aprovado (E-mail enviado nesta mesma data).",
@@ -29876,10 +30336,10 @@ export const INITIAL_SITES: TelecomSite[] = [
       "APOIO": "",
       "CallOff Solicitado": "02/04/2026",
       "DEC": "06/04/2026",
-      "EQUIPE EXECUTANTE": "Magno/Gilvan",
+      "EQUIPE EXECUTANTE": "",
       "SI Planned": "14/06/2026",
       "SI Executed": "08/06/2026",
-      "Executor": "Mateus",
+      "Executor": "",
       "NDPc TalonView": "09/06/2026",
       "SI Report GDC Portal": "09/06/2026",
       "Comentários": "06/05/2026 - Equipe ligou para o SR. João Eduardo conforme e-mail do dia 20/04/2026 e o mesmo aflou que não tinha nenhuma carta de acesso com os nomes dos técnicos. 23/04/2026 - Acesso autorizado o senhor João autorizou a passar o contato dele para os técnicos, pois assim ele entra em contato direto com a portaria para conseguir a liberação da equipe, ele informou que outros técnicos seguem essa instrução para quando não conseguem acesso ao local. 34 9199-3139 - Joao Eduardo 10/04/2026 - Voltamos ao site conforme informado pela Fernanda Deus que ira mandar novamente o acesso, só que voltamos ao site e não tivemos acesso novamente. 08/04/2026 - Visada ao site, só que ainda continua sem carta de acesso na portaria e na administração, mesmo com o email da SBA aprovado (E-mail enviado nesta mesma data).",
@@ -29906,10 +30366,12 @@ export const INITIAL_SITES: TelecomSite[] = [
       "DATA NF": "",
       "Envio Edcom": "",
       "Status Financeiro": "Aguardando SGR",
-      "Observações/Motivo": ""
+      "Observações/Motivo": "",
+      "Responsável": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:43:34.865Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-347",
@@ -29939,7 +30401,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA TORRES",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "07/05/2026",
+    "dataIntegracao": "27/05/2026",
     "dataAtivacao": "28/05/2026",
     "responsavelCampo": "Magno",
     "equipeParceira": "Magno/ Mateus",
@@ -29994,8 +30456,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Pronta p/ Envio EdIcom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-348",
@@ -30025,7 +30488,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "09/05/2026",
+    "dataIntegracao": "30/05/2026",
     "dataAtivacao": "30/05/2026",
     "responsavelCampo": "Magno",
     "equipeParceira": "Magno/ Mateus",
@@ -30080,8 +30543,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Pronta p/ Envio EdIcom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-349",
@@ -30111,7 +30575,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "07/05/2026",
+    "dataIntegracao": "12/06/2026",
     "dataAtivacao": "29/05/2026",
     "responsavelCampo": "Mateus",
     "equipeParceira": "Magno/ Mateus",
@@ -30166,8 +30630,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "Aguardando SGR",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-350",
@@ -30197,7 +30662,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA TORRES",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "07/05/2026",
+    "dataIntegracao": "25/05/2026",
     "dataAtivacao": "25/05/2026",
     "responsavelCampo": "Magno",
     "equipeParceira": "Magno/ Mateus",
@@ -30252,8 +30717,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Pronta p/ Envio EdIcom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-351",
@@ -30283,7 +30749,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA TORRES",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "07/05/2026",
+    "dataIntegracao": "11/06/2026",
     "dataAtivacao": "03/06/2026",
     "responsavelCampo": "Magno",
     "equipeParceira": "Magno/ Mateus",
@@ -30338,8 +30804,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Pronta p/ Envio EdIcom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-352",
@@ -30369,7 +30836,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA TORRES",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "07/05/2026",
+    "dataIntegracao": "25/05/2026",
     "dataAtivacao": "25/05/2026",
     "responsavelCampo": "Mateus",
     "equipeParceira": "Magno/ Mateus",
@@ -30424,8 +30891,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Pronta p/ Envio EdIcom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-353",
@@ -30455,7 +30923,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA TORRES",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "07/05/2026",
+    "dataIntegracao": "22/05/2026",
     "dataAtivacao": "22/05/2026",
     "responsavelCampo": "Magno",
     "equipeParceira": "Magno/ Mateus",
@@ -30510,8 +30978,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Pronta p/ Envio EdIcom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-354",
@@ -30541,7 +31010,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA TORRES",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "07/05/2026",
+    "dataIntegracao": "10/06/2026",
     "dataAtivacao": "01/06/2026",
     "responsavelCampo": "Magno",
     "equipeParceira": "Magno/ Mateus",
@@ -30596,8 +31065,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Pronta p/ Envio EdIcom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-355",
@@ -30627,7 +31097,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "07/05/2026",
+    "dataIntegracao": "29/05/2026",
     "dataAtivacao": "27/05/2026",
     "responsavelCampo": "Magno",
     "equipeParceira": "Magno/ Mateus",
@@ -30682,8 +31152,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Pronta p/ Envio EdIcom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-356",
@@ -30713,7 +31184,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA TORRES",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "07/05/2026",
+    "dataIntegracao": "21/05/2026",
     "dataAtivacao": "21/05/2026",
     "responsavelCampo": "Mateus",
     "equipeParceira": "Magno/ Mateus",
@@ -30768,8 +31239,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Pronta p/ Envio EdIcom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-357",
@@ -30799,7 +31271,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "09/05/2026",
+    "dataIntegracao": "03/06/2026",
     "dataAtivacao": "04/06/2026",
     "responsavelCampo": "Magno",
     "equipeParceira": "Magno/ Mateus",
@@ -30854,8 +31326,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Pronta p/ Envio EdIcom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-358",
@@ -30885,7 +31358,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "09/05/2026",
+    "dataIntegracao": "01/06/2026",
     "dataAtivacao": "31/05/2026",
     "responsavelCampo": "Magno",
     "equipeParceira": "Magno/ Mateus",
@@ -30940,8 +31413,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Pronta p/ Envio EdIcom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-359",
@@ -30971,7 +31445,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "09/05/2026",
+    "dataIntegracao": "31/05/2026",
     "dataAtivacao": "30/05/2026",
     "responsavelCampo": "Magno",
     "equipeParceira": "Magno/ Mateus",
@@ -31026,8 +31500,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Pronta p/ Envio EdIcom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-360",
@@ -31057,7 +31532,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA TORRES",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "07/05/2026",
+    "dataIntegracao": "11/06/2026",
     "dataAtivacao": "28/05/2026",
     "responsavelCampo": "Magno",
     "equipeParceira": "Magno/ Mateus",
@@ -31112,8 +31587,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Pronta p/ Envio EdIcom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-361",
@@ -31143,7 +31619,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA TORRES",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "07/05/2026",
+    "dataIntegracao": "25/05/2026",
     "dataAtivacao": "25/05/2026",
     "responsavelCampo": "Magno",
     "equipeParceira": "Magno/ Mateus",
@@ -31198,8 +31674,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Pronta p/ Envio EdIcom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-362",
@@ -31229,7 +31706,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA TORRES",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "18/03/2026",
+    "dataIntegracao": "08/04/2026",
     "dataAtivacao": "07/04/2026",
     "responsavelCampo": "Mateus",
     "equipeParceira": "Mateus/Oglio",
@@ -31284,8 +31761,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Pronta p/ Envio EdIcom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-363",
@@ -31315,10 +31793,10 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA TORRES",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "14/03/2026",
+    "dataIntegracao": "03/03/2026",
     "dataAtivacao": "18/03/2026",
-    "responsavelCampo": "Magno",
-    "equipeParceira": "Magno/Luchini",
+    "responsavelCampo": "",
+    "equipeParceira": "",
     "ordemServico": "1360241",
     "alarmesAtivos": "NF Pronta p/ Envio EdIcom",
     "observacoes": "",
@@ -31338,10 +31816,10 @@ export const INITIAL_SITES: TelecomSite[] = [
       "APOIO": "",
       "CallOff Solicitado": "25/02/2026",
       "DEC": "14/03/2026",
-      "EQUIPE EXECUTANTE": "Magno/Luchini",
+      "EQUIPE EXECUTANTE": "",
       "SI Planned": "03/03/2026",
       "SI Executed": "18/03/2026",
-      "Executor": "Magno",
+      "Executor": "",
       "NDPc TalonView": "18/03/2026",
       "SI Report GDC Portal": "19/03/2026",
       "Comentários": "",
@@ -31368,10 +31846,12 @@ export const INITIAL_SITES: TelecomSite[] = [
       "DATA NF": "20/07/2026",
       "Envio Edcom": "",
       "Status Financeiro": "NF Pronta p/ Envio EdIcom",
-      "Observações/Motivo": ""
+      "Observações/Motivo": "",
+      "Responsável": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:43:40.267Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-364",
@@ -31401,7 +31881,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA TORRES",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "07/05/2026",
+    "dataIntegracao": "26/05/2026",
     "dataAtivacao": "26/05/2026",
     "responsavelCampo": "Magno",
     "equipeParceira": "Magno/ Mateus",
@@ -31456,8 +31936,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Pronta p/ Envio EdIcom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-365",
@@ -31487,7 +31968,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA TORRES",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "07/05/2026",
+    "dataIntegracao": "09/06/2026",
     "dataAtivacao": "02/05/2026",
     "responsavelCampo": "Mateus",
     "equipeParceira": "Magno/ Mateus",
@@ -31542,8 +32023,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Pronta p/ Envio EdIcom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-366",
@@ -31573,7 +32055,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "09/05/2026",
+    "dataIntegracao": "04/06/2026",
     "dataAtivacao": "04/06/2026",
     "responsavelCampo": "Magno",
     "equipeParceira": "Magno/ Mateus",
@@ -31628,8 +32110,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Pronta p/ Envio EdIcom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-367",
@@ -31659,7 +32142,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA TORRES",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "07/05/2026",
+    "dataIntegracao": "26/06/2026",
     "dataAtivacao": "26/06/2026",
     "responsavelCampo": "Magno",
     "equipeParceira": "Magno/ Mateus",
@@ -31714,8 +32197,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Pronta p/ Envio EdIcom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-368",
@@ -31745,7 +32229,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "GRUPO TORRESUR",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "16/04/2026",
+    "dataIntegracao": "27/04/2026",
     "dataAtivacao": "27/04/2026",
     "responsavelCampo": "Mateus",
     "equipeParceira": "Malta/Luís",
@@ -31800,8 +32284,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Pronta p/ Envio EdIcom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-369",
@@ -31831,7 +32316,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA TORRES",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "16/04/2026",
+    "dataIntegracao": "04/05/2026",
     "dataAtivacao": "04/05/2026",
     "responsavelCampo": "Mateus",
     "equipeParceira": "Malta/Luís",
@@ -31886,8 +32371,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Pronta p/ Envio EdIcom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-370",
@@ -31917,7 +32403,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "HIGHLINE",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "16/04/2026",
+    "dataIntegracao": "29/04/2026",
     "dataAtivacao": "29/04/2026",
     "responsavelCampo": "Mateus",
     "equipeParceira": "Malta/Luís",
@@ -31972,8 +32458,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Pronta p/ Envio EdIcom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-371",
@@ -32003,7 +32490,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "CSS",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "16/04/2026",
+    "dataIntegracao": "27/04/2026",
     "dataAtivacao": "27/04/2026",
     "responsavelCampo": "Mateus",
     "equipeParceira": "Malta/Luís",
@@ -32058,8 +32545,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Pronta p/ Envio EdIcom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-372",
@@ -32089,7 +32577,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "CLARO",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "16/04/2026",
+    "dataIntegracao": "28/04/2026",
     "dataAtivacao": "28/04/2026",
     "responsavelCampo": "Mateus",
     "equipeParceira": "Malta/Luís",
@@ -32144,8 +32632,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Pronta p/ Envio EdIcom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-373",
@@ -32175,7 +32664,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "09/05/2026",
+    "dataIntegracao": "25/05/2026",
     "dataAtivacao": "23/05/2026",
     "responsavelCampo": "Magno",
     "equipeParceira": "Magno/ Mateus",
@@ -32230,8 +32719,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Pronta p/ Envio EdIcom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-374",
@@ -32261,7 +32751,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "IHS BRAZIL",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "16/04/2026",
+    "dataIntegracao": "19/05/2026",
     "dataAtivacao": "13/05/2026",
     "responsavelCampo": "Mateus",
     "equipeParceira": "Malta/Luís",
@@ -32316,8 +32806,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Pronta p/ Envio EdIcom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-375",
@@ -32347,7 +32838,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "CLARO",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "21/04/2026",
+    "dataIntegracao": "01/05/2026",
     "dataAtivacao": "01/05/2026",
     "responsavelCampo": "Rafael Araujo",
     "equipeParceira": "Alexandre/Alexandre",
@@ -32402,8 +32893,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Pronta p/ Envio EdIcom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-376",
@@ -32433,7 +32925,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "21/04/2026",
+    "dataIntegracao": "12/05/2026",
     "dataAtivacao": "13/05/2026",
     "responsavelCampo": "Rafael Araujo",
     "equipeParceira": "Alexandre/Alexandre",
@@ -32488,8 +32980,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Pronta p/ Envio EdIcom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-377",
@@ -32519,7 +33012,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA TORRES",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "15/05/2026",
+    "dataIntegracao": "31/05/2026",
     "dataAtivacao": "01/06/2026",
     "responsavelCampo": "Rafael Araujo",
     "equipeParceira": "Alexandre/Alexandre",
@@ -32574,8 +33067,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Pronta p/ Envio EdIcom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-378",
@@ -32605,7 +33099,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "OI",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "21/04/2026",
+    "dataIntegracao": "06/05/2026",
     "dataAtivacao": "06/05/2026",
     "responsavelCampo": "Rafael Araujo",
     "equipeParceira": "Alexandre/Alexandre",
@@ -32660,8 +33154,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Pronta p/ Envio EdIcom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-379",
@@ -32691,7 +33186,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "CLARO",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "21/04/2026",
+    "dataIntegracao": "03/05/2026",
     "dataAtivacao": "03/05/2026",
     "responsavelCampo": "Rafael Araujo",
     "equipeParceira": "Alexandre/Alexandre",
@@ -32746,8 +33241,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Pronta p/ Envio EdIcom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-380",
@@ -32777,7 +33273,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "HIGHLINE",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "28/04/2026",
+    "dataIntegracao": "30/04/2026",
     "dataAtivacao": "30/04/2026",
     "responsavelCampo": "MAGNO",
     "equipeParceira": "Felipe/Renato",
@@ -32832,8 +33328,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Pronta p/ Envio EdIcom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-381",
@@ -32863,7 +33360,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "21/04/2026",
+    "dataIntegracao": "13/05/2026",
     "dataAtivacao": "14/05/2026",
     "responsavelCampo": "Rafael Araujo",
     "equipeParceira": "Alexandre/Alexandre",
@@ -32918,8 +33415,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Pronta p/ Envio EdIcom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-382",
@@ -32949,7 +33447,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "21/04/2026",
+    "dataIntegracao": "12/05/2026",
     "dataAtivacao": "12/05/2026",
     "responsavelCampo": "Rafael Araujo",
     "equipeParceira": "Alexandre/Alexandre",
@@ -33004,8 +33502,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Pronta p/ Envio EdIcom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-383",
@@ -33035,7 +33534,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "IHS BRAZIL",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "21/04/2026",
+    "dataIntegracao": "04/05/2026",
     "dataAtivacao": "04/05/2026",
     "responsavelCampo": "Rafael Araujo",
     "equipeParceira": "Alexandre/Alexandre",
@@ -33090,8 +33589,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Pronta p/ Envio EdIcom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-384",
@@ -33121,7 +33621,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "TELEMAR",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "21/04/2026",
+    "dataIntegracao": "31/05/2026",
     "dataAtivacao": "01/06/2026",
     "responsavelCampo": "Rafael Araujo",
     "equipeParceira": "Alexandre/Alexandre",
@@ -33176,8 +33676,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Pronta p/ Envio EdIcom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-385",
@@ -33207,7 +33708,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "21/04/2026",
+    "dataIntegracao": "02/06/2026",
     "dataAtivacao": "27/05/2026",
     "responsavelCampo": "Rafael Araujo",
     "equipeParceira": "Alexandre/Alexandre",
@@ -33262,8 +33763,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Pronta p/ Envio EdIcom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-386",
@@ -33293,7 +33795,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA TORRES",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "21/04/2026",
+    "dataIntegracao": "09/05/2026",
     "dataAtivacao": "09/05/2026",
     "responsavelCampo": "Rafael Araujo",
     "equipeParceira": "Alexandre/Alexandre",
@@ -33348,8 +33850,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Pronta p/ Envio EdIcom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-387",
@@ -33379,7 +33882,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "21/04/2026",
+    "dataIntegracao": "02/05/2026",
     "dataAtivacao": "02/05/2026",
     "responsavelCampo": "Rafael Araujo",
     "equipeParceira": "Alexandre/Alexandre",
@@ -33434,8 +33937,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Pronta p/ Envio EdIcom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-388",
@@ -33465,7 +33969,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "OI",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "21/04/2026",
+    "dataIntegracao": "07/05/2026",
     "dataAtivacao": "07/05/2026",
     "responsavelCampo": "Rafael Araujo",
     "equipeParceira": "Alexandre/Alexandre",
@@ -33520,8 +34024,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Pronta p/ Envio EdIcom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-389",
@@ -33551,7 +34056,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "21/04/2026",
+    "dataIntegracao": "05/06/2026",
     "dataAtivacao": "26/05/2026",
     "responsavelCampo": "Rafael Araujo",
     "equipeParceira": "Alexandre/Alexandre",
@@ -33606,8 +34111,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Pronta p/ Envio EdIcom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-390",
@@ -33637,7 +34143,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "OI",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "21/04/2026",
+    "dataIntegracao": "30/04/2026",
     "dataAtivacao": "30/04/2026",
     "responsavelCampo": "Rafael Araujo",
     "equipeParceira": "Alexandre/Alexandre",
@@ -33692,8 +34198,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Pronta p/ Envio EdIcom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-391",
@@ -33723,7 +34230,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "21/04/2026",
+    "dataIntegracao": "30/04/2026",
     "dataAtivacao": "30/04/2026",
     "responsavelCampo": "Rafael Araujo",
     "equipeParceira": "Alexandre/Alexandre",
@@ -33778,8 +34285,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Pronta p/ Envio EdIcom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-392",
@@ -33809,7 +34317,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "16/04/2026",
+    "dataIntegracao": "05/05/2026",
     "dataAtivacao": "05/05/2026",
     "responsavelCampo": "Mateus",
     "equipeParceira": "Malta/Luís",
@@ -33864,8 +34372,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Pronta p/ Envio EdIcom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-393",
@@ -33895,7 +34404,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "CLARO",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "16/04/2026",
+    "dataIntegracao": "04/05/2026",
     "dataAtivacao": "04/05/2026",
     "responsavelCampo": "Mateus",
     "equipeParceira": "Malta/Luís",
@@ -33950,8 +34459,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Pronta p/ Envio EdIcom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-394",
@@ -33981,7 +34491,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "21/04/2026",
+    "dataIntegracao": "11/05/2026",
     "dataAtivacao": "11/05/2026",
     "responsavelCampo": "Rafael Araujo",
     "equipeParceira": "Alexandre/Alexandre",
@@ -34036,8 +34546,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Pronta p/ Envio EdIcom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-395",
@@ -34067,7 +34578,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA TORRES",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "21/04/2026",
+    "dataIntegracao": "22/05/2026",
     "dataAtivacao": "25/05/2026",
     "responsavelCampo": "Rafael Araujo",
     "equipeParceira": "Alexandre/Alexandre",
@@ -34122,8 +34633,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Pronta p/ Envio EdIcom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-396",
@@ -34153,7 +34665,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA TORRES",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "21/04/2026",
+    "dataIntegracao": "28/05/2026",
     "dataAtivacao": "28/05/2026",
     "responsavelCampo": "Rafael Araujo",
     "equipeParceira": "Alexandre/Alexandre",
@@ -34208,8 +34720,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Pronta p/ Envio EdIcom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-397",
@@ -34239,7 +34752,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "TELEMAR",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "21/04/2026",
+    "dataIntegracao": "15/05/2026",
     "dataAtivacao": "14/05/2026",
     "responsavelCampo": "Rafael Araujo",
     "equipeParceira": "Alexandre/Alexandre",
@@ -34294,8 +34807,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Pronta p/ Envio EdIcom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-398",
@@ -34325,7 +34839,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "PREFEITURA MUNICIPAL DE AGUA PRETA",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "21/04/2026",
+    "dataIntegracao": "30/05/2026",
     "dataAtivacao": "01/06/2026",
     "responsavelCampo": "Rafael Araujo",
     "equipeParceira": "Alexandre/Alexandre",
@@ -34380,8 +34894,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Pronta p/ Envio EdIcom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-399",
@@ -34411,7 +34926,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA TORRES",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "21/04/2026",
+    "dataIntegracao": "05/05/2026",
     "dataAtivacao": "05/05/2026",
     "responsavelCampo": "Rafael Araujo",
     "equipeParceira": "Alexandre/Alexandre",
@@ -34466,8 +34981,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Pronta p/ Envio EdIcom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-400",
@@ -34497,7 +35013,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "FLW SERVIÇOS IMOBILIÁRIOS",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "21/04/2026",
+    "dataIntegracao": "02/05/2026",
     "dataAtivacao": "02/05/2026",
     "responsavelCampo": "Rafael Araujo",
     "equipeParceira": "Alexandre/Alexandre",
@@ -34552,8 +35068,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Pronta p/ Envio EdIcom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-401",
@@ -34583,7 +35100,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "IHS BRAZIL",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "21/04/2026",
+    "dataIntegracao": "06/05/2026",
     "dataAtivacao": "06/05/2026",
     "responsavelCampo": "Rafael Araujo",
     "equipeParceira": "Alexandre/Alexandre",
@@ -34638,8 +35155,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Pronta p/ Envio EdIcom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-402",
@@ -34669,7 +35187,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "21/04/2026",
+    "dataIntegracao": "04/06/2026",
     "dataAtivacao": "26/05/2026",
     "responsavelCampo": "Rafael Araujo",
     "equipeParceira": "Alexandre/Alexandre",
@@ -34724,8 +35242,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Pronta p/ Envio EdIcom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-403",
@@ -34755,7 +35274,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "GENIVALDO MARTINS ALVES",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "21/04/2026",
+    "dataIntegracao": "03/06/2026",
     "dataAtivacao": "27/05/2026",
     "responsavelCampo": "Rafael Araujo",
     "equipeParceira": "Alexandre/Alexandre",
@@ -34810,8 +35329,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Pronta p/ Envio EdIcom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-404",
@@ -34841,7 +35361,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "CLARO",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "21/04/2026",
+    "dataIntegracao": "14/05/2026",
     "dataAtivacao": "14/05/2026",
     "responsavelCampo": "Rafael Araujo",
     "equipeParceira": "Alexandre/Alexandre",
@@ -34896,8 +35416,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Pronta p/ Envio EdIcom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-405",
@@ -34927,7 +35448,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "TELEMAR",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "21/04/2026",
+    "dataIntegracao": "02/06/2026",
     "dataAtivacao": "27/05/2026",
     "responsavelCampo": "Rafael Araujo",
     "equipeParceira": "Alexandre/Alexandre",
@@ -34982,8 +35503,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Pronta p/ Envio EdIcom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-406",
@@ -35013,7 +35535,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "21/04/2026",
+    "dataIntegracao": "14/05/2026",
     "dataAtivacao": "17/05/2026",
     "responsavelCampo": "Rafael Araujo",
     "equipeParceira": "Alexandre/Alexandre",
@@ -35068,8 +35590,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Pronta p/ Envio EdIcom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-407",
@@ -35099,7 +35622,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "21/04/2026",
+    "dataIntegracao": "05/06/2026",
     "dataAtivacao": "26/05/2026",
     "responsavelCampo": "Rafael Araujo",
     "equipeParceira": "Alexandre/Alexandre",
@@ -35154,8 +35677,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Pronta p/ Envio EdIcom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-408",
@@ -35185,7 +35709,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "21/04/2026",
+    "dataIntegracao": "04/05/2026",
     "dataAtivacao": "04/05/2026",
     "responsavelCampo": "Rafael Araujo",
     "equipeParceira": "Alexandre/Alexandre",
@@ -35240,8 +35764,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Pronta p/ Envio EdIcom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-409",
@@ -35271,7 +35796,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "CSS",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "21/04/2026",
+    "dataIntegracao": "03/06/2026",
     "dataAtivacao": "26/05/2026",
     "responsavelCampo": "Rafael Araujo",
     "equipeParceira": "Alexandre/Alexandre",
@@ -35326,8 +35851,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Pronta p/ Envio EdIcom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-410",
@@ -35357,7 +35883,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA TORRES",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "21/04/2026",
+    "dataIntegracao": "03/05/2026",
     "dataAtivacao": "03/05/2026",
     "responsavelCampo": "Rafael Araujo",
     "equipeParceira": "Alexandre/Alexandre",
@@ -35412,8 +35938,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Pronta p/ Envio EdIcom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-411",
@@ -35443,7 +35970,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "WINITY",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "14/05/2026",
+    "dataIntegracao": "08/06/2026",
     "dataAtivacao": "08/06/2026",
     "responsavelCampo": "Mateus",
     "equipeParceira": "Malta/Luís",
@@ -35498,8 +36025,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Pronta p/ Envio EdIcom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-412",
@@ -35529,7 +36057,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "TBSA - CLARO",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "16/04/2026",
+    "dataIntegracao": "02/05/2026",
     "dataAtivacao": "02/05/2026",
     "responsavelCampo": "Mateus",
     "equipeParceira": "Malta/Luís",
@@ -35584,8 +36112,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Pronta p/ Envio EdIcom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-413",
@@ -35615,7 +36144,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "HIGHLINE",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "21/04/2026",
+    "dataIntegracao": "13/05/2026",
     "dataAtivacao": "12/05/2026",
     "responsavelCampo": "Rafael Araujo",
     "equipeParceira": "Alexandre/Alexandre",
@@ -35670,8 +36199,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Pronta p/ Envio EdIcom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-414",
@@ -35701,7 +36231,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "21/04/2026",
+    "dataIntegracao": "01/06/2026",
     "dataAtivacao": "28/05/2026",
     "responsavelCampo": "Rafael Araujo",
     "equipeParceira": "Alexandre/Alexandre",
@@ -35756,8 +36286,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Pronta p/ Envio EdIcom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-415",
@@ -35787,7 +36318,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "OI",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "21/04/2026",
+    "dataIntegracao": "01/05/2026",
     "dataAtivacao": "01/05/2026",
     "responsavelCampo": "Rafael Araujo",
     "equipeParceira": "Alexandre/Alexandre",
@@ -35842,8 +36373,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Pronta p/ Envio EdIcom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-416",
@@ -35873,7 +36405,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "TBSA - CLARO",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "21/04/2026",
+    "dataIntegracao": "11/05/2026",
     "dataAtivacao": "10/05/2026",
     "responsavelCampo": "Rafael Araujo",
     "equipeParceira": "Alexandre/Alexandre",
@@ -35928,8 +36460,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Pronta p/ Envio EdIcom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-417",
@@ -35959,7 +36492,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "TELXIUS TORRES BRAZIL",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "21/04/2026",
+    "dataIntegracao": "13/05/2026",
     "dataAtivacao": "10/05/2026",
     "responsavelCampo": "Rafael Araujo",
     "equipeParceira": "Alexandre/Alexandre",
@@ -36014,8 +36547,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Pronta p/ Envio EdIcom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-418",
@@ -36045,7 +36579,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "21/04/2026",
+    "dataIntegracao": "23/05/2026",
     "dataAtivacao": "25/05/2026",
     "responsavelCampo": "Rafael Araujo",
     "equipeParceira": "Alexandre/Alexandre",
@@ -36100,8 +36634,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Pronta p/ Envio EdIcom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-419",
@@ -36131,7 +36666,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "TIM",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "21/04/2026",
+    "dataIntegracao": "30/05/2026",
     "dataAtivacao": "01/06/2026",
     "responsavelCampo": "Rafael Araujo",
     "equipeParceira": "Alexandre/Alexandre",
@@ -36186,8 +36721,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Pronta p/ Envio EdIcom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-420",
@@ -36217,7 +36753,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "BRAZIL TOWER COMPANY",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "21/04/2026",
+    "dataIntegracao": "05/05/2026",
     "dataAtivacao": "05/05/2026",
     "responsavelCampo": "Rafael Araujo",
     "equipeParceira": "Alexandre/Alexandre",
@@ -36272,8 +36808,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Pronta p/ Envio EdIcom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-421",
@@ -36303,7 +36840,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "HIGHLINE",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "14/05/2026",
+    "dataIntegracao": "31/05/2026",
     "dataAtivacao": "31/05/2026",
     "responsavelCampo": "Mateus",
     "equipeParceira": "Malta/Luís",
@@ -36358,8 +36895,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Pronta p/ Envio EdIcom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-422",
@@ -36389,7 +36927,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA TORRES",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "30/04/2026",
+    "dataIntegracao": "08/05/2026",
     "dataAtivacao": "08/05/2026",
     "responsavelCampo": "Mateus",
     "equipeParceira": "Malta/Luís",
@@ -36444,8 +36982,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Pronta p/ Envio EdIcom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-423",
@@ -36475,7 +37014,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA TORRES",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "07/05/2026",
+    "dataIntegracao": "09/06/2026",
     "dataAtivacao": "06/06/2026",
     "responsavelCampo": "Mateus",
     "equipeParceira": "Magno/ Mateus",
@@ -36530,8 +37069,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Pronta p/ Envio EdIcom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-424",
@@ -36561,7 +37101,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "IHS BRAZIL",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "14/05/2026",
+    "dataIntegracao": "02/06/2026",
     "dataAtivacao": "02/06/2026",
     "responsavelCampo": "Mateus",
     "equipeParceira": "Malta/Luís",
@@ -36616,8 +37156,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Pronta p/ Envio EdIcom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-425",
@@ -36647,7 +37188,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "09/05/2026",
+    "dataIntegracao": "30/05/2026",
     "dataAtivacao": "28/05/2026",
     "responsavelCampo": "Magno",
     "equipeParceira": "Magno/ Mateus",
@@ -36702,8 +37243,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Pronta p/ Envio EdIcom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-426",
@@ -36733,7 +37275,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "IHS BRAZIL",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "14/05/2026",
+    "dataIntegracao": "09/06/2026",
     "dataAtivacao": "09/06/2026",
     "responsavelCampo": "Mateus",
     "equipeParceira": "Malta/Luís",
@@ -36788,8 +37330,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Pronta p/ Envio EdIcom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-427",
@@ -36819,7 +37362,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "30/04/2026",
+    "dataIntegracao": "08/05/2026",
     "dataAtivacao": "08/05/2026",
     "responsavelCampo": "Mateus",
     "equipeParceira": "Malta/Luís",
@@ -36874,8 +37417,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Pronta p/ Envio EdIcom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-428",
@@ -36905,7 +37449,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA TORRES",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "07/05/2026",
+    "dataIntegracao": "27/05/2026",
     "dataAtivacao": "27/05/2026",
     "responsavelCampo": "Magno",
     "equipeParceira": "Magno/ Mateus",
@@ -36960,8 +37504,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Pronta p/ Envio EdIcom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-429",
@@ -36991,7 +37536,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "CLARO",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "14/05/2026",
+    "dataIntegracao": "01/06/2026",
     "dataAtivacao": "01/06/2026",
     "responsavelCampo": "Mateus",
     "equipeParceira": "Malta/Luís",
@@ -37046,8 +37591,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "Aguardando SGR",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-430",
@@ -37077,7 +37623,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "IHS BRAZIL",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "14/05/2026",
+    "dataIntegracao": "31/05/2026",
     "dataAtivacao": "31/05/2026",
     "responsavelCampo": "Mateus",
     "equipeParceira": "Malta/Luís",
@@ -37132,8 +37678,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Pronta p/ Envio EdIcom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-431",
@@ -37163,7 +37710,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "16/04/2026",
+    "dataIntegracao": "06/05/2026",
     "dataAtivacao": "06/05/2026",
     "responsavelCampo": "Mateus",
     "equipeParceira": "Malta/Luís",
@@ -37218,8 +37765,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Pronta p/ Envio EdIcom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-432",
@@ -37249,7 +37797,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "IHS BRAZIL",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "14/05/2026",
+    "dataIntegracao": "02/06/2026",
     "dataAtivacao": "02/06/2026",
     "responsavelCampo": "Mateus",
     "equipeParceira": "Malta/Luís",
@@ -37304,8 +37852,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Pronta p/ Envio EdIcom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-433",
@@ -37335,7 +37884,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "CLARO",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "16/04/2026",
+    "dataIntegracao": "05/05/2026",
     "dataAtivacao": "05/05/2026",
     "responsavelCampo": "Mateus",
     "equipeParceira": "Malta/Luís",
@@ -37390,8 +37939,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Pronta p/ Envio EdIcom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-434",
@@ -37421,7 +37971,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA TORRES",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "30/04/2026",
+    "dataIntegracao": "15/05/2026",
     "dataAtivacao": "14/05/2026",
     "responsavelCampo": "Mateus",
     "equipeParceira": "Malta/Luís",
@@ -37476,8 +38026,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Pronta p/ Envio EdIcom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-435",
@@ -37507,7 +38058,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "16/04/2026",
+    "dataIntegracao": "18/05/2026",
     "dataAtivacao": "13/05/2026",
     "responsavelCampo": "Mateus",
     "equipeParceira": "Malta/Luís",
@@ -37562,8 +38113,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Pronta p/ Envio EdIcom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-436",
@@ -37593,7 +38145,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "09/05/2026",
+    "dataIntegracao": "07/06/2026",
     "dataAtivacao": "01/06/2026",
     "responsavelCampo": "Magno",
     "equipeParceira": "Magno/ Mateus",
@@ -37648,8 +38200,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Pronta p/ Envio EdIcom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-437",
@@ -37679,7 +38232,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "IHS BRAZIL",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "14/05/2026",
+    "dataIntegracao": "31/05/2026",
     "dataAtivacao": "31/05/2026",
     "responsavelCampo": "Mateus",
     "equipeParceira": "Malta/Luís",
@@ -37734,8 +38287,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "Aguardando SGR",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-438",
@@ -37765,7 +38319,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA TORRES",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "07/05/2026",
+    "dataIntegracao": "26/05/2026",
     "dataAtivacao": "26/05/2026",
     "responsavelCampo": "Magno",
     "equipeParceira": "Magno/ Mateus",
@@ -37820,8 +38374,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Pronta p/ Envio EdIcom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-439",
@@ -37851,7 +38406,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA TORRES",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "30/04/2026",
+    "dataIntegracao": "15/05/2026",
     "dataAtivacao": "14/05/2026",
     "responsavelCampo": "Mateus",
     "equipeParceira": "Malta/Luís",
@@ -37906,8 +38461,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Pronta p/ Envio EdIcom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-440",
@@ -37937,7 +38493,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA TORRES",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "16/04/2026",
+    "dataIntegracao": "28/04/2026",
     "dataAtivacao": "28/04/2026",
     "responsavelCampo": "Mateus",
     "equipeParceira": "Malta/Luís",
@@ -37992,8 +38548,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Pronta p/ Envio EdIcom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-441",
@@ -38023,7 +38580,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA TORRES",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "18/03/2026",
+    "dataIntegracao": "10/04/2026",
     "dataAtivacao": "08/04/2026",
     "responsavelCampo": "Mateus",
     "equipeParceira": "Mateus/Oglio",
@@ -38078,8 +38635,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Pronta p/ Envio EdIcom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-442",
@@ -38109,7 +38667,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA TORRES",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "18/03/2026",
+    "dataIntegracao": "03/04/2026",
     "dataAtivacao": "03/04/2026",
     "responsavelCampo": "Mateus",
     "equipeParceira": "Mateus/Oglio",
@@ -38164,8 +38722,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Pronta p/ Envio EdIcom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-443",
@@ -38195,7 +38754,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA TORRES",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "18/03/2026",
+    "dataIntegracao": "03/04/2026",
     "dataAtivacao": "06/04/2026",
     "responsavelCampo": "Mateus",
     "equipeParceira": "Mateus/Oglio",
@@ -38250,8 +38809,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Pronta p/ Envio EdIcom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-444",
@@ -38281,7 +38841,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA TORRES",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "18/03/2026",
+    "dataIntegracao": "09/04/2026",
     "dataAtivacao": "28/03/2026",
     "responsavelCampo": "Mateus",
     "equipeParceira": "Mateus/Oglio",
@@ -38336,8 +38896,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Pronta p/ Envio EdIcom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-445",
@@ -38367,7 +38928,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA TORRES",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "18/03/2026",
+    "dataIntegracao": "27/03/2026",
     "dataAtivacao": "02/04/2026",
     "responsavelCampo": "Mateus",
     "equipeParceira": "Mateus/Oglio",
@@ -38422,8 +38983,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Pronta p/ Envio EdIcom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-446",
@@ -38453,7 +39015,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA TORRES",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "18/03/2026",
+    "dataIntegracao": "05/04/2026",
     "dataAtivacao": "03/04/2026",
     "responsavelCampo": "Mateus",
     "equipeParceira": "Mateus/Oglio",
@@ -38508,8 +39070,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Pronta p/ Envio EdIcom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-447",
@@ -38539,7 +39102,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA TORRES",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "18/03/2026",
+    "dataIntegracao": "04/04/2026",
     "dataAtivacao": "05/04/2026",
     "responsavelCampo": "Mateus",
     "equipeParceira": "Mateus/Oglio",
@@ -38594,8 +39157,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "NF Pronta p/ Envio EdIcom",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-448",
@@ -38625,7 +39189,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA TORRES",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "18/03/2026",
+    "dataIntegracao": "06/04/2026",
     "dataAtivacao": "30/03/2026",
     "responsavelCampo": "Mateus",
     "equipeParceira": "Mateus/Oglio",
@@ -38680,8 +39244,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "Aguardando SGR",
       "Observações/Motivo": "51515101 - SPO utilizada no site SN-ACG0D2"
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-449",
@@ -38711,7 +39276,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA TORRES",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "18/03/2026",
+    "dataIntegracao": "07/04/2026",
     "dataAtivacao": "07/04/2026",
     "responsavelCampo": "Mateus",
     "equipeParceira": "Mateus/Oglio",
@@ -38766,8 +39331,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "Aguardando SGR",
       "Observações/Motivo": "Verificar se a NF emitida 35558, foi aprovado para o site SN-ACG1A8, pois esta SPO está para este site SN-ACG1A6. Nota 35913 cancelada"
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-450",
@@ -38797,7 +39363,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "TBSA - CLARO",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "23/04/2026",
+    "dataIntegracao": "05/05/2026",
     "dataAtivacao": "05/05/2026",
     "responsavelCampo": "MAGNO",
     "equipeParceira": "Felipe/Renato",
@@ -38852,8 +39418,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "Aguardando SPO",
       "Observações/Motivo": "Murilo aqui: Fatura da SPO 51987930 só entrou serviço de TSSR, apaguei a SPO e GR e alterei o status financeiro para Aguardando SPO."
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-451",
@@ -38883,7 +39450,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "TIM",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "23/04/2026",
+    "dataIntegracao": "03/05/2026",
     "dataAtivacao": "03/05/2026",
     "responsavelCampo": "MAGNO",
     "equipeParceira": "Felipe/Renato",
@@ -38938,8 +39505,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "Aguardando SPO",
       "Observações/Motivo": "Murilo aqui: Fatura da SPO 51987973 só entrou serviço de TSSR, apaguei a SPO e GR e alterei o status financeiro para Aguardando SPO."
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-452",
@@ -38969,7 +39537,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "TIM",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "23/04/2026",
+    "dataIntegracao": "11/05/2026",
     "dataAtivacao": "11/05/2026",
     "responsavelCampo": "MAGNO",
     "equipeParceira": "Felipe/Renato",
@@ -39024,8 +39592,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "Aguardando SPO",
       "Observações/Motivo": "Murilo aqui: Fatura da SPO 51987977 só entrou serviço de TSSR, apaguei a SPO e GR e alterei o status financeiro para Aguardando SPO."
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-453",
@@ -39055,7 +39624,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "23/04/2026",
+    "dataIntegracao": "06/05/2026",
     "dataAtivacao": "06/05/2026",
     "responsavelCampo": "MAGNO",
     "equipeParceira": "Felipe/Renato",
@@ -39110,8 +39679,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "Aguardando SPO",
       "Observações/Motivo": "Murilo aqui: Fatura da 51988013 só entrou serviço de TSSR, apaguei a SPO e GR e alterei o status financeiro para Aguardando SPO."
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-454",
@@ -39141,7 +39711,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "CSS",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "23/04/2026",
+    "dataIntegracao": "09/05/2026",
     "dataAtivacao": "09/05/2026",
     "responsavelCampo": "MAGNO",
     "equipeParceira": "Felipe/Renato",
@@ -39196,8 +39766,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "Aguardando SPO",
       "Observações/Motivo": "Murilo aqui: Fatura da SPO 51988020 só entrou serviço de TSSR, apaguei a SPO e GR e alterei o status financeiro para Aguardando SPO."
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-455",
@@ -39227,7 +39798,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA TORRES",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "18/03/2026",
+    "dataIntegracao": "06/04/2026",
     "dataAtivacao": "06/04/2026",
     "responsavelCampo": "Mateus",
     "equipeParceira": "Mateus/Oglio",
@@ -39282,8 +39853,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "Aguardando SGR",
       "Observações/Motivo": "51515102 - SPO utilizada no site SN-ACG0G4"
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-456",
@@ -39313,7 +39885,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "23/04/2026",
+    "dataIntegracao": "06/05/2026",
     "dataAtivacao": "06/05/2026",
     "responsavelCampo": "MAGNO",
     "equipeParceira": "Felipe/Renato",
@@ -39368,8 +39940,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "Emitir NF",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-457",
@@ -39399,7 +39972,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "INCA (CITRA) | Phoenix",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "23/04/2026",
+    "dataIntegracao": "05/05/2026",
     "dataAtivacao": "05/05/2026",
     "responsavelCampo": "MAGNO",
     "equipeParceira": "Felipe/Renato",
@@ -39454,8 +40027,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "Emitir NF",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-458",
@@ -39485,7 +40059,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "IHS BRAZIL",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "23/04/2026",
+    "dataIntegracao": "02/05/2026",
     "dataAtivacao": "02/05/2026",
     "responsavelCampo": "MAGNO",
     "equipeParceira": "Felipe/Renato",
@@ -39540,8 +40114,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "Emitir NF",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-459",
@@ -39571,7 +40146,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "TIM",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "23/04/2026",
+    "dataIntegracao": "12/05/2026",
     "dataAtivacao": "12/05/2026",
     "responsavelCampo": "MAGNO",
     "equipeParceira": "Felipe/Renato",
@@ -39626,8 +40201,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "Emitir NF",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-460",
@@ -39657,7 +40233,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "TIM",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "23/04/2026",
+    "dataIntegracao": "02/05/2026",
     "dataAtivacao": "02/05/2026",
     "responsavelCampo": "MAGNO",
     "equipeParceira": "Felipe/Renato",
@@ -39712,8 +40288,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "Emitir NF",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-461",
@@ -39743,7 +40320,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA TORRES",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "23/04/2026",
+    "dataIntegracao": "11/05/2026",
     "dataAtivacao": "11/05/2026",
     "responsavelCampo": "MAGNO",
     "equipeParceira": "Felipe/Renato",
@@ -39798,8 +40375,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "Emitir NF",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-462",
@@ -39829,7 +40407,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "23/04/2026",
+    "dataIntegracao": "02/05/2026",
     "dataAtivacao": "02/05/2026",
     "responsavelCampo": "MAGNO",
     "equipeParceira": "Felipe/Renato",
@@ -39884,8 +40462,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "Emitir NF",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-463",
@@ -39915,7 +40494,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "23/04/2026",
+    "dataIntegracao": "10/05/2026",
     "dataAtivacao": "10/05/2026",
     "responsavelCampo": "MAGNO",
     "equipeParceira": "Felipe/Renato",
@@ -39970,8 +40549,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "Emitir NF",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-464",
@@ -40001,7 +40581,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA TORRES",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "23/04/2026",
+    "dataIntegracao": "04/05/2026",
     "dataAtivacao": "04/05/2026",
     "responsavelCampo": "MAGNO",
     "equipeParceira": "Felipe/Renato",
@@ -40056,8 +40636,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "Emitir NF",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-465",
@@ -40087,7 +40668,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "CSS",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "23/04/2026",
+    "dataIntegracao": "09/05/2026",
     "dataAtivacao": "10/05/2026",
     "responsavelCampo": "MAGNO",
     "equipeParceira": "Felipe/Renato",
@@ -40142,8 +40723,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "Emitir NF",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-466",
@@ -40173,7 +40755,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "IHS BRAZIL",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "23/04/2026",
+    "dataIntegracao": "01/05/2026",
     "dataAtivacao": "01/05/2026",
     "responsavelCampo": "MAGNO",
     "equipeParceira": "Felipe/Renato",
@@ -40228,8 +40810,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "Emitir NF",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-467",
@@ -40259,7 +40842,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "23/04/2026",
+    "dataIntegracao": "05/05/2026",
     "dataAtivacao": "05/05/2026",
     "responsavelCampo": "MAGNO",
     "equipeParceira": "Felipe/Renato",
@@ -40314,8 +40897,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "Emitir NF",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-468",
@@ -40345,7 +40929,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "IHS BRAZIL",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "23/04/2026",
+    "dataIntegracao": "01/05/2026",
     "dataAtivacao": "01/05/2026",
     "responsavelCampo": "MAGNO",
     "equipeParceira": "Felipe/Renato",
@@ -40400,8 +40984,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "Emitir NF",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-469",
@@ -40431,7 +41016,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA TORRES",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "23/04/2026",
+    "dataIntegracao": "12/05/2026",
     "dataAtivacao": "12/05/2026",
     "responsavelCampo": "MAGNO",
     "equipeParceira": "Felipe/Renato",
@@ -40486,8 +41071,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "Emitir NF",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-470",
@@ -40517,7 +41103,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "DAGUIMAR MIZAEL DOS SANTOS",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "23/04/2026",
+    "dataIntegracao": "10/05/2026",
     "dataAtivacao": "10/05/2026",
     "responsavelCampo": "MAGNO",
     "equipeParceira": "Felipe/Renato",
@@ -40572,8 +41158,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "Emitir NF",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-471",
@@ -40603,7 +41190,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "23/04/2026",
+    "dataIntegracao": "04/05/2026",
     "dataAtivacao": "04/05/2026",
     "responsavelCampo": "MAGNO",
     "equipeParceira": "Felipe/Renato",
@@ -40658,8 +41245,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "Emitir NF",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-472",
@@ -40689,10 +41277,10 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "QMC",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "31/03/2026",
+    "dataIntegracao": "15/04/2026",
     "dataAtivacao": "08/04/2026",
-    "responsavelCampo": "Magno",
-    "equipeParceira": "Magno/Gilvan",
+    "responsavelCampo": "",
+    "equipeParceira": "",
     "ordemServico": "1360238",
     "alarmesAtivos": "Emitir NF",
     "observacoes": "06/04/2026 - Site sem carta de acesso na portaria.",
@@ -40712,10 +41300,10 @@ export const INITIAL_SITES: TelecomSite[] = [
       "APOIO": "",
       "CallOff Solicitado": "02/04/2026",
       "DEC": "06/04/2026",
-      "EQUIPE EXECUTANTE": "Magno/Gilvan",
+      "EQUIPE EXECUTANTE": "",
       "SI Planned": "15/04/2026",
       "SI Executed": "08/04/2026",
-      "Executor": "Magno",
+      "Executor": "",
       "NDPc TalonView": "09/04/2026",
       "SI Report GDC Portal": "09/04/2026",
       "Comentários": "06/04/2026 - Site sem carta de acesso na portaria.",
@@ -40742,10 +41330,12 @@ export const INITIAL_SITES: TelecomSite[] = [
       "DATA NF": "",
       "Envio Edcom": "",
       "Status Financeiro": "Emitir NF",
-      "Observações/Motivo": ""
+      "Observações/Motivo": "",
+      "Responsável": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:43:34.865Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-473",
@@ -40775,7 +41365,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "CLARO",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "21/04/2026",
+    "dataIntegracao": "18/05/2026",
     "dataAtivacao": "18/05/2026",
     "responsavelCampo": "Rafael araujo",
     "equipeParceira": "Alexandre/Alexandre",
@@ -40830,8 +41420,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "Emitir NF",
       "Observações/Motivo": "Murilo aqui: SPO 51896967 que apaguei entrou somente para TSSR"
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-474",
@@ -40861,7 +41452,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "TELEMAR",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "21/04/2026",
+    "dataIntegracao": "20/05/2026",
     "dataAtivacao": "20/05/2026",
     "responsavelCampo": "Rafael araujo",
     "equipeParceira": "Alexandre/Alexandre",
@@ -40916,8 +41507,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "Emitir NF",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-475",
@@ -40947,7 +41539,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "TELEMAR",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "21/04/2026",
+    "dataIntegracao": "18/05/2026",
     "dataAtivacao": "18/05/2026",
     "responsavelCampo": "Rafael araujo",
     "equipeParceira": "Alexandre/Alexandre",
@@ -41002,8 +41594,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "Emitir NF",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-476",
@@ -41033,7 +41626,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "TELEMAR",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "21/04/2026",
+    "dataIntegracao": "20/05/2026",
     "dataAtivacao": "20/05/2026",
     "responsavelCampo": "Rafael araujo",
     "equipeParceira": "Alexandre/Alexandre",
@@ -41088,8 +41681,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "Emitir NF",
       "Observações/Motivo": "Murilo aqui: SPO 51896883 que apaguei entrou somente para TSSR"
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-477",
@@ -41118,7 +41712,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "vlanOm": "",
     "energiaRetificadora": "TELEMAR",
     "status": "Vistoria - Aguard. Definição",
-    "progressoRollout": 60,
+    "progressoRollout": 65,
     "dataIntegracao": "21/04/2026",
     "dataAtivacao": "",
     "responsavelCampo": "Rafael Araujo",
@@ -41174,8 +41768,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-478",
@@ -41205,7 +41800,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "INCA (CITRA) | Phoenix",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "23/04/2026",
+    "dataIntegracao": "06/05/2026",
     "dataAtivacao": "06/05/2026",
     "responsavelCampo": "MAGNO",
     "equipeParceira": "Felipe/Renato",
@@ -41260,8 +41855,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "Aguardando SPO",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-479",
@@ -41291,7 +41887,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "IHS BRAZIL",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "23/04/2026",
+    "dataIntegracao": "02/05/2026",
     "dataAtivacao": "02/05/2026",
     "responsavelCampo": "MAGNO",
     "equipeParceira": "Felipe/Renato",
@@ -41346,8 +41942,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "Aguardando SPO",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-480",
@@ -41377,7 +41974,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "TIM",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "23/04/2026",
+    "dataIntegracao": "11/05/2026",
     "dataAtivacao": "11/05/2026",
     "responsavelCampo": "MAGNO",
     "equipeParceira": "Felipe/Renato",
@@ -41432,8 +42029,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "Aguardando SPO",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-481",
@@ -41463,7 +42061,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "INCA (CITRA) | Phoenix",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "23/04/2026",
+    "dataIntegracao": "05/05/2026",
     "dataAtivacao": "05/05/2026",
     "responsavelCampo": "MAGNO",
     "equipeParceira": "Felipe/Renato",
@@ -41518,8 +42116,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "Aguardando SPO",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-482",
@@ -41549,7 +42148,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "26/08/2026",
+    "dataIntegracao": "04/09/2026",
     "dataAtivacao": "16/09/2026",
     "responsavelCampo": "Rafael araujio",
     "equipeParceira": "Magno-Alexandre da Silva",
@@ -41604,8 +42203,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-483",
@@ -41635,7 +42235,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "IHS BRAZIL",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "26/08/2026",
+    "dataIntegracao": "16/09/2026",
     "dataAtivacao": "18/09/2026",
     "responsavelCampo": "Rafael araujio",
     "equipeParceira": "Mateus-Luis Fernando",
@@ -41690,8 +42290,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-484",
@@ -41721,7 +42322,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "26/08/2026",
+    "dataIntegracao": "07/09/2026",
     "dataAtivacao": "18/09/2026",
     "responsavelCampo": "Rafael araujio",
     "equipeParceira": "Diego-Vagner Luis",
@@ -41776,8 +42377,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-485",
@@ -41807,7 +42409,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "26/08/2026",
+    "dataIntegracao": "07/09/2026",
     "dataAtivacao": "18/09/2026",
     "responsavelCampo": "Rafael araujio",
     "equipeParceira": "Diego-Vagner Luis",
@@ -41862,8 +42464,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-486",
@@ -41893,7 +42496,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "CLARO",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "26/08/2026",
+    "dataIntegracao": "17/09/2026",
     "dataAtivacao": "19/09/2026",
     "responsavelCampo": "Rafael araujio",
     "equipeParceira": "Mateus-Luis Fernando",
@@ -41948,8 +42551,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-487",
@@ -41979,7 +42583,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "CLARO",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "26/08/2026",
+    "dataIntegracao": "05/09/2026",
     "dataAtivacao": "19/09/2026",
     "responsavelCampo": "Rafael araujio",
     "equipeParceira": "Diego-Vagner Luis",
@@ -42034,8 +42638,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-488",
@@ -42065,7 +42670,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA TORRES",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "26/08/2026",
+    "dataIntegracao": "09/09/2026",
     "dataAtivacao": "19/09/2026",
     "responsavelCampo": "Rafael araujio",
     "equipeParceira": "Diego-Vagner Luis",
@@ -42120,8 +42725,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-489",
@@ -42151,7 +42757,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "GRUPO TORRESUR",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "26/08/2026",
+    "dataIntegracao": "09/09/2026",
     "dataAtivacao": "15/09/2026",
     "responsavelCampo": "Rafael araujio",
     "equipeParceira": "Mateus-Luis Fernando",
@@ -42206,8 +42812,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-490",
@@ -42237,7 +42844,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "CLARO",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "26/08/2026",
+    "dataIntegracao": "04/09/2026",
     "dataAtivacao": "16/09/2026",
     "responsavelCampo": "Rafael araujio",
     "equipeParceira": "Diego-Vagner Luis",
@@ -42292,8 +42899,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-491",
@@ -42323,7 +42931,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "26/08/2026",
+    "dataIntegracao": "08/09/2026",
     "dataAtivacao": "14/09/2026",
     "responsavelCampo": "Rafael araujio",
     "equipeParceira": "Diego-Vagner Luis",
@@ -42378,8 +42986,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-492",
@@ -42409,7 +43018,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "26/08/2026",
+    "dataIntegracao": "07/09/2026",
     "dataAtivacao": "16/09/2026",
     "responsavelCampo": "Rafael araujio",
     "equipeParceira": "Magno-Alexandre da Silva",
@@ -42464,8 +43073,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-493",
@@ -42495,7 +43105,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "GRUPO TORRESUR",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "26/08/2026",
+    "dataIntegracao": "10/09/2026",
     "dataAtivacao": "16/09/2026",
     "responsavelCampo": "Rafael araujio",
     "equipeParceira": "Mateus-Luis Fernando",
@@ -42550,8 +43160,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-494",
@@ -42581,7 +43192,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "GRUPO TORRESUR",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "26/08/2026",
+    "dataIntegracao": "10/09/2026",
     "dataAtivacao": "16/09/2026",
     "responsavelCampo": "Rafael araujio",
     "equipeParceira": "Mateus-Luis Fernando",
@@ -42636,8 +43247,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-495",
@@ -42667,7 +43279,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "GRUPO TORRESUR",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "26/08/2026",
+    "dataIntegracao": "11/09/2026",
     "dataAtivacao": "16/09/2026",
     "responsavelCampo": "Rafael araujio",
     "equipeParceira": "Mateus-Luis Fernando",
@@ -42722,8 +43334,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-496",
@@ -42753,7 +43366,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "26/08/2026",
+    "dataIntegracao": "09/09/2026",
     "dataAtivacao": "17/09/2026",
     "responsavelCampo": "Rafael araujio",
     "equipeParceira": "Mateus-Luis Fernando",
@@ -42808,8 +43421,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-497",
@@ -42839,7 +43453,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "CLARO",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "26/08/2026",
+    "dataIntegracao": "07/09/2026",
     "dataAtivacao": "15/09/2026",
     "responsavelCampo": "Rafael araujio",
     "equipeParceira": "Magno-Alexandre da Silva",
@@ -42894,8 +43508,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-498",
@@ -42925,7 +43540,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "26/08/2026",
+    "dataIntegracao": "08/09/2026",
     "dataAtivacao": "15/09/2026",
     "responsavelCampo": "Rafael araujio",
     "equipeParceira": "Magno-Alexandre da Silva",
@@ -42980,8 +43595,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-499",
@@ -43011,7 +43627,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "GRUPO TORRESUR",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "26/08/2026",
+    "dataIntegracao": "08/09/2026",
     "dataAtivacao": "15/09/2026",
     "responsavelCampo": "Rafael araujio",
     "equipeParceira": "Mateus-Luis Fernando",
@@ -43066,8 +43682,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-500",
@@ -43097,7 +43714,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA TORRES",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "26/08/2026",
+    "dataIntegracao": "08/09/2026",
     "dataAtivacao": "15/09/2026",
     "responsavelCampo": "Rafael araujio",
     "equipeParceira": "Diego-Vagner Luis",
@@ -43152,8 +43769,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-501",
@@ -43183,7 +43801,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "26/08/2026",
+    "dataIntegracao": "04/09/2026",
     "dataAtivacao": "15/09/2026",
     "responsavelCampo": "Rafael araujio",
     "equipeParceira": "Diego-Vagner Luis",
@@ -43238,8 +43856,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-502",
@@ -43269,7 +43888,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "GRUPO TORRESUR",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "26/08/2026",
+    "dataIntegracao": "09/09/2026",
     "dataAtivacao": "26/09/2026",
     "responsavelCampo": "Rafael araujio",
     "equipeParceira": "Diego-Vagner Luis",
@@ -43298,7 +43917,7 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Executor": "Rafael araujio",
       "NDPc TalonView": "29/09/2026",
       "SI Report GDC Portal": "",
-      "Comentários": "28/09/2026 - E-mail enviado solicitando abono da Medição de Energia e Fotos do sistema de energia no QM (Relógio) da TIM que esta lacrado e com o parafuso espanado.(TSSR DE ENTRADA DEMANDADO)",
+      "Comentários": "28/09/2026 - E-mail enviado solicitando abono da Medição de Energia e Fotos do sistema de energia no QM (Relógio) da TIM que esta lacrado e com o parafuso espanado.TSSR ENTRADA DEMANDADO E ENTREGUE",
       "Improdutiva": "",
       "Pendência Engenharia": "",
       "Data do Abono": "",
@@ -43324,8 +43943,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-503",
@@ -43354,8 +43974,8 @@ export const INITIAL_SITES: TelecomSite[] = [
     "vlanOm": "",
     "energiaRetificadora": "GRUPO TORRESUR",
     "status": "Vistoria - Sem Acesso e Chave",
-    "progressoRollout": 60,
-    "dataIntegracao": "26/08/2026",
+    "progressoRollout": 65,
+    "dataIntegracao": "05/09/2026",
     "dataAtivacao": "",
     "responsavelCampo": "",
     "equipeParceira": "Diego-Vagner Luis",
@@ -43410,8 +44030,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-504",
@@ -43441,7 +44062,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "GRUPO TORRESUR",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "26/08/2026",
+    "dataIntegracao": "09/09/2026",
     "dataAtivacao": "26/09/2026",
     "responsavelCampo": "Rafael araujio",
     "equipeParceira": "Diego-Vagner Luis",
@@ -43470,7 +44091,7 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Executor": "Rafael araujio",
       "NDPc TalonView": "29/09/2026",
       "SI Report GDC Portal": "",
-      "Comentários": "TSSR DE ENTRADA DEMANDADO",
+      "Comentários": "TSSR ENTRADA DEMANDADO E ENTREGUE",
       "Improdutiva": "",
       "Pendência Engenharia": "",
       "Data do Abono": "",
@@ -43496,8 +44117,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-505",
@@ -43526,8 +44148,8 @@ export const INITIAL_SITES: TelecomSite[] = [
     "vlanOm": "",
     "energiaRetificadora": "GRUPO TORRESUR",
     "status": "Vistoria - Zeladoria",
-    "progressoRollout": 60,
-    "dataIntegracao": "26/08/2026",
+    "progressoRollout": 65,
+    "dataIntegracao": "05/09/2026",
     "dataAtivacao": "",
     "responsavelCampo": "",
     "equipeParceira": "Diego-Vagner Luis",
@@ -43582,8 +44204,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-506",
@@ -43613,7 +44236,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "GRUPO TORRESUR",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "26/08/2026",
+    "dataIntegracao": "08/09/2026",
     "dataAtivacao": "25/09/2026",
     "responsavelCampo": "Rafael araujio",
     "equipeParceira": "Diego-Vagner Luis",
@@ -43642,7 +44265,7 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Executor": "Rafael araujio",
       "NDPc TalonView": "29/09/2026",
       "SI Report GDC Portal": "",
-      "Comentários": "TSSR DE ENTRADA DEMANDADO",
+      "Comentários": "TSSR ENTRADA DEMANDADO E ENTREGUE",
       "Improdutiva": "",
       "Pendência Engenharia": "",
       "Data do Abono": "",
@@ -43668,8 +44291,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-507",
@@ -43698,8 +44322,8 @@ export const INITIAL_SITES: TelecomSite[] = [
     "vlanOm": "",
     "energiaRetificadora": "SBA TORRES",
     "status": "Vistoria - Sem Chave",
-    "progressoRollout": 60,
-    "dataIntegracao": "26/08/2026",
+    "progressoRollout": 65,
+    "dataIntegracao": "28/09/2026",
     "dataAtivacao": "",
     "responsavelCampo": "",
     "equipeParceira": "Diego-Vagner Luis",
@@ -43754,8 +44378,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-508",
@@ -43785,7 +44410,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "TBSA (SITES)",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "17/09/2026",
+    "dataIntegracao": "24/09/2026",
     "dataAtivacao": "28/09/2026",
     "responsavelCampo": "",
     "equipeParceira": "Diego-Vagner Luis",
@@ -43840,8 +44465,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-509",
@@ -43870,8 +44496,8 @@ export const INITIAL_SITES: TelecomSite[] = [
     "vlanOm": "",
     "energiaRetificadora": "GRUPO TORRESUR",
     "status": "Acesso - Solicitado p/ Nokia",
-    "progressoRollout": 60,
-    "dataIntegracao": "26/08/2026",
+    "progressoRollout": 65,
+    "dataIntegracao": "05/09/2026",
     "dataAtivacao": "",
     "responsavelCampo": "",
     "equipeParceira": "Mateus-Luis Fernando",
@@ -43926,8 +44552,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-510",
@@ -43957,7 +44584,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "GRUPO TORRESUR",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "26/08/2026",
+    "dataIntegracao": "14/09/2026",
     "dataAtivacao": "21/09/2026",
     "responsavelCampo": "Rafael araujo",
     "equipeParceira": "Mateus-Luis Fernando",
@@ -44012,8 +44639,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-511",
@@ -44043,7 +44671,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "GRUPO TORRESUR",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "26/08/2026",
+    "dataIntegracao": "07/09/2026",
     "dataAtivacao": "22/09/2026",
     "responsavelCampo": "Rafael araujo",
     "equipeParceira": "Mateus-Luis Fernando",
@@ -44098,8 +44726,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-512",
@@ -44129,7 +44758,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "CLARO",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "26/08/2026",
+    "dataIntegracao": "05/09/2026",
     "dataAtivacao": "22/09/2026",
     "responsavelCampo": "Rafael araujo",
     "equipeParceira": "Mateus-Luis Fernando",
@@ -44184,8 +44813,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-513",
@@ -44215,7 +44845,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "GRUPO TORRESUR",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "26/08/2026",
+    "dataIntegracao": "12/09/2026",
     "dataAtivacao": "21/09/2026",
     "responsavelCampo": "Rafael araujo",
     "equipeParceira": "Mateus-Luis Fernando",
@@ -44270,8 +44900,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-514",
@@ -44301,7 +44932,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "GRUPO TORRESUR",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "26/08/2026",
+    "dataIntegracao": "11/09/2026",
     "dataAtivacao": "21/09/2026",
     "responsavelCampo": "Rafael araujo",
     "equipeParceira": "Mateus-Luis Fernando",
@@ -44356,8 +44987,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-515",
@@ -44387,7 +45019,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "GRUPO TORRESUR",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "26/08/2026",
+    "dataIntegracao": "07/09/2026",
     "dataAtivacao": "23/09/2026",
     "responsavelCampo": "Rafael araujio",
     "equipeParceira": "Mateus-Luis Fernando",
@@ -44442,8 +45074,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-516",
@@ -44473,7 +45106,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "GRUPO TORRESUR",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "26/08/2026",
+    "dataIntegracao": "08/09/2026",
     "dataAtivacao": "17/09/2026",
     "responsavelCampo": "Rafael araujio",
     "equipeParceira": "Mateus-Luis Fernando",
@@ -44528,8 +45161,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-517",
@@ -44559,7 +45193,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "26/08/2026",
+    "dataIntegracao": "16/09/2026",
     "dataAtivacao": "18/09/2026",
     "responsavelCampo": "Rafael araujio",
     "equipeParceira": "Mateus-Luis Fernando",
@@ -44614,8 +45248,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-518",
@@ -44645,7 +45280,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA TORRES",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "26/08/2026",
+    "dataIntegracao": "15/09/2026",
     "dataAtivacao": "19/09/2026",
     "responsavelCampo": "Rafael araujio",
     "equipeParceira": "Mateus-Luis Fernando",
@@ -44700,8 +45335,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-519",
@@ -44731,7 +45367,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "SBA TORRES",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "26/08/2026",
+    "dataIntegracao": "15/09/2026",
     "dataAtivacao": "18/09/2026",
     "responsavelCampo": "Rafael araujo",
     "equipeParceira": "Mateus-Luis Fernando",
@@ -44786,8 +45422,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-520",
@@ -44817,7 +45454,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "26/08/2026",
+    "dataIntegracao": "12/09/2026",
     "dataAtivacao": "20/09/2026",
     "responsavelCampo": "Rafael araujio",
     "equipeParceira": "Mateus-Luis Fernando",
@@ -44872,8 +45509,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-521",
@@ -44903,7 +45541,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "26/08/2026",
+    "dataIntegracao": "14/09/2026",
     "dataAtivacao": "20/09/2026",
     "responsavelCampo": "Rafael araujio",
     "equipeParceira": "Mateus-Luis Fernando",
@@ -44958,8 +45596,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-522",
@@ -44989,7 +45628,7 @@ export const INITIAL_SITES: TelecomSite[] = [
     "energiaRetificadora": "AMERICAN TOWER",
     "status": "Vistoria - Finalizada",
     "progressoRollout": 100,
-    "dataIntegracao": "26/08/2026",
+    "dataIntegracao": "09/09/2026",
     "dataAtivacao": "20/09/2026",
     "responsavelCampo": "Rafael araujio",
     "equipeParceira": "Mateus-Luis Fernando",
@@ -45044,8 +45683,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cg-523",
@@ -45073,8 +45713,8 @@ export const INITIAL_SITES: TelecomSite[] = [
     "ipGerencia": "",
     "vlanOm": "",
     "energiaRetificadora": "",
-    "status": "Vistoria - A Executar",
-    "progressoRollout": 60,
+    "status": "Vistoria - Finalizada",
+    "progressoRollout": 100,
     "dataIntegracao": "",
     "dataAtivacao": "",
     "responsavelCampo": "",
@@ -45130,8 +45770,9 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Status Financeiro": "",
       "Observações/Motivo": ""
     },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedAt": "2026-10-01T09:18:01.837Z",
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-1",
@@ -45216,7 +45857,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-2",
@@ -45301,7 +45943,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-3",
@@ -45386,7 +46029,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-4",
@@ -45471,7 +46115,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-5",
@@ -45556,7 +46201,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-6",
@@ -45641,7 +46287,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-7",
@@ -45726,7 +46373,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": "Cancelar NF"
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-8",
@@ -45811,7 +46459,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-9",
@@ -45896,7 +46545,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-10",
@@ -45981,7 +46631,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-11",
@@ -46066,7 +46717,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-12",
@@ -46151,7 +46803,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-13",
@@ -46236,7 +46889,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-14",
@@ -46321,7 +46975,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": "Cancelar NF"
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-15",
@@ -46406,7 +47061,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-16",
@@ -46491,7 +47147,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-17",
@@ -46576,7 +47233,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-18",
@@ -46661,7 +47319,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-19",
@@ -46746,7 +47405,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-20",
@@ -46831,7 +47491,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-21",
@@ -46916,7 +47577,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-22",
@@ -47001,7 +47663,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-23",
@@ -47086,7 +47749,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-24",
@@ -47171,7 +47835,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-25",
@@ -47256,7 +47921,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-26",
@@ -47341,7 +48007,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-27",
@@ -47426,7 +48093,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-28",
@@ -47511,7 +48179,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-29",
@@ -47596,7 +48265,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-30",
@@ -47681,7 +48351,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-31",
@@ -47766,7 +48437,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-32",
@@ -47851,7 +48523,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-33",
@@ -47936,7 +48609,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-34",
@@ -48021,7 +48695,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-35",
@@ -48106,7 +48781,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-36",
@@ -48191,7 +48867,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-37",
@@ -48276,7 +48953,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-38",
@@ -48361,7 +49039,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-39",
@@ -48446,7 +49125,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-40",
@@ -48531,7 +49211,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-41",
@@ -48616,7 +49297,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-42",
@@ -48701,7 +49383,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-43",
@@ -48786,7 +49469,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-44",
@@ -48871,7 +49555,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-45",
@@ -48956,7 +49641,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-46",
@@ -49041,7 +49727,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-47",
@@ -49126,7 +49813,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-48",
@@ -49211,7 +49899,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-49",
@@ -49296,7 +49985,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-50",
@@ -49381,7 +50071,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-51",
@@ -49466,7 +50157,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-52",
@@ -49551,7 +50243,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-53",
@@ -49636,7 +50329,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-54",
@@ -49721,7 +50415,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-55",
@@ -49806,7 +50501,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-56",
@@ -49891,7 +50587,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-57",
@@ -49976,7 +50673,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-58",
@@ -50061,7 +50759,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-59",
@@ -50146,7 +50845,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-60",
@@ -50231,7 +50931,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-61",
@@ -50316,7 +51017,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-62",
@@ -50401,7 +51103,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-63",
@@ -50486,7 +51189,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-64",
@@ -50571,7 +51275,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-65",
@@ -50656,7 +51361,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-66",
@@ -50741,7 +51447,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-67",
@@ -50826,7 +51533,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-68",
@@ -50911,7 +51619,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-69",
@@ -50996,7 +51705,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-70",
@@ -51081,7 +51791,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-71",
@@ -51166,7 +51877,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-72",
@@ -51251,7 +51963,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-73",
@@ -51336,7 +52049,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-74",
@@ -51421,7 +52135,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-75",
@@ -51506,7 +52221,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-76",
@@ -51591,7 +52307,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-77",
@@ -51676,7 +52393,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-78",
@@ -51761,7 +52479,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-79",
@@ -51846,7 +52565,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-80",
@@ -51931,7 +52651,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-81",
@@ -52016,7 +52737,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-82",
@@ -52101,7 +52823,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-83",
@@ -52186,7 +52909,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-84",
@@ -52271,7 +52995,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-85",
@@ -52356,7 +53081,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-86",
@@ -52441,7 +53167,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": "Cancelar NF"
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-87",
@@ -52526,7 +53253,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-88",
@@ -52611,7 +53339,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-89",
@@ -52696,7 +53425,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-90",
@@ -52781,7 +53511,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-91",
@@ -52866,7 +53597,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-92",
@@ -52951,7 +53683,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-93",
@@ -53036,7 +53769,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-94",
@@ -53121,7 +53855,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-95",
@@ -53206,7 +53941,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-96",
@@ -53291,7 +54027,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-97",
@@ -53376,7 +54113,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-98",
@@ -53461,7 +54199,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-99",
@@ -53546,7 +54285,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-100",
@@ -53631,7 +54371,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-101",
@@ -53716,7 +54457,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-102",
@@ -53801,7 +54543,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-103",
@@ -53886,7 +54629,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-104",
@@ -53971,7 +54715,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-105",
@@ -54056,7 +54801,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-106",
@@ -54141,7 +54887,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-107",
@@ -54226,7 +54973,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-108",
@@ -54311,7 +55059,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-109",
@@ -54396,7 +55145,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-110",
@@ -54481,7 +55231,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-111",
@@ -54566,7 +55317,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-112",
@@ -54651,7 +55403,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-113",
@@ -54736,7 +55489,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-114",
@@ -54821,7 +55575,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-115",
@@ -54906,7 +55661,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-116",
@@ -54991,7 +55747,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-117",
@@ -55076,7 +55833,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-118",
@@ -55161,7 +55919,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-119",
@@ -55246,7 +56005,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-120",
@@ -55331,7 +56091,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-121",
@@ -55416,7 +56177,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-122",
@@ -55501,7 +56263,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-123",
@@ -55586,7 +56349,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-124",
@@ -55671,7 +56435,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-125",
@@ -55756,7 +56521,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-126",
@@ -55841,7 +56607,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-127",
@@ -55926,7 +56693,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-128",
@@ -56011,7 +56779,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-129",
@@ -56096,7 +56865,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-130",
@@ -56181,7 +56951,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-131",
@@ -56266,7 +57037,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-132",
@@ -56351,7 +57123,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-133",
@@ -56436,7 +57209,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-134",
@@ -56521,7 +57295,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-135",
@@ -56606,7 +57381,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-136",
@@ -56691,7 +57467,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-137",
@@ -56776,7 +57553,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-138",
@@ -56861,7 +57639,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-139",
@@ -56946,7 +57725,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-140",
@@ -57031,7 +57811,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-141",
@@ -57116,7 +57897,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-142",
@@ -57201,7 +57983,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-143",
@@ -57286,7 +58069,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-144",
@@ -57371,7 +58155,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-145",
@@ -57456,7 +58241,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-146",
@@ -57541,7 +58327,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-147",
@@ -57626,7 +58413,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-148",
@@ -57711,7 +58499,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-149",
@@ -57796,7 +58585,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-150",
@@ -57881,7 +58671,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-151",
@@ -57966,7 +58757,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-152",
@@ -58051,7 +58843,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-153",
@@ -58136,7 +58929,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-154",
@@ -58221,7 +59015,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-155",
@@ -58306,7 +59101,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-156",
@@ -58391,7 +59187,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-157",
@@ -58476,7 +59273,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-158",
@@ -58561,7 +59359,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-159",
@@ -58646,7 +59445,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-160",
@@ -58731,7 +59531,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-161",
@@ -58816,7 +59617,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-162",
@@ -58901,7 +59703,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-163",
@@ -58986,7 +59789,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-164",
@@ -59071,7 +59875,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-165",
@@ -59156,7 +59961,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-166",
@@ -59241,7 +60047,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-167",
@@ -59326,7 +60133,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-168",
@@ -59411,7 +60219,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-169",
@@ -59496,7 +60305,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-170",
@@ -59581,7 +60391,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-171",
@@ -59666,7 +60477,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-172",
@@ -59751,7 +60563,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-173",
@@ -59836,7 +60649,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-174",
@@ -59921,7 +60735,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-175",
@@ -60006,7 +60821,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-176",
@@ -60091,7 +60907,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-177",
@@ -60176,7 +60993,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-178",
@@ -60261,7 +61079,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-179",
@@ -60346,7 +61165,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-180",
@@ -60431,7 +61251,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-181",
@@ -60516,7 +61337,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-182",
@@ -60601,7 +61423,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-183",
@@ -60686,7 +61509,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-184",
@@ -60771,7 +61595,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-185",
@@ -60856,7 +61681,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-186",
@@ -60941,7 +61767,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-187",
@@ -61026,7 +61853,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-188",
@@ -61111,7 +61939,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-189",
@@ -61196,7 +62025,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-190",
@@ -61281,7 +62111,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-191",
@@ -61366,7 +62197,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-192",
@@ -61451,7 +62283,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-193",
@@ -61536,7 +62369,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-194",
@@ -61621,7 +62455,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-195",
@@ -61706,7 +62541,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-196",
@@ -61791,7 +62627,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-197",
@@ -61876,7 +62713,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-198",
@@ -61961,7 +62799,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-199",
@@ -62046,7 +62885,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-200",
@@ -62131,7 +62971,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-201",
@@ -62216,7 +63057,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-202",
@@ -62301,7 +63143,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-203",
@@ -62386,7 +63229,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-204",
@@ -62471,7 +63315,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-205",
@@ -62556,7 +63401,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-206",
@@ -62641,7 +63487,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-207",
@@ -62726,7 +63573,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-208",
@@ -62811,7 +63659,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-209",
@@ -62896,7 +63745,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-210",
@@ -62981,7 +63831,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-211",
@@ -63066,7 +63917,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-212",
@@ -63151,7 +64003,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-213",
@@ -63236,7 +64089,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-214",
@@ -63321,7 +64175,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-215",
@@ -63406,7 +64261,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-216",
@@ -63491,7 +64347,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-217",
@@ -63576,7 +64433,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-218",
@@ -63661,7 +64519,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-219",
@@ -63746,7 +64605,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "nk-cc-220",
@@ -63831,1078 +64691,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Observações/Motivo": ""
     },
     "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
-  },
-  {
-    "id": "nk-eq-1",
-    "siteId": "EQ-01-1",
-    "vendor": "NOKIA",
-    "sheetName": "Equipes",
-    "siteName": "Magno Rodolfo dos Santos Ribeiro",
-    "uf": "SP",
-    "municipio": "ACESSO | TX",
-    "regional": "Equipe 1",
-    "endereco": "",
-    "latitude": "",
-    "longitude": "",
-    "tipoInfra": "",
-    "tecnologias": "ACESSO | TX",
-    "bandas": "",
-    "gabineteBbu": "",
-    "modulosRf": "",
-    "versaoSw": "",
-    "setores": "",
-    "azimutes": "",
-    "alturaAntena": "",
-    "tiltEletrico": "",
-    "transporteTx": "",
-    "ipGerencia": "12 996500124",
-    "vlanOm": "087.425.088-94",
-    "energiaRetificadora": "",
-    "status": "ATIVO",
-    "progressoRollout": 100,
-    "dataIntegracao": "",
-    "dataAtivacao": "",
-    "responsavelCampo": "Magno Rodolfo dos Santos Ribeiro",
-    "equipeParceira": "Equipe 1",
-    "ordemServico": "",
-    "alarmesAtivos": "",
-    "observacoes": "",
-    "customFields": {
-      "EQUIPE": "1",
-      "NOME": "Magno Rodolfo dos Santos Ribeiro",
-      "TELEFONE": "12 996500124",
-      "CPF": "087.425.088-94",
-      "RG": "19209673-4",
-      "ORGÃO EMISSOR": "SSP/SP",
-      "DATA NASCIMENTO": "11/08/1966",
-      "E-MAIL": "magno.ribeiro@ametaservicos.com.br",
-      "ATIVIDADE": "ACESSO | TX",
-      "STATUS": "ATIVO",
-      "OBSERVAÇÕES": ""
-    },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
-  },
-  {
-    "id": "nk-eq-2",
-    "siteId": "EQ-01-2",
-    "vendor": "NOKIA",
-    "sheetName": "Equipes",
-    "siteName": "Gilvan Araujo Cruz",
-    "uf": "SP",
-    "municipio": "ACESSO | TX",
-    "regional": "Equipe 1",
-    "endereco": "",
-    "latitude": "",
-    "longitude": "",
-    "tipoInfra": "",
-    "tecnologias": "ACESSO | TX",
-    "bandas": "",
-    "gabineteBbu": "",
-    "modulosRf": "",
-    "versaoSw": "",
-    "setores": "",
-    "azimutes": "",
-    "alturaAntena": "",
-    "tiltEletrico": "",
-    "transporteTx": "",
-    "ipGerencia": "11 982679535",
-    "vlanOm": "047.053.628-45",
-    "energiaRetificadora": "",
-    "status": "ATIVO",
-    "progressoRollout": 100,
-    "dataIntegracao": "",
-    "dataAtivacao": "",
-    "responsavelCampo": "Gilvan Araujo Cruz",
-    "equipeParceira": "Equipe 1",
-    "ordemServico": "",
-    "alarmesAtivos": "",
-    "observacoes": "",
-    "customFields": {
-      "EQUIPE": "1",
-      "NOME": "Gilvan Araujo Cruz",
-      "TELEFONE": "11 982679535",
-      "CPF": "047.053.628-45",
-      "RG": "16365761-0",
-      "ORGÃO EMISSOR": "SSP/SP",
-      "DATA NASCIMENTO": "27/10/1963",
-      "E-MAIL": "teleinstal@uol.com.br",
-      "ATIVIDADE": "ACESSO | TX",
-      "STATUS": "ATIVO",
-      "OBSERVAÇÕES": ""
-    },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
-  },
-  {
-    "id": "nk-eq-3",
-    "siteId": "EQ-02-3",
-    "vendor": "NOKIA",
-    "sheetName": "Equipes",
-    "siteName": "Mateus Fernando dos Santos Ribeiro",
-    "uf": "SP",
-    "municipio": "ACESSO | TX",
-    "regional": "Equipe 2",
-    "endereco": "",
-    "latitude": "",
-    "longitude": "",
-    "tipoInfra": "",
-    "tecnologias": "ACESSO | TX",
-    "bandas": "",
-    "gabineteBbu": "",
-    "modulosRf": "",
-    "versaoSw": "",
-    "setores": "",
-    "azimutes": "",
-    "alturaAntena": "",
-    "tiltEletrico": "",
-    "transporteTx": "",
-    "ipGerencia": "12 981562078",
-    "vlanOm": "223.203.718-50",
-    "energiaRetificadora": "",
-    "status": "ATIVO",
-    "progressoRollout": 100,
-    "dataIntegracao": "",
-    "dataAtivacao": "",
-    "responsavelCampo": "Mateus Fernando dos Santos Ribeiro",
-    "equipeParceira": "Equipe 2",
-    "ordemServico": "",
-    "alarmesAtivos": "",
-    "observacoes": "",
-    "customFields": {
-      "EQUIPE": "2",
-      "NOME": "Mateus Fernando dos Santos Ribeiro",
-      "TELEFONE": "12 981562078",
-      "CPF": "223.203.718-50",
-      "RG": "29.399.932-6",
-      "ORGÃO EMISSOR": "SSP-SP",
-      "DATA NASCIMENTO": "11/11/1977",
-      "E-MAIL": "mateus_ribeiro@ametaservicos.com.br",
-      "ATIVIDADE": "ACESSO | TX",
-      "STATUS": "ATIVO",
-      "OBSERVAÇÕES": ""
-    },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
-  },
-  {
-    "id": "nk-eq-4",
-    "siteId": "EQ-02-4",
-    "vendor": "NOKIA",
-    "sheetName": "Equipes",
-    "siteName": "Marcelo Dall Oglio",
-    "uf": "SP",
-    "municipio": "ACESSO | TX",
-    "regional": "Equipe 2",
-    "endereco": "",
-    "latitude": "",
-    "longitude": "",
-    "tipoInfra": "",
-    "tecnologias": "ACESSO | TX",
-    "bandas": "",
-    "gabineteBbu": "",
-    "modulosRf": "",
-    "versaoSw": "",
-    "setores": "",
-    "azimutes": "",
-    "alturaAntena": "",
-    "tiltEletrico": "",
-    "transporteTx": "",
-    "ipGerencia": "12 974126449",
-    "vlanOm": "291.880.698-69",
-    "energiaRetificadora": "",
-    "status": "ATIVO",
-    "progressoRollout": 100,
-    "dataIntegracao": "",
-    "dataAtivacao": "",
-    "responsavelCampo": "Marcelo Dall Oglio",
-    "equipeParceira": "Equipe 2",
-    "ordemServico": "",
-    "alarmesAtivos": "",
-    "observacoes": "",
-    "customFields": {
-      "EQUIPE": "2",
-      "NOME": "Marcelo Dall Oglio",
-      "TELEFONE": "12 974126449",
-      "CPF": "291.880.698-69",
-      "RG": "34333138",
-      "ORGÃO EMISSOR": "SSP/SP",
-      "DATA NASCIMENTO": "11/10/1980",
-      "E-MAIL": "marcelo.oglio@ametaservicos.com.br",
-      "ATIVIDADE": "ACESSO | TX",
-      "STATUS": "ATIVO",
-      "OBSERVAÇÕES": ""
-    },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
-  },
-  {
-    "id": "nk-eq-5",
-    "siteId": "EQ-03-5",
-    "vendor": "NOKIA",
-    "sheetName": "Equipes",
-    "siteName": "José Francelino Malta",
-    "uf": "SP",
-    "municipio": "ACESSO | TX",
-    "regional": "Equipe 3",
-    "endereco": "",
-    "latitude": "",
-    "longitude": "",
-    "tipoInfra": "",
-    "tecnologias": "ACESSO | TX",
-    "bandas": "",
-    "gabineteBbu": "",
-    "modulosRf": "",
-    "versaoSw": "",
-    "setores": "",
-    "azimutes": "",
-    "alturaAntena": "",
-    "tiltEletrico": "",
-    "transporteTx": "",
-    "ipGerencia": "19 971426989",
-    "vlanOm": "137.507.158-07",
-    "energiaRetificadora": "",
-    "status": "REJEITADO/VENC.",
-    "progressoRollout": 60,
-    "dataIntegracao": "",
-    "dataAtivacao": "",
-    "responsavelCampo": "José Francelino Malta",
-    "equipeParceira": "Equipe 3",
-    "ordemServico": "",
-    "alarmesAtivos": "",
-    "observacoes": "02/03/2026 - Previsão de início 09/03/2026 12/02/2026 - Documentação de H&S em elaboração",
-    "customFields": {
-      "EQUIPE": "3",
-      "NOME": "José Francelino Malta",
-      "TELEFONE": "19 971426989",
-      "CPF": "137.507.158-07",
-      "RG": "22.410.976-5",
-      "ORGÃO EMISSOR": "SSP-SP",
-      "DATA NASCIMENTO": "13/06/1969",
-      "E-MAIL": "jose.malta@ametaservicos.com.br",
-      "ATIVIDADE": "ACESSO | TX",
-      "STATUS": "REJEITADO/VENC.",
-      "OBSERVAÇÕES": "02/03/2026 - Previsão de início 09/03/2026 12/02/2026 - Documentação de H&S em elaboração"
-    },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
-  },
-  {
-    "id": "nk-eq-6",
-    "siteId": "EQ-03-6",
-    "vendor": "NOKIA",
-    "sheetName": "Equipes",
-    "siteName": "Luís Fernando Batista",
-    "uf": "SP",
-    "municipio": "ACESSO | TX",
-    "regional": "Equipe 3",
-    "endereco": "",
-    "latitude": "",
-    "longitude": "",
-    "tipoInfra": "",
-    "tecnologias": "ACESSO | TX",
-    "bandas": "",
-    "gabineteBbu": "",
-    "modulosRf": "",
-    "versaoSw": "",
-    "setores": "",
-    "azimutes": "",
-    "alturaAntena": "",
-    "tiltEletrico": "",
-    "transporteTx": "",
-    "ipGerencia": "19 994094986",
-    "vlanOm": "365.144.678-65",
-    "energiaRetificadora": "",
-    "status": "VENCIDO",
-    "progressoRollout": 60,
-    "dataIntegracao": "",
-    "dataAtivacao": "",
-    "responsavelCampo": "Luís Fernando Batista",
-    "equipeParceira": "Equipe 3",
-    "ordemServico": "",
-    "alarmesAtivos": "",
-    "observacoes": "02/03/2026 - Previsão de início 09/03/2026 12/02/2026 - Documentação de H&S em elaboração",
-    "customFields": {
-      "EQUIPE": "3",
-      "NOME": "Luís Fernando Batista",
-      "TELEFONE": "19 994094986",
-      "CPF": "365.144.678-65",
-      "RG": "42.346.537-5",
-      "ORGÃO EMISSOR": "SSP-SP",
-      "DATA NASCIMENTO": "29/10/1987",
-      "E-MAIL": "luis.batista@ametaservicos.com.br",
-      "ATIVIDADE": "ACESSO | TX",
-      "STATUS": "VENCIDO",
-      "OBSERVAÇÕES": "02/03/2026 - Previsão de início 09/03/2026 12/02/2026 - Documentação de H&S em elaboração"
-    },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
-  },
-  {
-    "id": "nk-eq-7",
-    "siteId": "EQ-04-7",
-    "vendor": "NOKIA",
-    "sheetName": "Equipes",
-    "siteName": "Alexandre dos Santos",
-    "uf": "SP",
-    "municipio": "ACESSO | TX",
-    "regional": "Equipe 4",
-    "endereco": "",
-    "latitude": "",
-    "longitude": "",
-    "tipoInfra": "",
-    "tecnologias": "ACESSO | TX",
-    "bandas": "",
-    "gabineteBbu": "",
-    "modulosRf": "",
-    "versaoSw": "",
-    "setores": "",
-    "azimutes": "",
-    "alturaAntena": "",
-    "tiltEletrico": "",
-    "transporteTx": "",
-    "ipGerencia": "11 977587553",
-    "vlanOm": "309.192.208-19",
-    "energiaRetificadora": "",
-    "status": "ATIVO C/ RESSALVA",
-    "progressoRollout": 100,
-    "dataIntegracao": "",
-    "dataAtivacao": "",
-    "responsavelCampo": "Alexandre dos Santos",
-    "equipeParceira": "Equipe 4",
-    "ordemServico": "",
-    "alarmesAtivos": "",
-    "observacoes": "12/02/2026 - Evidenciar tema - Equipamento de Proteção Individual- EPI. Uso, guarda e conservação, conforme Cartilha.",
-    "customFields": {
-      "EQUIPE": "4",
-      "NOME": "Alexandre dos Santos",
-      "TELEFONE": "11 977587553",
-      "CPF": "309.192.208-19",
-      "RG": "42476654-1",
-      "ORGÃO EMISSOR": "SSP/SP",
-      "DATA NASCIMENTO": "26/08/1983",
-      "E-MAIL": "alexandre.santos@ametaservicos.com.br",
-      "ATIVIDADE": "ACESSO | TX",
-      "STATUS": "ATIVO C/ RESSALVA",
-      "OBSERVAÇÕES": "12/02/2026 - Evidenciar tema - Equipamento de Proteção Individual- EPI. Uso, guarda e conservação, conforme Cartilha."
-    },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
-  },
-  {
-    "id": "nk-eq-8",
-    "siteId": "EQ-04-8",
-    "vendor": "NOKIA",
-    "sheetName": "Equipes",
-    "siteName": "Alexandre da Silva Sousa",
-    "uf": "SP",
-    "municipio": "Campo",
-    "regional": "Equipe 4",
-    "endereco": "",
-    "latitude": "",
-    "longitude": "",
-    "tipoInfra": "",
-    "tecnologias": "",
-    "bandas": "",
-    "gabineteBbu": "",
-    "modulosRf": "",
-    "versaoSw": "",
-    "setores": "",
-    "azimutes": "",
-    "alturaAntena": "",
-    "tiltEletrico": "",
-    "transporteTx": "",
-    "ipGerencia": "11 990142942",
-    "vlanOm": "593.082.958-60",
-    "energiaRetificadora": "",
-    "status": "Em Cadastro",
-    "progressoRollout": 60,
-    "dataIntegracao": "",
-    "dataAtivacao": "",
-    "responsavelCampo": "Alexandre da Silva Sousa",
-    "equipeParceira": "Equipe 4",
-    "ordemServico": "",
-    "alarmesAtivos": "",
-    "observacoes": "31/03/2026 - marcou para tirar o ASO",
-    "customFields": {
-      "EQUIPE": "4",
-      "NOME": "Alexandre da Silva Sousa",
-      "TELEFONE": "11 990142942",
-      "CPF": "593.082.958-60",
-      "RG": "50.106.947-5",
-      "ORGÃO EMISSOR": "SSP-SP",
-      "DATA NASCIMENTO": "03/04/2006",
-      "E-MAIL": "alexandre.sousa@ametaservicos.com.br",
-      "ATIVIDADE": "",
-      "STATUS": "Em Cadastro",
-      "OBSERVAÇÕES": "31/03/2026 - marcou para tirar o ASO"
-    },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
-  },
-  {
-    "id": "nk-eq-9",
-    "siteId": "EQ-08-9",
-    "vendor": "NOKIA",
-    "sheetName": "Equipes",
-    "siteName": "Reinaldo Fernandes da Silva",
-    "uf": "SP",
-    "municipio": "ACESSO | TX",
-    "regional": "Equipe 8",
-    "endereco": "",
-    "latitude": "",
-    "longitude": "",
-    "tipoInfra": "",
-    "tecnologias": "ACESSO | TX",
-    "bandas": "",
-    "gabineteBbu": "",
-    "modulosRf": "",
-    "versaoSw": "",
-    "setores": "",
-    "azimutes": "",
-    "alturaAntena": "",
-    "tiltEletrico": "",
-    "transporteTx": "",
-    "ipGerencia": "11 995756402",
-    "vlanOm": "136.328.358-88",
-    "energiaRetificadora": "",
-    "status": "ATIVO C/ RESSALVA",
-    "progressoRollout": 100,
-    "dataIntegracao": "",
-    "dataAtivacao": "",
-    "responsavelCampo": "Reinaldo Fernandes da Silva",
-    "equipeParceira": "Equipe 8",
-    "ordemServico": "",
-    "alarmesAtivos": "",
-    "observacoes": "12/02/2026 - Indicar empresa prestador na ficha",
-    "customFields": {
-      "EQUIPE": "8",
-      "NOME": "Reinaldo Fernandes da Silva",
-      "TELEFONE": "11 995756402",
-      "CPF": "136.328.358-88",
-      "RG": "23.913.529-5",
-      "ORGÃO EMISSOR": "SSP/SP",
-      "DATA NASCIMENTO": "18/03/1970",
-      "E-MAIL": "reinaldo.silva@ametaservicos.com.br",
-      "ATIVIDADE": "ACESSO | TX",
-      "STATUS": "ATIVO C/ RESSALVA",
-      "OBSERVAÇÕES": "12/02/2026 - Indicar empresa prestador na ficha"
-    },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
-  },
-  {
-    "id": "nk-eq-10",
-    "siteId": "EQ-08-10",
-    "vendor": "NOKIA",
-    "sheetName": "Equipes",
-    "siteName": "Erick Luigi Cruz da Silva",
-    "uf": "SP",
-    "municipio": "ACESSO | TX",
-    "regional": "Equipe 8",
-    "endereco": "",
-    "latitude": "",
-    "longitude": "",
-    "tipoInfra": "",
-    "tecnologias": "ACESSO | TX",
-    "bandas": "",
-    "gabineteBbu": "",
-    "modulosRf": "",
-    "versaoSw": "",
-    "setores": "",
-    "azimutes": "",
-    "alturaAntena": "",
-    "tiltEletrico": "",
-    "transporteTx": "",
-    "ipGerencia": "11 96155435",
-    "vlanOm": "555.528.218-40",
-    "energiaRetificadora": "",
-    "status": "ATIVO",
-    "progressoRollout": 100,
-    "dataIntegracao": "",
-    "dataAtivacao": "",
-    "responsavelCampo": "Erick Luigi Cruz da Silva",
-    "equipeParceira": "Equipe 8",
-    "ordemServico": "",
-    "alarmesAtivos": "",
-    "observacoes": "",
-    "customFields": {
-      "EQUIPE": "8",
-      "NOME": "Erick Luigi Cruz da Silva",
-      "TELEFONE": "11 96155435",
-      "CPF": "555.528.218-40",
-      "RG": "64.906.097-0",
-      "ORGÃO EMISSOR": "SSP/SP",
-      "DATA NASCIMENTO": "07/01/2004",
-      "E-MAIL": "erick.luidi@ametaservicos.com.br",
-      "ATIVIDADE": "ACESSO | TX",
-      "STATUS": "ATIVO",
-      "OBSERVAÇÕES": ""
-    },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
-  },
-  {
-    "id": "nk-eq-11",
-    "siteId": "EQ-05-11",
-    "vendor": "NOKIA",
-    "sheetName": "Equipes",
-    "siteName": "Felipe Manoel Ruis Martins",
-    "uf": "SP",
-    "municipio": "ACESSO | TX",
-    "regional": "Equipe 5",
-    "endereco": "",
-    "latitude": "",
-    "longitude": "",
-    "tipoInfra": "",
-    "tecnologias": "ACESSO | TX",
-    "bandas": "",
-    "gabineteBbu": "",
-    "modulosRf": "",
-    "versaoSw": "",
-    "setores": "",
-    "azimutes": "",
-    "alturaAntena": "",
-    "tiltEletrico": "",
-    "transporteTx": "",
-    "ipGerencia": "15 981699474",
-    "vlanOm": "322.748.538-94",
-    "energiaRetificadora": "",
-    "status": "ATIVO",
-    "progressoRollout": 100,
-    "dataIntegracao": "",
-    "dataAtivacao": "",
-    "responsavelCampo": "Felipe Manoel Ruis Martins",
-    "equipeParceira": "Equipe 5",
-    "ordemServico": "",
-    "alarmesAtivos": "",
-    "observacoes": "12/02/2026 - Sem dupla",
-    "customFields": {
-      "EQUIPE": "5",
-      "NOME": "Felipe Manoel Ruis Martins",
-      "TELEFONE": "15 981699474",
-      "CPF": "322.748.538-94",
-      "RG": "35.200.425-3",
-      "ORGÃO EMISSOR": "SSP/SP",
-      "DATA NASCIMENTO": "03/03/1984",
-      "E-MAIL": "felipe.martins@ametaservicos.com.br",
-      "ATIVIDADE": "ACESSO | TX",
-      "STATUS": "ATIVO",
-      "OBSERVAÇÕES": "12/02/2026 - Sem dupla"
-    },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
-  },
-  {
-    "id": "nk-eq-12",
-    "siteId": "EQ-05-12",
-    "vendor": "NOKIA",
-    "sheetName": "Equipes",
-    "siteName": "Renato Ribas",
-    "uf": "SP",
-    "municipio": "ACESSO | TX",
-    "regional": "Equipe 5",
-    "endereco": "",
-    "latitude": "",
-    "longitude": "",
-    "tipoInfra": "",
-    "tecnologias": "ACESSO | TX",
-    "bandas": "",
-    "gabineteBbu": "",
-    "modulosRf": "",
-    "versaoSw": "",
-    "setores": "",
-    "azimutes": "",
-    "alturaAntena": "",
-    "tiltEletrico": "",
-    "transporteTx": "",
-    "ipGerencia": "11 930064024",
-    "vlanOm": "206.291.828-33",
-    "energiaRetificadora": "",
-    "status": "CADASTRAR",
-    "progressoRollout": 60,
-    "dataIntegracao": "",
-    "dataAtivacao": "",
-    "responsavelCampo": "Renato Ribas",
-    "equipeParceira": "Equipe 5",
-    "ordemServico": "",
-    "alarmesAtivos": "",
-    "observacoes": "",
-    "customFields": {
-      "EQUIPE": "5",
-      "NOME": "Renato Ribas",
-      "TELEFONE": "11 930064024",
-      "CPF": "206.291.828-33",
-      "RG": "23686314",
-      "ORGÃO EMISSOR": "SSP/SP",
-      "DATA NASCIMENTO": "26/04/1972",
-      "E-MAIL": "coelhoribas@gmail.com",
-      "ATIVIDADE": "ACESSO | TX",
-      "STATUS": "CADASTRAR",
-      "OBSERVAÇÕES": ""
-    },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
-  },
-  {
-    "id": "nk-eq-13",
-    "siteId": "EQ-06-13",
-    "vendor": "NOKIA",
-    "sheetName": "Equipes",
-    "siteName": "Igor dos Santos",
-    "uf": "SP",
-    "municipio": "ACESSO | TX",
-    "regional": "Equipe 6",
-    "endereco": "",
-    "latitude": "",
-    "longitude": "",
-    "tipoInfra": "",
-    "tecnologias": "ACESSO | TX",
-    "bandas": "",
-    "gabineteBbu": "",
-    "modulosRf": "",
-    "versaoSw": "",
-    "setores": "",
-    "azimutes": "",
-    "alturaAntena": "",
-    "tiltEletrico": "",
-    "transporteTx": "",
-    "ipGerencia": "11 971279634",
-    "vlanOm": "386.758.848-18",
-    "energiaRetificadora": "",
-    "status": "ATIVO C/ RESSALVA",
-    "progressoRollout": 100,
-    "dataIntegracao": "",
-    "dataAtivacao": "",
-    "responsavelCampo": "Igor dos Santos",
-    "equipeParceira": "Equipe 6",
-    "ordemServico": "",
-    "alarmesAtivos": "",
-    "observacoes": "12/02/2026 - Equipe em atividade com outra empresa, previsão de retorno dia 19/02/2026. 12/02/2026 - Por gentileza, manter o nome da função conforme ASO - \"vistoriador\".",
-    "customFields": {
-      "EQUIPE": "6",
-      "NOME": "Igor dos Santos",
-      "TELEFONE": "11 971279634",
-      "CPF": "386.758.848-18",
-      "RG": "44746958",
-      "ORGÃO EMISSOR": "SSP/SP",
-      "DATA NASCIMENTO": "17/05/1996",
-      "E-MAIL": "igor.santos@ametaservicos.com.br",
-      "ATIVIDADE": "ACESSO | TX",
-      "STATUS": "ATIVO C/ RESSALVA",
-      "OBSERVAÇÕES": "12/02/2026 - Equipe em atividade com outra empresa, previsão de retorno dia 19/02/2026. 12/02/2026 - Por gentileza, manter o nome da função conforme ASO - \"vistoriador\"."
-    },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
-  },
-  {
-    "id": "nk-eq-14",
-    "siteId": "EQ-06-14",
-    "vendor": "NOKIA",
-    "sheetName": "Equipes",
-    "siteName": "Brunno Henrique Andrade",
-    "uf": "MG",
-    "municipio": "ACESSO | TX",
-    "regional": "Equipe 6",
-    "endereco": "",
-    "latitude": "",
-    "longitude": "",
-    "tipoInfra": "",
-    "tecnologias": "ACESSO | TX",
-    "bandas": "",
-    "gabineteBbu": "",
-    "modulosRf": "",
-    "versaoSw": "",
-    "setores": "",
-    "azimutes": "",
-    "alturaAntena": "",
-    "tiltEletrico": "",
-    "transporteTx": "",
-    "ipGerencia": "",
-    "vlanOm": "019.516.716-35",
-    "energiaRetificadora": "",
-    "status": "CADASTRAR",
-    "progressoRollout": 60,
-    "dataIntegracao": "",
-    "dataAtivacao": "",
-    "responsavelCampo": "Brunno Henrique Andrade",
-    "equipeParceira": "Equipe 6",
-    "ordemServico": "",
-    "alarmesAtivos": "",
-    "observacoes": "",
-    "customFields": {
-      "EQUIPE": "6",
-      "NOME": "Brunno Henrique Andrade",
-      "TELEFONE": "",
-      "CPF": "019.516.716-35",
-      "RG": "MG18629070",
-      "ORGÃO EMISSOR": "SSP/MG",
-      "DATA NASCIMENTO": "28/01/1998",
-      "E-MAIL": "",
-      "ATIVIDADE": "ACESSO | TX",
-      "STATUS": "CADASTRAR",
-      "OBSERVAÇÕES": ""
-    },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
-  },
-  {
-    "id": "nk-eq-15",
-    "siteId": "EQ-07-15",
-    "vendor": "NOKIA",
-    "sheetName": "Equipes",
-    "siteName": "Diego Nassu",
-    "uf": "SP",
-    "municipio": "ACESSO | TX",
-    "regional": "Equipe 7",
-    "endereco": "",
-    "latitude": "",
-    "longitude": "",
-    "tipoInfra": "",
-    "tecnologias": "ACESSO | TX",
-    "bandas": "",
-    "gabineteBbu": "",
-    "modulosRf": "",
-    "versaoSw": "",
-    "setores": "",
-    "azimutes": "",
-    "alturaAntena": "",
-    "tiltEletrico": "",
-    "transporteTx": "",
-    "ipGerencia": "19 983581264",
-    "vlanOm": "221.079.728-42",
-    "energiaRetificadora": "",
-    "status": "ATIVO",
-    "progressoRollout": 100,
-    "dataIntegracao": "",
-    "dataAtivacao": "",
-    "responsavelCampo": "Diego Nassu",
-    "equipeParceira": "Equipe 7",
-    "ordemServico": "",
-    "alarmesAtivos": "",
-    "observacoes": "",
-    "customFields": {
-      "EQUIPE": "7",
-      "NOME": "Diego Nassu",
-      "TELEFONE": "19 983581264",
-      "CPF": "221.079.728-42",
-      "RG": "32.233.989-3",
-      "ORGÃO EMISSOR": "SSP/SP",
-      "DATA NASCIMENTO": "03/06/1981",
-      "E-MAIL": "diego.nassu@ametaservicos.com.br",
-      "ATIVIDADE": "ACESSO | TX",
-      "STATUS": "ATIVO",
-      "OBSERVAÇÕES": ""
-    },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
-  },
-  {
-    "id": "nk-eq-16",
-    "siteId": "EQ-07-16",
-    "vendor": "NOKIA",
-    "sheetName": "Equipes",
-    "siteName": "Vagner Luiz dos Reis",
-    "uf": "SP",
-    "municipio": "ACESSO | TX",
-    "regional": "Equipe 7",
-    "endereco": "",
-    "latitude": "",
-    "longitude": "",
-    "tipoInfra": "",
-    "tecnologias": "ACESSO | TX",
-    "bandas": "",
-    "gabineteBbu": "",
-    "modulosRf": "",
-    "versaoSw": "",
-    "setores": "",
-    "azimutes": "",
-    "alturaAntena": "",
-    "tiltEletrico": "",
-    "transporteTx": "",
-    "ipGerencia": "13 981410341",
-    "vlanOm": "121.356.218-03",
-    "energiaRetificadora": "",
-    "status": "ATIVO",
-    "progressoRollout": 100,
-    "dataIntegracao": "",
-    "dataAtivacao": "",
-    "responsavelCampo": "Vagner Luiz dos Reis",
-    "equipeParceira": "Equipe 7",
-    "ordemServico": "",
-    "alarmesAtivos": "",
-    "observacoes": "",
-    "customFields": {
-      "EQUIPE": "7",
-      "NOME": "Vagner Luiz dos Reis",
-      "TELEFONE": "13 981410341",
-      "CPF": "121.356.218-03",
-      "RG": "21.780.115-8",
-      "ORGÃO EMISSOR": "Itanhaém - SP",
-      "DATA NASCIMENTO": "30/10/1970",
-      "E-MAIL": "vagner.reis@ametaservicos.com.br",
-      "ATIVIDADE": "ACESSO | TX",
-      "STATUS": "ATIVO",
-      "OBSERVAÇÕES": ""
-    },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
-  },
-  {
-    "id": "nk-eq-17",
-    "siteId": "EQ-09-17",
-    "vendor": "NOKIA",
-    "sheetName": "Equipes",
-    "siteName": "Bruno Washington de Souza Santos",
-    "uf": "MG",
-    "municipio": "ACESSO | TX",
-    "regional": "Equipe 9",
-    "endereco": "",
-    "latitude": "",
-    "longitude": "",
-    "tipoInfra": "",
-    "tecnologias": "ACESSO | TX",
-    "bandas": "",
-    "gabineteBbu": "",
-    "modulosRf": "",
-    "versaoSw": "",
-    "setores": "",
-    "azimutes": "",
-    "alturaAntena": "",
-    "tiltEletrico": "",
-    "transporteTx": "",
-    "ipGerencia": "35992002093",
-    "vlanOm": "114.699.486-99",
-    "energiaRetificadora": "",
-    "status": "ATIVO",
-    "progressoRollout": 100,
-    "dataIntegracao": "",
-    "dataAtivacao": "",
-    "responsavelCampo": "Bruno Washington de Souza Santos",
-    "equipeParceira": "Equipe 9",
-    "ordemServico": "",
-    "alarmesAtivos": "",
-    "observacoes": "",
-    "customFields": {
-      "EQUIPE": "9",
-      "NOME": "Bruno Washington de Souza Santos",
-      "TELEFONE": "35992002093",
-      "CPF": "114.699.486-99",
-      "RG": "MG17366298",
-      "ORGÃO EMISSOR": "SSP/MG",
-      "DATA NASCIMENTO": "11/11/1996",
-      "E-MAIL": "bw.bruno57@gmail.com",
-      "ATIVIDADE": "ACESSO | TX",
-      "STATUS": "ATIVO",
-      "OBSERVAÇÕES": ""
-    },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
-  },
-  {
-    "id": "nk-eq-18",
-    "siteId": "EQ-09-18",
-    "vendor": "NOKIA",
-    "sheetName": "Equipes",
-    "siteName": "Kleber Frederico de Souza",
-    "uf": "SP",
-    "municipio": "ACESSO | TX",
-    "regional": "Equipe 9",
-    "endereco": "",
-    "latitude": "",
-    "longitude": "",
-    "tipoInfra": "",
-    "tecnologias": "ACESSO | TX",
-    "bandas": "",
-    "gabineteBbu": "",
-    "modulosRf": "",
-    "versaoSw": "",
-    "setores": "",
-    "azimutes": "",
-    "alturaAntena": "",
-    "tiltEletrico": "",
-    "transporteTx": "",
-    "ipGerencia": "12 992315145",
-    "vlanOm": "277.282.068-85",
-    "energiaRetificadora": "",
-    "status": "VENCIDO",
-    "progressoRollout": 60,
-    "dataIntegracao": "",
-    "dataAtivacao": "",
-    "responsavelCampo": "Kleber Frederico de Souza",
-    "equipeParceira": "Equipe 9",
-    "ordemServico": "",
-    "alarmesAtivos": "",
-    "observacoes": "12/02/2026 - Documentação de H&S em elaboração",
-    "customFields": {
-      "EQUIPE": "9",
-      "NOME": "Kleber Frederico de Souza",
-      "TELEFONE": "12 992315145",
-      "CPF": "277.282.068-85",
-      "RG": "40910200-3",
-      "ORGÃO EMISSOR": "SSP-SP",
-      "DATA NASCIMENTO": "30/08/1980",
-      "E-MAIL": "kleber.souza@ametaservicos.com.br",
-      "ATIVIDADE": "ACESSO | TX",
-      "STATUS": "VENCIDO",
-      "OBSERVAÇÕES": "12/02/2026 - Documentação de H&S em elaboração"
-    },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
-  },
-  {
-    "id": "nk-eq-19",
-    "siteId": "EQ-10-19",
-    "vendor": "NOKIA",
-    "sheetName": "Equipes",
-    "siteName": "Eduardo Luchini",
-    "uf": "SP",
-    "municipio": "ACESSO | TX",
-    "regional": "Equipe 10",
-    "endereco": "",
-    "latitude": "",
-    "longitude": "",
-    "tipoInfra": "",
-    "tecnologias": "ACESSO | TX",
-    "bandas": "",
-    "gabineteBbu": "",
-    "modulosRf": "",
-    "versaoSw": "",
-    "setores": "",
-    "azimutes": "",
-    "alturaAntena": "",
-    "tiltEletrico": "",
-    "transporteTx": "",
-    "ipGerencia": "19 981091399",
-    "vlanOm": "214.975.178-00",
-    "energiaRetificadora": "",
-    "status": "REJEITADO/VENC.",
-    "progressoRollout": 60,
-    "dataIntegracao": "",
-    "dataAtivacao": "",
-    "responsavelCampo": "Eduardo Luchini",
-    "equipeParceira": "Equipe 10",
-    "ordemServico": "",
-    "alarmesAtivos": "",
-    "observacoes": "12/02/2026 - Refazer os doc. PCMSO, PGR, NR06, ASO",
-    "customFields": {
-      "EQUIPE": "10",
-      "NOME": "Eduardo Luchini",
-      "TELEFONE": "19 981091399",
-      "CPF": "214.975.178-00",
-      "RG": "29.088.497-4",
-      "ORGÃO EMISSOR": "SSP-SP",
-      "DATA NASCIMENTO": "18/11/1978",
-      "E-MAIL": "eduardo.luchini@ametaservicos.com.br",
-      "ATIVIDADE": "ACESSO | TX",
-      "STATUS": "REJEITADO/VENC.",
-      "OBSERVAÇÕES": "12/02/2026 - Refazer os doc. PCMSO, PGR, NR06, ASO"
-    },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
-  },
-  {
-    "id": "nk-eq-20",
-    "siteId": "EQ-10-20",
-    "vendor": "NOKIA",
-    "sheetName": "Equipes",
-    "siteName": "Vinicius Lazaro Viana",
-    "uf": "SP",
-    "municipio": "Campo",
-    "regional": "Equipe 10",
-    "endereco": "",
-    "latitude": "",
-    "longitude": "",
-    "tipoInfra": "",
-    "tecnologias": "",
-    "bandas": "",
-    "gabineteBbu": "",
-    "modulosRf": "",
-    "versaoSw": "",
-    "setores": "",
-    "azimutes": "",
-    "alturaAntena": "",
-    "tiltEletrico": "",
-    "transporteTx": "",
-    "ipGerencia": "11987323258",
-    "vlanOm": "405.695.778-96",
-    "energiaRetificadora": "",
-    "status": "Vistoria - A Executar",
-    "progressoRollout": 60,
-    "dataIntegracao": "",
-    "dataAtivacao": "",
-    "responsavelCampo": "Vinicius Lazaro Viana",
-    "equipeParceira": "Equipe 10",
-    "ordemServico": "",
-    "alarmesAtivos": "",
-    "observacoes": "Preparaçao de documentos 24/04/2026",
-    "customFields": {
-      "EQUIPE": "10",
-      "NOME": "Vinicius Lazaro Viana",
-      "TELEFONE": "11987323258",
-      "CPF": "405.695.778-96",
-      "RG": "49213219",
-      "ORGÃO EMISSOR": "SSP/SP",
-      "DATA NASCIMENTO": "06/03/1993",
-      "E-MAIL": "vinicius.viana@ametacervicos.com.br",
-      "ATIVIDADE": "",
-      "STATUS": "",
-      "OBSERVAÇÕES": "Preparaçao de documentos 24/04/2026"
-    },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
-  },
-  {
-    "id": "nk-eq-21",
-    "siteId": "EQ-11-21",
-    "vendor": "NOKIA",
-    "sheetName": "Equipes",
-    "siteName": "Celso Vitorino Pereira",
-    "uf": "SP",
-    "municipio": "ACESSO",
-    "regional": "Equipe 11",
-    "endereco": "",
-    "latitude": "",
-    "longitude": "",
-    "tipoInfra": "",
-    "tecnologias": "ACESSO",
-    "bandas": "",
-    "gabineteBbu": "",
-    "modulosRf": "",
-    "versaoSw": "",
-    "setores": "",
-    "azimutes": "",
-    "alturaAntena": "",
-    "tiltEletrico": "",
-    "transporteTx": "",
-    "ipGerencia": "11 964864527",
-    "vlanOm": "044.024.558-39",
-    "energiaRetificadora": "",
-    "status": "Vistoria - A Executar",
-    "progressoRollout": 60,
-    "dataIntegracao": "",
-    "dataAtivacao": "",
-    "responsavelCampo": "Celso Vitorino Pereira",
-    "equipeParceira": "Equipe 11",
-    "ordemServico": "",
-    "alarmesAtivos": "",
-    "observacoes": "",
-    "customFields": {
-      "EQUIPE": "11",
-      "NOME": "Celso Vitorino Pereira",
-      "TELEFONE": "11 964864527",
-      "CPF": "044.024.558-39",
-      "RG": "11.238.476-6",
-      "ORGÃO EMISSOR": "SSP/SP",
-      "DATA NASCIMENTO": "31/03/1960",
-      "E-MAIL": "celso.pereira@ametaservicos.com.br",
-      "ATIVIDADE": "ACESSO",
-      "STATUS": "",
-      "OBSERVAÇÕES": ""
-    },
-    "updatedAt": "2026-09-29T18:15:00.000Z",
-    "updatedBy": "rafael.araujo@ameta.com.br"
+    "updatedBy": "rafael.araujo@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "er-1",
@@ -64945,7 +64735,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "SLA Crítico": "Diamante"
     },
     "updatedAt": "2026-09-29T15:45:00.000Z",
-    "updatedBy": "engenharia@ameta.com.br"
+    "updatedBy": "engenharia@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "er-2",
@@ -64988,7 +64779,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "SLA Crítico": "Diamante"
     },
     "updatedAt": "2026-09-29T16:00:00.000Z",
-    "updatedBy": "engenharia@ameta.com.br"
+    "updatedBy": "engenharia@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "er-3",
@@ -65031,7 +64823,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "SLA Crítico": "Diamante"
     },
     "updatedAt": "2026-09-29T16:22:00.000Z",
-    "updatedBy": "noc@ameta.com.br"
+    "updatedBy": "noc@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "er-4",
@@ -65074,7 +64867,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "SLA Crítico": "Diamante"
     },
     "updatedAt": "2026-09-29T13:15:00.000Z",
-    "updatedBy": "engenharia@ameta.com.br"
+    "updatedBy": "engenharia@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "er-5",
@@ -65117,7 +64911,8 @@ export const INITIAL_SITES: TelecomSite[] = [
       "SLA Crítico": "Ouro"
     },
     "updatedAt": "2026-09-29T16:05:00.000Z",
-    "updatedBy": "engenharia@ameta.com.br"
+    "updatedBy": "engenharia@ametaservicos.com.br",
+    "isNew": false
   },
   {
     "id": "er-6",
@@ -65159,6 +64954,7 @@ export const INITIAL_SITES: TelecomSite[] = [
       "Ciclo Preventiva": "Trimestral Q3/2026"
     },
     "updatedAt": "2026-09-29T16:30:00.000Z",
-    "updatedBy": "noc@ameta.com.br"
+    "updatedBy": "noc@ametaservicos.com.br",
+    "isNew": false
   }
 ];

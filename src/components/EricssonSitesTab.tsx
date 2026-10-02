@@ -1763,7 +1763,7 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
                   required
                   value={newUserEmail}
                   onChange={(e) => setNewUserEmail(e.target.value)}
-                  placeholder="carlos.mendes@ameta.com.br"
+                  placeholder="carlos.mendes@ametaservicos.com.br"
                   className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 focus:outline-none focus:bg-white focus:border-[#223585]"
                 />
               </div>
@@ -1872,7 +1872,7 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
                       </td>
                       <td className="py-2.5 px-3 text-right">
                         {effectiveRole === 'ADM' &&
-                          u.email.toLowerCase() !== 'rafael.araujo@ameta.com.br' && (
+                          u.email.toLowerCase() !== 'rafael.araujo@ametaservicos.com.br' && (
                             <button
                               type="button"
                               onClick={() => handleDeleteEricssonUser(u)}

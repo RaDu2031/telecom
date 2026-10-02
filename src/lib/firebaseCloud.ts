@@ -4,6 +4,7 @@ import {
   onAuthStateChanged,
   User as FirebaseUser,
 } from 'firebase/auth';
+import { collection, getDocs, limit, query } from 'firebase/firestore';
 import {
   app,
   db,
@@ -42,16 +43,56 @@ export type { FirestoreErrorInfo };
 
 const googleProvider = new GoogleAuthProvider();
 
-const LOCAL_STORAGE_DB_KEY = 'ameta_cloud_serverless_db_v2';
+const LOCAL_STORAGE_DB_KEY = 'ameta_cloud_serverless_db_v4';
+const PURGE_FLAG_KEY = 'ameta_owner_only_purged_v2';
 let cachedDbState: Record<string, any> | null = null;
 let backendAvailable: boolean | null = null;
 
 const originalFetch = window.fetch.bind(window);
 
+function ensureSingleOwnerInUsersArray(list: any[]): AmetaUser[] {
+  const ownerFallback: AmetaUser = {
+    id: 'usr-ameta-servicos-1',
+    name: 'Rafael Araújo',
+    email: 'rafael.araujo@ametaservicos.com.br',
+    role: 'ADM',
+    situacao: 'dono',
+    plataforma: 'AMBAS',
+    assignedPlatform: 'BOTH',
+    accessReleased: true,
+    equipe: 'Coordenação / ADM',
+    emailVerified: true,
+    documents: ensureUserMandatoryDocuments(),
+    createdAt: '2026-01-01T08:00:00.000Z',
+  };
+  const existingOwner = Array.isArray(list)
+    ? list.find((u) => isOwnerAdmUser(u?.email))
+    : undefined;
+  return [
+    existingOwner
+      ? {
+          ...ownerFallback,
+          ...existingOwner,
+          name: 'Rafael Araújo',
+          email: 'rafael.araujo@ametaservicos.com.br',
+          role: 'ADM',
+          situacao: 'dono',
+          plataforma: 'AMBAS',
+          assignedPlatform: 'BOTH',
+          accessReleased: true,
+          emailVerified: true,
+        }
+      : ownerFallback,
+  ];
+}
+
 export async function ensureLocalDbState(): Promise<Record<string, any>> {
   if (cachedDbState) return cachedDbState;
 
   try {
+    localStorage.removeItem('ameta_cloud_serverless_db_v1');
+    localStorage.removeItem('ameta_cloud_serverless_db_v2');
+    localStorage.removeItem('ameta_cloud_serverless_db_v3');
     const rawLocal = localStorage.getItem(LOCAL_STORAGE_DB_KEY);
     if (rawLocal) {
       const parsed = JSON.parse(rawLocal);
@@ -82,8 +123,8 @@ export async function ensureLocalDbState(): Promise<Record<string, any>> {
 
   if (!cachedDbState) {
     cachedDbState = {
-      users: [],
-      ericssonUsers: [],
+      users: ensureSingleOwnerInUsersArray([]),
+      ericssonUsers: ensureSingleOwnerInUsersArray([]),
       sites: [],
       sheets: [],
       duplaEmailsMap: {},
@@ -98,6 +139,20 @@ export async function ensureLocalDbState(): Promise<Record<string, any>> {
       notifications: [],
       lastUpdated: new Date().toISOString(),
     };
+  }
+
+  try {
+    if (!localStorage.getItem(PURGE_FLAG_KEY)) {
+      cachedDbState.users = ensureSingleOwnerInUsersArray(cachedDbState.users);
+      cachedDbState.ericssonUsers = ensureSingleOwnerInUsersArray(cachedDbState.ericssonUsers);
+      cachedDbState.duplaEmailsMap = {};
+      if (Array.isArray(cachedDbState.sites)) {
+        cachedDbState.sites = cachedDbState.sites.filter((s: any) => s.sheetName !== 'Equipes');
+      }
+      localStorage.setItem(PURGE_FLAG_KEY, '1');
+    }
+  } catch {
+    // ignore storage error
   }
 
   saveLocalDbState(cachedDbState);
@@ -152,8 +207,7 @@ function saveLocalDbState(state: Record<string, any>) {
 }
 
 export async function pushWorkspaceToFirestore(state: Record<string, any>): Promise<void> {
-  const currentUser = auth ? auth.currentUser : null;
-  if (!isFirebaseEnvConfigured || !currentUser || !currentUser.emailVerified) {
+  if (!isFirebaseEnvConfigured || !db) {
     return;
   }
   try {
@@ -161,15 +215,14 @@ export async function pushWorkspaceToFirestore(state: Record<string, any>): Prom
       await dataService.salvarMapaDuplas(state.duplaEmailsMap);
     }
   } catch {
-    // ignore permission errors if user is not Coordenador/dono
+    // ignore permission errors
   }
 }
 
 export async function pullWorkspaceFromFirestore(
   _targetState: Record<string, any>
 ): Promise<boolean> {
-  const currentUser = auth ? auth.currentUser : null;
-  return Boolean(isFirebaseEnvConfigured && currentUser && currentUser.emailVerified);
+  return Boolean(isFirebaseEnvConfigured && db);
 }
 
 export async function signInWithGoogleFirebase(): Promise<{
@@ -218,31 +271,73 @@ export async function connectAndSyncFirebaseCloud(
     }
   }
 
-  if (fbUser && fbUser.emailVerified && isFirebaseEnvConfigured) {
-    if (Array.isArray(state.sites) && state.sites.length > 0) {
-      await dataService.importarSitesNokiaEmLote(
-        state.sites as TelecomSite[],
-        state.users as AmetaUser[],
-        state.duplaEmailsMap || {}
-      );
+  if (isFirebaseEnvConfigured && db) {
+    try {
+      const remoteDuplas = await dataService.carregarMapaDuplas();
+      if (remoteDuplas.duplaEmailsMap && Object.keys(remoteDuplas.duplaEmailsMap).length > 0) {
+        state.duplaEmailsMap = {
+          ...(state.duplaEmailsMap || {}),
+          ...remoteDuplas.duplaEmailsMap,
+        };
+      }
+    } catch {
+      // ignore dupla map error
     }
-    if (Array.isArray(state.ericssonRows) && state.ericssonRows.length > 0) {
-      await dataService.importarSitesEricssonEmLote(
-        state.ericssonRows as EricssonRow[],
-        [...(state.users || []), ...(state.ericssonUsers || [])] as AmetaUser[],
-        state.duplaEmailsMap || {}
-      );
+
+    try {
+      const remoteUsers = await dataService.listarTodosUsuarios();
+      if (remoteUsers.length > 0) {
+        const ownerGuarantee = ensureSingleOwnerInUsersArray(remoteUsers)[0];
+        const mergedUsers = [
+          ownerGuarantee,
+          ...remoteUsers.filter((u) => !isOwnerAdmUser(u.email, u.situacao)),
+        ];
+        state.users = mergedUsers;
+        state.ericssonUsers = mergedUsers;
+      } else {
+        await dataService.garantirUsuarioAoAutenticar({
+          uid: 'usr-ameta-servicos-1',
+          email: 'rafael.araujo@ametaservicos.com.br',
+          name: 'Rafael Araújo',
+          emailVerified: true,
+        });
+      }
+    } catch {
+      // ignore user sync error
     }
-    if (state.duplaEmailsMap) {
-      await dataService.salvarMapaDuplas(state.duplaEmailsMap);
+
+    try {
+      const nokiaCheck = await getDocs(query(collection(db, 'nokia_sites'), limit(1)));
+      if (nokiaCheck.empty && Array.isArray(state.sites) && state.sites.length > 0) {
+        await dataService.importarSitesNokiaEmLote(
+          state.sites as TelecomSite[],
+          state.users as AmetaUser[],
+          state.duplaEmailsMap || {}
+        );
+      }
+    } catch {
+      // ignore nokia check error
+    }
+
+    try {
+      const ericssonCheck = await getDocs(query(collection(db, 'ericsson_sites'), limit(1)));
+      if (ericssonCheck.empty && Array.isArray(state.ericssonRows) && state.ericssonRows.length > 0) {
+        await dataService.importarSitesEricssonEmLote(
+          state.ericssonRows as EricssonRow[],
+          [...(state.users || []), ...(state.ericssonUsers || [])] as AmetaUser[],
+          state.duplaEmailsMap || {}
+        );
+      }
+    } catch {
+      // ignore ericsson check error
     }
   }
 
   saveLocalDbState(state);
 
   return {
-    connected: Boolean(fbUser && fbUser.emailVerified),
-    firebaseEmail: fbUser?.email || '',
+    connected: Boolean(isFirebaseEnvConfigured && db),
+    firebaseEmail: fbUser?.email || 'rafael.araujo@ametaservicos.com.br',
     state,
   };
 }
@@ -322,6 +417,23 @@ async function handleServerlessApiRequest(
   // POST /api/auth/login
   if (cleanPath === '/api/auth/login' && method === 'POST') {
     const email = String(body.email || '').trim().toLowerCase();
+    const password = String(body.password || '');
+    if (isFirebaseEnvConfigured && db) {
+      try {
+        const authed = await dataService.autenticarUsuarioCorporativo({ email, password });
+        state.users = [
+          authed,
+          ...(state.users || []).filter(
+            (u: any) => String(u.email || '').trim().toLowerCase() !== email
+          ),
+        ];
+        saveLocalDbState(state);
+        return jsonResponse({ user: { ...authed, emailVerified: true }, requiresVerification: false });
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : 'Falha na autenticação.';
+        return jsonResponse({ error: msg }, 401);
+      }
+    }
     const currentUid = auth && auth.currentUser ? auth.currentUser.uid : undefined;
     let found = allKnownUsers.find((u) => u.email.trim().toLowerCase() === email);
     if (!found) {
@@ -333,7 +445,7 @@ async function handleServerlessApiRequest(
         email,
         situacao: isOwner ? 'dono' : 'aguardando',
         role: normalizeUserRole(isOwner ? 'ADM' : 'Vistoriador', email),
-        plataforma: isOwner ? 'BOTH' : 'NOKIA',
+        plataforma: isOwner ? 'AMBAS' : 'NOKIA',
         assignedPlatform: isOwner ? 'BOTH' : 'NOKIA',
         accessReleased: isOwner,
         equipe: '',
@@ -343,7 +455,7 @@ async function handleServerlessApiRequest(
       state.users = [...(state.users || []), found];
       saveLocalDbState(state);
     }
-    return jsonResponse({ user: { ...found, emailVerified: true } });
+    return jsonResponse({ user: { ...found, emailVerified: true }, requiresVerification: false });
   }
 
   // POST /api/auth/register & verify-email
@@ -352,21 +464,50 @@ async function handleServerlessApiRequest(
     method === 'POST'
   ) {
     const email = String(body.email || '').trim().toLowerCase();
+    if (cleanPath === '/api/auth/register' && isFirebaseEnvConfigured && db) {
+      try {
+        const registered = await dataService.registrarNovoUsuarioCorporativo({
+          name: String(body.name || email.split('@')[0] || 'Colaborador'),
+          email,
+          password: String(body.password || ''),
+          role: body.role || 'Vistoriador',
+          equipe: String(body.equipe || '').trim(),
+          telefone: String(body.telefone || '').trim(),
+          plataforma: body.plataforma || 'NOKIA',
+        });
+        state.users = [
+          registered,
+          ...(state.users || []).filter(
+            (u: any) => String(u.email || '').trim().toLowerCase() !== email
+          ),
+        ];
+        saveLocalDbState(state);
+        return jsonResponse({
+          user: registered,
+          requiresVerification: false,
+        });
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : 'Erro no cadastro.';
+        return jsonResponse({ error: msg }, 400);
+      }
+    }
     const currentUid = auth && auth.currentUser ? auth.currentUser.uid : undefined;
     const isOwner = isOwnerAdmUser(email);
     const existing = allKnownUsers.find((u) => u.email.trim().toLowerCase() === email);
+    const cleanName = String(body.name || existing?.name || email.split('@')[0] || 'Colaborador').trim();
+    const cleanEquipe = String(body.equipe || existing?.equipe || cleanName).trim();
     const newUser: AmetaUser = {
       id: existing?.id || currentUid || `usr-${Date.now()}`,
       uid: existing?.uid || currentUid,
-      name: String(body.name || existing?.name || email.split('@')[0] || 'Colaborador'),
+      name: cleanName,
       email,
       situacao: isOwner ? 'dono' : existing?.situacao || 'aguardando',
       role: normalizeUserRole(isOwner ? 'ADM' : existing?.role || body.role || 'Vistoriador', email),
-      plataforma: isOwner ? 'BOTH' : existing?.plataforma || 'NOKIA',
-      assignedPlatform: isOwner ? 'BOTH' : existing?.assignedPlatform || 'NOKIA',
+      plataforma: isOwner ? 'BOTH' : existing?.plataforma || body.plataforma || 'NOKIA',
+      assignedPlatform: isOwner ? 'BOTH' : existing?.assignedPlatform || body.plataforma || 'NOKIA',
       accessReleased: isOwner ? true : Boolean(existing?.accessReleased ?? false),
-      equipe: isOwner ? 'Coordenação / ADM' : existing?.equipe || '',
-      emailVerified: cleanPath === '/api/auth/verify-email',
+      equipe: isOwner ? 'Coordenação / ADM' : cleanEquipe,
+      emailVerified: true,
       createdAt: existing?.createdAt || new Date().toISOString(),
     };
     state.users = [
@@ -376,8 +517,7 @@ async function handleServerlessApiRequest(
     saveLocalDbState(state);
     return jsonResponse({
       user: newUser,
-      requiresVerification: cleanPath === '/api/auth/register',
-      verificationCode: '123456',
+      requiresVerification: false,
     });
   }
 
@@ -859,7 +999,9 @@ async function handleServerlessApiRequest(
     const situacao: UserSituacao =
       body.situacao || (body.accessReleased === false ? 'bloqueado' : 'ativo');
     const name = String(body.name || cleanEmail.split('@')[0] || 'Colaborador').trim();
-    const equipe = String(body.equipe || '').trim();
+    const rawEquipe = String(body.equipe || '').trim();
+    const equipe =
+      rawEquipe || (role.includes('Coordenador') ? `Coordenação ${assignedPlatform}` : name);
     const now = new Date().toISOString();
     const targetUid = body.uid || body.userId || `usr-${Date.now()}`;
 
@@ -898,6 +1040,22 @@ async function handleServerlessApiRequest(
       ];
     }
 
+    if (
+      (situacao === 'ativo' || situacao === 'dono') &&
+      !isOwnerAdmUser(cleanEmail) &&
+      !role.includes('Coordenador') &&
+      equipe
+    ) {
+      if (!state.duplaEmailsMap) state.duplaEmailsMap = {};
+      const prevEmails: string[] = Array.isArray(state.duplaEmailsMap[equipe])
+        ? state.duplaEmailsMap[equipe]
+        : [];
+      if (!prevEmails.some((e) => e.toLowerCase() === cleanEmail)) {
+        state.duplaEmailsMap[equipe] = [...prevEmails, cleanEmail];
+      }
+      await dataService.salvarMapaDuplas(state.duplaEmailsMap);
+    }
+
     saveLocalDbState(state);
     await dataService.atualizarPermissoesUsuario(targetUid, {
       email: cleanEmail,
@@ -913,6 +1071,7 @@ async function handleServerlessApiRequest(
     return jsonResponse({
       users: state.users,
       ericssonUsers: state.ericssonUsers,
+      duplaEmailsMap: state.duplaEmailsMap || {},
       notifications: state.notifications || [],
     });
   }
@@ -951,7 +1110,55 @@ async function handleServerlessApiRequest(
         equipe: t.equipe,
       });
     }
-    return jsonResponse({ users: state.users });
+    return jsonResponse({ users: state.users, ericssonUsers: state.ericssonUsers });
+  }
+
+  // POST /api/admin/users/purge-non-owner
+  if (cleanPath === '/api/admin/users/purge-non-owner' && method === 'POST') {
+    state.users = ensureSingleOwnerInUsersArray(state.users);
+    state.ericssonUsers = ensureSingleOwnerInUsersArray(state.ericssonUsers);
+    saveLocalDbState(state);
+    await dataService.limparUsuariosExcetoDono();
+    return jsonResponse({
+      ok: true,
+      users: state.users,
+      ericssonUsers: state.ericssonUsers,
+    });
+  }
+
+  // DELETE /api/admin/users/:id
+  if (
+    cleanPath.startsWith('/api/admin/users/') &&
+    !cleanPath.endsWith('/role') &&
+    !cleanPath.endsWith('/documents') &&
+    method === 'DELETE'
+  ) {
+    const userId = decodeURIComponent(cleanPath.replace('/api/admin/users/', ''));
+    const target = [...(state.users || []), ...(state.ericssonUsers || [])].find(
+      (u: any) => u.id === userId || u.uid === userId
+    );
+    if (target && isOwnerAdmUser(target.email)) {
+      return jsonResponse({ error: 'A conta principal do Dono não pode ser removida.' }, 400);
+    }
+    const targetEmail = target ? String(target.email || '').trim().toLowerCase() : '';
+    state.users = (state.users || []).filter(
+      (u: any) =>
+        u.id !== userId &&
+        u.uid !== userId &&
+        (!targetEmail || String(u.email || '').trim().toLowerCase() !== targetEmail)
+    );
+    state.ericssonUsers = (state.ericssonUsers || []).filter(
+      (u: any) =>
+        u.id !== userId &&
+        u.uid !== userId &&
+        (!targetEmail || String(u.email || '').trim().toLowerCase() !== targetEmail)
+    );
+    saveLocalDbState(state);
+    await dataService.excluirUsuario(userId, targetEmail || undefined);
+    return jsonResponse({
+      users: state.users,
+      ericssonUsers: state.ericssonUsers,
+    });
   }
 
   // POST /api/engineering/folders & /api/ericsson/folders
@@ -1617,10 +1824,9 @@ async function handleServerlessApiRequest(
   });
 }
 
-// Sincroniza mutações originadas no backend Express local para o Firestore (quando Firebase está configurado)
+// Sincroniza mutações originadas no backend Express local para o Firestore (sempre ativo)
 async function syncMutationToFirestore(apiPath: string, method: string, reqBody: any, resData: any) {
-  const currentUser = auth ? auth.currentUser : null;
-  if (!isFirebaseEnvConfigured || !currentUser || !currentUser.emailVerified) {
+  if (!isFirebaseEnvConfigured || !db) {
     return;
   }
   const cleanPath = apiPath.split('?')[0];
@@ -1640,13 +1846,41 @@ async function syncMutationToFirestore(apiPath: string, method: string, reqBody:
       }
     } else if (cleanPath === '/api/sites' && method === 'POST' && resData?.site) {
       await dataService.salvarSiteNokia(resData.site, allUsers, duplaMap);
-    } else if (cleanPath.startsWith('/api/sites/') && method === 'PUT') {
+    } else if (cleanPath.startsWith('/api/sites/') && (method === 'PUT' || method === 'PATCH')) {
       const siteId = decodeURIComponent(cleanPath.replace('/api/sites/', ''));
-      const matched = (resData?.sites || state.sites || []).find(
-        (s: any) => s.id === siteId || s.siteId === siteId
-      );
+      const matched =
+        resData?.site ||
+        (resData?.sites || state.sites || []).find(
+          (s: any) => s.id === siteId || s.siteId === siteId
+        );
       if (matched) {
         await dataService.salvarSiteNokia(matched, allUsers, duplaMap);
+      }
+    } else if (cleanPath === '/api/sites/assign-responsible' && method === 'POST') {
+      if (Array.isArray(resData?.sites) && resData.sites.length > 0) {
+        const assignedTarget = String(reqBody?.responsibleName || reqBody?.renameTo || '').trim();
+        const Subset = assignedTarget
+          ? resData.sites.filter(
+              (s: any) =>
+                s.equipeParceira === assignedTarget ||
+                s.responsavelCampo === assignedTarget ||
+                s.customFields?.['EQUIPE EXECUTANTE'] === assignedTarget
+            )
+          : resData.sites.slice(0, 100);
+        if (Subset.length > 0) {
+          await dataService.importarSitesNokiaEmLote(Subset, allUsers, duplaMap);
+        }
+      }
+      if (Array.isArray(resData?.ericssonRows) && resData.ericssonRows.length > 0) {
+        const assignedTarget = String(reqBody?.responsibleName || reqBody?.renameTo || '').trim();
+        const Subset = assignedTarget
+          ? resData.ericssonRows.filter(
+              (r: any) => r.equipe === assignedTarget || r.fields?.['EQUIPE'] === assignedTarget
+            )
+          : resData.ericssonRows.slice(0, 100);
+        if (Subset.length > 0) {
+          await dataService.importarSitesEricssonEmLote(Subset, allUsers, duplaMap);
+        }
       }
     } else if (cleanPath.startsWith('/api/sites/') && method === 'DELETE') {
       const siteId = decodeURIComponent(cleanPath.replace('/api/sites/', ''));
@@ -1662,7 +1896,10 @@ async function syncMutationToFirestore(apiPath: string, method: string, reqBody:
       }
     } else if (cleanPath === '/api/ericsson/rows' && method === 'POST' && resData?.row) {
       await dataService.salvarSiteEricsson(resData.row, allUsers, duplaMap);
-    } else if (cleanPath.startsWith('/api/ericsson/rows/') && method === 'PUT') {
+    } else if (
+      cleanPath.startsWith('/api/ericsson/rows/') &&
+      (method === 'PUT' || method === 'PATCH')
+    ) {
       const rowId = decodeURIComponent(cleanPath.replace('/api/ericsson/rows/', ''));
       const matched =
         resData?.row ||
@@ -1673,13 +1910,131 @@ async function syncMutationToFirestore(apiPath: string, method: string, reqBody:
     } else if (cleanPath.startsWith('/api/ericsson/rows/') && method === 'DELETE') {
       const rowId = decodeURIComponent(cleanPath.replace('/api/ericsson/rows/', ''));
       await dataService.excluirSiteEricsson(rowId);
+    } else if (cleanPath === '/api/engineering/folders' && method === 'POST' && resData?.folder) {
+      await dataService.salvarPastaNokia(resData.folder);
+    } else if (cleanPath.startsWith('/api/engineering/folders/') && method === 'PUT' && resData?.folder) {
+      await dataService.salvarPastaNokia(resData.folder);
+    } else if (cleanPath.startsWith('/api/engineering/folders/') && method === 'DELETE') {
+      const folderId = decodeURIComponent(cleanPath.replace('/api/engineering/folders/', ''));
+      await dataService.excluirPastaNokia(folderId);
+    } else if (cleanPath === '/api/ericsson/folders' && method === 'POST' && resData?.folder) {
+      await dataService.salvarPastaEricsson(resData.folder);
+    } else if (cleanPath.startsWith('/api/ericsson/folders/') && method === 'PUT' && resData?.folder) {
+      await dataService.salvarPastaEricsson(resData.folder);
+    } else if (cleanPath.startsWith('/api/ericsson/folders/') && method === 'DELETE') {
+      const folderId = decodeURIComponent(cleanPath.replace('/api/ericsson/folders/', ''));
+      await dataService.excluirPastaEricsson(folderId);
+    } else if (cleanPath === '/api/engineering/files' && method === 'POST' && resData?.file) {
+      await dataService.salvarArquivoNokia(resData.file, allUsers, state.sites || [], duplaMap);
+    } else if (cleanPath.startsWith('/api/engineering/files/') && method === 'DELETE') {
+      const fileId = decodeURIComponent(cleanPath.replace('/api/engineering/files/', ''));
+      await dataService.excluirArquivoNokia(fileId);
+    } else if (cleanPath === '/api/ericsson/files' && method === 'POST' && resData?.file) {
+      await dataService.salvarArquivoEricsson(
+        resData.file,
+        allUsers,
+        state.ericssonRows || [],
+        duplaMap
+      );
+    } else if (cleanPath.startsWith('/api/ericsson/files/') && method === 'DELETE') {
+      const fileId = decodeURIComponent(cleanPath.replace('/api/ericsson/files/', ''));
+      await dataService.excluirArquivoEricsson(fileId);
+    } else if (cleanPath === '/api/auth/register' && method === 'POST') {
+      const targetEmail = String(reqBody?.email || resData?.user?.email || '').trim().toLowerCase();
+      if (targetEmail) {
+        await dataService.registrarNovoUsuarioCorporativo({
+          name: String(reqBody?.name || resData?.user?.name || targetEmail.split('@')[0]),
+          email: targetEmail,
+          password: String(reqBody?.password || ''),
+          role: reqBody?.role || resData?.user?.role || 'Vistoriador',
+          equipe: String(reqBody?.equipe || resData?.user?.equipe || ''),
+          telefone: String(reqBody?.telefone || resData?.user?.telefone || ''),
+          plataforma: reqBody?.plataforma || resData?.user?.plataforma || 'NOKIA',
+        });
+      }
+    } else if (
+      (cleanPath === '/api/owner/permissions/release' || cleanPath === '/api/admin/users') &&
+      method === 'POST'
+    ) {
+      const targetEmail = String(reqBody?.email || '').trim().toLowerCase();
+      if (targetEmail) {
+        const matched = (resData?.users || state.users || []).find(
+          (u: any) => String(u.email || '').trim().toLowerCase() === targetEmail
+        );
+        if (matched) {
+          await dataService.atualizarPermissoesUsuario(matched.uid || matched.id, {
+            email: matched.email,
+            name: matched.name,
+            situacao: matched.situacao || (matched.accessReleased ? 'ativo' : 'aguardando'),
+            role: matched.role || 'Vistoriador',
+            plataforma: matched.assignedPlatform || matched.plataforma || 'NOKIA',
+            equipe: matched.equipe || '',
+            telefone: matched.telefone || '',
+            atividade: matched.atividade || '',
+          });
+        }
+      }
+      if (resData?.duplaEmailsMap && typeof resData.duplaEmailsMap === 'object') {
+        await dataService.salvarMapaDuplas(resData.duplaEmailsMap);
+      }
+    } else if (
+      cleanPath.startsWith('/api/admin/users/') &&
+      cleanPath.endsWith('/role') &&
+      method === 'PATCH'
+    ) {
+      const userId = decodeURIComponent(
+        cleanPath.replace('/api/admin/users/', '').replace('/role', '')
+      );
+      const matched = (resData?.users || state.users || []).find(
+        (u: any) => u.id === userId || u.uid === userId
+      );
+      if (matched) {
+        await dataService.atualizarPermissoesUsuario(matched.uid || matched.id, {
+          email: matched.email,
+          name: matched.name,
+          situacao: matched.situacao || 'ativo',
+          role: matched.role,
+          plataforma: matched.assignedPlatform || matched.plataforma || 'NOKIA',
+          equipe: matched.equipe || '',
+        });
+      }
+    } else if (
+      cleanPath.startsWith('/api/admin/users/') &&
+      cleanPath.endsWith('/documents') &&
+      method === 'PATCH'
+    ) {
+      const userId = decodeURIComponent(
+        cleanPath.replace('/api/admin/users/', '').replace('/documents', '')
+      );
+      const matched = (resData?.users || state.users || []).find(
+        (u: any) => u.id === userId || u.uid === userId
+      );
+      if (matched) {
+        await dataService.salvarDocumentosUsuario({
+          uidOrId: matched.uid || matched.id,
+          email: matched.email,
+          documents: matched.documents || [],
+          dispensadoDocumentos: matched.dispensadoDocumentos,
+          statusRecurso: matched.statusRecurso,
+        });
+      }
     } else if (cleanPath === '/api/admin/duplas/link-email' && method === 'POST') {
       if (resData?.duplaEmailsMap) {
         await dataService.salvarMapaDuplas(resData.duplaEmailsMap);
       }
+    } else if (cleanPath === '/api/admin/users/purge-non-owner' && method === 'POST') {
+      await dataService.limparUsuariosExcetoDono();
+    } else if (
+      cleanPath.startsWith('/api/admin/users/') &&
+      !cleanPath.endsWith('/role') &&
+      !cleanPath.endsWith('/documents') &&
+      method === 'DELETE'
+    ) {
+      const userId = decodeURIComponent(cleanPath.replace('/api/admin/users/', ''));
+      await dataService.excluirUsuario(userId);
     }
   } catch {
-    // ignore background sync errors when user lacks write permissions for that collection
+    // ignore background sync errors
   }
 }
 

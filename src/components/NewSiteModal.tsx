@@ -151,7 +151,7 @@ export const NewSiteModal: React.FC<NewSiteModalProps> = ({
           'Status Financeiro': cleanFin,
           'Observações/Motivo': observacoes.trim(),
         },
-        updatedBy: 'rafael.araujo@ameta.com.br',
+        updatedBy: 'rafael.araujo@ametaservicos.com.br',
       });
       onClose();
     } finally {

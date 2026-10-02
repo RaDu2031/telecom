@@ -122,7 +122,7 @@ export const EricssonVistoriaTab: React.FC<EricssonVistoriaTabProps> = ({
           vendor: 'ERICSSON' as const,
           description: 'Repositório exclusivo de Vistoria e LOS do sistema Ericsson',
           createdByName: 'Rafael Araújo',
-          createdByEmail: 'rafael.araujo@ameta.com.br',
+          createdByEmail: 'rafael.araujo@ametaservicos.com.br',
           createdAt: '',
           isSystem: true,
         },

@@ -6,33 +6,46 @@ import {
   doc,
   getDocFromServer,
 } from 'firebase/firestore';
+import firebaseAppletConfig from '../../firebase-applet-config.json';
 
 function cleanEnvValue(val: unknown): string | undefined {
   if (typeof val !== 'string') return undefined;
   const trimmed = val.trim().replace(/^['"]|['"]$/g, '').trim();
-  return trimmed.length > 0 ? trimmed : undefined;
+  return trimmed.length > 0 && !trimmed.includes('SUA_') ? trimmed : undefined;
 }
 
 /**
- * Configuração do Firebase lida EXCLUSIVAMENTE das variáveis de ambiente VITE_FIREBASE_*
- * Projeto: ameta-sistema-teste
+ * Configuração do Firebase SEMPRE LIGADA:
+ * Prioriza variáveis VITE_FIREBASE_* (quando definidas no .env.local / Netlify)
+ * e utiliza automaticamente o firebase-applet-config.json provisionado como fallback contínuo.
  */
+const envApiKey = cleanEnvValue(import.meta.env.VITE_FIREBASE_API_KEY);
+const envProjectId = cleanEnvValue(import.meta.env.VITE_FIREBASE_PROJECT_ID);
+const usingEnvConfig = Boolean(envApiKey && envProjectId);
+
 const firebaseConfig = {
-  apiKey: cleanEnvValue(import.meta.env.VITE_FIREBASE_API_KEY),
-  authDomain: cleanEnvValue(import.meta.env.VITE_FIREBASE_AUTH_DOMAIN),
-  projectId: cleanEnvValue(import.meta.env.VITE_FIREBASE_PROJECT_ID),
-  storageBucket: cleanEnvValue(import.meta.env.VITE_FIREBASE_STORAGE_BUCKET),
-  messagingSenderId: cleanEnvValue(import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID),
-  appId: cleanEnvValue(import.meta.env.VITE_FIREBASE_APP_ID),
+  apiKey: envApiKey || firebaseAppletConfig.apiKey,
+  authDomain:
+    cleanEnvValue(import.meta.env.VITE_FIREBASE_AUTH_DOMAIN) ||
+    firebaseAppletConfig.authDomain,
+  projectId: envProjectId || firebaseAppletConfig.projectId,
+  storageBucket:
+    cleanEnvValue(import.meta.env.VITE_FIREBASE_STORAGE_BUCKET) ||
+    firebaseAppletConfig.storageBucket,
+  messagingSenderId:
+    cleanEnvValue(import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID) ||
+    firebaseAppletConfig.messagingSenderId,
+  appId:
+    cleanEnvValue(import.meta.env.VITE_FIREBASE_APP_ID) ||
+    firebaseAppletConfig.appId,
 };
 
-export const isFirebaseEnvConfigured = Boolean(
-  firebaseConfig.apiKey &&
-    firebaseConfig.authDomain &&
-    firebaseConfig.projectId &&
-    firebaseConfig.appId &&
-    !firebaseConfig.apiKey.includes('SUA_')
-);
+const resolvedDatabaseId = usingEnvConfig
+  ? cleanEnvValue(import.meta.env.VITE_FIREBASE_DATABASE_ID)
+  : firebaseAppletConfig.firestoreDatabaseId;
+
+// Firebase está sempre ligado sem opção de desligar
+export const isFirebaseEnvConfigured = true;
 
 export const ALLOWED_EMAIL_DOMAIN = 'ametaservicos.com.br';
 
@@ -47,14 +60,14 @@ let appInstance: FirebaseApp | null = null;
 let dbInstance: Firestore | null = null;
 let authInstance: Auth | null = null;
 
-if (isFirebaseEnvConfigured) {
-  try {
-    appInstance = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
-    dbInstance = getFirestore(appInstance);
-    authInstance = getAuth(appInstance);
-  } catch (err) {
-    console.error('Erro ao inicializar Firebase:', err);
-  }
+try {
+  appInstance = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
+  dbInstance = resolvedDatabaseId
+    ? getFirestore(appInstance, resolvedDatabaseId)
+    : getFirestore(appInstance);
+  authInstance = getAuth(appInstance);
+} catch (err) {
+  console.error('Erro ao inicializar Firebase:', err);
 }
 
 export const app = appInstance;
@@ -120,11 +133,9 @@ async function testConnection() {
     await getDocFromServer(doc(dbInstance, 'test', 'connection'));
   } catch (error) {
     if (error instanceof Error && error.message.includes('the client is offline')) {
-      console.error('Verifique sua configuração do Firebase (.env.local).');
+      console.error('Verifique sua conexão com o Firebase.');
     }
   }
 }
 
-if (isFirebaseEnvConfigured) {
-  testConnection();
-}
+testConnection();

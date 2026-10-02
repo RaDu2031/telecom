@@ -33,7 +33,7 @@ import {
   sortSitesParaFazerFirst,
 } from './InteractiveSpreadsheetChart';
 
-const STORAGE_DUPLA_EMAILS_KEY = 'ameta_dupla_emails_map_v1';
+const STORAGE_DUPLA_EMAILS_KEY = 'ameta_dupla_emails_map_v2';
 
 interface DuplasInteractiveViewProps {
   sites: TelecomSite[];
@@ -134,7 +134,7 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = ({
   onOpenSiteDrawer,
 }) => {
   const [selectedDupla, setSelectedDupla] = useState<string>(
-    equipesDuplas[0] || 'Magno / Gilvan'
+    equipesDuplas[0] || ''
   );
   const [duplaSearch, setDuplaSearch] = useState<string>('');
   const [newDuplaName, setNewDuplaName] = useState<string>('');
@@ -164,6 +164,7 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = ({
   // Local + server persisted map of Dupla -> linked profile emails
   const [duplaEmailsMap, setDuplaEmailsMap] = useState<Record<string, string[]>>(() => {
     try {
+      localStorage.removeItem('ameta_dupla_emails_map_v1');
       const saved = localStorage.getItem(STORAGE_DUPLA_EMAILS_KEY);
       if (saved) {
         const parsed = JSON.parse(saved);
@@ -225,6 +226,8 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = ({
   useEffect(() => {
     if (equipesDuplas.length > 0 && !equipesDuplas.includes(selectedDupla)) {
       setSelectedDupla(equipesDuplas[0]);
+    } else if (equipesDuplas.length === 0 && selectedDupla) {
+      setSelectedDupla('');
     }
   }, [equipesDuplas, selectedDupla]);
 
@@ -257,7 +260,8 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = ({
       const uCanonEq = normalizeAccents(
         getCanonicalDuplaName(u.equipe || '') || u.equipe || ''
       );
-      if (uCanonEq && uCanonEq === canonDupla) {
+      const uCanonName = normalizeAccents(u.name || '');
+      if ((uCanonEq && uCanonEq === canonDupla) || (uCanonName && uCanonName === canonDupla)) {
         emailSet.add(u.email.trim().toLowerCase());
       }
     });
@@ -580,7 +584,7 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = ({
             .toLowerCase()
             .replace(/[^a-z0-9]/g, '.')
             .replace(/\.+/g, '.')
-            .replace(/^\.|\.$/g, '')}@ametatelecom.com.br`,
+            .replace(/^\.|\.$/g, '')}@ametaservicos.com.br`,
         role: 'Executor',
         assignedPlatform: activeVendor,
         equipe: selectedDupla,
@@ -722,6 +726,14 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = ({
 
         {/* Scrollable List of Duplas */}
         <div className="divide-y divide-slate-100 max-h-72 lg:max-h-[640px] overflow-y-auto p-2 space-y-1">
+          {filteredDuplas.length === 0 && (
+            <div className="p-4 text-center space-y-2 text-xs text-slate-500 bg-slate-50 rounded-xl border border-dashed border-slate-200">
+              <p className="font-bold text-slate-700">Nenhuma dupla cadastrada ainda</p>
+              <p className="text-[11px] leading-relaxed">
+                A lista foi zerada e será alimentada automaticamente conforme novos usuários (@ametaservicos.com.br) se cadastrarem e forem liberados, ou você pode criar uma dupla manualmente no campo acima.
+              </p>
+            </div>
+          )}
           {filteredDuplas.map((dupla) => {
             const isSelected = selectedDupla === dupla;
             const isEditing = editingDupla === dupla;

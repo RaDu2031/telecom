@@ -11,6 +11,7 @@ import {
   Layers,
   Building2,
   Users,
+  Trash2,
   X,
 } from 'lucide-react';
 import {
@@ -39,7 +40,8 @@ interface OwnerPermissionsModalProps {
     nextNokiaUsers: AmetaUser[],
     nextEricssonUsers: AmetaUser[],
     nextNotifications: AmetaNotification[],
-    toastMessage: string
+    toastMessage: string,
+    duplaEmailsMap?: Record<string, string[]>
   ) => void;
   onSimulateUser?: (user: AmetaUser) => void;
 }
@@ -164,11 +166,19 @@ export const OwnerPermissionsModal: React.FC<OwnerPermissionsModalProps> = ({
             : u.preferredVendor === 'ERICSSON'
             ? 'ERICSSON'
             : 'NOKIA'),
-        equipe: u.equipe || '',
-        accessReleased: u.accessReleased !== false,
+        equipe: u.equipe || u.name || '',
+        accessReleased: u.accessReleased !== false && u.situacao !== 'aguardando' && u.situacao !== 'bloqueado',
       }
     );
   };
+
+  const pendingRequestUsers = useMemo(() => {
+    return unifiedUsers.filter(
+      (u) =>
+        !isOwnerAdmUser(u.email) &&
+        (u.situacao === 'aguardando' || u.situacao === 'bloqueado' || u.accessReleased === false)
+    );
+  }, [unifiedUsers]);
 
   const updateDraftForUser = (
     u: AmetaUser,
@@ -278,7 +288,8 @@ export const OwnerPermissionsModal: React.FC<OwnerPermissionsModalProps> = ({
         data.users || nokiaUsers,
         data.ericssonUsers || ericssonUsers,
         data.notifications || [],
-        msg
+        msg,
+        data.duplaEmailsMap
       );
     } catch {
       setStatusBanner({
@@ -290,17 +301,67 @@ export const OwnerPermissionsModal: React.FC<OwnerPermissionsModalProps> = ({
     }
   };
 
-  const handleCreateOrReleaseFromTopForm = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!formName.trim() || !formEmail.trim()) {
+  const handleDeleteUser = async (targetUser: AmetaUser) => {
+    if (isOwnerAdmUser(targetUser.email, targetUser.situacao)) return;
+    setSavingId(targetUser.email.toLowerCase());
+    setStatusBanner(null);
+    try {
+      if (dataService.isConfigured()) {
+        await dataService.excluirUsuario(targetUser.uid || targetUser.id, targetUser.email);
+      }
+      const res = await fetch(`/api/admin/users/${encodeURIComponent(targetUser.id)}`, {
+        method: 'DELETE',
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setStatusBanner({
+          type: 'error',
+          text: data.error || 'Erro ao excluir usuário.',
+        });
+        return;
+      }
+      const msg = `Usuário ${targetUser.name} (${targetUser.email}) removido com sucesso.`;
+      setStatusBanner({ type: 'success', text: msg });
+      const nextNokia = Array.isArray(data.users)
+        ? data.users
+        : nokiaUsers.filter((u) => u.email.toLowerCase() !== targetUser.email.toLowerCase());
+      const nextEricsson = Array.isArray(data.ericssonUsers)
+        ? data.ericssonUsers
+        : ericssonUsers.filter((u) => u.email.toLowerCase() !== targetUser.email.toLowerCase());
+      onPermissionsUpdated(nextNokia, nextEricsson, notificationsFallback(), msg);
+    } catch {
       setStatusBanner({
         type: 'error',
-        text: 'Preencha o nome e o e-mail corporativo (@ameta) do usuário para liberar.',
+        text: 'Erro de conexão ao excluir usuário.',
+      });
+    } finally {
+      setSavingId(null);
+    }
+  };
+
+  function notificationsFallback(): AmetaNotification[] {
+    return [];
+  }
+
+  const handleCreateOrReleaseFromTopForm = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const cleanEmail = formEmail.trim().toLowerCase();
+    if (!formName.trim() || !cleanEmail) {
+      setStatusBanner({
+        type: 'error',
+        text: 'Preencha o nome e o e-mail corporativo (@ametaservicos.com.br) do usuário para liberar.',
+      });
+      return;
+    }
+    if (!cleanEmail.endsWith('@ametaservicos.com.br') && !isOwnerAdmUser(cleanEmail)) {
+      setStatusBanner({
+        type: 'error',
+        text: 'Domínio inválido: Utilize exclusivamente e-mails @ametaservicos.com.br.',
       });
       return;
     }
     await handleReleaseUser({
-      email: formEmail.trim().toLowerCase(),
+      email: cleanEmail,
       name: formName.trim(),
       password: formPassword.trim() || 'ameta2026',
       role: formRole,
@@ -309,7 +370,7 @@ export const OwnerPermissionsModal: React.FC<OwnerPermissionsModalProps> = ({
         formEquipe.trim() ||
         (formRole.includes('Coordenador')
           ? `Coordenação ${formPlatform === 'ERICSSON' ? 'Ericsson' : 'TIM/Nokia'}`
-          : 'Equipe 1'),
+          : formName.trim()),
       accessReleased: true,
     });
     setFormName('');
@@ -400,6 +461,140 @@ export const OwnerPermissionsModal: React.FC<OwnerPermissionsModalProps> = ({
             </div>
           )}
 
+          {/* Pending New User Requests Section */}
+          <div className="p-4 rounded-xl bg-amber-500/10 border-2 border-amber-500/50 space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <span className="px-2.5 py-0.5 rounded-full bg-amber-500 text-slate-950 font-black text-xs">
+                  {pendingRequestUsers.length}
+                </span>
+                <h3 className="text-xs sm:text-sm font-black uppercase tracking-wider text-amber-300">
+                  Solicitações de Novos Usuários para Liberação (@ametaservicos.com.br)
+                </h3>
+              </div>
+              <span className="text-[11px] text-amber-200/80">
+                Ao aprovar um Vistoriador/Executor, a Dupla/Equipe dele alimenta automaticamente a aba Duplas & Demanda
+              </span>
+            </div>
+
+            {pendingRequestUsers.length === 0 ? (
+              <div className="p-3 rounded-lg bg-slate-950/60 border border-slate-800 text-xs text-slate-400">
+                Nenhuma solicitação pendente no momento. Quando novos usuários criarem conta com{' '}
+                <strong className="text-slate-200">@ametaservicos.com.br</strong>, eles aparecerão aqui imediatamente para você liberar.
+              </div>
+            ) : (
+              <div className="space-y-2.5">
+                {pendingRequestUsers.map((u) => {
+                  const draft = getDraftForUser(u);
+                  const isSaving = savingId === u.email.toLowerCase();
+                  return (
+                    <div
+                      key={u.email}
+                      className="p-3.5 rounded-xl bg-slate-950 border border-amber-500/40 flex flex-col lg:flex-row lg:items-center justify-between gap-3"
+                    >
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-sm text-white">{u.name}</span>
+                          <span className="px-2 py-0.5 rounded bg-amber-500/20 border border-amber-500/40 text-amber-300 text-[10px] font-bold uppercase">
+                            Solicitou Acesso
+                          </span>
+                        </div>
+                        <div className="text-xs font-mono text-amber-200 mt-0.5">{u.email}</div>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 flex-1 max-w-2xl">
+                        <div>
+                          <label className="block text-[10px] uppercase text-slate-400 font-bold mb-0.5">
+                            Cargo / Função
+                          </label>
+                          <select
+                            value={draft.role}
+                            onChange={(e) =>
+                              updateDraftForUser(u, { role: e.target.value as UserRole })
+                            }
+                            className="w-full px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-xs font-bold text-white"
+                          >
+                            <option value="Vistoriador">Vistoriador</option>
+                            <option value="Executor">Executor</option>
+                            <option value="Coordenador Geral">Coordenador Geral</option>
+                            <option value="Coordenador Engenharia">Coordenador Engenharia</option>
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="block text-[10px] uppercase text-slate-400 font-bold mb-0.5">
+                            Plataforma
+                          </label>
+                          <select
+                            value={draft.assignedPlatform}
+                            onChange={(e) =>
+                              updateDraftForUser(u, {
+                                assignedPlatform: e.target.value as AssignedPlatformScope,
+                              })
+                            }
+                            className="w-full px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-xs font-bold text-sky-300"
+                          >
+                            <option value="NOKIA">TIM / Nokia</option>
+                            <option value="ERICSSON">Ericsson</option>
+                            <option value="BOTH">Ambas (TIM + Ericsson)</option>
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="block text-[10px] uppercase text-slate-400 font-bold mb-0.5">
+                            Dupla / Equipe (Alimenta Duplas)
+                          </label>
+                          <input
+                            type="text"
+                            list="owner-equipes-list"
+                            value={draft.equipe}
+                            onChange={(e) => updateDraftForUser(u, { equipe: e.target.value })}
+                            placeholder="Ex: Nome 1 / Nome 2"
+                            className="w-full px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-xs text-white"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 shrink-0">
+                        <button
+                          type="button"
+                          disabled={isSaving}
+                          onClick={() =>
+                            handleReleaseUser({
+                              userId: u.id,
+                              uid: u.uid || u.id,
+                              email: u.email,
+                              name: u.name,
+                              role: draft.role,
+                              assignedPlatform: draft.assignedPlatform,
+                              equipe: draft.equipe || u.name,
+                              accessReleased: true,
+                              situacao: 'ativo',
+                            })
+                          }
+                          className="px-3.5 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs uppercase tracking-wide flex items-center gap-1.5 cursor-pointer shadow-md"
+                        >
+                          <CheckCircle2 className="w-4 h-4" />
+                          <span>{isSaving ? 'Liberando...' : 'Aprovar e Liberar'}</span>
+                        </button>
+                        <button
+                          type="button"
+                          disabled={isSaving}
+                          onClick={() => handleDeleteUser(u)}
+                          className="px-2.5 py-2 rounded-lg bg-rose-500/20 hover:bg-rose-500/30 border border-rose-500/40 text-rose-300 text-xs font-bold flex items-center gap-1 cursor-pointer"
+                          title="Recusar e excluir solicitação"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                          <span>Recusar</span>
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
           {/* Quick Form: Cadastrar ou Liberar Novo Coordenador / Executor */}
           <form
             onSubmit={handleCreateOrReleaseFromTopForm}
@@ -408,7 +603,7 @@ export const OwnerPermissionsModal: React.FC<OwnerPermissionsModalProps> = ({
             <div className="flex items-center justify-between">
               <h3 className="text-xs font-bold uppercase tracking-wider text-amber-300 flex items-center gap-2">
                 <Plus className="w-4 h-4" />
-                Cadastrar ou Liberar Novo Coordenador / Executor
+                Cadastrar ou Liberar Novo Usuário (@ametaservicos.com.br)
               </h3>
               <span className="text-[11px] text-slate-400">
                 Você é o único <strong>ADM</strong>. Todos os demais terão o perfil selecionado abaixo.
@@ -431,13 +626,13 @@ export const OwnerPermissionsModal: React.FC<OwnerPermissionsModalProps> = ({
 
               <div>
                 <label className="block text-[10px] font-bold uppercase text-slate-400 mb-1">
-                  E-mail (@ameta)
+                  E-mail (@ametaservicos.com.br)
                 </label>
                 <input
                   type="email"
                   value={formEmail}
                   onChange={(e) => setFormEmail(e.target.value)}
-                  placeholder="usuario@ameta.com.br"
+                  placeholder="usuario@ametaservicos.com.br"
                   className="w-full px-3 py-2 rounded-lg bg-slate-900 border border-slate-700 text-xs text-white focus:border-amber-500 focus:outline-none"
                 />
               </div>
@@ -482,7 +677,7 @@ export const OwnerPermissionsModal: React.FC<OwnerPermissionsModalProps> = ({
                   list="owner-equipes-list"
                   value={formEquipe}
                   onChange={(e) => setFormEquipe(e.target.value)}
-                  placeholder="Ex: Magno / Gilvan ou Equipe 1"
+                  placeholder="Ex: Nome 1 / Nome 2"
                   className="w-full px-3 py-2 rounded-lg bg-slate-900 border border-slate-700 text-xs text-white focus:border-amber-500 focus:outline-none"
                 />
                 <datalist id="owner-equipes-list">
@@ -757,6 +952,17 @@ export const OwnerPermissionsModal: React.FC<OwnerPermissionsModalProps> = ({
                               >
                                 <Eye className="w-3.5 h-3.5 text-sky-400" />
                                 Simular
+                              </button>
+                            )}
+                            {!isOwner && (
+                              <button
+                                type="button"
+                                disabled={isSaving}
+                                onClick={() => handleDeleteUser(u)}
+                                className="p-1.5 rounded-lg bg-rose-500/15 hover:bg-rose-500/30 border border-rose-500/30 text-rose-300 transition-colors cursor-pointer"
+                                title="Excluir este usuário permanentemente"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
                               </button>
                             )}
                           </div>

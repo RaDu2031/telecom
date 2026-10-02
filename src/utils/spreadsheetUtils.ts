@@ -915,28 +915,19 @@ export function doesSiteMatchExecutor(site: TelecomSite, targetExecutor: string)
   return canonSiteExec.toLowerCase() === canonTargetExec.toLowerCase();
 }
 
-export const DEFAULT_EQUIPES_DUPLAS: string[] = [
-  'Bruno / Kleber',
-  'Magno / Gilvan',
-  'Malta / Luís',
-  'Magno / Luchini',
-  'Mateus / Oglio',
-  'Diego / Vagner',
-  'Alexandre / Alexandre',
-  'Magno / Mateus',
-  'Felipe / Renato',
-  'Mateus',
-  'Mateus / Luís Fernando',
-  'Magno / Alexandre da Silva',
-  'Reinaldo / Erick',
-  'Usuário Teste',
-];
+export const DEFAULT_EQUIPES_DUPLAS: string[] = [];
 
 const GENERIC_NON_DUPLA_EQUIPES = new Set([
+  'ametaservicos',
+  'ameta servicos',
+  'ametaservicos.com.br',
   'ametatelecom',
   'ameta telecom',
+  'ameta',
   'campo / engenharia',
   'campo engenharia',
+  'campo / execucao',
+  'campo execucao',
   'coordenacao / adm',
   'coordenacao adm',
   'equipe de teste',

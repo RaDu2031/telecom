@@ -149,7 +149,7 @@ export const EngineeringVistoriasTab: React.FC<EngineeringVistoriasTabProps> = (
       {
         id: 'usr-teste-1',
         name: 'Usuário Teste',
-        email: 'teste@ameta.com.br',
+        email: 'teste@ametaservicos.com.br',
         role: 'Executor' as UserRole,
         emailVerified: true,
         createdAt: '',
