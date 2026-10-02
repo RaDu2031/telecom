@@ -43,6 +43,9 @@ import {
   TSSR_SYSTEM_COLUMNS,
   TSSR_ALL_COLUMNS,
 } from '../types/telecom';
+import { cloudFetch } from '../lib/firebaseCloud';
+
+const fetch = cloudFetch;
 import {
   parseTssrWorkbookBuffer,
   getTssrColumnValue,

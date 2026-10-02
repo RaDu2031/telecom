@@ -63,7 +63,7 @@ interface DuplasInteractiveViewProps {
     targetVendor: VendorType
   ) => Promise<void>;
   onLinkEmailsToDupla: (duplaName: string, emails: string[]) => Promise<void>;
-  onSimulateDuplaView: (targetUser: AmetaUser, targetVendor: VendorType) => void;
+  onSimulateDuplaView?: (targetUser: AmetaUser, targetVendor: VendorType) => void;
   onOpenSiteDrawer: (siteId: string) => void;
 }
 
@@ -554,6 +554,7 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = ({
   };
 
   const handleSimulateSelectedDupla = () => {
+    if (!onSimulateDuplaView) return;
     const matchedUser = allRegisteredUsers.find((u) =>
       activeDuplaLinkedEmails.includes(u.email.trim().toLowerCase())
     );
@@ -913,15 +914,17 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = ({
               </div>
             </div>
 
-            <button
-              type="button"
-              onClick={handleSimulateSelectedDupla}
-              className="w-full sm:w-auto justify-center px-3.5 py-2.5 sm:py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold rounded-xl flex items-center gap-2 cursor-pointer shadow-2xs"
-              title="Ver exatamente como a planilha e os sites aparecem quando esta dupla entra no sistema"
-            >
-              <Eye className="w-4 h-4 text-blue-400 shrink-0" />
-              <span>Ver como aparece para eles ({activeAssignedCount} sites)</span>
-            </button>
+            {onSimulateDuplaView && (
+              <button
+                type="button"
+                onClick={handleSimulateSelectedDupla}
+                className="w-full sm:w-auto justify-center px-3.5 py-2.5 sm:py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold rounded-xl flex items-center gap-2 cursor-pointer shadow-2xs"
+                title="Ver exatamente como a planilha e os sites aparecem quando esta dupla entra no sistema"
+              >
+                <Eye className="w-4 h-4 text-blue-400 shrink-0" />
+                <span>Ver como aparece para eles ({activeAssignedCount} sites)</span>
+              </button>
+            )}
           </div>
 
           {/* Profile Email Linker Box (High-visibility on mobile & desktop) */}

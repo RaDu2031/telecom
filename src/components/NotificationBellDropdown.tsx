@@ -14,16 +14,27 @@ import {
   AmetaNotification,
   AmetaUser,
   doesNotificationMatchUser,
+  EngineeringFile,
+  EricssonRow,
   isOwnerAdmUser,
   normalizeUserRole,
+  TelecomSite,
   VendorType,
 } from '../types/telecom';
+import { doesFileMatchUserResponsibleSites } from '../utils/spreadsheetUtils';
+import { cloudFetch } from '../lib/firebaseCloud';
+
+const fetch = cloudFetch;
 
 interface NotificationBellDropdownProps {
   notifications: AmetaNotification[];
   effectiveUser: AmetaUser | null;
   realUser: AmetaUser | null;
   activeVendor: VendorType;
+  nokiaSites?: TelecomSite[];
+  ericssonRows?: EricssonRow[];
+  engineeringFiles?: EngineeringFile[];
+  ericssonFiles?: EngineeringFile[];
   onNotificationsUpdated: (next: AmetaNotification[]) => void;
   onNavigateToContext?: (notif: AmetaNotification) => void;
 }
@@ -32,13 +43,18 @@ export const NotificationBellDropdown: React.FC<NotificationBellDropdownProps> =
   notifications,
   effectiveUser,
   realUser,
+  nokiaSites = [],
+  ericssonRows = [],
+  engineeringFiles = [],
+  ericssonFiles = [],
   onNotificationsUpdated,
   onNavigateToContext,
 }) => {
   const [open, setOpen] = useState(false);
   const [activeFilter, setActiveFilter] = useState<
-    'ALL' | 'UNREAD' | 'DEMANDA' | 'EQUIPE' | 'VISTORIA_OK' | 'TSSR'
+    'ALL' | 'UNREAD' | 'DEMANDA' | 'ARQUIVOS_SITE' | 'EQUIPE' | 'VISTORIA_OK' | 'TSSR'
   >('ALL');
+  const [locallyReadIds, setLocallyReadIds] = useState<string[]>([]);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -56,11 +72,105 @@ export const NotificationBellDropdown: React.FC<NotificationBellDropdownProps> =
   const userEmail = (effectiveUser?.email || realUser?.email || '').trim().toLowerCase();
 
   // Filter notifications visible to the current effectiveUser (respecting role, platform, and equipe)
+  // Plus auto-generate a notification for Vistoriador when there are files associated with sites they are responsible for
   const visibleNotifications = useMemo(() => {
     if (!effectiveUser) return [];
     const role = normalizeUserRole(effectiveUser.role, effectiveUser.email);
-    return notifications.filter((n) => doesNotificationMatchUser(n, effectiveUser, role));
-  }, [notifications, effectiveUser]);
+    const baseList = notifications.filter((n) => doesNotificationMatchUser(n, effectiveUser, role));
+
+    if (role === 'Vistoriador') {
+      const syntheticList: AmetaNotification[] = [];
+
+      const matchedNokiaFiles = engineeringFiles.filter(
+        (fl) =>
+          fl.vendor === 'NOKIA' &&
+          doesFileMatchUserResponsibleSites(fl, effectiveUser, nokiaSites, ericssonRows)
+      );
+      if (matchedNokiaFiles.length > 0) {
+        const siteIds = Array.from(
+          new Set(
+            matchedNokiaFiles
+              .map((fl) => (fl.siteId || '').trim().toUpperCase())
+              .filter(Boolean)
+          )
+        );
+        const alreadyNotified = baseList.some(
+          (n) =>
+            n.type === 'ARQUIVO_ASSOCIADO_SITE_VISTORIADOR' && n.vendor === 'NOKIA'
+        );
+        if (!alreadyNotified) {
+          const synthId = `synth-vist-files-nokia-${effectiveUser.id || userEmail}-${matchedNokiaFiles.length}`;
+          syntheticList.push({
+            id: synthId,
+            type: 'ARQUIVO_ASSOCIADO_SITE_VISTORIADOR',
+            vendor: 'NOKIA',
+            title: `Arquivos Associados aos Seus Sites (${siteIds.slice(0, 4).join(', ') || 'TIM/Nokia'})`,
+            message: `Você possui ${matchedNokiaFiles.length} arquivo(s) associado(s) ao(s) site(s) [${
+              siteIds.slice(0, 6).join(', ') || 'sob sua responsabilidade'
+            }] que você está responsável por fazer.`,
+            siteId: siteIds[0],
+            fileName: matchedNokiaFiles[0]?.fileName,
+            actorName: 'Sistema de Engenharia / Vistoria',
+            actorEmail: 'engenharia@ameta.com.br',
+            targetRoles: ['Vistoriador'],
+            readByEmails: locallyReadIds.includes(synthId) && userEmail ? [userEmail] : [],
+            createdAt: matchedNokiaFiles[0]?.uploadedAt || new Date().toISOString(),
+          });
+        }
+      }
+
+      const matchedEricFiles = ericssonFiles.filter(
+        (fl) =>
+          fl.vendor === 'ERICSSON' &&
+          doesFileMatchUserResponsibleSites(fl, effectiveUser, nokiaSites, ericssonRows)
+      );
+      if (matchedEricFiles.length > 0) {
+        const siteIds = Array.from(
+          new Set(
+            matchedEricFiles
+              .map((fl) => (fl.siteId || '').trim().toUpperCase())
+              .filter(Boolean)
+          )
+        );
+        const alreadyNotified = baseList.some(
+          (n) =>
+            n.type === 'ARQUIVO_ASSOCIADO_SITE_VISTORIADOR' && n.vendor === 'ERICSSON'
+        );
+        if (!alreadyNotified) {
+          const synthId = `synth-vist-files-eric-${effectiveUser.id || userEmail}-${matchedEricFiles.length}`;
+          syntheticList.push({
+            id: synthId,
+            type: 'ARQUIVO_ASSOCIADO_SITE_VISTORIADOR',
+            vendor: 'ERICSSON',
+            title: `Arquivos Associados aos Seus Sites (${siteIds.slice(0, 4).join(', ') || 'Ericsson'})`,
+            message: `Você possui ${matchedEricFiles.length} arquivo(s) associado(s) ao(s) site(s) [${
+              siteIds.slice(0, 6).join(', ') || 'sob sua responsabilidade'
+            }] que você está responsável por fazer na Ericsson.`,
+            siteId: siteIds[0],
+            fileName: matchedEricFiles[0]?.fileName,
+            actorName: 'Sistema de Engenharia / Vistoria Ericsson',
+            actorEmail: 'engenharia@ameta.com.br',
+            targetRoles: ['Vistoriador'],
+            readByEmails: locallyReadIds.includes(synthId) && userEmail ? [userEmail] : [],
+            createdAt: matchedEricFiles[0]?.uploadedAt || new Date().toISOString(),
+          });
+        }
+      }
+
+      return [...syntheticList, ...baseList];
+    }
+
+    return baseList;
+  }, [
+    notifications,
+    effectiveUser,
+    engineeringFiles,
+    ericssonFiles,
+    nokiaSites,
+    ericssonRows,
+    locallyReadIds,
+    userEmail,
+  ]);
 
   const unreadCount = useMemo(() => {
     if (!userEmail) return 0;
@@ -74,6 +184,7 @@ export const NotificationBellDropdown: React.FC<NotificationBellDropdownProps> =
       const isUnread = !Array.isArray(n.readByEmails) || !n.readByEmails.includes(userEmail);
       if (activeFilter === 'UNREAD') return isUnread;
       if (activeFilter === 'DEMANDA') return n.type === 'SITE_DEMANDADO_EXECUTOR';
+      if (activeFilter === 'ARQUIVOS_SITE') return n.type === 'ARQUIVO_ASSOCIADO_SITE_VISTORIADOR';
       if (activeFilter === 'EQUIPE') return n.type === 'EXECUTOR_ATUALIZOU_EQUIPE';
       if (activeFilter === 'VISTORIA_OK') return n.type === 'VISTORIA_OK_PASTA';
       if (activeFilter === 'TSSR') return n.type === 'TSSR_ENVIADO_EXECUTOR';
@@ -83,6 +194,13 @@ export const NotificationBellDropdown: React.FC<NotificationBellDropdownProps> =
 
   const handleMarkRead = async (notificationId?: string, markAll = false) => {
     if (!userEmail) return;
+    if (markAll) {
+      setLocallyReadIds(visibleNotifications.map((n) => n.id));
+    } else if (notificationId) {
+      setLocallyReadIds((prev) =>
+        prev.includes(notificationId) ? prev : [...prev, notificationId]
+      );
+    }
     try {
       const res = await fetch('/api/notifications/mark-read', {
         method: 'POST',
@@ -125,9 +243,15 @@ export const NotificationBellDropdown: React.FC<NotificationBellDropdownProps> =
     switch (type) {
       case 'SITE_DEMANDADO_EXECUTOR':
         return {
-          label: 'Site Demandado → Executor',
+          label: 'Site Demandado → Campo',
           icon: Send,
           color: 'bg-sky-500/15 text-sky-300 border-sky-500/30',
+        };
+      case 'ARQUIVO_ASSOCIADO_SITE_VISTORIADOR':
+        return {
+          label: 'Arquivos no Site → Vistoriador',
+          icon: FolderCheck,
+          color: 'bg-teal-500/15 text-teal-300 border-teal-500/30',
         };
       case 'EXECUTOR_ATUALIZOU_EQUIPE':
         return {
@@ -229,6 +353,7 @@ export const NotificationBellDropdown: React.FC<NotificationBellDropdownProps> =
             {[
               { id: 'ALL', label: `Todas (${visibleNotifications.length})` },
               { id: 'UNREAD', label: `Não lidas (${unreadCount})` },
+              { id: 'ARQUIVOS_SITE', label: 'Arquivos no Site' },
               { id: 'DEMANDA', label: 'Sites Demandados' },
               { id: 'EQUIPE', label: 'Atualização Equipe' },
               { id: 'VISTORIA_OK', label: 'Vistoria OK' },

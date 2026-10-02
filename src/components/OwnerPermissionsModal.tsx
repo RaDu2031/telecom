@@ -18,8 +18,11 @@ import {
   AmetaNotification,
   AssignedPlatformScope,
   UserRole,
+  UserSituacao,
   isOwnerAdmUser,
+  isUserDono,
 } from '../types/telecom';
+import { dataService } from '../services/dataService';
 import { cloudFetch } from '../lib/firebaseCloud';
 
 const fetch = cloudFetch;
@@ -205,12 +208,13 @@ export const OwnerPermissionsModal: React.FC<OwnerPermissionsModalProps> = ({
 
   if (!isOpen) return null;
 
-  if (!isOwnerAdmUser(ownerUser?.email)) {
+  if (!isUserDono(ownerUser) && !isOwnerAdmUser(ownerUser?.email, ownerUser?.situacao)) {
     return null;
   }
 
   const handleReleaseUser = async (params: {
     userId?: string;
+    uid?: string;
     email: string;
     name: string;
     password?: string;
@@ -218,23 +222,44 @@ export const OwnerPermissionsModal: React.FC<OwnerPermissionsModalProps> = ({
     assignedPlatform: AssignedPlatformScope;
     equipe: string;
     accessReleased: boolean;
+    situacao?: UserSituacao;
   }) => {
     setSavingId(params.email.toLowerCase());
     setStatusBanner(null);
     try {
+      const nextSituacao: UserSituacao =
+        params.situacao || (params.accessReleased ? 'ativo' : 'bloqueado');
+      const platForFirestore: 'NOKIA' | 'ERICSSON' | 'AMBAS' =
+        params.assignedPlatform === 'BOTH' ? 'AMBAS' : params.assignedPlatform;
+
+      if (dataService.isConfigured()) {
+        await dataService.atualizarPermissaoUsuarioPeloDono({
+          uid: params.uid || params.userId || params.email.trim().toLowerCase(),
+          email: params.email,
+          name: params.name,
+          role: params.role,
+          plataforma: platForFirestore,
+          situacao: nextSituacao,
+          equipe: params.equipe,
+          ownerEmail: ownerUser?.email,
+        });
+      }
+
       const res = await fetch('/api/owner/permissions/release', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          ownerEmail: ownerUser?.email || 'rafael.araujo@ameta.com.br',
+          ownerEmail: ownerUser?.email || 'rafael.araujo@ametaservicos.com.br',
           ...params,
+          situacao: nextSituacao,
+          plataforma: platForFirestore,
         }),
       });
       const data = await res.json();
       if (!res.ok) {
         setStatusBanner({
           type: 'error',
-          text: data.error || 'Erro ao liberar permissão do usuário.',
+          text: data.error || 'Erro ao atualizar permissão do usuário.',
         });
         setSavingId(null);
         return;
@@ -245,7 +270,9 @@ export const OwnerPermissionsModal: React.FC<OwnerPermissionsModalProps> = ({
           : params.assignedPlatform === 'ERICSSON'
           ? 'Ericsson'
           : 'TIM/Nokia & Ericsson';
-      const msg = `Permissão liberada: ${params.name} agora é ${params.role} (${platformLabel})!`;
+      const msg = params.accessReleased
+        ? `Permissão liberada: ${params.name} agora está ATIVO como ${params.role} (${platformLabel})!`
+        : `Acesso bloqueado: ${params.name} foi marcado como BLOQUEADO / AGUARDANDO.`;
       setStatusBanner({ type: 'success', text: msg });
       onPermissionsUpdated(
         data.users || nokiaUsers,
@@ -646,13 +673,17 @@ export const OwnerPermissionsModal: React.FC<OwnerPermissionsModalProps> = ({
                             {visibilitySummary}
                           </div>
                           <div className="flex items-center gap-1.5 mt-1">
-                            {draft.accessReleased ? (
+                            {isOwner ? (
+                              <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-400">
+                                <ShieldCheck className="w-3 h-3" /> Situação: DONO (Acesso Total)
+                              </span>
+                            ) : draft.accessReleased && u.situacao !== 'aguardando' && u.situacao !== 'bloqueado' ? (
                               <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-400">
-                                <Unlock className="w-3 h-3" /> Liberado pelo ADM
+                                <Unlock className="w-3 h-3" /> Situação: ATIVO (Liberado pelo Dono)
                               </span>
                             ) : (
                               <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-400">
-                                <Lock className="w-3 h-3" /> Aguardando Liberação
+                                <Lock className="w-3 h-3" /> Situação: {u.situacao === 'bloqueado' ? 'BLOQUEADO' : 'AGUARDANDO LIBERAÇÃO'}
                               </span>
                             )}
                           </div>
@@ -661,25 +692,53 @@ export const OwnerPermissionsModal: React.FC<OwnerPermissionsModalProps> = ({
                         <td className="py-3 px-4 text-right">
                           <div className="flex items-center justify-end gap-2">
                             {!isOwner && (
-                              <button
-                                type="button"
-                                disabled={isSaving}
-                                onClick={() =>
-                                  handleReleaseUser({
-                                    userId: u.id,
-                                    email: u.email,
-                                    name: u.name,
-                                    role: draft.role,
-                                    assignedPlatform: draft.assignedPlatform,
-                                    equipe: draft.equipe,
-                                    accessReleased: true,
-                                  })
-                                }
-                                className="px-3 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-[11px] uppercase tracking-wide transition-colors flex items-center gap-1 shadow-sm"
-                              >
-                                <CheckCircle2 className="w-3.5 h-3.5" />
-                                {isSaving ? 'Salvando...' : 'Liberar / Salvar'}
-                              </button>
+                              <>
+                                <button
+                                  type="button"
+                                  disabled={isSaving}
+                                  onClick={() =>
+                                    handleReleaseUser({
+                                      userId: u.id,
+                                      uid: u.uid || u.id,
+                                      email: u.email,
+                                      name: u.name,
+                                      role: draft.role,
+                                      assignedPlatform: draft.assignedPlatform,
+                                      equipe: draft.equipe,
+                                      accessReleased: true,
+                                      situacao: 'ativo',
+                                    })
+                                  }
+                                  className="px-3 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-[11px] uppercase tracking-wide transition-colors flex items-center gap-1 shadow-sm"
+                                >
+                                  <CheckCircle2 className="w-3.5 h-3.5" />
+                                  {isSaving ? 'Salvando...' : 'Liberar / Salvar'}
+                                </button>
+                                {draft.accessReleased && (
+                                  <button
+                                    type="button"
+                                    disabled={isSaving}
+                                    onClick={() =>
+                                      handleReleaseUser({
+                                        userId: u.id,
+                                        uid: u.uid || u.id,
+                                        email: u.email,
+                                        name: u.name,
+                                        role: draft.role,
+                                        assignedPlatform: draft.assignedPlatform,
+                                        equipe: draft.equipe,
+                                        accessReleased: false,
+                                        situacao: 'aguardando',
+                                      })
+                                    }
+                                    className="px-2.5 py-1.5 rounded-lg bg-rose-500/20 hover:bg-rose-500/30 border border-rose-500/40 text-rose-300 text-[11px] font-bold flex items-center gap-1 transition-colors"
+                                    title="Voltar para Aguardando / Bloquear acesso"
+                                  >
+                                    <Lock className="w-3.5 h-3.5" />
+                                    Bloquear
+                                  </button>
+                                )}
+                              </>
                             )}
                             {onSimulateUser && !isOwner && (
                               <button

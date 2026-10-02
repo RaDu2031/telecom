@@ -6,6 +6,7 @@ import {
   CONTROLE_GERAL_COLUMNS,
   EngineeringFile,
   EngineeringFolder,
+  EricssonRow,
 } from '../types/telecom';
 
 export function getExcelColumnLetter(colIdx: number): string {
@@ -1036,6 +1037,166 @@ export function doesDocumentMatchResponsible(
   // Also match if the non-ADM user themselves uploaded the file
   if (targetEmail && file.uploadedByEmail?.trim().toLowerCase() === targetEmail) {
     return true;
+  }
+
+  return false;
+}
+
+export function doesEricssonRowMatchResponsible(
+  row: EricssonRow,
+  userOrName: { name: string; email?: string; equipe?: string } | string
+): boolean {
+  const rowEqRaw = (row.equipe || row.fields?.['EQUIPE'] || '').trim();
+  const canonRowEq = getCanonicalDuplaName(rowEqRaw) || rowEqRaw;
+  const normRowEq = normalizeAccents(canonRowEq);
+  const emailDuplaVal = (row.fields?.['E-MAIL DUPLA'] || '').trim().toLowerCase();
+
+  if (typeof userOrName === 'string') {
+    const cleanTarget = getCanonicalDuplaName(userOrName) || userOrName.trim();
+    const normTarget = normalizeAccents(cleanTarget);
+    if (!normTarget) return false;
+    return (
+      normRowEq === normTarget ||
+      normRowEq.includes(normTarget) ||
+      normTarget.includes(normRowEq)
+    );
+  }
+
+  if (userOrName.email) {
+    const targetEmail = userOrName.email.trim().toLowerCase();
+    if (targetEmail && emailDuplaVal && emailDuplaVal.includes(targetEmail)) {
+      return true;
+    }
+    if (
+      targetEmail &&
+      (row.siteAVistoriaUploadedByEmail?.trim().toLowerCase() === targetEmail ||
+        row.siteBVistoriaUploadedByEmail?.trim().toLowerCase() === targetEmail ||
+        row.losUploadedByEmail?.trim().toLowerCase() === targetEmail)
+    ) {
+      return true;
+    }
+  }
+
+  if (userOrName.equipe) {
+    const cleanUserEq = getCanonicalDuplaName(userOrName.equipe) || userOrName.equipe.trim();
+    const normUserEq = normalizeAccents(cleanUserEq);
+    if (normUserEq && !GENERIC_NON_DUPLA_EQUIPES.has(normUserEq) && normRowEq) {
+      if (
+        normRowEq === normUserEq ||
+        normRowEq.includes(normUserEq) ||
+        normUserEq.includes(normRowEq)
+      ) {
+        return true;
+      }
+    }
+  }
+
+  if (userOrName.name) {
+    const cleanUserName = userOrName.name.replace(/\s*\(.*?\)\s*/g, '').trim();
+    const normUserName = normalizeAccents(cleanUserName);
+    if (normUserName && normRowEq) {
+      if (
+        normRowEq === normUserName ||
+        normRowEq.includes(normUserName) ||
+        normUserName.includes(normRowEq)
+      ) {
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
+export function doesFileMatchUserResponsibleSites(
+  file: EngineeringFile,
+  userOrName: { name: string; email?: string; equipe?: string } | string,
+  nokiaSites: TelecomSite[] = [],
+  ericssonRows: EricssonRow[] = []
+): boolean {
+  const cleanFileSite = (file.siteId || '').trim().toUpperCase();
+  const cleanFileOc = (file.ocSitePre || '').trim().toUpperCase();
+  const cleanFileName = (file.fileName || '').trim().toUpperCase();
+
+  if (file.vendor === 'ERICSSON') {
+    const responsibleRows = ericssonRows.filter((r) =>
+      doesEricssonRowMatchResponsible(r, userOrName)
+    );
+    if (responsibleRows.length === 0) return false;
+
+    const rowIds = new Set<string>();
+    const linkedFileIds = new Set<string>();
+    const siteTokens = new Set<string>();
+
+    responsibleRows.forEach((r) => {
+      rowIds.add(r.id);
+      if (r.siteAVistoriaFileId) linkedFileIds.add(r.siteAVistoriaFileId);
+      if (r.siteBVistoriaFileId) linkedFileIds.add(r.siteBVistoriaFileId);
+      if (r.losFileId) linkedFileIds.add(r.losFileId);
+
+      [r.siteIdA, r.siteIdB, r.chaves, r.siteName].forEach((val) => {
+        const clean = (val || '').trim().toUpperCase();
+        if (clean) siteTokens.add(clean);
+      });
+    });
+
+    if (linkedFileIds.has(file.id)) return true;
+    if (file.tssrRowId && rowIds.has(file.tssrRowId)) return true;
+    if (cleanFileOc && siteTokens.has(cleanFileOc)) return true;
+
+    if (cleanFileSite) {
+      if (siteTokens.has(cleanFileSite)) return true;
+      const parts = cleanFileSite.split(/[\s[\]()↔/,-]+/).filter(Boolean);
+      if (parts.some((p) => siteTokens.has(p))) return true;
+      for (const tok of siteTokens) {
+        if (tok.length >= 4 && cleanFileSite.includes(tok)) return true;
+      }
+    }
+
+    for (const tok of siteTokens) {
+      if (tok.length >= 4 && cleanFileName.includes(tok)) return true;
+    }
+
+    return false;
+  }
+
+  // TIM / Nokia: Match against sites the user is responsible for doing
+  const responsibleSites = nokiaSites.filter(
+    (s) =>
+      s.vendor === 'NOKIA' &&
+      s.sheetName !== 'Equipes' &&
+      s.sheetName !== 'Controle Cancelados' &&
+      doesSiteMatchResponsible(s, userOrName)
+  );
+  if (responsibleSites.length === 0) return false;
+
+  const siteTokens = new Set<string>();
+  responsibleSites.forEach((s) => {
+    const sid = (s.siteId || '').trim().toUpperCase();
+    if (sid) siteTokens.add(sid);
+    const sname = (s.siteName || '').trim().toUpperCase();
+    if (sname && sname.length >= 4) siteTokens.add(sname);
+    const endId = String(s.customFields?.['END ID'] || '').trim().toUpperCase();
+    if (endId && endId.length >= 4) siteTokens.add(endId);
+    const oc = String(s.customFields?.['Oc Site Pre'] || s.ordemServico || '')
+      .trim()
+      .toUpperCase();
+    if (oc && oc.length >= 4) siteTokens.add(oc);
+  });
+
+  if (cleanFileOc && siteTokens.has(cleanFileOc)) return true;
+
+  if (cleanFileSite) {
+    if (siteTokens.has(cleanFileSite)) return true;
+    const parts = cleanFileSite.split(/[\s[\]()↔/,-]+/).filter(Boolean);
+    if (parts.some((p) => siteTokens.has(p))) return true;
+    for (const tok of siteTokens) {
+      if (tok.length >= 4 && cleanFileSite.includes(tok)) return true;
+    }
+  }
+
+  for (const tok of siteTokens) {
+    if (tok.length >= 4 && cleanFileName.includes(tok)) return true;
   }
 
   return false;

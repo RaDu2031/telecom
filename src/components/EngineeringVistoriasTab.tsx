@@ -27,6 +27,8 @@ import {
   ChevronDown,
   ChevronUp,
   Eye,
+  Pencil,
+  Bell,
 } from 'lucide-react';
 import {
   EngineeringFolder,
@@ -39,7 +41,11 @@ import {
   TssrRow,
   TssrSheetMeta,
 } from '../types/telecom';
-import { doesDocumentMatchResponsible } from '../utils/spreadsheetUtils';
+import {
+  doesDocumentMatchResponsible,
+  doesFileMatchUserResponsibleSites,
+  doesSiteMatchResponsible,
+} from '../utils/spreadsheetUtils';
 import { cloudFetch } from '../lib/firebaseCloud';
 
 const fetch = cloudFetch;
@@ -125,6 +131,7 @@ export const EngineeringVistoriasTab: React.FC<EngineeringVistoriasTabProps> = (
     !simulatedTargetUser;
   const isVistoriador = currentRole === 'Vistoriador';
   const isExecutor = currentRole === 'Executor';
+  const canCreateFolders = !isExecutor && !isVistoriador;
   const canUploadTssr = isExecutor || isAdmin;
   const canUploadVistoria = isVistoriador || isAdmin;
   const isTssrProjectsMode = (mode === 'tssr-projects' || isExecutor) && !isVistoriador;
@@ -207,13 +214,36 @@ export const EngineeringVistoriasTab: React.FC<EngineeringVistoriasTabProps> = (
     [vendorFolders]
   );
 
-  // Files visible to the current user (filtered to allowed folders so Vistoriador only sees Vistoria files)
+  // Sites that the current user (Vistoriador / Executor) is responsible for doing
+  const responsibleSites = useMemo(
+    () =>
+      sites.filter(
+        (s) =>
+          s.vendor === activeVendor &&
+          s.sheetName !== 'Equipes' &&
+          s.sheetName !== 'Controle Cancelados' &&
+          doesSiteMatchResponsible(s, activeTargetUser)
+      ),
+    [sites, activeVendor, activeTargetUser]
+  );
+
+  // Files visible to the current user:
+  // - Vistoriador ONLY sees files associated with the sites they are responsible for doing
+  // - Executor sees files associated with their responsible sites or uploaded/assigned to them
   const vendorFiles = useMemo(() => {
+    if (isVistoriador) {
+      return allVendorFiles.filter((fl) =>
+        doesFileMatchUserResponsibleSites(fl, activeTargetUser, sites)
+      );
+    }
     const folderScopedFiles = allVendorFiles.filter((fl) => allowedFolderIds.has(fl.folderId));
     if (!isAdmin) {
       return folderScopedFiles.filter((fl) => {
         const folder = allVendorFolders.find((f) => f.id === fl.folderId);
-        return doesDocumentMatchResponsible(fl, folder, activeTargetUser);
+        return (
+          doesFileMatchUserResponsibleSites(fl, activeTargetUser, sites) ||
+          doesDocumentMatchResponsible(fl, folder, activeTargetUser)
+        );
       });
     }
     if (docResponsavelFilter === 'ALL') {
@@ -224,9 +254,21 @@ export const EngineeringVistoriasTab: React.FC<EngineeringVistoriasTabProps> = (
     }
     return folderScopedFiles.filter((fl) => {
       const folder = allVendorFolders.find((f) => f.id === fl.folderId);
-      return doesDocumentMatchResponsible(fl, folder, docResponsavelFilter);
+      return (
+        doesFileMatchUserResponsibleSites(fl, docResponsavelFilter, sites) ||
+        doesDocumentMatchResponsible(fl, folder, docResponsavelFilter)
+      );
     });
-  }, [allVendorFiles, allowedFolderIds, allVendorFolders, isAdmin, activeTargetUser, docResponsavelFilter]);
+  }, [
+    allVendorFiles,
+    allowedFolderIds,
+    allVendorFolders,
+    isAdmin,
+    isVistoriador,
+    activeTargetUser,
+    sites,
+    docResponsavelFilter,
+  ]);
 
   const rootVistoriasFolder = useMemo(
     () =>
@@ -268,8 +310,10 @@ export const EngineeringVistoriasTab: React.FC<EngineeringVistoriasTabProps> = (
     [activeFolder]
   );
 
-  // Folder only shows folders (no direct file uploads at this level)
-  const isFolderOnlyLevel = isAtRootVistorias || isAtVistoriasExecutadasIndex;
+  // Folder only shows folders (no direct file uploads at this level unless Vistoriador has site-associated files)
+  const isFolderOnlyLevel =
+    (isAtRootVistorias && !isVistoriador) ||
+    (isAtVistoriasExecutadasIndex && !isVistoriador);
 
   // Only folders inside Vistorias (excluding root Vistorias and Vistorias Executadas index) can receive file uploads
   const uploadableFolders = useMemo(
@@ -283,11 +327,54 @@ export const EngineeringVistoriasTab: React.FC<EngineeringVistoriasTabProps> = (
   // Folders where the current user is allowed to create subfolders
   const creatableParentFolders = useMemo(
     () =>
-      isAdmin
+      isExecutor || isVistoriador
+        ? []
+        : isAdmin
         ? vendorFolders
         : vendorFolders.filter((f) => f.parentId !== null),
-    [vendorFolders, isAdmin]
+    [vendorFolders, isAdmin, isExecutor, isVistoriador]
   );
+
+  // Ownership helpers: Executor and Vistoriador can ONLY modify/delete folders and files they uploaded to the system
+  const isFolderUploadedByCurrentUser = (folder: EngineeringFolder): boolean => {
+    if (folder.isSystem) return false;
+    const myEmail = (activeTargetUser.email || user.email || '').trim().toLowerCase();
+    const myName = (activeTargetUser.name || user.name || '').trim().toLowerCase();
+    const fEmail = (folder.createdByEmail || '').trim().toLowerCase();
+    const fName = (folder.createdByName || '').trim().toLowerCase();
+    if (myEmail && fEmail && myEmail === fEmail) return true;
+    if (myName && fName && myName === fName) return true;
+    return false;
+  };
+
+  const canModifyFolder = (folder: EngineeringFolder): boolean => {
+    if (folder.isSystem) return false;
+    const isMainUnderRoot = folder.parentId === rootVistoriasFolder?.id;
+    if (isMainUnderRoot && !isAdmin) return false;
+    if (isExecutor || isVistoriador) {
+      return isFolderUploadedByCurrentUser(folder);
+    }
+    return true;
+  };
+
+  const isFileUploadedByCurrentUser = (file: EngineeringFile): boolean => {
+    const myEmail = (activeTargetUser.email || user.email || '').trim().toLowerCase();
+    const myName = (activeTargetUser.name || user.name || '').trim().toLowerCase();
+    const flEmail = (file.uploadedByEmail || '').trim().toLowerCase();
+    const flName = (file.uploadedByName || '').trim().toLowerCase();
+    if (myEmail && flEmail && myEmail === flEmail) return true;
+    if (myName && flName && myName === flName) return true;
+    const parentFolder = vendorFolders.find((f) => f.id === file.folderId);
+    if (parentFolder && isFolderUploadedByCurrentUser(parentFolder)) return true;
+    return false;
+  };
+
+  const canModifyFile = (file: EngineeringFile): boolean => {
+    if (isExecutor || isVistoriador) {
+      return isFileUploadedByCurrentUser(file);
+    }
+    return true;
+  };
 
   // Search filter inside Vistorias
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -318,6 +405,7 @@ export const EngineeringVistoriasTab: React.FC<EngineeringVistoriasTabProps> = (
   const [newTssrEnderecoId, setNewTssrEnderecoId] = useState<string>('');
   const [uploadNotes, setUploadNotes] = useState<string>('');
   const [uploadAssignedTo, setUploadAssignedTo] = useState<string>('');
+  const [uploadedFolderName, setUploadedFolderName] = useState<string>('');
   const [pendingFiles, setPendingFiles] = useState<
     Array<{
       fileName: string;
@@ -329,7 +417,29 @@ export const EngineeringVistoriasTab: React.FC<EngineeringVistoriasTabProps> = (
   const [uploading, setUploading] = useState<boolean>(false);
   const [isDraggingOver, setIsDraggingOver] = useState<boolean>(false);
 
+  // Edit Folder Modal state (only for folders the user is allowed to modify)
+  const [editingFolder, setEditingFolder] = useState<EngineeringFolder | null>(null);
+  const [editFolderName, setEditFolderName] = useState<string>('');
+  const [editFolderDescription, setEditFolderDescription] = useState<string>('');
+  const [editFolderError, setEditFolderError] = useState<string | null>(null);
+  const [savingFolderEdit, setSavingFolderEdit] = useState<boolean>(false);
+
+  // Edit / Modify File Modal state (only for files/packages the user is allowed to modify)
+  const [editingFile, setEditingFile] = useState<EngineeringFile | null>(null);
+  const [editFileName, setEditFileName] = useState<string>('');
+  const [editFileNotes, setEditFileNotes] = useState<string>('');
+  const [editFileSiteId, setEditFileSiteId] = useState<string>('');
+  const [editFileReplacement, setEditFileReplacement] = useState<{
+    fileName: string;
+    fileSize: number;
+    base64Data: string;
+  } | null>(null);
+  const [editFileError, setEditFileError] = useState<string | null>(null);
+  const [savingFileEdit, setSavingFileEdit] = useState<boolean>(false);
+
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const folderInputRef = useRef<HTMLInputElement | null>(null);
+  const replaceFileInputRef = useRef<HTMLInputElement | null>(null);
 
   // TSSR TIM Nokia rows for searchable site selector
   const tssrNokiaRows = useMemo(
@@ -403,18 +513,16 @@ export const EngineeringVistoriasTab: React.FC<EngineeringVistoriasTabProps> = (
     );
   }, [vendorFolders, effectiveFolderId, searchQuery]);
 
-  // Direct files in the current folder (only inside subfolders, or when searching)
+  // Direct files in the current folder (only inside subfolders, or when searching, or at root/index for Vistoriador to show all files associated with their responsible sites)
   const displayedFiles = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
-    if (isAtRootVistorias && !q) {
+    if (isAtRootVistorias && !q && !isVistoriador) {
       return [];
     }
-    const base = q
-      ? vendorFiles.filter((fl) => {
-          const folder = vendorFolders.find((f) => f.id === fl.folderId);
-          return folder ? folder.parentId !== null : true;
-        })
-      : vendorFiles.filter((fl) => fl.folderId === effectiveFolderId);
+    const base =
+      q || (isVistoriador && (isAtRootVistorias || isAtVistoriasExecutadasIndex))
+        ? vendorFiles
+        : vendorFiles.filter((fl) => fl.folderId === effectiveFolderId);
 
     return base.filter((fl) => {
       if (uploaderFilter !== 'ALL' && fl.uploadedByName !== uploaderFilter) {
@@ -429,7 +537,15 @@ export const EngineeringVistoriasTab: React.FC<EngineeringVistoriasTabProps> = (
         fl.extension.toLowerCase().includes(q)
       );
     });
-  }, [vendorFiles, vendorFolders, effectiveFolderId, searchQuery, uploaderFilter, isAtRootVistorias]);
+  }, [
+    vendorFiles,
+    effectiveFolderId,
+    searchQuery,
+    uploaderFilter,
+    isAtRootVistorias,
+    isAtVistoriasExecutadasIndex,
+    isVistoriador,
+  ]);
 
   // All unique uploader names for quick filtering
   const uniqueUploaders = useMemo(() => {
@@ -465,6 +581,7 @@ export const EngineeringVistoriasTab: React.FC<EngineeringVistoriasTabProps> = (
   }, [vendorFolders, rootVistoriasFolder]);
 
   const openCreateFolderModal = (parentId?: string) => {
+    if (isExecutor || isVistoriador) return;
     const targetParent = parentId || effectiveFolderId;
     const parentObj = vendorFolders.find((f) => f.id === targetParent);
     if ((!parentObj || parentObj.parentId === null) && !isAdmin) {
@@ -499,6 +616,7 @@ export const EngineeringVistoriasTab: React.FC<EngineeringVistoriasTabProps> = (
     setNewTssrUf('');
     setNewTssrCidade('');
     setNewTssrEnderecoId('');
+    setUploadedFolderName('');
     setUploadNotes(
       isExecutor ? '[TSSR] Enviado pelo Executor para Coordenação de Engenharia' : ''
     );
@@ -518,11 +636,19 @@ export const EngineeringVistoriasTab: React.FC<EngineeringVistoriasTabProps> = (
     }
   };
 
-  const handleReadSelectedFiles = (fileList: FileList | null) => {
+  const handleReadSelectedFiles = (fileList: FileList | null, fromDirectoryPicker = false) => {
     if (!fileList || fileList.length === 0) return;
     setUploadError(null);
 
     const fileArray = Array.from(fileList);
+    if (fromDirectoryPicker && fileArray.length > 0) {
+      const firstRel = String((fileArray[0] as unknown as { webkitRelativePath?: string }).webkitRelativePath || '');
+      const topFolder = firstRel.includes('/') ? firstRel.split('/')[0].trim() : '';
+      if (topFolder) {
+        setUploadedFolderName(topFolder);
+      }
+    }
+
     Promise.all(
       fileArray.map(
         (file) =>
@@ -687,6 +813,7 @@ export const EngineeringVistoriasTab: React.FC<EngineeringVistoriasTabProps> = (
             : undefined,
           notes: uploadNotes.trim() || undefined,
           assignedTo: uploadAssignedTo.trim() || undefined,
+          uploadedFolderName: uploadedFolderName.trim() || undefined,
           files: pendingFiles,
         }),
       });
@@ -699,7 +826,9 @@ export const EngineeringVistoriasTab: React.FC<EngineeringVistoriasTabProps> = (
 
       if (Array.isArray(data.engineeringFolders) && Array.isArray(data.engineeringFiles)) {
         const targetFolderName =
-          allVendorFolders.find((f) => f.id === uploadTargetFolderId)?.name || 'Pasta';
+          uploadedFolderName.trim() ||
+          allVendorFolders.find((f) => f.id === uploadTargetFolderId)?.name ||
+          'Pasta';
         onFoldersAndFilesUpdated(
           data.engineeringFolders,
           data.engineeringFiles,
@@ -710,9 +839,10 @@ export const EngineeringVistoriasTab: React.FC<EngineeringVistoriasTabProps> = (
           data.tssrSheets
         );
       }
-      setCurrentFolderId(uploadTargetFolderId);
+      setCurrentFolderId(data.targetFolderId || uploadTargetFolderId);
       setUploadModalOpen(false);
       setPendingFiles([]);
+      setUploadedFolderName('');
     } catch {
       setUploadError('Erro de rede ao transferir arquivos.');
     } finally {
@@ -720,17 +850,127 @@ export const EngineeringVistoriasTab: React.FC<EngineeringVistoriasTabProps> = (
     }
   };
 
+  const openEditFolderModal = (folder: EngineeringFolder, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!canModifyFolder(folder)) return;
+    setEditingFolder(folder);
+    setEditFolderName(folder.name);
+    setEditFolderDescription(folder.description || '');
+    setEditFolderError(null);
+  };
+
+  const handleEditFolderSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingFolder) return;
+    setEditFolderError(null);
+    if (!editFolderName.trim()) {
+      setEditFolderError('Informe o nome da pasta.');
+      return;
+    }
+    setSavingFolderEdit(true);
+    try {
+      const res = await fetch(`/api/engineering/folders/${encodeURIComponent(editingFolder.id)}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: editFolderName.trim(),
+          description: editFolderDescription.trim(),
+          actorName: activeTargetUser.name,
+          actorEmail: activeTargetUser.email,
+          actorRole: currentRole,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setEditFolderError(data.error || 'Não foi possível modificar a pasta.');
+        return;
+      }
+      if (Array.isArray(data.engineeringFolders)) {
+        onFoldersAndFilesUpdated(
+          data.engineeringFolders,
+          data.engineeringFiles || files,
+          `Pasta "${editFolderName.trim()}" modificada com sucesso!`
+        );
+      }
+      setEditingFolder(null);
+    } catch {
+      setEditFolderError('Falha de conexão ao modificar pasta.');
+    } finally {
+      setSavingFolderEdit(false);
+    }
+  };
+
+  const openEditFileModal = (file: EngineeringFile) => {
+    if (!canModifyFile(file)) return;
+    setEditingFile(file);
+    setEditFileName(file.fileName);
+    setEditFileNotes(file.notes || '');
+    setEditFileSiteId(file.siteId || '');
+    setEditFileReplacement(null);
+    setEditFileError(null);
+  };
+
+  const handleEditFileSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingFile) return;
+    setEditFileError(null);
+    if (!editFileName.trim() && !editFileReplacement) {
+      setEditFileError('Informe o nome do arquivo ou selecione um novo arquivo.');
+      return;
+    }
+    setSavingFileEdit(true);
+    try {
+      const res = await fetch(`/api/engineering/files/${encodeURIComponent(editingFile.id)}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fileName: editFileReplacement ? editFileReplacement.fileName : editFileName.trim(),
+          fileSize: editFileReplacement ? editFileReplacement.fileSize : undefined,
+          base64Data: editFileReplacement ? editFileReplacement.base64Data : undefined,
+          notes: editFileNotes.trim(),
+          siteId: editFileSiteId.trim().toUpperCase(),
+          actorName: activeTargetUser.name,
+          actorEmail: activeTargetUser.email,
+          actorRole: currentRole,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setEditFileError(data.error || 'Não foi possível modificar o arquivo.');
+        return;
+      }
+      if (Array.isArray(data.engineeringFiles)) {
+        onFoldersAndFilesUpdated(
+          data.engineeringFolders || folders,
+          data.engineeringFiles,
+          `Arquivo "${data.file?.fileName || editFileName.trim()}" modificado com sucesso!`
+        );
+      }
+      setEditingFile(null);
+      setEditFileReplacement(null);
+    } catch {
+      setEditFileError('Falha de conexão ao modificar arquivo.');
+    } finally {
+      setSavingFileEdit(false);
+    }
+  };
+
   const handleDeleteFolder = async (folder: EngineeringFolder, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (folder.isSystem) return;
-    // Root-level main folders can only be deleted by Admin
-    const isMainUnderRoot = folder.parentId === rootVistoriasFolder?.id;
-    if (isMainUnderRoot && !isAdmin) return;
+    if (!canModifyFolder(folder)) return;
 
     try {
-      const res = await fetch(`/api/engineering/folders/${encodeURIComponent(folder.id)}`, {
-        method: 'DELETE',
+      const q = new URLSearchParams({
+        actorEmail: activeTargetUser.email || '',
+        actorName: activeTargetUser.name || '',
+        actorRole: currentRole,
       });
+      const res = await fetch(
+        `/api/engineering/folders/${encodeURIComponent(folder.id)}?${q.toString()}`,
+        {
+          method: 'DELETE',
+        }
+      );
       if (res.ok) {
         const data = await res.json();
         onFoldersAndFilesUpdated(
@@ -748,10 +988,19 @@ export const EngineeringVistoriasTab: React.FC<EngineeringVistoriasTabProps> = (
   };
 
   const handleDeleteFile = async (file: EngineeringFile) => {
+    if (!canModifyFile(file)) return;
     try {
-      const res = await fetch(`/api/engineering/files/${encodeURIComponent(file.id)}`, {
-        method: 'DELETE',
+      const q = new URLSearchParams({
+        actorEmail: activeTargetUser.email || '',
+        actorName: activeTargetUser.name || '',
+        actorRole: currentRole,
       });
+      const res = await fetch(
+        `/api/engineering/files/${encodeURIComponent(file.id)}?${q.toString()}`,
+        {
+          method: 'DELETE',
+        }
+      );
       if (res.ok) {
         const data = await res.json();
         onFoldersAndFilesUpdated(
@@ -876,6 +1125,66 @@ export const EngineeringVistoriasTab: React.FC<EngineeringVistoriasTabProps> = (
   return (
     <div className="space-y-4">
       {/* =====================================================================
+          VISTORIADOR SITE-ASSOCIATED FILES NOTIFICATION BANNER
+         ===================================================================== */}
+      {isVistoriador && (
+        <div
+          className={`rounded-xl p-4 border shadow-2xs flex flex-wrap items-center justify-between gap-3 text-xs ${
+            vendorFiles.length > 0
+              ? 'bg-teal-50/90 border-teal-300 text-teal-950'
+              : 'bg-slate-50 border-slate-200 text-slate-700'
+          }`}
+        >
+          <div className="flex items-start sm:items-center gap-3">
+            <div
+              className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 border ${
+                vendorFiles.length > 0
+                  ? 'bg-teal-600 text-white border-teal-700'
+                  : 'bg-white text-slate-500 border-slate-200'
+              }`}
+            >
+              <Bell className="w-4 h-4" />
+            </div>
+            <div>
+              <div className="font-bold text-xs flex items-center gap-2 flex-wrap">
+                <span>
+                  {vendorFiles.length > 0
+                    ? `Notificação de Vistoria: Você possui ${vendorFiles.length} arquivo(s) associado(s) ao(s) site(s) sob sua responsabilidade!`
+                    : 'Filtro de Vistoriador Ativo: Exibindo apenas arquivos associados aos sites sob sua responsabilidade'}
+                </span>
+                <span className="px-2 py-0.5 rounded bg-white/80 border border-teal-200 text-[10px] font-mono font-bold text-teal-900">
+                  {responsibleSites.length} site(s) sob sua responsabilidade
+                </span>
+              </div>
+              <p className="text-[11px] opacity-85 mt-0.5">
+                {vendorFiles.length > 0 ? (
+                  <>
+                    Sites com arquivos associados:{' '}
+                    <strong className="font-mono">
+                      {Array.from(
+                        new Set(
+                          vendorFiles
+                            .map((f) => (f.siteId || '').trim().toUpperCase())
+                            .filter(Boolean)
+                        )
+                      ).join(', ') || 'Seus sites'}
+                    </strong>
+                    . Você pode visualizar, baixar ou subir novos pacotes, e só pode excluir pastas/arquivos enviados por você.
+                  </>
+                ) : (
+                  <>
+                    No momento não há arquivos carregados para os{' '}
+                    <strong>{responsibleSites.length}</strong> site(s) atribuídos a{' '}
+                    <strong>{activeTargetUser.equipe || activeTargetUser.name}</strong>. Você só verá arquivos que estiverem associados aos sites que você está responsável por fazer.
+                  </>
+                )}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* =====================================================================
           TOP HEADER CARD: PASTA VISTORIAS (ENGENHARIA) + QUICK CATEGORY TABS
          ===================================================================== */}
       <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-2xs space-y-4">
@@ -943,7 +1252,7 @@ export const EngineeringVistoriasTab: React.FC<EngineeringVistoriasTabProps> = (
               </button>
             )}
 
-            {!isAtRootVistorias && (
+            {!isAtRootVistorias && canCreateFolders && (
               <button
                 type="button"
                 onClick={() => openCreateFolderModal(effectiveFolderId)}
@@ -1370,7 +1679,7 @@ export const EngineeringVistoriasTab: React.FC<EngineeringVistoriasTabProps> = (
                   : `Pastas em ${activeFolder?.name}`}
               </span>
 
-              {(!isAtRootVistorias || isAdmin) && (
+              {(!isAtRootVistorias || isAdmin) && canCreateFolders && (
                 <button
                   type="button"
                   onClick={() => openCreateFolderModal(effectiveFolderId)}
@@ -1387,8 +1696,8 @@ export const EngineeringVistoriasTab: React.FC<EngineeringVistoriasTabProps> = (
             <div className="divide-y divide-slate-100">
               {childFolders.map((sub) => {
                 const stats = getFolderStats(sub.id);
-                const isMainUnderRoot = sub.parentId === rootVistoriasFolder?.id;
-                const canDeleteSub = !sub.isSystem && (!isMainUnderRoot || isAdmin);
+                const canModifySub = canModifyFolder(sub);
+                const isOwnSub = isFolderUploadedByCurrentUser(sub);
 
                 return (
                   <div
@@ -1404,25 +1713,36 @@ export const EngineeringVistoriasTab: React.FC<EngineeringVistoriasTabProps> = (
                       </div>
 
                       <div className="min-w-0">
-                        <div className="text-sm font-semibold text-slate-900 group-hover:text-blue-600 transition-colors flex items-center gap-2">
+                        <div className="text-sm font-semibold text-slate-900 group-hover:text-blue-600 transition-colors flex items-center gap-2 flex-wrap">
                           <span>{sub.name}</span>
                           {sub.isSystem && (
                             <span className="px-2 py-0.5 text-[10px] font-bold uppercase bg-blue-50 text-blue-700 rounded border border-blue-200">
                               Pasta Principal
                             </span>
                           )}
+                          {(isExecutor || isVistoriador) && isOwnSub && (
+                            <span className="px-2 py-0.5 text-[10px] font-bold uppercase bg-emerald-50 text-emerald-700 rounded border border-emerald-200">
+                              Sua pasta (Pode modificar/excluir)
+                            </span>
+                          )}
+                          {(isExecutor || isVistoriador) && !isOwnSub && (
+                            <span className="px-2 py-0.5 text-[10px] font-semibold bg-slate-100 text-slate-500 rounded border border-slate-200 inline-flex items-center gap-1">
+                              <Lock className="w-2.5 h-2.5" />
+                              <span>Somente Leitura (Não pode excluir)</span>
+                            </span>
+                          )}
                         </div>
                         <div className="text-[11px] text-slate-500 flex items-center gap-3 mt-0.5">
                           {sub.description && <span className="truncate">{sub.description}</span>}
                           <span>
-                            Criada por: <strong className="text-slate-700">{sub.createdByName}</strong>
+                            Enviada/Criada por: <strong className="text-slate-700">{sub.createdByName}</strong>
                           </span>
                         </div>
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-3 shrink-0">
-                      <div className="text-right hidden sm:block">
+                    <div className="flex items-center gap-2 shrink-0">
+                      <div className="text-right hidden sm:block mr-1">
                         <div className="text-xs font-mono font-semibold text-slate-700 tabular-nums">
                           {stats.totalFiles} arquivo(s)
                         </div>
@@ -1431,15 +1751,26 @@ export const EngineeringVistoriasTab: React.FC<EngineeringVistoriasTabProps> = (
                         </div>
                       </div>
 
-                      {canDeleteSub && (
-                        <button
-                          type="button"
-                          onClick={(e) => handleDeleteFolder(sub, e)}
-                          className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
-                          title="Excluir pasta"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                      {canModifySub && (
+                        <>
+                          <button
+                            type="button"
+                            onClick={(e) => openEditFolderModal(sub, e)}
+                            className="px-2.5 py-1.5 text-xs font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-lg transition-colors inline-flex items-center gap-1 cursor-pointer"
+                            title="Modificar pasta enviada"
+                          >
+                            <Pencil className="w-3.5 h-3.5" />
+                            <span className="hidden sm:inline">Modificar</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={(e) => handleDeleteFolder(sub, e)}
+                            className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
+                            title="Excluir pasta"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </>
                       )}
 
                       <span className="inline-flex items-center gap-1 text-xs font-semibold text-blue-600 group-hover:translate-x-0.5 transition-transform">
@@ -1485,18 +1816,20 @@ export const EngineeringVistoriasTab: React.FC<EngineeringVistoriasTabProps> = (
                   <Upload className="w-4 h-4" />
                   <span>
                     {isExecutor
-                      ? 'Subir TSSR (.ZIP / .RAR / Docs)'
+                      ? 'Subir Pasta / TSSR (.ZIP / .RAR / Docs)'
                       : 'Carregar Arquivo (.ZIP / .RAR / Docs)'}
                   </span>
                 </button>
-                <button
-                  type="button"
-                  onClick={() => openCreateFolderModal(effectiveFolderId)}
-                  className="px-3.5 py-2 bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 text-xs font-semibold rounded-lg flex items-center gap-1.5 cursor-pointer"
-                >
-                  <FolderPlus className="w-4 h-4 text-amber-500" />
-                  <span>+ Criar Subpasta em {activeFolder?.name}</span>
-                </button>
+                {canCreateFolders && (
+                  <button
+                    type="button"
+                    onClick={() => openCreateFolderModal(effectiveFolderId)}
+                    className="px-3.5 py-2 bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 text-xs font-semibold rounded-lg flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <FolderPlus className="w-4 h-4 text-amber-500" />
+                    <span>+ Criar Subpasta em {activeFolder?.name}</span>
+                  </button>
+                )}
               </div>
             </div>
           </div>
@@ -1510,21 +1843,23 @@ export const EngineeringVistoriasTab: React.FC<EngineeringVistoriasTabProps> = (
                 Documentos e Projetos Carregados em {activeFolder?.name} ({displayedFiles.length})
               </span>
               <div className="flex items-center gap-3 normal-case">
-                <button
-                  type="button"
-                  onClick={() => openCreateFolderModal(effectiveFolderId)}
-                  className="text-slate-700 hover:text-blue-600 font-semibold flex items-center gap-1 cursor-pointer"
-                >
-                  <FolderPlus className="w-3.5 h-3.5 text-amber-600" />
-                  <span>+ Nova Subpasta</span>
-                </button>
+                {canCreateFolders && (
+                  <button
+                    type="button"
+                    onClick={() => openCreateFolderModal(effectiveFolderId)}
+                    className="text-slate-700 hover:text-blue-600 font-semibold flex items-center gap-1 cursor-pointer"
+                  >
+                    <FolderPlus className="w-3.5 h-3.5 text-amber-600" />
+                    <span>+ Nova Subpasta</span>
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={() => openUploadModal(effectiveFolderId)}
                   className="text-blue-600 hover:text-blue-700 font-bold flex items-center gap-1 cursor-pointer"
                 >
                   <Upload className="w-3.5 h-3.5" />
-                  <span>{isExecutor ? '+ Subir TSSR Aqui' : '+ Carregar Arquivo Aqui'}</span>
+                  <span>{isExecutor ? '+ Subir Pasta / TSSR Aqui' : '+ Carregar Arquivo Aqui'}</span>
                 </button>
               </div>
             </div>
@@ -1687,14 +2022,36 @@ export const EngineeringVistoriasTab: React.FC<EngineeringVistoriasTabProps> = (
                                 <span>Baixar</span>
                               </a>
 
-                              <button
-                                type="button"
-                                onClick={() => handleDeleteFile(file)}
-                                className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
-                                title="Remover arquivo"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
+                              {canModifyFile(file) ? (
+                                <>
+                                  <button
+                                    type="button"
+                                    onClick={() => openEditFileModal(file)}
+                                    className="px-2.5 py-1.5 bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 font-semibold rounded-lg transition-colors inline-flex items-center gap-1 cursor-pointer"
+                                    title="Modificar arquivo / pacote enviado por você"
+                                  >
+                                    <Pencil className="w-3.5 h-3.5" />
+                                    <span>Modificar</span>
+                                  </button>
+
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDeleteFile(file)}
+                                    className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
+                                    title="Remover arquivo"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </button>
+                                </>
+                              ) : (
+                                <span
+                                  className="px-2 py-1 rounded bg-slate-100 text-slate-500 text-[10px] font-semibold inline-flex items-center gap-1"
+                                  title="Você só pode modificar pastas e arquivos que você mesmo subiu para o sistema"
+                                >
+                                  <Lock className="w-3 h-3" />
+                                  <span>Somente Leitura</span>
+                                </span>
+                              )}
                             </div>
                           </td>
                         </tr>
@@ -2120,28 +2477,70 @@ export const EngineeringVistoriasTab: React.FC<EngineeringVistoriasTabProps> = (
                 </div>
               </div>
 
-              {/* File Picker Dropzone (.zip, .rar WinRAR, .7z, .xlsx, .pdf, etc.) */}
-              <div>
+              {/* File Picker Dropzone (.zip, .rar WinRAR, .7z, .xlsx, .pdf, or Entire Folder) */}
+              <div className="space-y-2.5">
                 <input
                   ref={fileInputRef}
                   type="file"
                   multiple
                   accept=".zip,.rar,.7z,.tar,.gz,.xlsx,.xls,.csv,.pdf,.doc,.docx,.ppt,.pptx,.dwg,.kmz,.kml,image/*,*/*"
-                  onChange={(e) => handleReadSelectedFiles(e.target.files)}
+                  onChange={(e) => handleReadSelectedFiles(e.target.files, false)}
                   className="hidden"
                 />
-                <div
-                  onClick={() => fileInputRef.current?.click()}
-                  className="border-2 border-dashed border-slate-300 hover:border-blue-600 bg-slate-50 hover:bg-blue-50/40 rounded-xl p-5 text-center cursor-pointer transition-colors space-y-1.5"
-                >
-                  <FileArchive className="w-7 h-7 text-blue-600 mx-auto" />
-                  <div className="text-xs font-bold text-slate-800">
-                    Clique para selecionar arquivos .ZIP, WinRAR (.RAR) ou Documentos
+                <input
+                  ref={folderInputRef}
+                  type="file"
+                  multiple
+                  {...({ webkitdirectory: '', directory: '' } as React.InputHTMLAttributes<HTMLInputElement>)}
+                  onChange={(e) => handleReadSelectedFiles(e.target.files, true)}
+                  className="hidden"
+                />
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  <div
+                    onClick={() => fileInputRef.current?.click()}
+                    className="border-2 border-dashed border-slate-300 hover:border-blue-600 bg-slate-50 hover:bg-blue-50/40 rounded-xl p-4 text-center cursor-pointer transition-colors space-y-1"
+                  >
+                    <FileArchive className="w-6 h-6 text-blue-600 mx-auto" />
+                    <div className="text-xs font-bold text-slate-800">
+                      Selecionar Pacote (.ZIP / .RAR) ou Arquivos
+                    </div>
+                    <div className="text-[11px] text-slate-500">
+                      Arquivos compactados, planilhas, PDFs e croquis
+                    </div>
                   </div>
-                  <div className="text-[11px] text-slate-500">
-                    Suporta pacotes compactados (.zip, .rar, .7z), planilhas (.xlsx), PDFs, fotos e croquis
+
+                  <div
+                    onClick={() => folderInputRef.current?.click()}
+                    className="border-2 border-dashed border-amber-300 hover:border-amber-600 bg-amber-50/40 hover:bg-amber-50/80 rounded-xl p-4 text-center cursor-pointer transition-colors space-y-1"
+                  >
+                    <FolderOpen className="w-6 h-6 text-amber-600 mx-auto" />
+                    <div className="text-xs font-bold text-slate-800">
+                      Subir Pasta Inteira do Computador
+                    </div>
+                    <div className="text-[11px] text-slate-500">
+                      Envia a pasta com todos os arquivos (você poderá modificá-la depois)
+                    </div>
                   </div>
                 </div>
+
+                {uploadedFolderName && (
+                  <div className="p-2.5 bg-amber-50 border border-amber-200 rounded-xl flex items-center justify-between gap-2 text-xs">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <Folder className="w-4 h-4 text-amber-600 fill-amber-400 shrink-0" />
+                      <span className="text-amber-900 truncate">
+                        Pasta que será enviada: <strong>{uploadedFolderName}</strong>
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setUploadedFolderName('')}
+                      className="text-amber-700 hover:text-amber-950 text-[11px] font-semibold cursor-pointer"
+                    >
+                      Limpar pasta
+                    </button>
+                  </div>
+                )}
               </div>
 
               {/* Selected Files List */}
@@ -2194,6 +2593,238 @@ export const EngineeringVistoriasTab: React.FC<EngineeringVistoriasTabProps> = (
                       ? 'Carregando Arquivos...'
                       : `Confirmar Carregamento (${pendingFiles.length})`}
                   </span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* =====================================================================
+          MODAL 3: MODIFICAR PASTA ENVIADA (SOMENTE PASTAS QUE O USUÁRIO SUBIU)
+         ===================================================================== */}
+      {editingFolder && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-[2px]"
+          onClick={() => setEditingFolder(null)}
+        >
+          <div
+            className="w-full max-w-md bg-white border border-slate-200 rounded-2xl shadow-xl overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="px-5 py-4 border-b border-slate-200 flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <Pencil className="w-4 h-4 text-blue-600" />
+                <h3 className="text-sm font-bold text-slate-900">
+                  Modificar Pasta Enviada
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setEditingFolder(null)}
+                className="p-1 text-slate-400 hover:text-slate-700 rounded-lg cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleEditFolderSubmit} className="p-5 space-y-4">
+              {editFolderError && (
+                <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700 flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  <span>{editFolderError}</span>
+                </div>
+              )}
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Nome da Pasta *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={editFolderName}
+                  onChange={(e) => setEditFolderName(e.target.value)}
+                  className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs text-slate-900 focus:outline-none focus:border-blue-600"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Descrição / Observação
+                </label>
+                <input
+                  type="text"
+                  value={editFolderDescription}
+                  onChange={(e) => setEditFolderDescription(e.target.value)}
+                  className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs text-slate-900 focus:outline-none focus:border-blue-600"
+                />
+              </div>
+
+              <div className="p-3 bg-blue-50/70 border border-blue-200 rounded-xl flex items-center justify-between gap-2">
+                <span className="text-xs text-blue-900 font-medium">
+                  Deseja subir novos arquivos dentro desta pasta?
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const targetId = editingFolder.id;
+                    setEditingFolder(null);
+                    openUploadModal(targetId);
+                  }}
+                  className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg shrink-0 cursor-pointer flex items-center gap-1"
+                >
+                  <Upload className="w-3.5 h-3.5" />
+                  <span>Subir Arquivos</span>
+                </button>
+              </div>
+
+              <div className="pt-2 flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setEditingFolder(null)}
+                  className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={savingFolderEdit}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-xs font-semibold rounded-lg cursor-pointer"
+                >
+                  {savingFolderEdit ? 'Salvando...' : 'Salvar Alterações'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* =====================================================================
+          MODAL 4: MODIFICAR ARQUIVO / PACOTE ENVIADO
+         ===================================================================== */}
+      {editingFile && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-[2px]"
+          onClick={() => setEditingFile(null)}
+        >
+          <div
+            className="w-full max-w-md bg-white border border-slate-200 rounded-2xl shadow-xl overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="px-5 py-4 border-b border-slate-200 flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <Pencil className="w-4 h-4 text-purple-600" />
+                <h3 className="text-sm font-bold text-slate-900">
+                  Modificar Pasta / Pacote Enviado
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setEditingFile(null)}
+                className="p-1 text-slate-400 hover:text-slate-700 rounded-lg cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleEditFileSubmit} className="p-5 space-y-4">
+              {editFileError && (
+                <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700 flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  <span>{editFileError}</span>
+                </div>
+              )}
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Nome do Arquivo / Pacote *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={editFileName}
+                  onChange={(e) => setEditFileName(e.target.value)}
+                  className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs text-slate-900 focus:outline-none focus:border-blue-600"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Site ID Vinculado
+                </label>
+                <input
+                  type="text"
+                  value={editFileSiteId}
+                  onChange={(e) => setEditFileSiteId(e.target.value.toUpperCase())}
+                  className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-mono font-bold text-slate-900 focus:outline-none focus:border-blue-600"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Observações / Revisão
+                </label>
+                <input
+                  type="text"
+                  value={editFileNotes}
+                  onChange={(e) => setEditFileNotes(e.target.value)}
+                  className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs text-slate-900 focus:outline-none focus:border-blue-600"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Substituir Arquivo / Pacote (Opcional)
+                </label>
+                <input
+                  ref={replaceFileInputRef}
+                  type="file"
+                  accept=".zip,.rar,.7z,.tar,.gz,.xlsx,.xls,.csv,.pdf,.doc,.docx,.ppt,.pptx,.dwg,.kmz,.kml,image/*,*/*"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (!f) return;
+                    const reader = new FileReader();
+                    reader.onload = () => {
+                      setEditFileReplacement({
+                        fileName: f.name,
+                        fileSize: f.size,
+                        base64Data: String(reader.result || ''),
+                      });
+                      setEditFileName(f.name);
+                    };
+                    reader.readAsDataURL(f);
+                  }}
+                  className="hidden"
+                />
+                <button
+                  type="button"
+                  onClick={() => replaceFileInputRef.current?.click()}
+                  className="w-full py-2.5 px-3 border border-dashed border-purple-300 hover:border-purple-600 bg-purple-50/40 rounded-xl text-xs font-semibold text-purple-800 flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <Upload className="w-4 h-4" />
+                  <span>
+                    {editFileReplacement
+                      ? `Novo arquivo: ${editFileReplacement.fileName}`
+                      : 'Selecionar novo arquivo para substituir'}
+                  </span>
+                </button>
+              </div>
+
+              <div className="pt-2 flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setEditingFile(null)}
+                  className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={savingFileEdit}
+                  className="px-4 py-2 bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white text-xs font-semibold rounded-lg cursor-pointer"
+                >
+                  {savingFileEdit ? 'Salvando...' : 'Salvar Modificações'}
                 </button>
               </div>
             </form>

@@ -27,6 +27,9 @@ import {
   ERICSSON_ORIGINAL_COLUMNS,
 } from '../types/telecom';
 import { computeEricssonSiteCounters } from '../utils/ericssonSpreadsheetUtils';
+import { cloudFetch } from '../lib/firebaseCloud';
+
+const fetch = cloudFetch;
 
 export interface EricssonEngenhariaTabProps {
   user: AmetaUser;
@@ -48,11 +51,13 @@ export interface EricssonEngenhariaTabProps {
 
 export const EricssonEngenhariaTab: React.FC<EricssonEngenhariaTabProps> = ({
   user,
+  effectiveRole,
   rows,
   sheetMeta,
   onUpdated,
   onOpenFileInVistoriaFolder,
 }) => {
+  const isExecutor = effectiveRole === 'Executor';
   const [viewMode, setViewMode] = useState<'resumo' | 'planilha'>('resumo');
   const [density, setDensity] = useState<'compact' | 'normal' | 'comfortable'>('normal');
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
@@ -402,6 +407,25 @@ export const EricssonEngenhariaTab: React.FC<EricssonEngenhariaTabProps> = ({
         ? row.siteBVistoriaFileId
         : row.losFileId;
 
+    const uploadedBy =
+      side === 'A'
+        ? row.siteAVistoriaUploadedBy
+        : side === 'B'
+        ? row.siteBVistoriaUploadedBy
+        : row.losUploadedBy;
+
+    const uploadedByEmail =
+      side === 'A'
+        ? row.siteAVistoriaUploadedByEmail
+        : side === 'B'
+        ? row.siteBVistoriaUploadedByEmail
+        : row.losUploadedByEmail;
+
+    const canDeleteThisFile = !isExecutor || (
+      (Boolean(user.email) && (uploadedByEmail || '').trim().toLowerCase() === user.email.trim().toLowerCase()) ||
+      (Boolean(user.name) && (uploadedBy || '').trim().toLowerCase() === user.name.trim().toLowerCase())
+    );
+
     const isToggling = togglingRowKey === `${row.id}:${side}`;
 
     return (
@@ -478,7 +502,7 @@ export const EricssonEngenhariaTab: React.FC<EricssonEngenhariaTabProps> = ({
           </button>
         )}
 
-        {fileName && (
+        {fileName && canDeleteThisFile && (
           <button
             type="button"
             onClick={(e) => handleDeleteRowFile(row, side, e)}

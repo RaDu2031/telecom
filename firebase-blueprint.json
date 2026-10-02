@@ -1,100 +1,91 @@
 {
   "entities": {
-    "AdminUser": {
-      "title": "AdminUser",
-      "description": "Trusted administrator registry entry keyed by Firebase Auth UID.",
+    "Usuario": {
+      "title": "Usuario",
+      "description": "Documento de usuário do sistema Ameta Telecom ligado ao Firebase Authentication (usuarios/{uid}).",
       "type": "object",
       "properties": {
-        "uid": {
+        "uid": { "type": "string", "description": "UID do Firebase Authentication." },
+        "email": { "type": "string", "format": "email", "description": "E-mail corporativo @ametaservicos.com.br." },
+        "name": { "type": "string", "description": "Nome de exibição do colaborador." },
+        "situacao": {
           "type": "string",
-          "maxLength": 128,
-          "pattern": "^[a-zA-Z0-9_\\-]+$",
-          "description": "Firebase Auth UID of the administrator."
+          "enum": ["dono", "aguardando", "ativo", "bloqueado"],
+          "description": "Situação do acesso do usuário (novos cadastros entram como 'aguardando')."
         },
-        "email": {
+        "role": {
           "type": "string",
-          "format": "email",
-          "maxLength": 256,
-          "description": "Verified email address of the administrator."
+          "enum": ["ADM", "Coordenador Geral", "Coordenador Engenharia", "Executor", "Vistoriador"],
+          "description": "Perfil operacional do usuário."
         },
-        "createdAt": {
+        "plataforma": {
           "type": "string",
-          "format": "date-time",
-          "description": "Server timestamp when admin record was created."
-        }
+          "enum": ["NOKIA", "ERICSSON", "BOTH"],
+          "description": "Plataforma liberada pelo dono (TIM/Nokia ou Ericsson)."
+        },
+        "assignedPlatform": {
+          "type": "string",
+          "enum": ["NOKIA", "ERICSSON", "BOTH"],
+          "description": "Espelho de plataforma para compatibilidade com as telas."
+        },
+        "accessReleased": {
+          "type": "boolean",
+          "description": "True quando situacao for 'ativo' ou 'dono'."
+        },
+        "equipe": { "type": "string", "description": "Dupla/Equipe associada ao colaborador." }
       },
-      "required": ["uid", "email", "createdAt"]
+      "required": ["uid", "email", "name", "situacao", "role", "plataforma", "accessReleased"]
     },
-    "WorkspaceSnapshot": {
-      "title": "WorkspaceSnapshot",
-      "description": "Synchronized state chunk for the Ameta Telecom workspace (TIM/Nokia and Ericsson).",
+    "NokiaSite": {
+      "title": "NokiaSite",
+      "description": "Site do sistema TIM/Nokia (ID do documento = Site ID sanitizado).",
       "type": "object",
       "properties": {
-        "chunkId": {
-          "type": "string",
-          "maxLength": 128,
-          "pattern": "^[a-zA-Z0-9_\\-]+$",
-          "description": "Identifier of the workspace state chunk."
-        },
-        "vendor": {
-          "type": "string",
-          "enum": ["NOKIA", "ERICSSON", "SHARED"],
-          "maxLength": 32,
-          "description": "Target telecom platform."
-        },
-        "payloadType": {
-          "type": "string",
-          "enum": ["USERS", "DUPLAS", "NOTIFICATIONS", "FOLDERS", "FILES", "SITES_META"],
-          "maxLength": 32,
-          "description": "Category of synchronized data."
-        },
-        "dataJson": {
-          "type": "string",
-          "maxLength": 900000,
-          "description": "Serialized workspace collection state."
-        },
-        "authorUid": {
-          "type": "string",
-          "maxLength": 128,
-          "pattern": "^[a-zA-Z0-9_\\-]+$",
-          "description": "UID of the authenticated user who wrote the snapshot."
-        },
-        "authorEmail": {
-          "type": "string",
-          "maxLength": 256,
-          "description": "Email of the user who updated the snapshot."
-        },
-        "createdAt": {
-          "type": "string",
-          "format": "date-time",
-          "description": "Creation server timestamp."
-        },
-        "updatedAt": {
-          "type": "string",
-          "format": "date-time",
-          "description": "Last update server timestamp."
-        }
+        "id": { "type": "string" },
+        "siteId": { "type": "string" },
+        "siteName": { "type": "string" },
+        "vendor": { "type": "string", "enum": ["NOKIA"] },
+        "sheetName": { "type": "string" },
+        "uf": { "type": "string" },
+        "municipio": { "type": "string" },
+        "status": { "type": "string" },
+        "equipeParceira": { "type": "string" },
+        "responsavelCampo": { "type": "string" },
+        "responsaveisUids": { "type": "array", "items": { "type": "string" } },
+        "responsaveisEmails": { "type": "array", "items": { "type": "string" } }
       },
-      "required": [
-        "chunkId",
-        "vendor",
-        "payloadType",
-        "dataJson",
-        "authorUid",
-        "authorEmail",
-        "createdAt",
-        "updatedAt"
-      ]
+      "required": ["siteId", "vendor"]
+    },
+    "EricssonSite": {
+      "title": "EricssonSite",
+      "description": "Enlace do sistema Ericsson contendo dois Site IDs (siteIdA e siteIdB), cada um com seu próprio status.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "siteIdA": { "type": "string" },
+        "siteIdB": { "type": "string" },
+        "siteAVistoriaStatus": { "type": "string", "enum": ["Entregue", "Pendente", "Dispensado"] },
+        "siteBVistoriaStatus": { "type": "string", "enum": ["Entregue", "Pendente", "Dispensado"] },
+        "losStatus": { "type": "string", "enum": ["Entregue", "Pendente"] },
+        "equipe": { "type": "string" },
+        "responsaveisUids": { "type": "array", "items": { "type": "string" } },
+        "responsaveisEmails": { "type": "array", "items": { "type": "string" } }
+      },
+      "required": ["siteIdA", "siteIdB", "siteAVistoriaStatus", "siteBVistoriaStatus"]
     }
   },
   "firestore": {
-    "/admins/{adminUid}": {
-      "schema": { "$ref": "#/entities/AdminUser" },
-      "description": "Registry of system administrators."
+    "/usuarios/{uid}": {
+      "schema": { "$ref": "#/entities/Usuario" },
+      "description": "Perfis, situações ('dono', 'aguardando', 'ativo', 'bloqueado') e plataformas dos usuários."
     },
-    "/workspace_snapshots/{chunkId}": {
-      "schema": { "$ref": "#/entities/WorkspaceSnapshot" },
-      "description": "Synchronized state chunks for Ameta Telecom workspace."
+    "/nokia_sites/{siteId}": {
+      "schema": { "$ref": "#/entities/NokiaSite" },
+      "description": "Coleção exclusiva de sites da plataforma TIM/Nokia."
+    },
+    "/ericsson_sites/{rowId}": {
+      "schema": { "$ref": "#/entities/EricssonSite" },
+      "description": "Coleção exclusiva de enlaces da plataforma Ericsson (com 2 Site IDs e status independentes)."
     }
   }
 }

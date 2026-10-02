@@ -40,6 +40,9 @@ import {
   computeEricssonSiteCounters,
 } from '../utils/ericssonSpreadsheetUtils';
 import { getCanonicalDuplaName, normalizeAccents } from '../utils/spreadsheetUtils';
+import { cloudFetch } from '../lib/firebaseCloud';
+
+const fetch = cloudFetch;
 
 export interface EricssonSitesTabProps {
   user: AmetaUser;

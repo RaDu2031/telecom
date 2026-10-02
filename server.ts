@@ -2253,6 +2253,7 @@ async function startServer() {
       createdByName,
       createdByEmail,
       createdByRole,
+      isUploadedFolder,
     } = req.body as {
       name?: string;
       parentId?: string | null;
@@ -2262,6 +2263,7 @@ async function startServer() {
       createdByName?: string;
       createdByEmail?: string;
       createdByRole?: AmetaUser['role'];
+      isUploadedFolder?: boolean;
     };
 
     if (!name || !name.trim()) {
@@ -2274,6 +2276,22 @@ async function startServer() {
       return;
     }
 
+    const matchedUser = createdByEmail
+      ? db.users.find((u) => u.email.toLowerCase() === createdByEmail.trim().toLowerCase())
+      : undefined;
+    const effectiveRole = normalizeUserRole(
+      createdByRole || matchedUser?.role,
+      createdByEmail
+    );
+
+    if ((effectiveRole === 'Executor' || effectiveRole === 'Vistoriador') && !isUploadedFolder) {
+      res.status(403).json({
+        error:
+          `Permissão negada: O perfil ${effectiveRole} não tem permissão para criar pastas manualmente. Ele pode apenas subir pastas/arquivos para o sistema.`,
+      });
+      return;
+    }
+
     const rootFolderId = `folder-${vendor.toLowerCase()}-vistorias`;
     const targetParentId = parentId || rootFolderId;
     const parentFolder = db.engineeringFolders.find((f) => f.id === targetParentId);
@@ -2283,10 +2301,6 @@ async function startServer() {
       targetParentId === rootFolderId || (parentFolder && parentFolder.parentId === null);
 
     if (isCreatingAtRootVistorias) {
-      const matchedUser = createdByEmail
-        ? db.users.find((u) => u.email.toLowerCase() === createdByEmail.trim().toLowerCase())
-        : undefined;
-      const effectiveRole = normalizeUserRole(createdByRole || matchedUser?.role);
       if (effectiveRole !== 'ADM') {
         res.status(403).json({
           error:
@@ -2342,6 +2356,10 @@ async function startServer() {
   // Delete a folder (if not a protected system root folder)
   app.delete('/api/engineering/folders/:id', (req, res) => {
     const { id } = req.params;
+    const actorEmail = String(req.query.actorEmail || req.body?.actorEmail || '').trim().toLowerCase();
+    const actorName = String(req.query.actorName || req.body?.actorName || '').trim().toLowerCase();
+    const actorRole = String(req.query.actorRole || req.body?.actorRole || '').trim();
+
     const target = db.engineeringFolders.find((f) => f.id === id);
     if (!target) {
       res.status(404).json({ error: 'Pasta não encontrada.' });
@@ -2352,6 +2370,21 @@ async function startServer() {
         error: 'As pastas principais (Vistorias, Vistorias Executadas, TSSR Entrada e TSSR) são fixas do sistema.',
       });
       return;
+    }
+
+    const resolvedRole = normalizeUserRole(actorRole || undefined, actorEmail || undefined);
+    if (resolvedRole === 'Executor' || resolvedRole === 'Vistoriador') {
+      const fEmail = (target.createdByEmail || '').trim().toLowerCase();
+      const fName = (target.createdByName || '').trim().toLowerCase();
+      const isOwnFolder =
+        (actorEmail && fEmail === actorEmail) || (actorName && fName === actorName);
+      if (!isOwnFolder) {
+        res.status(403).json({
+          error:
+            `Permissão negada: O perfil ${resolvedRole} pode modificar ou excluir apenas as pastas que ele mesmo subiu para o sistema.`,
+        });
+        return;
+      }
     }
 
     // Collect all descendant folder IDs recursively
@@ -2398,12 +2431,16 @@ async function startServer() {
     });
   });
 
-  // Update folder metadata (e.g. assignedTo responsible user)
+  // Update folder metadata (e.g. name, description, assignedTo responsible user)
   app.put('/api/engineering/folders/:id', (req, res) => {
     const { id } = req.params;
-    const { assignedTo, description } = req.body as {
+    const { name, assignedTo, description, actorEmail, actorName, actorRole } = req.body as {
+      name?: string;
       assignedTo?: string;
       description?: string;
+      actorEmail?: string;
+      actorName?: string;
+      actorRole?: string;
     };
 
     const folder = db.engineeringFolders.find((f) => f.id === id);
@@ -2411,7 +2448,32 @@ async function startServer() {
       res.status(404).json({ error: 'Pasta não encontrada.' });
       return;
     }
+    if (folder.isSystem) {
+      res.status(403).json({
+        error: 'As pastas principais do sistema não podem ser modificadas.',
+      });
+      return;
+    }
 
+    const resolvedRole = normalizeUserRole(actorRole || undefined, actorEmail || undefined);
+    if (resolvedRole === 'Executor' || resolvedRole === 'Vistoriador') {
+      const fEmail = (folder.createdByEmail || '').trim().toLowerCase();
+      const fName = (folder.createdByName || '').trim().toLowerCase();
+      const aEmail = (actorEmail || '').trim().toLowerCase();
+      const aName = (actorName || '').trim().toLowerCase();
+      const isOwnFolder = (aEmail && fEmail === aEmail) || (aName && fName === aName);
+      if (!isOwnFolder) {
+        res.status(403).json({
+          error:
+            `Permissão negada: O perfil ${resolvedRole} pode modificar apenas as pastas que ele mesmo subiu para o sistema.`,
+        });
+        return;
+      }
+    }
+
+    if (typeof name === 'string' && name.trim()) {
+      folder.name = name.trim();
+    }
     if (typeof assignedTo === 'string') {
       folder.assignedTo = assignedTo.trim() || undefined;
     }
@@ -2424,7 +2486,7 @@ async function startServer() {
       type: 'FOLDER_UPDATED',
       timestamp: new Date().toISOString(),
       vendor: folder.vendor,
-      summary: `Pasta "${folder.name}" atribuída para ${folder.assignedTo || 'Todos (ADM)'}`,
+      summary: `Pasta "${folder.name}" atualizada`,
     });
 
     res.json({
@@ -2434,11 +2496,12 @@ async function startServer() {
     });
   });
 
-  // Upload one or more files (.zip, .rar WinRAR, .7z, .xlsx, .pdf, etc.) into a folder
+  // Upload one or more files (.zip, .rar WinRAR, .7z, .xlsx, .pdf, etc.) or an entire uploaded folder into a folder
   // Also supports automatic linking to a site in "TSSR TIM Nokia" (setting Status = Entregue, link, date/time, vistoriador)
   app.post('/api/engineering/files', (req, res) => {
     const {
       folderId,
+      uploadedFolderName,
       vendor = 'NOKIA',
       uploadedByName,
       uploadedByEmail,
@@ -2455,6 +2518,7 @@ async function startServer() {
       files,
     } = req.body as {
       folderId?: string;
+      uploadedFolderName?: string;
       vendor?: VendorType;
       uploadedByName?: string;
       uploadedByEmail?: string;
@@ -2556,6 +2620,33 @@ async function startServer() {
     }
 
     const now = new Date().toISOString();
+    if (typeof uploadedFolderName === 'string' && uploadedFolderName.trim()) {
+      const cleanFolderName = uploadedFolderName.trim();
+      const parentTargetId = folder ? folder.id : `folder-${vendor.toLowerCase()}-vistorias-executadas`;
+      const existingUploadedFolder = db.engineeringFolders.find(
+        (f) =>
+          f.vendor === vendor &&
+          f.parentId === parentTargetId &&
+          f.name.trim().toLowerCase() === cleanFolderName.toLowerCase()
+      );
+      if (existingUploadedFolder) {
+        folder = existingUploadedFolder;
+      } else {
+        const newUploadedFolder: EngineeringFolder = {
+          id: `folder-up-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+          parentId: parentTargetId,
+          name: cleanFolderName,
+          vendor,
+          description: notes?.trim() || `Pasta enviada por ${uploadedByName.trim()}`,
+          createdByName: uploadedByName.trim(),
+          createdByEmail: uploadedByEmail?.trim() || 'engenharia@ameta.com.br',
+          createdAt: now,
+          isSystem: false,
+        };
+        db.engineeringFolders.push(newUploadedFolder);
+        folder = newUploadedFolder;
+      }
+    }
     const formattedDeliveryDate = new Date(now).toLocaleString('pt-BR', {
       timeZone: 'America/Sao_Paulo',
       day: '2-digit',
@@ -2730,6 +2821,41 @@ async function startServer() {
           targetRoles: ['Coordenador Engenharia', 'Coordenador Geral', 'ADM'],
         });
       }
+
+      if (cleanSiteId) {
+        const matchedSite = db.sites.find(
+          (s) =>
+            s.vendor === vendor &&
+            s.sheetName !== 'Equipes' &&
+            s.sheetName !== 'Controle Cancelados' &&
+            (s.siteId.trim().toUpperCase() === cleanSiteId || s.id.trim().toUpperCase() === cleanSiteId)
+        );
+        const siteEquipe = (
+          matchedSite?.equipeParceira ||
+          matchedSite?.responsavelCampo ||
+          matchedSite?.customFields?.['EQUIPE EXECUTANTE'] ||
+          assignedTo ||
+          ''
+        ).trim();
+        const siteEmailRaw = (matchedSite?.customFields?.['E-MAIL DUPLA'] || '').trim();
+        const siteEmails = siteEmailRaw
+          ? siteEmailRaw.split(/[,;]/).map((e) => e.trim().toLowerCase()).filter(Boolean)
+          : [];
+
+        pushNotification(db, {
+          type: 'ARQUIVO_ASSOCIADO_SITE_VISTORIADOR',
+          vendor,
+          title: `Arquivo Associado ao Site ${cleanSiteId}`,
+          message: `Há ${createdFiles.length > 1 ? `${createdFiles.length} arquivos associados` : `um arquivo ("${primaryFile.fileName}") associado`} ao site ${cleanSiteId} pelo qual você é responsável (${folder?.name || 'Engenharia'}).`,
+          siteId: cleanSiteId,
+          fileName: primaryFile.fileName,
+          actorName: uploadedByName.trim(),
+          actorEmail: uploadedByEmail?.trim() || 'engenharia@ameta.com.br',
+          targetRoles: ['Vistoriador'],
+          ...(siteEquipe ? { targetEquipes: [siteEquipe] } : {}),
+          ...(siteEmails.length > 0 ? { targetEmails: siteEmails } : {}),
+        });
+      }
     }
 
     saveDatabase(db);
@@ -2814,19 +2940,74 @@ async function startServer() {
     res.send(fallbackBuffer);
   });
 
-  // Update an engineering file (e.g. assign responsible user "assignedTo", siteId, notes)
+  // Update an engineering file (e.g. assign responsible user "assignedTo", fileName, siteId, notes, or replace file content)
   app.put('/api/engineering/files/:id', (req, res) => {
     const { id } = req.params;
-    const { assignedTo, siteId, notes } = req.body as {
+    const {
+      fileName,
+      assignedTo,
+      siteId,
+      notes,
+      base64Data,
+      fileSize,
+      actorEmail,
+      actorName,
+      actorRole,
+    } = req.body as {
+      fileName?: string;
       assignedTo?: string;
       siteId?: string;
       notes?: string;
+      base64Data?: string;
+      fileSize?: number;
+      actorEmail?: string;
+      actorName?: string;
+      actorRole?: string;
     };
 
     const fileRecord = db.engineeringFiles.find((f) => f.id === id);
     if (!fileRecord) {
       res.status(404).json({ error: 'Arquivo não encontrado.' });
       return;
+    }
+
+    const resolvedRole = normalizeUserRole(actorRole || undefined, actorEmail || undefined);
+    if (resolvedRole === 'Executor' || resolvedRole === 'Vistoriador') {
+      const flEmail = (fileRecord.uploadedByEmail || '').trim().toLowerCase();
+      const flName = (fileRecord.uploadedByName || '').trim().toLowerCase();
+      const aEmail = (actorEmail || '').trim().toLowerCase();
+      const aName = (actorName || '').trim().toLowerCase();
+      const isOwn = (aEmail && flEmail === aEmail) || (aName && flName === aName);
+      if (!isOwn) {
+        res.status(403).json({
+          error:
+            `Permissão negada: O perfil ${resolvedRole} pode modificar apenas as pastas e arquivos que ele mesmo subiu para o sistema.`,
+        });
+        return;
+      }
+    }
+
+    if (typeof fileName === 'string' && fileName.trim()) {
+      const cleanName = path.basename(fileName.trim());
+      fileRecord.fileName = cleanName;
+      const { fileType, extension } = detectFileType(cleanName);
+      fileRecord.fileType = fileType;
+      fileRecord.extension = extension;
+    }
+
+    if (typeof base64Data === 'string' && base64Data.trim()) {
+      if (!fs.existsSync(UPLOADS_DIR)) {
+        fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+      }
+      const cleanName = path.basename(fileRecord.fileName || 'arquivo.zip');
+      const safeDiskName = `${fileRecord.id}_${cleanName.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
+      const diskPath = path.join(UPLOADS_DIR, safeDiskName);
+      const base64Clean = base64Data.includes(',') ? base64Data.split(',')[1] : base64Data;
+      const buffer = Buffer.from(base64Clean, 'base64');
+      fs.writeFileSync(diskPath, buffer);
+      fileRecord.storageFileName = safeDiskName;
+      fileRecord.fileSize = fileSize || buffer.length;
+      fileRecord.uploadedAt = new Date().toISOString();
     }
 
     if (typeof assignedTo === 'string') {
@@ -2844,7 +3025,7 @@ async function startServer() {
       type: 'FILE_UPDATED',
       timestamp: new Date().toISOString(),
       vendor: fileRecord.vendor,
-      summary: `Documento "${fileRecord.fileName}" atribuído para ${fileRecord.assignedTo || 'Sem responsável'}`,
+      summary: `Documento "${fileRecord.fileName}" atualizado`,
     });
 
     res.json({
@@ -2857,10 +3038,29 @@ async function startServer() {
   // Delete an engineering file
   app.delete('/api/engineering/files/:id', (req, res) => {
     const { id } = req.params;
+    const actorEmail = String(req.query.actorEmail || req.body?.actorEmail || '').trim().toLowerCase();
+    const actorName = String(req.query.actorName || req.body?.actorName || '').trim().toLowerCase();
+    const actorRole = String(req.query.actorRole || req.body?.actorRole || '').trim();
+
     const existing = db.engineeringFiles.find((f) => f.id === id);
     if (!existing) {
       res.status(404).json({ error: 'Arquivo não encontrado.' });
       return;
+    }
+
+    const resolvedRole = normalizeUserRole(actorRole || undefined, actorEmail || undefined);
+    if (resolvedRole === 'Executor' || resolvedRole === 'Vistoriador') {
+      const flEmail = (existing.uploadedByEmail || '').trim().toLowerCase();
+      const flName = (existing.uploadedByName || '').trim().toLowerCase();
+      const isOwn =
+        (actorEmail && flEmail === actorEmail) || (actorName && flName === actorName);
+      if (!isOwn) {
+        res.status(403).json({
+          error:
+            `Permissão negada: O perfil ${resolvedRole} pode modificar ou excluir apenas as pastas e arquivos que ele mesmo subiu para o sistema.`,
+        });
+        return;
+      }
     }
 
     if (existing.storageFileName) {
@@ -3908,6 +4108,35 @@ async function startServer() {
           actorEmail: 'coordenacao@ameta.com.br',
           targetRoles: ['Coordenador Geral', 'Coordenador Engenharia', 'ADM'],
         });
+
+        // Also check if any of the newly assigned sites already have associated files and notify Vistoriador
+        const demandedUpperSet = new Set(demandedSiteIds.map((id) => id.trim().toUpperCase()));
+        const associatedFiles =
+          vendor === 'ERICSSON'
+            ? (db.ericssonFiles || []).filter((fl) => {
+                const rawSite = (fl.siteId || '').replace(/\[.*?\]/g, '').trim().toUpperCase();
+                return rawSite && Array.from(demandedUpperSet).some((d) => rawSite.includes(d) || d.includes(rawSite));
+              })
+            : db.engineeringFiles.filter((fl) => {
+                const rawSite = (fl.siteId || '').trim().toUpperCase();
+                return rawSite && demandedUpperSet.has(rawSite);
+              });
+
+        if (associatedFiles.length > 0) {
+          pushNotification(db, {
+            type: 'ARQUIVO_ASSOCIADO_SITE_VISTORIADOR',
+            vendor: vendor || 'NOKIA',
+            title: `Arquivos Associados aos Seus Sites (${associatedFiles.length})`,
+            message: `Existem ${associatedFiles.length} arquivo(s) associado(s) ao(s) site(s) [${previewIds}${extraLabel}] pelos quais você está responsável.`,
+            siteId: demandedSiteIds[0],
+            fileName: associatedFiles[0].fileName,
+            actorName: 'Engenharia AMETA',
+            actorEmail: 'engenharia@ameta.com.br',
+            targetRoles: ['Vistoriador'],
+            targetEquipes: [nextResp],
+            targetEmails: autoLinkedEmails,
+          });
+        }
       }
     }
 
@@ -4744,6 +4973,7 @@ async function startServer() {
       uploadedByName,
       uploadedByEmail,
       uploadedByRole,
+      uploadedFolderName,
     } = req.body as {
       rowId?: string;
       targetSide?: 'A' | 'B' | 'LOS' | 'BOTH' | 'TSSR';
@@ -4773,6 +5003,7 @@ async function startServer() {
       uploadedByName?: string;
       uploadedByEmail?: string;
       uploadedByRole?: string;
+      uploadedFolderName?: string;
     };
 
     const resolvedEricRole =
@@ -4922,7 +5153,34 @@ async function startServer() {
       folderId && db.ericssonFolders.some((f) => f.id === folderId)
         ? folderId
         : 'folder-ericsson-root';
-    const targetFolderId = validFolder;
+    let targetFolderId = validFolder;
+
+    if (typeof uploadedFolderName === 'string' && uploadedFolderName.trim()) {
+      const cleanFolderName = uploadedFolderName.trim();
+      const existingUploadedFolder = db.ericssonFolders.find(
+        (f) =>
+          f.parentId === validFolder &&
+          f.name.trim().toLowerCase() === cleanFolderName.toLowerCase()
+      );
+      if (existingUploadedFolder) {
+        targetFolderId = existingUploadedFolder.id;
+      } else {
+        const newUploadedFolder: EngineeringFolder = {
+          id: `eric-folder-up-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+          parentId: validFolder,
+          name: cleanFolderName,
+          vendor: 'ERICSSON',
+          description: notes?.trim() || `Pasta enviada por ${uploadedByName.trim()}`,
+          createdByName: uploadedByName.trim(),
+          createdByEmail: (uploadedByEmail || 'executor@ameta.com.br').trim(),
+          createdAt: now,
+          isSystem: false,
+        };
+        db.ericssonFolders.push(newUploadedFolder);
+        targetFolderId = newUploadedFolder.id;
+      }
+    }
+
     const createdFiles: EngineeringFile[] = [];
 
     filesToProcess.forEach((rawFile, idx) => {
@@ -5075,6 +5333,26 @@ async function startServer() {
       });
     }
 
+    const ericEquipe = (targetRow.equipe || targetRow.fields?.['EQUIPE'] || assignedTo || '').trim();
+    const ericEmailRaw = (targetRow.fields?.['E-MAIL DUPLA'] || '').trim();
+    const ericEmails = ericEmailRaw
+      ? ericEmailRaw.split(/[,;]/).map((e) => e.trim().toLowerCase()).filter(Boolean)
+      : [];
+
+    pushNotification(db, {
+      type: 'ARQUIVO_ASSOCIADO_SITE_VISTORIADOR',
+      vendor: 'ERICSSON',
+      title: `Arquivo Associado ao Site Ericsson (${pairLabel})`,
+      message: `Há ${createdFiles.length > 1 ? `${createdFiles.length} arquivos associados` : `um arquivo ("${primaryFile.fileName}") associado`} ao site/enlace ${pairLabel} pelo qual você é responsável.`,
+      siteId: pairLabel,
+      fileName: primaryFile.fileName,
+      actorName: uploadedByName.trim(),
+      actorEmail: uploadedByEmail?.trim() || 'engenharia@ameta.com.br',
+      targetRoles: ['Vistoriador'],
+      ...(ericEquipe ? { targetEquipes: [ericEquipe] } : {}),
+      ...(ericEmails.length > 0 ? { targetEmails: ericEmails } : {}),
+    });
+
     saveDatabase(db);
     broadcastUpdate({
       type: 'ERICSSON_UPDATED',
@@ -5103,16 +5381,29 @@ async function startServer() {
       description,
       createdByName,
       createdByEmail,
+      createdByRole,
+      isUploadedFolder,
     } = req.body as {
       name?: string;
       parentId?: string | null;
       description?: string;
       createdByName?: string;
       createdByEmail?: string;
+      createdByRole?: string;
+      isUploadedFolder?: boolean;
     };
 
     if (!name || !name.trim()) {
       res.status(400).json({ error: 'Informe o nome da pasta Ericsson.' });
+      return;
+    }
+
+    const effectiveRole = normalizeUserRole(createdByRole || undefined, createdByEmail || undefined);
+    if ((effectiveRole === 'Executor' || effectiveRole === 'Vistoriador') && !isUploadedFolder) {
+      res.status(403).json({
+        error:
+          `Permissão negada: O perfil ${effectiveRole} não tem permissão para criar pastas manualmente. Ele pode apenas subir pastas/arquivos para o sistema.`,
+      });
       return;
     }
 
@@ -5164,8 +5455,71 @@ async function startServer() {
     });
   });
 
+  app.put('/api/ericsson/folders/:id', (req, res) => {
+    const { id } = req.params;
+    const { name, description, actorEmail, actorName, actorRole } = req.body as {
+      name?: string;
+      description?: string;
+      actorEmail?: string;
+      actorName?: string;
+      actorRole?: string;
+    };
+
+    if (!Array.isArray(db.ericssonFolders)) db.ericssonFolders = [];
+    const folder = db.ericssonFolders.find((f) => f.id === id);
+    if (!folder) {
+      res.status(404).json({ error: 'Pasta não encontrada na Ericsson.' });
+      return;
+    }
+    if (folder.id === 'folder-ericsson-root' || folder.isSystem) {
+      res.status(403).json({ error: 'As pastas principais da Ericsson não podem ser modificadas.' });
+      return;
+    }
+
+    const resolvedRole = normalizeUserRole(actorRole || undefined, actorEmail || undefined);
+    if (resolvedRole === 'Executor' || resolvedRole === 'Vistoriador') {
+      const fEmail = (folder.createdByEmail || '').trim().toLowerCase();
+      const fName = (folder.createdByName || '').trim().toLowerCase();
+      const aEmail = (actorEmail || '').trim().toLowerCase();
+      const aName = (actorName || '').trim().toLowerCase();
+      const isOwn = (aEmail && fEmail === aEmail) || (aName && fName === aName);
+      if (!isOwn) {
+        res.status(403).json({
+          error:
+            `Permissão negada: O perfil ${resolvedRole} pode modificar apenas as pastas que ele mesmo subiu para o sistema.`,
+        });
+        return;
+      }
+    }
+
+    if (typeof name === 'string' && name.trim()) {
+      folder.name = name.trim();
+    }
+    if (typeof description === 'string') {
+      folder.description = description.trim();
+    }
+
+    saveDatabase(db);
+    broadcastUpdate({
+      type: 'ERICSSON_UPDATED',
+      timestamp: new Date().toISOString(),
+      vendor: 'ERICSSON',
+      summary: `Pasta Ericsson "${folder.name}" atualizada`,
+    });
+
+    res.json({
+      folder,
+      ericssonFolders: db.ericssonFolders,
+      ericssonFiles: db.ericssonFiles || [],
+    });
+  });
+
   app.delete('/api/ericsson/folders/:id', (req, res) => {
     const { id } = req.params;
+    const actorEmail = String(req.query.actorEmail || req.body?.actorEmail || '').trim().toLowerCase();
+    const actorName = String(req.query.actorName || req.body?.actorName || '').trim().toLowerCase();
+    const actorRole = String(req.query.actorRole || req.body?.actorRole || '').trim();
+
     if (!Array.isArray(db.ericssonFolders)) db.ericssonFolders = [];
     if (!Array.isArray(db.ericssonFiles)) db.ericssonFiles = [];
 
@@ -5177,6 +5531,21 @@ async function startServer() {
     if (target.id === 'folder-ericsson-root' || target.isSystem) {
       res.status(403).json({ error: 'A pasta raiz da Ericsson não pode ser removida.' });
       return;
+    }
+
+    const resolvedRole = normalizeUserRole(actorRole || undefined, actorEmail || undefined);
+    if (resolvedRole === 'Executor' || resolvedRole === 'Vistoriador') {
+      const fEmail = (target.createdByEmail || '').trim().toLowerCase();
+      const fName = (target.createdByName || '').trim().toLowerCase();
+      const isOwn =
+        (actorEmail && fEmail === actorEmail) || (actorName && fName === actorName);
+      if (!isOwn) {
+        res.status(403).json({
+          error:
+            `Permissão negada: O perfil ${resolvedRole} pode modificar ou excluir apenas as pastas que ele mesmo subiu para o sistema.`,
+        });
+        return;
+      }
     }
 
     const toRemoveIds = new Set<string>([id]);
@@ -5325,13 +5694,123 @@ async function startServer() {
     res.send(fallbackBuffer);
   });
 
+  app.put('/api/ericsson/files/:id', (req, res) => {
+    const { id } = req.params;
+    const {
+      fileName,
+      notes,
+      siteId,
+      base64Data,
+      fileSize,
+      actorEmail,
+      actorName,
+      actorRole,
+    } = req.body as {
+      fileName?: string;
+      notes?: string;
+      siteId?: string;
+      base64Data?: string;
+      fileSize?: number;
+      actorEmail?: string;
+      actorName?: string;
+      actorRole?: string;
+    };
+
+    if (!Array.isArray(db.ericssonFiles)) db.ericssonFiles = [];
+    const fileRecord = db.ericssonFiles.find((f) => f.id === id);
+    if (!fileRecord) {
+      res.status(404).json({ error: 'Arquivo não encontrado na Ericsson.' });
+      return;
+    }
+
+    const resolvedRole = normalizeUserRole(actorRole || undefined, actorEmail || undefined);
+    if (resolvedRole === 'Executor' || resolvedRole === 'Vistoriador') {
+      const flEmail = (fileRecord.uploadedByEmail || '').trim().toLowerCase();
+      const flName = (fileRecord.uploadedByName || '').trim().toLowerCase();
+      const aEmail = (actorEmail || '').trim().toLowerCase();
+      const aName = (actorName || '').trim().toLowerCase();
+      const isOwn = (aEmail && flEmail === aEmail) || (aName && flName === aName);
+      if (!isOwn) {
+        res.status(403).json({
+          error:
+            `Permissão negada: O perfil ${resolvedRole} pode modificar apenas as pastas e arquivos que ele mesmo subiu para o sistema.`,
+        });
+        return;
+      }
+    }
+
+    if (typeof fileName === 'string' && fileName.trim()) {
+      const cleanName = path.basename(fileName.trim());
+      fileRecord.fileName = cleanName;
+      const { fileType, extension } = detectFileType(cleanName);
+      fileRecord.fileType = fileType;
+      fileRecord.extension = extension;
+    }
+
+    if (typeof base64Data === 'string' && base64Data.trim()) {
+      if (!fs.existsSync(UPLOADS_DIR)) {
+        fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+      }
+      const cleanName = path.basename(fileRecord.fileName || 'vistoria.zip');
+      const safeDiskName = `${fileRecord.id}_${cleanName.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
+      const diskPath = path.join(UPLOADS_DIR, safeDiskName);
+      const base64Clean = base64Data.includes(',') ? base64Data.split(',')[1] : base64Data;
+      const buffer = Buffer.from(base64Clean, 'base64');
+      fs.writeFileSync(diskPath, buffer);
+      fileRecord.storageFileName = safeDiskName;
+      fileRecord.fileSize = fileSize || buffer.length;
+      fileRecord.uploadedAt = new Date().toISOString();
+    }
+
+    if (typeof notes === 'string') {
+      fileRecord.notes = notes.trim() || undefined;
+    }
+    if (typeof siteId === 'string' && siteId.trim()) {
+      fileRecord.siteId = siteId.trim();
+    }
+
+    saveDatabase(db);
+    broadcastUpdate({
+      type: 'ERICSSON_UPDATED',
+      timestamp: new Date().toISOString(),
+      vendor: 'ERICSSON',
+      summary: `Arquivo Ericsson "${fileRecord.fileName}" atualizado`,
+    });
+
+    res.json({
+      file: fileRecord,
+      ericssonFolders: db.ericssonFolders || [],
+      ericssonFiles: db.ericssonFiles,
+      ericssonRows: db.ericssonRows || [],
+    });
+  });
+
   app.delete('/api/ericsson/files/:id', (req, res) => {
     const { id } = req.params;
+    const actorEmail = String(req.query.actorEmail || req.body?.actorEmail || '').trim().toLowerCase();
+    const actorName = String(req.query.actorName || req.body?.actorName || '').trim().toLowerCase();
+    const actorRole = String(req.query.actorRole || req.body?.actorRole || '').trim();
+
     if (!Array.isArray(db.ericssonFiles)) db.ericssonFiles = [];
     const existing = db.ericssonFiles.find((f) => f.id === id);
     if (!existing) {
       res.status(404).json({ error: 'Arquivo não encontrado na Ericsson.' });
       return;
+    }
+
+    const resolvedRole = normalizeUserRole(actorRole || undefined, actorEmail || undefined);
+    if (resolvedRole === 'Executor' || resolvedRole === 'Vistoriador') {
+      const flEmail = (existing.uploadedByEmail || '').trim().toLowerCase();
+      const flName = (existing.uploadedByName || '').trim().toLowerCase();
+      const isOwn =
+        (actorEmail && flEmail === actorEmail) || (actorName && flName === actorName);
+      if (!isOwn) {
+        res.status(403).json({
+          error:
+            `Permissão negada: O perfil ${resolvedRole} pode modificar ou excluir apenas as pastas e arquivos que ele mesmo subiu para o sistema.`,
+        });
+        return;
+      }
     }
 
     if (existing.storageFileName) {

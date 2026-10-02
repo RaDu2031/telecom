@@ -23,7 +23,10 @@ import {
 import {
   AmetaUser,
   UserRole,
+  UserSituacao,
+  AssignedPlatformScope,
   normalizeUserRole,
+  isUserDono,
   MandatoryDocType,
   UserMandatoryDocument,
   MANDATORY_USER_DOCUMENTS,
@@ -31,6 +34,10 @@ import {
   evaluateDocumentExpiration,
   evaluateUserOverallDocumentStatus,
 } from '../types/telecom';
+import { dataService } from '../services/dataService';
+import { cloudFetch } from '../lib/firebaseCloud';
+
+const fetch = cloudFetch;
 
 interface AdminAccessPanelProps {
   currentUser: AmetaUser;
@@ -252,11 +259,31 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
 
   const handleRoleChange = async (userId: string, role: UserRole, resourceName: string) => {
     setUpdatingUserId(userId);
+    const target = users.find((u) => u.id === userId);
     onUsersUpdated(
-      users.map((u) => (u.id === userId ? { ...u, role } : u)),
+      users.map((u) =>
+        u.id === userId
+          ? {
+              ...u,
+              role,
+              situacao: u.situacao === 'dono' ? 'dono' : 'ativo',
+              accessReleased: true,
+            }
+          : u
+      ),
       `Perfil de ${resourceName} alterado para ${role}`
     );
     try {
+      if (target) {
+        await dataService.atualizarPermissoesUsuario(target.uid || target.id, {
+          email: target.email,
+          name: target.name,
+          situacao: target.situacao === 'dono' ? 'dono' : 'ativo',
+          role,
+          plataforma: target.plataforma || target.assignedPlatform || 'NOKIA',
+          equipe: target.equipe,
+        });
+      }
       const res = await fetch(`/api/admin/users/${encodeURIComponent(userId)}/role`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -268,6 +295,57 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
           onUsersUpdated(data.users);
         }
       }
+    } finally {
+      setUpdatingUserId(null);
+    }
+  };
+
+  const handlePlatformAndSituacaoChange = async (
+    target: AmetaUser,
+    nextPlatform: AssignedPlatformScope,
+    nextSituacao: UserSituacao
+  ) => {
+    setUpdatingUserId(target.id);
+    const nextReleased = nextSituacao === 'ativo' || nextSituacao === 'dono';
+    onUsersUpdated(
+      users.map((u) =>
+        u.id === target.id
+          ? {
+              ...u,
+              plataforma: nextPlatform,
+              assignedPlatform: nextPlatform,
+              situacao: nextSituacao,
+              accessReleased: nextReleased,
+            }
+          : u
+      ),
+      `Permissão de ${target.name} atualizada (${nextPlatform} · ${nextSituacao.toUpperCase()})`
+    );
+    try {
+      await dataService.atualizarPermissoesUsuario(target.uid || target.id, {
+        email: target.email,
+        name: target.name,
+        situacao: nextSituacao,
+        role: normalizeUserRole(target.role, target.email),
+        plataforma: nextPlatform,
+        equipe: target.equipe,
+      });
+      await fetch('/api/owner/permissions/release', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: target.uid || target.id,
+          uid: target.uid || target.id,
+          email: target.email,
+          name: target.name,
+          role: normalizeUserRole(target.role, target.email),
+          plataforma: nextPlatform,
+          assignedPlatform: nextPlatform,
+          situacao: nextSituacao,
+          accessReleased: nextReleased,
+          equipe: target.equipe || '',
+        }),
+      });
     } finally {
       setUpdatingUserId(null);
     }
@@ -935,38 +1013,101 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
 
                       <td className="py-3 pl-3 pr-5 text-right whitespace-nowrap">
                         <div className="inline-flex items-center justify-end gap-2 flex-nowrap">
-                          {/* Direct Profile Selector for this Resource (ADM Dono exclusive to Rafael Araújo) */}
-                          {isPrimaryAdmin ? (
+                          {/* Direct Profile Selector + Platform + Situação (Dono) */}
+                          {isPrimaryAdmin || u.situacao === 'dono' ? (
                             <span className="px-3 py-1 bg-amber-500 text-slate-950 font-black text-xs rounded-lg shadow-2xs">
-                              ADM Dono (Único)
+                              Dono (Acesso Total)
                             </span>
                           ) : (
-                            <div className="inline-flex items-center p-0.5 bg-slate-100 border border-slate-200 rounded-lg shrink-0">
-                              {ROLE_OPTIONS.map((opt) => {
-                                const active = uRole === opt.role;
-                                return (
+                            <div className="inline-flex items-center gap-1.5 flex-nowrap">
+                              {isUserDono(currentUser) && (
+                                <>
+                                  <select
+                                    value={u.plataforma || u.assignedPlatform || 'NOKIA'}
+                                    disabled={isUpdating}
+                                    onChange={(e) =>
+                                      handlePlatformAndSituacaoChange(
+                                        u,
+                                        e.target.value as AssignedPlatformScope,
+                                        u.situacao === 'aguardando' ? 'ativo' : u.situacao || 'ativo'
+                                      )
+                                    }
+                                    title="Selecionar Plataforma (Nokia ou Ericsson)"
+                                    className="px-2 py-1 text-[11px] font-bold rounded-lg border border-slate-200 bg-white text-slate-800 cursor-pointer"
+                                  >
+                                    <option value="NOKIA">TIM / Nokia</option>
+                                    <option value="ERICSSON">Ericsson</option>
+                                    <option value="BOTH">Nokia + Ericsson</option>
+                                  </select>
+
                                   <button
-                                    key={opt.role}
                                     type="button"
                                     disabled={isUpdating}
-                                    onClick={() => handleRoleChange(u.id, opt.role, u.name)}
-                                    title={opt.description}
-                                    className={`px-2 py-1 text-[11px] font-semibold rounded-md transition-colors cursor-pointer whitespace-nowrap ${
-                                      active
-                                        ? opt.role === 'Coordenador Geral'
-                                          ? 'bg-indigo-600 text-white'
-                                          : opt.role === 'Coordenador Engenharia'
-                                          ? 'bg-teal-600 text-white'
-                                          : opt.role === 'Executor'
-                                          ? 'bg-blue-600 text-white'
-                                          : 'bg-amber-500 text-white'
-                                        : 'text-slate-600 hover:text-slate-900'
+                                    onClick={() => {
+                                      const currSit =
+                                        u.situacao ||
+                                        (u.accessReleased === false ? 'aguardando' : 'ativo');
+                                      const nextSit: UserSituacao =
+                                        currSit === 'aguardando' || currSit === 'bloqueado'
+                                          ? 'ativo'
+                                          : 'bloqueado';
+                                      handlePlatformAndSituacaoChange(
+                                        u,
+                                        u.plataforma || u.assignedPlatform || 'NOKIA',
+                                        nextSit
+                                      );
+                                    }}
+                                    className={`px-2.5 py-1 rounded-lg text-[11px] font-extrabold border cursor-pointer whitespace-nowrap ${
+                                      u.situacao === 'aguardando' || u.accessReleased === false
+                                        ? 'bg-amber-100 hover:bg-emerald-600 text-amber-900 hover:text-white border-amber-300'
+                                        : u.situacao === 'bloqueado'
+                                          ? 'bg-red-100 hover:bg-emerald-600 text-red-800 hover:text-white border-red-300'
+                                          : 'bg-emerald-50 hover:bg-red-50 text-emerald-800 hover:text-red-700 border-emerald-200'
                                     }`}
+                                    title={
+                                      u.situacao === 'aguardando' || u.accessReleased === false
+                                        ? 'Clique para Liberar acesso deste usuário'
+                                        : u.situacao === 'bloqueado'
+                                          ? 'Clique para Desbloquear este usuário'
+                                          : 'Usuário Ativo — Clique para Bloquear'
+                                    }
                                   >
-                                    {opt.label}
+                                    {u.situacao === 'aguardando' || u.accessReleased === false
+                                      ? 'Aguardando (Liberar)'
+                                      : u.situacao === 'bloqueado'
+                                        ? 'Bloqueado (Liberar)'
+                                        : 'Ativo'}
                                   </button>
-                                );
-                              })}
+                                </>
+                              )}
+
+                              <div className="inline-flex items-center p-0.5 bg-slate-100 border border-slate-200 rounded-lg shrink-0">
+                                {ROLE_OPTIONS.map((opt) => {
+                                  const active = uRole === opt.role;
+                                  return (
+                                    <button
+                                      key={opt.role}
+                                      type="button"
+                                      disabled={isUpdating}
+                                      onClick={() => handleRoleChange(u.id, opt.role, u.name)}
+                                      title={opt.description}
+                                      className={`px-2 py-1 text-[11px] font-semibold rounded-md transition-colors cursor-pointer whitespace-nowrap ${
+                                        active
+                                          ? opt.role === 'Coordenador Geral'
+                                            ? 'bg-indigo-600 text-white'
+                                            : opt.role === 'Coordenador Engenharia'
+                                              ? 'bg-teal-600 text-white'
+                                              : opt.role === 'Executor'
+                                                ? 'bg-blue-600 text-white'
+                                                : 'bg-amber-500 text-white'
+                                          : 'text-slate-600 hover:text-slate-900'
+                                      }`}
+                                    >
+                                      {opt.label}
+                                    </button>
+                                  );
+                                })}
+                              </div>
                             </div>
                           )}
 

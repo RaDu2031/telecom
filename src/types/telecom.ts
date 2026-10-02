@@ -168,6 +168,8 @@ export interface TelecomSite {
   alarmesAtivos: string; // Pendência Engenharia / Status Financeiro
   observacoes: string; // Observações/Motivo / Comentários
   customFields?: Record<string, string>; // Exact columns from Column A to Observação
+  responsaveisUids?: string[];
+  responsaveisEmails?: string[];
   isNew?: boolean; // True when newly added/imported into the system
   createdAt?: string;
   updatedAt: string;
@@ -195,19 +197,37 @@ export type UserRole =
 
 export type AssignedPlatformScope = 'NOKIA' | 'ERICSSON' | 'BOTH';
 
+export type UserSituacao = 'dono' | 'aguardando' | 'ativo' | 'bloqueado';
+
 export const OWNER_ADM_EMAILS = [
   'rafael.araujo@ametaservicos.com.br',
   'rafael.araujo@ameta.com.br',
   'rafael.araujo0797@gmail.com',
 ];
 
-export function isOwnerAdmUser(email?: string | null): boolean {
+export function isOwnerAdmUser(email?: string | null, situacao?: UserSituacao | string | null): boolean {
+  if (situacao === 'dono') return true;
   if (!email) return false;
   const clean = email.trim().toLowerCase();
   return (
     OWNER_ADM_EMAILS.includes(clean) ||
     clean.startsWith('rafael.araujo@ameta') ||
     clean.startsWith('rafael.lima@ameta')
+  );
+}
+
+export function isUserDono(user?: AmetaUser | null): boolean {
+  if (!user) return false;
+  return user.situacao === 'dono' || user.role === 'ADM' || isOwnerAdmUser(user.email, user.situacao);
+}
+
+export function isUserAguardando(user?: AmetaUser | null): boolean {
+  if (!user) return false;
+  if (isUserDono(user)) return false;
+  return (
+    user.situacao === 'aguardando' ||
+    user.situacao === 'bloqueado' ||
+    user.accessReleased === false
   );
 }
 
@@ -251,8 +271,9 @@ export function canUserAccessVendor(
   vendor: VendorType
 ): boolean {
   if (!user) return false;
-  if (isOwnerAdmUser(user.email) || user.role === 'ADM') return true;
-  const scope = user.assignedPlatform || user.preferredVendor || 'NOKIA';
+  if (isUserDono(user) || isOwnerAdmUser(user.email, user.situacao) || user.role === 'ADM') return true;
+  if (isUserAguardando(user)) return false;
+  const scope = user.plataforma === 'AMBAS' ? 'BOTH' : user.plataforma || user.assignedPlatform || user.preferredVendor || 'NOKIA';
   if (scope === 'BOTH') return true;
   return scope === vendor;
 }
@@ -425,9 +446,12 @@ export function evaluateUserOverallDocumentStatus(user: AmetaUser) {
 
 export interface AmetaUser {
   id: string;
+  uid?: string; // Firebase Auth UID
   name: string;
   email: string;
   role: UserRole;
+  situacao?: UserSituacao; // 'dono' | 'aguardando' | 'ativo' | 'bloqueado'
+  plataforma?: 'NOKIA' | 'ERICSSON' | 'AMBAS';
   assignedPlatform?: AssignedPlatformScope; // 'NOKIA' (TIM/Nokia), 'ERICSSON', or 'BOTH'
   accessReleased?: boolean; // Released/approved by ADM Dono
   releasedByEmail?: string;
@@ -445,6 +469,7 @@ export interface AmetaUser {
   verifiedAt?: string;
   preferredVendor?: VendorType;
   createdAt: string;
+  updatedAt?: string;
 }
 
 export type NotificationEventType =
@@ -452,6 +477,7 @@ export type NotificationEventType =
   | 'EXECUTOR_ATUALIZOU_EQUIPE'
   | 'VISTORIA_OK_PASTA'
   | 'TSSR_ENVIADO_EXECUTOR'
+  | 'ARQUIVO_ASSOCIADO_SITE_VISTORIADOR'
   | 'PERMISSAO_LIBERADA_ADM';
 
 export interface AmetaNotification {
@@ -512,9 +538,9 @@ export function doesNotificationMatchUser(
     return false;
   }
 
-  // If role is Executor and notification specifies targetEquipes, verify team/name match
+  // If role is Executor or Vistoriador and notification specifies targetEquipes, verify team/name match
   if (
-    effectiveRole === 'Executor' &&
+    (effectiveRole === 'Executor' || effectiveRole === 'Vistoriador') &&
     Array.isArray(notif.targetEquipes) &&
     notif.targetEquipes.length > 0
   ) {
@@ -542,6 +568,7 @@ export interface EngineeringFolder {
   vendor: VendorType;
   description?: string;
   assignedTo?: string; // Responsible user name or email for demand filtering
+  createdByUid?: string;
   createdByName: string;
   createdByEmail: string;
   createdAt: string;
@@ -561,10 +588,14 @@ export interface EngineeringFile {
   tssrRowId?: string; // Optional linked row ID in TSSR TIM Nokia
   notes?: string;
   assignedTo?: string; // Responsible user name or email who should see this document in their demand
+  uploadedByUid?: string;
   uploadedByName: string; // Required name of the person who uploaded the file
   uploadedByEmail: string;
   uploadedAt: string;
   storageFileName?: string; // File name stored in data/uploads/
+  dataUrl?: string;
+  responsaveisUids?: string[];
+  responsaveisEmails?: string[];
 }
 
 export const TSSR_TIM_NOKIA_ORIGINAL_COLUMNS: string[] = [
@@ -639,6 +670,8 @@ export interface TssrRow {
   vistoriaDeliveredAt?: string;
   vistoriaUploadedBy?: string;
   vistoriaUploadedByEmail?: string;
+  responsaveisUids?: string[];
+  responsaveisEmails?: string[];
   createdAt?: string;
   updatedAt: string;
 }
@@ -821,6 +854,8 @@ export interface EricssonRow {
   losDeliveredAt?: string;
   losUploadedBy?: string;
   losUploadedByEmail?: string;
+  responsaveisUids?: string[];
+  responsaveisEmails?: string[];
   isManualRow?: boolean;
   createdAt?: string;
   updatedAt: string;

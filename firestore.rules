@@ -2,152 +2,294 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    // 1. Global Safety Net (Default Deny)
+
+    // =========================================================================
+    // FUNÇÕES AUXILIARES DE AUTENTICAÇÃO, DOMÍNIO E PERMISSÕES (RBAC)
+    // Projeto: ameta-sistema-teste
+    // =========================================================================
+
+    // 1. Exige usuário autenticado, com e-mail verificado e do domínio @ametaservicos.com.br
+    function isSignedInAndVerified() {
+      return request.auth != null
+        && request.auth.token.email_verified == true
+        && request.auth.token.email != null
+        && request.auth.token.email.lower().matches('^[^@]+@ametaservicos\\.com\\.br$');
+    }
+
+    // 2. Caminho e leitura do documento do usuário em usuarios/{uid}
+    function userDocPath() {
+      return /databases/$(database)/documents/usuarios/$(request.auth.uid);
+    }
+
+    function hasUserDoc() {
+      return isSignedInAndVerified() && exists(userDocPath());
+    }
+
+    function getUserData() {
+      return get(userDocPath()).data;
+    }
+
+    // 3. Situação "dono": acesso total às duas plataformas (Nokia e Ericsson) e gestão de usuários
+    function isDono() {
+      return hasUserDoc() && (
+        getUserData().situacao == 'dono' ||
+        getUserData().role == 'ADM'
+      );
+    }
+
+    // 4. Situação "ativo": usuário já liberado pelo dono (quem está "aguardando" ou "bloqueado" retorna false)
+    function isAtivo() {
+      return hasUserDoc() && (
+        getUserData().situacao == 'ativo' ||
+        (getUserData().situacao == null && getUserData().accessReleased == true)
+      );
+    }
+
+    // 5. Isolamento estrito por plataforma ('NOKIA' ou 'ERICSSON')
+    function hasPlatformAccess(targetPlatform) {
+      return isDono() || (
+        isAtivo() && (
+          getUserData().plataforma == targetPlatform ||
+          getUserData().plataforma == 'BOTH' ||
+          getUserData().assignedPlatform == targetPlatform ||
+          getUserData().assignedPlatform == 'BOTH'
+        )
+      );
+    }
+
+    // 6. Verificação dos 4 perfis operacionais mantidos pelo sistema
+    function hasRole(targetRole) {
+      return isAtivo() && getUserData().role == targetRole;
+    }
+
+    function isCoordGeral(platform) {
+      return isDono() || (hasPlatformAccess(platform) && hasRole('Coordenador Geral'));
+    }
+
+    function isCoordEngenharia(platform) {
+      return isDono() || (hasPlatformAccess(platform) && hasRole('Coordenador Engenharia'));
+    }
+
+    function isExecutor(platform) {
+      return hasPlatformAccess(platform) && hasRole('Executor');
+    }
+
+    function isVistoriador(platform) {
+      return hasPlatformAccess(platform) && hasRole('Vistoriador');
+    }
+
+    // 7. Verifica se um site ou arquivo está demandado para a conta do Executor ou Vistoriador logado
+    function isSiteDemandedToMe(data) {
+      return (
+        ('responsaveisUids' in data && data.responsaveisUids is list && request.auth.uid in data.responsaveisUids) ||
+        ('responsaveisEmails' in data && data.responsaveisEmails is list && request.auth.token.email.lower() in data.responsaveisEmails) ||
+        ('equipe' in getUserData() && getUserData().equipe != null && getUserData().equipe != '' && (
+          ('equipeParceira' in data && data.equipeParceira == getUserData().equipe) ||
+          ('responsavelCampo' in data && data.responsavelCampo == getUserData().equipe) ||
+          ('equipe' in data && data.equipe == getUserData().equipe)
+        ))
+      );
+    }
+
+    // 8. Verifica se o arquivo ou pasta foi enviado pelo próprio usuário logado
+    function isOwnUploadedItem(data) {
+      return (
+        ('uploadedByUid' in data && data.uploadedByUid == request.auth.uid) ||
+        ('createdByUid' in data && data.createdByUid == request.auth.uid) ||
+        ('uploadedByEmail' in data && data.uploadedByEmail is string && data.uploadedByEmail.lower() == request.auth.token.email.lower()) ||
+        ('createdByEmail' in data && data.createdByEmail is string && data.createdByEmail.lower() == request.auth.token.email.lower())
+      );
+    }
+
+    // =========================================================================
+    // COLEÇÃO: usuarios/{uid}
+    // Guarda situação ('dono' | 'aguardando' | 'ativo' | 'bloqueado'), perfil e plataforma
+    // =========================================================================
+    match /usuarios/{uid} {
+      // O próprio usuário pode ler seu documento (para saber se está 'aguardando' ou liberado).
+      // O dono e Coordenadores Gerais ativos podem listar/ler os usuários.
+      allow get: if isSignedInAndVerified() && (
+        request.auth.uid == uid ||
+        isDono() ||
+        isCoordGeral('NOKIA') ||
+        isCoordGeral('ERICSSON')
+      );
+
+      allow list: if isDono() || isCoordGeral('NOKIA') || isCoordGeral('ERICSSON');
+
+      // Ao criar conta, o usuário entra SEMPRE como "aguardando" e sem acesso liberado.
+      // Somente o dono pode criar documentos já ativos.
+      allow create: if isDono() || (
+        isSignedInAndVerified()
+        && request.auth.uid == uid
+        && request.resource.data.situacao == 'aguardando'
+        && request.resource.data.accessReleased == false
+        && request.resource.data.role != 'ADM'
+        && request.resource.data.email is string
+        && request.resource.data.email.lower() == request.auth.token.email.lower()
+      );
+
+      // Um usuário NUNCA pode alterar o próprio perfil, plataforma ou situação, nem os de outros.
+      // Somente o "dono" pode alterar situacao, role, plataforma, assignedPlatform ou accessReleased.
+      allow update: if isDono() || (
+        isSignedInAndVerified()
+        && request.auth.uid == uid
+        && isAtivo()
+        && !request.resource.data.diff(resource.data).affectedKeys()
+            .hasAny(['situacao', 'role', 'plataforma', 'assignedPlatform', 'accessReleased'])
+      );
+
+      allow delete: if isDono();
+    }
+
+    // =========================================================================
+    // SISTEMA 1: TIM / NOKIA (Coleções 100% isoladas da Ericsson)
+    // =========================================================================
+
+    // Planilha Geral de Sites Nokia (ID do documento = Site ID sanitizado)
+    match /nokia_sites/{siteId} {
+      // - Dono e Coordenador Geral (Nokia): leem todos os sites Nokia
+      // - Executor e Vistoriador (Nokia): leem APENAS os sites demandados para eles
+      // - Coordenador Engenharia: vê apenas Engenharia (TSSR) e Vistoria
+      allow read: if isDono()
+        || isCoordGeral('NOKIA')
+        || ((isExecutor('NOKIA') || isVistoriador('NOKIA')) && isSiteDemandedToMe(resource.data));
+
+      // Criação em lote/individual e exclusão de sites: Dono ou Coordenador Geral da Nokia
+      allow create, delete: if isDono() || isCoordGeral('NOKIA');
+
+      // Atualização de status/vistoria do site: Dono, Coordenador Geral ou Executor/Vistoriador responsável pelo site
+      allow update: if isDono()
+        || isCoordGeral('NOKIA')
+        || ((isExecutor('NOKIA') || isVistoriador('NOKIA')) && isSiteDemandedToMe(resource.data));
+    }
+
+    // Planilha Engenharia / TSSR Nokia
+    match /nokia_tssr/{rowId} {
+      // Dono, Coordenador Geral, Coordenador Engenharia e Executor/Vistoriador (nos sites demandados)
+      allow read: if isDono()
+        || isCoordGeral('NOKIA')
+        || isCoordEngenharia('NOKIA')
+        || ((isExecutor('NOKIA') || isVistoriador('NOKIA')) && isSiteDemandedToMe(resource.data));
+
+      allow create, delete: if isDono() || isCoordGeral('NOKIA') || isCoordEngenharia('NOKIA');
+
+      allow update: if isDono()
+        || isCoordGeral('NOKIA')
+        || isCoordEngenharia('NOKIA')
+        || ((isExecutor('NOKIA') || isVistoriador('NOKIA')) && isSiteDemandedToMe(resource.data));
+    }
+
+    // Pastas de Vistoria e Engenharia Nokia
+    match /nokia_pastas/{folderId} {
+      allow read: if isDono()
+        || isCoordGeral('NOKIA')
+        || isCoordEngenharia('NOKIA')
+        || isExecutor('NOKIA')
+        || isVistoriador('NOKIA');
+
+      allow create: if isDono()
+        || isCoordGeral('NOKIA')
+        || isCoordEngenharia('NOKIA')
+        || ((isExecutor('NOKIA') || isVistoriador('NOKIA')) && isOwnUploadedItem(request.resource.data));
+
+      allow update, delete: if isDono()
+        || isCoordGeral('NOKIA')
+        || isCoordEngenharia('NOKIA')
+        || ((isExecutor('NOKIA') || isVistoriador('NOKIA')) && isOwnUploadedItem(resource.data));
+    }
+
+    // Arquivos de Vistoria e TSSR Nokia
+    match /nokia_arquivos/{fileId} {
+      allow read: if isDono()
+        || isCoordGeral('NOKIA')
+        || isCoordEngenharia('NOKIA')
+        || ((isExecutor('NOKIA') || isVistoriador('NOKIA')) && (isSiteDemandedToMe(resource.data) || isOwnUploadedItem(resource.data)));
+
+      allow create: if isDono()
+        || isCoordGeral('NOKIA')
+        || isCoordEngenharia('NOKIA')
+        || ((isExecutor('NOKIA') || isVistoriador('NOKIA')) && isOwnUploadedItem(request.resource.data));
+
+      allow update, delete: if isDono()
+        || isCoordGeral('NOKIA')
+        || isCoordEngenharia('NOKIA')
+        || ((isExecutor('NOKIA') || isVistoriador('NOKIA')) && isOwnUploadedItem(resource.data));
+    }
+
+    // =========================================================================
+    // SISTEMA 2: ERICSSON (Coleções 100% isoladas da Nokia)
+    // Cada documento possui 2 Site IDs (siteIdA e siteIdB), cada um com seu status próprio
+    // =========================================================================
+
+    match /ericsson_sites/{rowId} {
+      allow read: if isDono()
+        || isCoordGeral('ERICSSON')
+        || isCoordEngenharia('ERICSSON')
+        || ((isExecutor('ERICSSON') || isVistoriador('ERICSSON')) && isSiteDemandedToMe(resource.data));
+
+      allow create, delete: if isDono() || isCoordGeral('ERICSSON') || isCoordEngenharia('ERICSSON');
+
+      allow update: if isDono()
+        || isCoordGeral('ERICSSON')
+        || isCoordEngenharia('ERICSSON')
+        || ((isExecutor('ERICSSON') || isVistoriador('ERICSSON')) && isSiteDemandedToMe(resource.data));
+    }
+
+    // Pastas de Vistoria e Engenharia Ericsson
+    match /ericsson_pastas/{folderId} {
+      allow read: if isDono()
+        || isCoordGeral('ERICSSON')
+        || isCoordEngenharia('ERICSSON')
+        || isExecutor('ERICSSON')
+        || isVistoriador('ERICSSON');
+
+      allow create: if isDono()
+        || isCoordGeral('ERICSSON')
+        || isCoordEngenharia('ERICSSON')
+        || ((isExecutor('ERICSSON') || isVistoriador('ERICSSON')) && isOwnUploadedItem(request.resource.data));
+
+      allow update, delete: if isDono()
+        || isCoordGeral('ERICSSON')
+        || isCoordEngenharia('ERICSSON')
+        || ((isExecutor('ERICSSON') || isVistoriador('ERICSSON')) && isOwnUploadedItem(resource.data));
+    }
+
+    // Arquivos de Vistoria, LOS e TSSR Ericsson
+    match /ericsson_arquivos/{fileId} {
+      allow read: if isDono()
+        || isCoordGeral('ERICSSON')
+        || isCoordEngenharia('ERICSSON')
+        || ((isExecutor('ERICSSON') || isVistoriador('ERICSSON')) && (isSiteDemandedToMe(resource.data) || isOwnUploadedItem(resource.data)));
+
+      allow create: if isDono()
+        || isCoordGeral('ERICSSON')
+        || isCoordEngenharia('ERICSSON')
+        || ((isExecutor('ERICSSON') || isVistoriador('ERICSSON')) && isOwnUploadedItem(request.resource.data));
+
+      allow update, delete: if isDono()
+        || isCoordGeral('ERICSSON')
+        || isCoordEngenharia('ERICSSON')
+        || ((isExecutor('ERICSSON') || isVistoriador('ERICSSON')) && isOwnUploadedItem(resource.data));
+    }
+
+    // =========================================================================
+    // COLEÇÕES COMPARTILHADAS DE APOIO (Notificações e Vínculos de Duplas)
+    // =========================================================================
+    match /notificacoes/{notifId} {
+      allow read: if isDono() || isAtivo();
+      allow create, update: if isDono() || isAtivo();
+      allow delete: if isDono();
+    }
+
+    match /configuracoes/{docId} {
+      allow read: if isDono() || isAtivo();
+      allow write: if isDono() || isCoordGeral('NOKIA') || isCoordGeral('ERICSSON');
+    }
+
+    // Bloqueia qualquer outra coleção não listada
     match /{document=**} {
       allow read, write: if false;
-    }
-
-    // 2. Hardened Global Primitives
-    function isSignedIn() {
-      return request.auth != null && request.auth.token.email_verified == true;
-    }
-
-    function incoming() {
-      return request.resource.data;
-    }
-
-    function existing() {
-      return resource.data;
-    }
-
-    function isValidId(id) {
-      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
-    }
-
-    function isBootstrappedOwner() {
-      return isSignedIn() && (
-        request.auth.token.email == 'rafael.araujo0797@gmail.com' ||
-        request.auth.token.email == 'rafael.araujo@ametaservicos.com.br' ||
-        request.auth.token.email == 'rafael.araujo@ameta.com.br'
-      );
-    }
-
-    function isAdmin() {
-      return isSignedIn() && (
-        isBootstrappedOwner() ||
-        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
-      );
-    }
-
-    // 3. Entity Validation Blueprints (Verbatim from firebase-blueprint.json)
-    function isValidAdminUser(data) {
-      return data.keys().hasAll(['uid', 'email', 'createdAt']) &&
-        data.keys().hasOnly(['uid', 'email', 'createdAt']) &&
-        data.uid is string &&
-        data.uid.size() >= 1 &&
-        data.uid.size() <= 128 &&
-        data.uid.matches('^[a-zA-Z0-9_\\-]+$') &&
-        data.uid == request.auth.uid &&
-        data.email is string &&
-        data.email.size() >= 3 &&
-        data.email.size() <= 256 &&
-        data.email == request.auth.token.email;
-    }
-
-    function isValidWorkspaceSnapshot(data) {
-      return data.keys().hasAll([
-          'chunkId',
-          'vendor',
-          'payloadType',
-          'dataJson',
-          'authorUid',
-          'authorEmail',
-          'createdAt',
-          'updatedAt'
-        ]) &&
-        data.keys().hasOnly([
-          'chunkId',
-          'vendor',
-          'payloadType',
-          'dataJson',
-          'authorUid',
-          'authorEmail',
-          'createdAt',
-          'updatedAt'
-        ]) &&
-        data.chunkId is string &&
-        data.chunkId.size() >= 1 &&
-        data.chunkId.size() <= 128 &&
-        data.chunkId.matches('^[a-zA-Z0-9_\\-]+$') &&
-        data.vendor is string &&
-        data.vendor.size() <= 32 &&
-        data.vendor in ['NOKIA', 'ERICSSON', 'SHARED'] &&
-        data.payloadType is string &&
-        data.payloadType.size() <= 32 &&
-        data.payloadType in ['USERS', 'DUPLAS', 'NOTIFICATIONS', 'FOLDERS', 'FILES', 'SITES_META'] &&
-        data.dataJson is string &&
-        data.dataJson.size() >= 2 &&
-        data.dataJson.size() <= 900000 &&
-        data.authorUid is string &&
-        data.authorUid.size() >= 1 &&
-        data.authorUid.size() <= 128 &&
-        data.authorUid.matches('^[a-zA-Z0-9_\\-]+$') &&
-        data.authorUid == request.auth.uid &&
-        data.authorEmail is string &&
-        data.authorEmail.size() >= 3 &&
-        data.authorEmail.size() <= 256 &&
-        data.authorEmail == request.auth.token.email;
-    }
-
-    // 4. Collection: /admins/{adminUid}
-    match /admins/{adminUid} {
-      allow get: if isSignedIn() && isValidId(adminUid) && (request.auth.uid == adminUid || isBootstrappedOwner());
-      allow list: if isSignedIn() && resource.data.uid == request.auth.uid;
-      allow create: if isSignedIn() &&
-        isValidId(adminUid) &&
-        isValidAdminUser(incoming()) &&
-        incoming().uid == adminUid &&
-        incoming().createdAt == request.time &&
-        isBootstrappedOwner();
-      allow update: if isSignedIn() &&
-        isValidId(adminUid) &&
-        isValidAdminUser(incoming()) &&
-        incoming().uid == existing().uid &&
-        incoming().createdAt == existing().createdAt &&
-        incoming().diff(existing()).affectedKeys().hasOnly(['email']) &&
-        isBootstrappedOwner();
-      allow delete: if isSignedIn() && isValidId(adminUid) && isBootstrappedOwner();
-    }
-
-    // 5. Collection: /workspace_snapshots/{chunkId}
-    match /workspace_snapshots/{chunkId} {
-      allow get: if isSignedIn() && isValidId(chunkId) && existing().vendor in ['NOKIA', 'ERICSSON', 'SHARED'];
-      allow list: if isSignedIn() && (resource.data.authorUid == request.auth.uid || isBootstrappedOwner());
-      allow create: if isSignedIn() &&
-        isValidId(chunkId) &&
-        isValidWorkspaceSnapshot(incoming()) &&
-        incoming().chunkId == chunkId &&
-        incoming().createdAt == request.time &&
-        incoming().updatedAt == request.time;
-      allow update: if isSignedIn() &&
-        isValidWorkspaceSnapshot(incoming()) &&
-        isValidId(chunkId) &&
-        incoming().chunkId == chunkId &&
-        incoming().chunkId == existing().chunkId &&
-        incoming().vendor == existing().vendor &&
-        incoming().payloadType == existing().payloadType &&
-        incoming().createdAt == existing().createdAt &&
-        incoming().updatedAt == request.time &&
-        (
-          isAdmin() ||
-          incoming().diff(existing()).affectedKeys().hasOnly([
-            'dataJson',
-            'authorUid',
-            'authorEmail',
-            'updatedAt'
-          ])
-        );
-      allow delete: if isSignedIn() && isValidId(chunkId) && isAdmin();
     }
   }
 }

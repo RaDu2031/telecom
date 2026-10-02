@@ -41,6 +41,7 @@ import {
   Edit3,
   Trash2,
   Users,
+  Cloud,
 } from 'lucide-react';
 import {
   TelecomSite,
@@ -64,10 +65,15 @@ import {
   EQUIPES_COLUMNS,
   AmetaNotification,
   isOwnerAdmUser,
+  isUserDono,
+  isUserAguardando,
   hasFullSpreadsheetAccess,
   isEngineeringCoordinatorRole,
   canUserAccessVendor,
 } from './types/telecom';
+import { signOut } from 'firebase/auth';
+import { auth, isFirebaseEnvConfigured } from './lib/firebase';
+import { dataService } from './services/dataService';
 import { INITIAL_SITES, INITIAL_SHEETS } from './data/initialSites';
 import { AuthGate } from './components/AuthGate';
 import { AmetaLogo } from './components/AmetaLogo';
@@ -93,7 +99,13 @@ import {
   getSiteExecutionSortBucket,
 } from './components/InteractiveSpreadsheetChart';
 import { DuplasInteractiveView } from './components/DuplasInteractiveView';
-import { subscribeToCloudWorkspaceUpdates, cloudFetch } from './lib/firebaseCloud';
+import {
+  subscribeToCloudWorkspaceUpdates,
+  connectAndSyncFirebaseCloud,
+  subscribeToFirebaseAuthStatus,
+  updateCachedClientState,
+  cloudFetch,
+} from './lib/firebaseCloud';
 
 const fetch = cloudFetch;
 import {
@@ -110,6 +122,7 @@ import {
   getCanonicalExecutorName,
   getShortResponsibleLabel,
   doesDocumentMatchResponsible,
+  doesFileMatchUserResponsibleSites,
   DEFAULT_EQUIPES_DUPLAS,
 } from './utils/spreadsheetUtils';
 
@@ -247,6 +260,11 @@ export default function App() {
   const [editingDuplaTarget, setEditingDuplaTarget] = useState<string | null>(null);
   const [editingDuplaValue, setEditingDuplaValue] = useState<string>('');
   const [isRaMenuOpen, setIsRaMenuOpen] = useState<boolean>(false);
+  const [firebaseCloudStatus, setFirebaseCloudStatus] = useState<{
+    connected: boolean;
+    email: string | null;
+  }>({ connected: false, email: null });
+  const [isSyncingFirebase, setIsSyncingFirebase] = useState<boolean>(false);
 
   // Top bar quick search state
   const [quickSiteQuery, setQuickSiteQuery] = useState<string>('');
@@ -410,6 +428,9 @@ export default function App() {
     subscribeToCloudWorkspaceUpdates(() => {
       fetchLatestState();
     });
+    const unsubFirebaseAuth = subscribeToFirebaseAuthStatus((status) => {
+      setFirebaseCloudStatus(status);
+    });
 
     // Real-time background sync every 2.5s + immediate sync on tab focus/visibility so no change is ever missed
     const pollInterval = setInterval(fetchLatestState, 2500);
@@ -428,8 +449,76 @@ export default function App() {
       window.removeEventListener('focus', handleFocusOrVisibility);
       document.removeEventListener('visibilitychange', handleFocusOrVisibility);
       eventSource?.close();
+      unsubFirebaseAuth();
     };
   }, [showToast]);
+
+  const handleConnectFirebaseCloud = async () => {
+    if (isSyncingFirebase) return;
+    setIsSyncingFirebase(true);
+    try {
+      const result = await connectAndSyncFirebaseCloud({
+        sites,
+        users,
+        ericssonUsers,
+        duplaEmailsMap: serverDuplaEmailsMap,
+        notifications,
+        engineeringFolders,
+        engineeringFiles,
+        ericssonRows,
+        ericssonFolders,
+        ericssonFiles,
+        tssrRows,
+      });
+      if (result.state) {
+        if (Array.isArray(result.state.sites) && result.state.sites.length > 0) {
+          setSites(result.state.sites);
+        }
+        if (Array.isArray(result.state.users) && result.state.users.length > 0) {
+          setUsers(result.state.users);
+        }
+        if (Array.isArray(result.state.ericssonUsers)) {
+          setEricssonUsers(result.state.ericssonUsers);
+        }
+        if (result.state.duplaEmailsMap) {
+          setServerDuplaEmailsMap(result.state.duplaEmailsMap);
+        }
+        if (Array.isArray(result.state.notifications)) {
+          setNotifications(result.state.notifications);
+        }
+        if (Array.isArray(result.state.engineeringFolders)) {
+          setEngineeringFolders(result.state.engineeringFolders);
+        }
+        if (Array.isArray(result.state.engineeringFiles)) {
+          setEngineeringFiles(result.state.engineeringFiles);
+        }
+        if (Array.isArray(result.state.ericssonRows)) {
+          setEricssonRows(result.state.ericssonRows);
+        }
+        if (Array.isArray(result.state.ericssonFolders)) {
+          setEricssonFolders(result.state.ericssonFolders);
+        }
+        if (Array.isArray(result.state.ericssonFiles)) {
+          setEricssonFiles(result.state.ericssonFiles);
+        }
+        if (Array.isArray(result.state.tssrRows)) {
+          setTssrRows(result.state.tssrRows);
+        }
+      }
+      setLastSyncTime(new Date().toISOString());
+      showToast(
+        `Firebase Cloud ligado e sincronizado (${result.firebaseEmail || 'Nuvem Ativa'})!`
+      );
+    } catch (err) {
+      showToast(
+        err instanceof Error
+          ? `Atenção ao conectar Firebase: ${err.message}`
+          : 'Não foi possível abrir o login do Firebase Cloud.'
+      );
+    } finally {
+      setIsSyncingFirebase(false);
+    }
+  };
 
   // Listen for direct Ctrl+V anywhere on the workspace (Nokia only)
   useEffect(() => {
@@ -502,12 +591,138 @@ export default function App() {
     setActiveTopTab('sites');
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    if (isFirebaseEnvConfigured) {
+      try {
+        await signOut(auth);
+      } catch {
+        // ignore signOut errors
+      }
+    }
     setUser(null);
     setSimulatedTargetUser(null);
     localStorage.removeItem(STORAGE_USER_KEY);
     setSelectedSiteId(null);
   };
+
+  // Real-time Firestore subscriptions via decoupled dataService layer
+  useEffect(() => {
+    if (!user || !user.emailVerified || !isFirebaseEnvConfigured) return;
+
+    const unsubs: Array<() => void> = [];
+    const uid = user.uid || auth.currentUser?.uid || user.id;
+
+    // 1. Escuta em tempo real o documento do próprio usuário em usuarios/{uid}
+    if (uid) {
+      unsubs.push(
+        dataService.observarPerfilUsuario(uid, (remoteProfile) => {
+          if (!remoteProfile) return;
+          setUser((prev) => {
+            if (!prev) return prev;
+            const merged: AmetaUser = {
+              ...prev,
+              ...remoteProfile,
+              emailVerified: true,
+            };
+            try {
+              localStorage.setItem(STORAGE_USER_KEY, JSON.stringify(merged));
+            } catch {
+              // ignore storage error
+            }
+            return merged;
+          });
+        })
+      );
+    }
+
+    // Se o usuário estiver em situação "aguardando" ou "bloqueado", não abre leituras de dados
+    if (isUserAguardando(user) || user.situacao === 'bloqueado') {
+      return () => {
+        unsubs.forEach((u) => u());
+      };
+    }
+
+    // 2. Escuta coleções isoladas por plataforma (TIM/Nokia ou Ericsson) e perfis de usuários
+    unsubs.push(
+      dataService.observarColecoesPlataforma(user, {
+        onUsuarios: (remoteUsers) => {
+          if (remoteUsers.length > 0) {
+            setUsers((prev) => {
+              const byEmail = new Map<string, AmetaUser>();
+              for (const p of prev) {
+                byEmail.set(p.email.trim().toLowerCase(), p);
+              }
+              for (const r of remoteUsers) {
+                const em = r.email.trim().toLowerCase();
+                const existing = byEmail.get(em);
+                byEmail.set(em, existing ? { ...existing, ...r } : r);
+              }
+              const mergedList = Array.from(byEmail.values());
+              updateCachedClientState({ users: mergedList });
+              return mergedList;
+            });
+          }
+        },
+        onNokiaSites: (remoteSites) => {
+          if (remoteSites.length > 0) {
+            setSites(remoteSites);
+            updateCachedClientState({ sites: remoteSites });
+            setLastSyncTime(new Date().toISOString());
+          }
+        },
+        onNokiaTssr: (remoteTssr) => {
+          if (remoteTssr.length > 0) {
+            setTssrRows(remoteTssr);
+            updateCachedClientState({ tssrRows: remoteTssr });
+          }
+        },
+        onNokiaFolders: (remoteFolders) => {
+          if (remoteFolders.length > 0) {
+            setEngineeringFolders(remoteFolders);
+            updateCachedClientState({ engineeringFolders: remoteFolders });
+          }
+        },
+        onNokiaFiles: (remoteFiles) => {
+          if (remoteFiles.length > 0) {
+            setEngineeringFiles(remoteFiles);
+            updateCachedClientState({ engineeringFiles: remoteFiles });
+          }
+        },
+        onEricssonSites: (remoteEricRows) => {
+          if (remoteEricRows.length > 0) {
+            setEricssonRows(remoteEricRows);
+            updateCachedClientState({ ericssonRows: remoteEricRows });
+            setLastSyncTime(new Date().toISOString());
+          }
+        },
+        onEricssonFolders: (remoteEricFolders) => {
+          if (remoteEricFolders.length > 0) {
+            setEricssonFolders(remoteEricFolders);
+            updateCachedClientState({ ericssonFolders: remoteEricFolders });
+          }
+        },
+        onEricssonFiles: (remoteEricFiles) => {
+          if (remoteEricFiles.length > 0) {
+            setEricssonFiles(remoteEricFiles);
+            updateCachedClientState({ ericssonFiles: remoteEricFiles });
+          }
+        },
+      })
+    );
+
+    return () => {
+      unsubs.forEach((u) => u());
+    };
+  }, [
+    user?.id,
+    user?.uid,
+    user?.email,
+    user?.emailVerified,
+    user?.situacao,
+    user?.role,
+    user?.plataforma,
+    user?.assignedPlatform,
+  ]);
 
   const handleSwitchVendor = async (vendor: VendorType) => {
     setActiveVendor(vendor);
@@ -2535,8 +2750,37 @@ export default function App() {
   );
 
   const vendorEngineeringFilesCount = useMemo(() => {
+    if (activeVendor === 'ERICSSON') {
+      if (effectiveRole === 'Vistoriador' && activeTargetUser) {
+        return ericssonFiles.filter((fl) =>
+          doesFileMatchUserResponsibleSites(fl, activeTargetUser, sites, ericssonRows)
+        ).length;
+      }
+      if (
+        effectiveRole !== 'ADM' &&
+        effectiveRole !== 'Coordenador Geral' &&
+        effectiveRole !== 'Coordenador Engenharia' &&
+        activeTargetUser
+      ) {
+        return ericssonFiles.filter(
+          (fl) =>
+            doesFileMatchUserResponsibleSites(fl, activeTargetUser, sites, ericssonRows) ||
+            doesDocumentMatchResponsible(fl, undefined, activeTargetUser)
+        ).length;
+      }
+      return ericssonFiles.length;
+    }
+
     const allFolders = engineeringFolders.filter((fd) => fd.vendor === activeVendor);
-    // Exclude TSSR Entrada and TSSR project folders from Vistoria folder count
+    const allVendor = engineeringFiles.filter((f) => f.vendor === activeVendor);
+
+    if (effectiveRole === 'Vistoriador' && activeTargetUser) {
+      return allVendor.filter((fl) =>
+        doesFileMatchUserResponsibleSites(fl, activeTargetUser, sites, ericssonRows)
+      ).length;
+    }
+
+    // Exclude TSSR Entrada and TSSR project folders from Vistoria folder count for other roles
     const blockedFolderIds = new Set(
       allFolders
         .filter((fd) => fd.name === 'TSSR Entrada' || fd.name === 'TSSR')
@@ -2553,26 +2797,129 @@ export default function App() {
       }
     }
 
-    const allVendor = engineeringFiles.filter(
-      (f) => f.vendor === activeVendor && !blockedFolderIds.has(f.folderId)
-    );
+    const vistoriaScoped = allVendor.filter((f) => !blockedFolderIds.has(f.folderId));
     if (
       effectiveRole !== 'ADM' &&
       effectiveRole !== 'Coordenador Geral' &&
       effectiveRole !== 'Coordenador Engenharia' &&
       activeTargetUser
     ) {
-      return allVendor.filter((fl) => {
+      return vistoriaScoped.filter((fl) => {
         const folder = allFolders.find((fd) => fd.id === fl.folderId);
-        return doesDocumentMatchResponsible(fl, folder, activeTargetUser);
+        return (
+          doesFileMatchUserResponsibleSites(fl, activeTargetUser, sites, ericssonRows) ||
+          doesDocumentMatchResponsible(fl, folder, activeTargetUser)
+        );
       }).length;
     }
-    return allVendor.length;
-  }, [engineeringFiles, engineeringFolders, activeVendor, effectiveRole, activeTargetUser]);
+    return vistoriaScoped.length;
+  }, [
+    engineeringFiles,
+    engineeringFolders,
+    ericssonFiles,
+    sites,
+    ericssonRows,
+    activeVendor,
+    effectiveRole,
+    activeTargetUser,
+  ]);
 
   // Minimalist AuthGate when not logged in (must be after all React hooks)
   if (!user || !user.emailVerified) {
     return <AuthGate onAuthenticated={handleAuthenticated} />;
+  }
+
+  // Tela de bloqueio/espera quando a situação do usuário é "aguardando" ou "bloqueado"
+  if (
+    !isUserDono(activeTargetUser) &&
+    (isUserAguardando(activeTargetUser) || activeTargetUser?.situacao === 'bloqueado')
+  ) {
+    const isBlocked = activeTargetUser?.situacao === 'bloqueado';
+    return (
+      <div className="min-h-screen bg-[#0D1538] text-white flex flex-col justify-between p-6">
+        <div className="h-1.5 w-full bg-gradient-to-r from-[#223585] via-[#1E8E8D] to-emerald-400 fixed top-0 left-0 right-0" />
+        <div className="max-w-lg w-full mx-auto my-auto bg-white text-slate-900 rounded-2xl shadow-2xl border border-slate-200 p-7 space-y-5">
+          <div className="flex items-center justify-between">
+            <AmetaLogo size="sm" theme="light" />
+            <span
+              className={`px-3 py-1 rounded-full text-xs font-extrabold uppercase tracking-wider border ${
+                isBlocked
+                  ? 'bg-red-50 text-red-800 border-red-300'
+                  : 'bg-amber-50 text-amber-800 border-amber-300'
+              }`}
+            >
+              {isBlocked ? 'Acesso Bloqueado' : 'Situação: Aguardando Liberação'}
+            </span>
+          </div>
+
+          <div className="p-4 rounded-xl bg-amber-50/90 border border-amber-200 flex items-start gap-3">
+            <Clock className="w-6 h-6 text-amber-600 shrink-0 mt-0.5" />
+            <div className="space-y-1.5">
+              <h2 className="text-base font-extrabold text-slate-900">
+                {isBlocked
+                  ? 'Seu acesso a este sistema está bloqueado'
+                  : 'Seu acesso precisa ser liberado pelo dono do sistema'}
+              </h2>
+              <p className="text-xs text-slate-700 leading-relaxed">
+                Olá, <strong>{activeTargetUser?.name}</strong> (
+                <span className="font-mono">{activeTargetUser?.email}</span>). Sua conta com e-mail
+                verificado foi criada com sucesso na situação <strong>&quot;aguardando&quot;</strong>.
+              </p>
+              <p className="text-xs text-slate-600 leading-relaxed">
+                Por segurança, nenhum dado das plataformas <strong>TIM / Nokia</strong> ou{' '}
+                <strong>Ericsson</strong> é exibido até que o <strong>dono</strong> atribua seu{' '}
+                <strong>Perfil</strong> (Coordenador Geral, Coordenador Engenharia, Executor ou
+                Vistoriador) e sua <strong>Plataforma</strong> na gestão de usuários.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center justify-between gap-2 pt-2">
+            {simulatedTargetUser ? (
+              <button
+                type="button"
+                onClick={() => setSimulatedTargetUser(null)}
+                className="px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs cursor-pointer"
+              >
+                Sair da Simulação (Voltar para Dono)
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={async () => {
+                  const uid = user.uid || auth.currentUser?.uid || user.id;
+                  if (uid && isFirebaseEnvConfigured) {
+                    const refreshed = await dataService.obterPerfilUsuario(uid);
+                    if (refreshed) {
+                      setUser({ ...user, ...refreshed, emailVerified: true });
+                      if (!isUserAguardando(refreshed) && refreshed.situacao !== 'bloqueado') {
+                        showToast('Acesso liberado! Bem-vindo ao sistema Ameta.');
+                      } else {
+                        showToast('Seu cadastro ainda aguarda liberação pelo dono.');
+                      }
+                    }
+                  }
+                }}
+                className="px-4 py-2.5 rounded-xl bg-[#223585] hover:bg-[#192868] text-white font-bold text-xs inline-flex items-center gap-2 cursor-pointer"
+              >
+                <RefreshCw className="w-3.5 h-3.5" />
+                <span>Verificar se meu acesso foi liberado</span>
+              </button>
+            )}
+
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-red-50 text-slate-700 hover:text-red-700 border border-slate-200 font-bold text-xs inline-flex items-center gap-1.5 cursor-pointer"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+              <span>Sair da Conta</span>
+            </button>
+          </div>
+        </div>
+        <div />
+      </div>
+    );
   }
 
   const userInitials = user.name
@@ -2703,11 +3050,7 @@ export default function App() {
                 <FolderOpen className="w-3.5 h-3.5 text-blue-600 shrink-0" />
                 <span>{effectiveRole === 'Executor' ? 'Subir TSSR' : 'Vistoria'}</span>
                 <span className="font-mono text-[11px] text-slate-500 tabular-nums">
-                  (
-                  {activeVendor === 'ERICSSON'
-                    ? ericssonFiles.length
-                    : vendorEngineeringFilesCount}
-                  )
+                  ({vendorEngineeringFilesCount})
                 </span>
               </button>
 
@@ -2778,12 +3121,18 @@ export default function App() {
               effectiveUser={activeTargetUser}
               realUser={user}
               activeVendor={activeVendor}
+              nokiaSites={sites}
+              ericssonRows={ericssonRows}
+              engineeringFiles={engineeringFiles}
+              ericssonFiles={ericssonFiles}
               onNotificationsUpdated={(next) => setNotifications(next)}
               onNavigateToContext={(notif) => {
                 if (notif.vendor && canUserAccessVendor(activeTargetUser, notif.vendor)) {
                   setActiveVendor(notif.vendor);
                 }
-                if (
+                if (notif.type === 'ARQUIVO_ASSOCIADO_SITE_VISTORIADOR') {
+                  setActiveTopTab('vistoria');
+                } else if (
                   notif.type === 'VISTORIA_OK_PASTA' ||
                   notif.type === 'TSSR_ENVIADO_EXECUTOR'
                 ) {
@@ -2797,19 +3146,54 @@ export default function App() {
               }}
             />
 
-            {isOwnerAdm && (
-              <button
-                type="button"
-                onClick={() => setOwnerPermissionsModalOpen(true)}
-                className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs shadow-sm transition-colors cursor-pointer"
-                title="Painel Exclusivo ADM Dono — Escolher cargos e liberar permissões"
-              >
-                <ShieldCheck className="w-3.5 h-3.5" />
-                <span>Liberar Permissões (ADM Dono)</span>
-              </button>
+            {isOwnerAdm && !simulatedTargetUser && (
+              <>
+                <button
+                  type="button"
+                  onClick={handleConnectFirebaseCloud}
+                  disabled={isSyncingFirebase}
+                  className={`hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-bold text-xs shadow-sm transition-colors cursor-pointer ${
+                    firebaseCloudStatus.connected
+                      ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                      : 'bg-slate-900 hover:bg-slate-800 text-white'
+                  }`}
+                  title={
+                    firebaseCloudStatus.connected
+                      ? `Firebase Cloud conectado (${firebaseCloudStatus.email}) — Clique para sincronizar agora`
+                      : 'Clique para ligar e sincronizar com o banco Firebase Cloud'
+                  }
+                >
+                  <Cloud
+                    className={`w-3.5 h-3.5 ${
+                      isSyncingFirebase
+                        ? 'animate-bounce text-amber-300'
+                        : firebaseCloudStatus.connected
+                        ? 'text-emerald-200'
+                        : 'text-emerald-400'
+                    }`}
+                  />
+                  <span>
+                    {isSyncingFirebase
+                      ? 'Sincronizando...'
+                      : firebaseCloudStatus.connected
+                      ? 'Firebase Ligado'
+                      : 'Ligar Firebase'}
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setOwnerPermissionsModalOpen(true)}
+                  className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs shadow-sm transition-colors cursor-pointer"
+                  title="Painel Exclusivo ADM Dono — Escolher cargos e liberar permissões"
+                >
+                  <ShieldCheck className="w-3.5 h-3.5" />
+                  <span>Liberar Permissões (ADM Dono)</span>
+                </button>
+              </>
             )}
 
-            {isRealAdmin ? (
+            {isRealAdmin && !simulatedTargetUser ? (
               <div className="relative">
                 <button
                   type="button"
@@ -2819,7 +3203,7 @@ export default function App() {
                       ? 'bg-slate-900 text-white border-slate-900'
                       : 'bg-white hover:bg-slate-100 text-slate-700 border-slate-200'
                   }`}
-                  title="Menu RA — Abrir função em outra aba"
+                  title="Menu Exclusivo RA — Administração, Firebase e Testes"
                 >
                   <div className="w-7 h-7 rounded-full bg-slate-900 text-white text-[11px] font-bold flex items-center justify-center select-none ring-1 ring-white/20">
                     {userInitials}
@@ -2833,9 +3217,9 @@ export default function App() {
                       className="fixed inset-0 z-40 bg-slate-900/20 sm:bg-transparent"
                       onClick={() => setIsRaMenuOpen(false)}
                     />
-                    <div className="fixed inset-x-3 top-14 sm:inset-x-auto sm:top-auto sm:absolute sm:right-0 sm:mt-1.5 sm:w-60 bg-white border border-slate-200 rounded-2xl sm:rounded-xl shadow-2xl py-2 z-50 text-xs max-h-[80vh] overflow-y-auto">
+                    <div className="fixed inset-x-3 top-14 sm:inset-x-auto sm:top-auto sm:absolute sm:right-0 sm:mt-1.5 sm:w-64 bg-white border border-slate-200 rounded-2xl sm:rounded-xl shadow-2xl py-2 z-50 text-xs max-h-[82vh] overflow-y-auto">
                       <div className="px-3.5 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400 border-b border-slate-100 flex items-center justify-between">
-                        <span>Funções RA (Abrir Aba)</span>
+                        <span>Menu Exclusivo RA (Admin)</span>
                         <button
                           type="button"
                           onClick={() => setIsRaMenuOpen(false)}
@@ -2846,22 +3230,61 @@ export default function App() {
                       </div>
 
                       {isOwnerAdm && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setIsRaMenuOpen(false);
-                            setOwnerPermissionsModalOpen(true);
-                          }}
-                          className="w-full px-3.5 py-2.5 sm:py-2 text-left flex items-center justify-between bg-amber-50 hover:bg-amber-100 text-amber-900 font-bold border-b border-amber-200/70 cursor-pointer"
-                        >
-                          <span className="flex items-center gap-2">
-                            <ShieldCheck className="w-4 h-4 text-amber-600" />
-                            <span>Painel ADM Dono (Liberar)</span>
-                          </span>
-                          <span className="text-[9px] font-black uppercase bg-amber-200/80 px-1.5 py-0.5 rounded">
-                            DONO
-                          </span>
-                        </button>
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsRaMenuOpen(false);
+                              handleConnectFirebaseCloud();
+                            }}
+                            className={`w-full px-3.5 py-2.5 sm:py-2 text-left flex items-center justify-between font-bold border-b cursor-pointer ${
+                              firebaseCloudStatus.connected
+                                ? 'bg-emerald-50 hover:bg-emerald-100 text-emerald-950 border-emerald-200/70'
+                                : 'bg-slate-900 hover:bg-slate-800 text-white border-slate-800'
+                            }`}
+                          >
+                            <span className="flex items-center gap-2">
+                              <Cloud
+                                className={`w-4 h-4 ${
+                                  firebaseCloudStatus.connected
+                                    ? 'text-emerald-600'
+                                    : 'text-emerald-400'
+                                }`}
+                              />
+                              <span>
+                                {firebaseCloudStatus.connected
+                                  ? 'Firebase Cloud (Sincronizar)'
+                                  : 'Ligar no Firebase Agora'}
+                              </span>
+                            </span>
+                            <span
+                              className={`text-[9px] font-black uppercase px-1.5 py-0.5 rounded ${
+                                firebaseCloudStatus.connected
+                                  ? 'bg-emerald-200/80 text-emerald-950'
+                                  : 'bg-emerald-500 text-slate-950'
+                              }`}
+                            >
+                              {firebaseCloudStatus.connected ? 'LIGADO' : 'LIGAR'}
+                            </span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsRaMenuOpen(false);
+                              setOwnerPermissionsModalOpen(true);
+                            }}
+                            className="w-full px-3.5 py-2.5 sm:py-2 text-left flex items-center justify-between bg-amber-50 hover:bg-amber-100 text-amber-900 font-bold border-b border-amber-200/70 cursor-pointer"
+                          >
+                            <span className="flex items-center gap-2">
+                              <ShieldCheck className="w-4 h-4 text-amber-600" />
+                              <span>Painel ADM Dono (Liberar)</span>
+                            </span>
+                            <span className="text-[9px] font-black uppercase bg-amber-200/80 px-1.5 py-0.5 rounded">
+                              DONO
+                            </span>
+                          </button>
+                        </>
                       )}
 
                       <button
@@ -2959,133 +3382,140 @@ export default function App() {
                         <span>Exportar Planilha</span>
                       </button>
 
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setIsRaMenuOpen(false);
-                          setActiveTopTab('simular');
-                        }}
-                        className={`w-full px-3.5 py-2.5 sm:py-1.5 text-left flex items-center gap-2 hover:bg-slate-50 cursor-pointer ${
-                          resolvedTopTab === 'simular' ? 'bg-blue-50/70 text-blue-700 font-semibold' : 'text-slate-700'
-                        }`}
-                      >
-                        <Eye className="w-4 h-4 text-slate-600" />
-                        <span>Ver como (Simular)</span>
-                      </button>
+                      {isOwnerAdm && (
+                        <>
+                          <div className="my-1 border-t border-slate-100" />
+                          <div className="px-3.5 py-1 text-[10px] font-bold uppercase tracking-wider text-amber-700 bg-amber-50/60 flex items-center justify-between">
+                            <span>Opções de Teste (Só para Mim)</span>
+                            <span className="text-[9px] font-mono px-1 rounded bg-amber-200/70 text-amber-900">
+                              RA
+                            </span>
+                          </div>
 
-                      <div className="my-1 border-t border-slate-100" />
-                      <div className="px-3.5 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                        Teste Rápido de Perfil
-                      </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsRaMenuOpen(false);
+                              setActiveTopTab('simular');
+                            }}
+                            className={`w-full px-3.5 py-2.5 sm:py-1.5 text-left flex items-center gap-2 hover:bg-slate-50 cursor-pointer ${
+                              resolvedTopTab === 'simular' ? 'bg-blue-50/70 text-blue-700 font-semibold' : 'text-slate-700'
+                            }`}
+                          >
+                            <Eye className="w-4 h-4 text-slate-600" />
+                            <span>Escolher Dupla / Usuário p/ Testar</span>
+                          </button>
 
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const coordGeral =
-                            (activeVendor === 'ERICSSON'
-                              ? ericssonUsers.find((u) => u.role === 'Coordenador Geral')
-                              : users.find((u) => u.role === 'Coordenador Geral')) || {
-                              id: 'sim-coord-geral',
-                              name: `Coordenador Geral (${activeVendor})`,
-                              email:
-                                activeVendor === 'ERICSSON'
-                                  ? 'coord.geral.ericsson@ameta.com.br'
-                                  : 'coord.geral.tim@ameta.com.br',
-                              role: 'Coordenador Geral' as UserRole,
-                              assignedPlatform: activeVendor,
-                              equipe: `Coordenação Geral ${activeVendor}`,
-                              emailVerified: true,
-                              createdAt: '',
-                            };
-                          setIsRaMenuOpen(false);
-                          setSimulatedTargetUser(coordGeral);
-                          setActiveTopTab('sites');
-                          showToast(`Simulando Coordenador Geral (${activeVendor}): vê todas as planilhas`);
-                        }}
-                        className="w-full px-3.5 py-2 sm:py-1.5 text-left flex items-center justify-between hover:bg-indigo-50 text-indigo-800 font-medium cursor-pointer"
-                      >
-                        <span>Testar Coordenador Geral</span>
-                        <span className="text-[10px] font-mono bg-indigo-100 px-1.5 py-0.5 rounded">
-                          Todas Plan.
-                        </span>
-                      </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const coordGeral =
+                                (activeVendor === 'ERICSSON'
+                                  ? ericssonUsers.find((u) => u.role === 'Coordenador Geral')
+                                  : users.find((u) => u.role === 'Coordenador Geral')) || {
+                                  id: 'sim-coord-geral',
+                                  name: `Coordenador Geral (${activeVendor})`,
+                                  email:
+                                    activeVendor === 'ERICSSON'
+                                      ? 'coord.geral.ericsson@ameta.com.br'
+                                      : 'coord.geral.tim@ameta.com.br',
+                                  role: 'Coordenador Geral' as UserRole,
+                                  assignedPlatform: activeVendor,
+                                  equipe: `Coordenação Geral ${activeVendor}`,
+                                  emailVerified: true,
+                                  createdAt: '',
+                                };
+                              setIsRaMenuOpen(false);
+                              setSimulatedTargetUser(coordGeral);
+                              setActiveTopTab('sites');
+                              showToast(`Simulando Coordenador Geral (${activeVendor}): vê todas as planilhas`);
+                            }}
+                            className="w-full px-3.5 py-2 sm:py-1.5 text-left flex items-center justify-between hover:bg-indigo-50 text-indigo-800 font-medium cursor-pointer"
+                          >
+                            <span>Testar Coordenador Geral</span>
+                            <span className="text-[10px] font-mono bg-indigo-100 px-1.5 py-0.5 rounded">
+                              Todas Plan.
+                            </span>
+                          </button>
 
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const coordEng =
-                            (activeVendor === 'ERICSSON'
-                              ? ericssonUsers.find((u) => u.role === 'Coordenador Engenharia')
-                              : users.find((u) => u.role === 'Coordenador Engenharia')) || {
-                              id: 'sim-coord-eng',
-                              name: `Coordenador Engenharia (${activeVendor})`,
-                              email:
-                                activeVendor === 'ERICSSON'
-                                  ? 'coord.engenharia.ericsson@ameta.com.br'
-                                  : 'coord.engenharia.tim@ameta.com.br',
-                              role: 'Coordenador Engenharia' as UserRole,
-                              assignedPlatform: activeVendor,
-                              equipe: `Coordenação Engenharia ${activeVendor}`,
-                              emailVerified: true,
-                              createdAt: '',
-                            };
-                          setIsRaMenuOpen(false);
-                          setSimulatedTargetUser(coordEng);
-                          setActiveTopTab('engenharia');
-                          showToast(
-                            `Simulando Coordenador Engenharia (${activeVendor}): vê apenas Engenharia e Vistoria`
-                          );
-                        }}
-                        className="w-full px-3.5 py-2 sm:py-1.5 text-left flex items-center justify-between hover:bg-purple-50 text-purple-800 font-medium cursor-pointer"
-                      >
-                        <span>Testar Coord. Engenharia</span>
-                        <span className="text-[10px] font-mono bg-purple-100 px-1.5 py-0.5 rounded">
-                          Eng + Vist
-                        </span>
-                      </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const coordEng =
+                                (activeVendor === 'ERICSSON'
+                                  ? ericssonUsers.find((u) => u.role === 'Coordenador Engenharia')
+                                  : users.find((u) => u.role === 'Coordenador Engenharia')) || {
+                                  id: 'sim-coord-eng',
+                                  name: `Coordenador Engenharia (${activeVendor})`,
+                                  email:
+                                    activeVendor === 'ERICSSON'
+                                      ? 'coord.engenharia.ericsson@ameta.com.br'
+                                      : 'coord.engenharia.tim@ameta.com.br',
+                                  role: 'Coordenador Engenharia' as UserRole,
+                                  assignedPlatform: activeVendor,
+                                  equipe: `Coordenação Engenharia ${activeVendor}`,
+                                  emailVerified: true,
+                                  createdAt: '',
+                                };
+                              setIsRaMenuOpen(false);
+                              setSimulatedTargetUser(coordEng);
+                              setActiveTopTab('engenharia');
+                              showToast(
+                                `Simulando Coordenador Engenharia (${activeVendor}): vê apenas Engenharia e Vistoria`
+                              );
+                            }}
+                            className="w-full px-3.5 py-2 sm:py-1.5 text-left flex items-center justify-between hover:bg-purple-50 text-purple-800 font-medium cursor-pointer"
+                          >
+                            <span>Testar Coord. Engenharia</span>
+                            <span className="text-[10px] font-mono bg-purple-100 px-1.5 py-0.5 rounded">
+                              Eng + Vist
+                            </span>
+                          </button>
 
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const vist =
-                            users.find((u) => u.email.toLowerCase() === 'teste@ameta.com.br') ||
-                            users.find((u) => u.role === 'Vistoriador');
-                          setIsRaMenuOpen(false);
-                          if (vist) {
-                            setSimulatedTargetUser(vist);
-                            setActiveTopTab('sites');
-                            showToast(`Testando perfil Vistoriador: ${vist.name}`);
-                          }
-                        }}
-                        className="w-full px-3.5 py-2 sm:py-1.5 text-left flex items-center justify-between hover:bg-amber-50 text-amber-800 font-medium cursor-pointer"
-                      >
-                        <span>Testar Vistoriador</span>
-                        <span className="text-[10px] font-mono bg-amber-100 px-1.5 py-0.5 rounded">
-                          Vistoria
-                        </span>
-                      </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const vist =
+                                users.find((u) => u.email.toLowerCase() === 'teste@ameta.com.br') ||
+                                users.find((u) => u.role === 'Vistoriador');
+                              setIsRaMenuOpen(false);
+                              if (vist) {
+                                setSimulatedTargetUser(vist);
+                                setActiveTopTab('sites');
+                                showToast(`Testando perfil Vistoriador: ${vist.name}`);
+                              }
+                            }}
+                            className="w-full px-3.5 py-2 sm:py-1.5 text-left flex items-center justify-between hover:bg-amber-50 text-amber-800 font-medium cursor-pointer"
+                          >
+                            <span>Testar Vistoriador</span>
+                            <span className="text-[10px] font-mono bg-amber-100 px-1.5 py-0.5 rounded">
+                              Vistoria
+                            </span>
+                          </button>
 
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const exec =
-                            users.find(
-                              (u) => u.email.toLowerCase() === 'executor.teste@ameta.com.br'
-                            ) || users.find((u) => u.role === 'Executor');
-                          setIsRaMenuOpen(false);
-                          if (exec) {
-                            setSimulatedTargetUser(exec);
-                            setActiveTopTab('sites');
-                            showToast(`Testando perfil Executor: ${exec.name}`);
-                          }
-                        }}
-                        className="w-full px-3.5 py-2 sm:py-1.5 text-left flex items-center justify-between hover:bg-blue-50 text-blue-700 font-medium cursor-pointer"
-                      >
-                        <span>Testar Executor</span>
-                        <span className="text-[10px] font-mono bg-blue-100 px-1.5 py-0.5 rounded">
-                          Só TSSR
-                        </span>
-                      </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const exec =
+                                users.find(
+                                  (u) => u.email.toLowerCase() === 'executor.teste@ameta.com.br'
+                                ) || users.find((u) => u.role === 'Executor');
+                              setIsRaMenuOpen(false);
+                              if (exec) {
+                                setSimulatedTargetUser(exec);
+                                setActiveTopTab('sites');
+                                showToast(`Testando perfil Executor: ${exec.name}`);
+                              }
+                            }}
+                            className="w-full px-3.5 py-2 sm:py-1.5 text-left flex items-center justify-between hover:bg-blue-50 text-blue-700 font-medium cursor-pointer"
+                          >
+                            <span>Testar Executor</span>
+                            <span className="text-[10px] font-mono bg-blue-100 px-1.5 py-0.5 rounded">
+                              Só TSSR
+                            </span>
+                          </button>
+                        </>
+                      )}
 
                       <div className="my-1 border-t border-slate-100" />
 
@@ -3259,9 +3689,7 @@ export default function App() {
                     : 'bg-slate-100 text-slate-700'
                 }`}
               >
-                {activeVendor === 'ERICSSON'
-                  ? ericssonFiles.length
-                  : vendorEngineeringFilesCount}
+                {vendorEngineeringFilesCount}
               </span>
             </button>
 
@@ -4675,7 +5103,9 @@ export default function App() {
                             { id: 'exportar' as const, label: 'Exportar Planilha' },
                           ]
                         : []),
-                      { id: 'simular', label: 'Ver como (Simular)' },
+                      ...(isOwnerAdm
+                        ? ([{ id: 'simular' as const, label: 'Ver como (Simular)' }] as const)
+                        : []),
                     ] as const
                   ).map((tabItem) => (
                     <button
@@ -4896,16 +5326,20 @@ export default function App() {
                       // ignore offline error
                     }
                   }}
-                  onSimulateDuplaView={(targetUser, targetVendor) => {
-                    setActiveVendor(targetVendor);
-                    setSimulatedTargetUser(targetUser);
-                    setActiveTopTab('sites');
-                    showToast(
-                      `Visualizando ${
-                        targetVendor === 'ERICSSON' ? 'Ericsson' : 'TIM/Nokia'
-                      } como "${targetUser.name}" (${targetUser.email})`
-                    );
-                  }}
+                  onSimulateDuplaView={
+                    isOwnerAdm
+                      ? (targetUser, targetVendor) => {
+                          setActiveVendor(targetVendor);
+                          setSimulatedTargetUser(targetUser);
+                          setActiveTopTab('sites');
+                          showToast(
+                            `Visualizando ${
+                              targetVendor === 'ERICSSON' ? 'Ericsson' : 'TIM/Nokia'
+                            } como "${targetUser.name}" (${targetUser.email})`
+                          );
+                        }
+                      : undefined
+                  }
                   onOpenSiteDrawer={(id) => setSelectedSiteId(id)}
                 />
               )}
@@ -4916,11 +5350,15 @@ export default function App() {
                   currentUser={user}
                   users={users}
                   initialExpandedUserId={initialExpandedUserId}
-                  onTestUserView={(targetUser) => {
-                    setSimulatedTargetUser(targetUser);
-                    setActiveTopTab('sites');
-                    showToast(`Visualizando sistema como "${targetUser.name}"`);
-                  }}
+                  onTestUserView={
+                    isOwnerAdm
+                      ? (targetUser) => {
+                          setSimulatedTargetUser(targetUser);
+                          setActiveTopTab('sites');
+                          showToast(`Visualizando sistema como "${targetUser.name}"`);
+                        }
+                      : undefined
+                  }
                   onUsersUpdated={(nextUsers, toastMsg) => {
                     setUsers(nextUsers);
                     const updatedSelf = nextUsers.find(
