@@ -339,7 +339,7 @@ export function ensureUserMandatoryDocuments(
   }
   return MANDATORY_USER_DOCUMENTS.map((meta) => {
     const found = map.get(meta.type);
-    return {
+    const item: UserMandatoryDocument = {
       type: meta.type,
       label: meta.label,
       fileName: found?.fileName || '',
@@ -348,9 +348,12 @@ export function ensureUserMandatoryDocuments(
       uploadedBy: found?.uploadedBy || '',
       storageFileName: found?.storageFileName || '',
       expiresAt: found?.expiresAt || '',
-      statusOverride: found?.statusOverride,
       notes: found?.notes || '',
     };
+    if (found?.statusOverride) {
+      item.statusOverride = found.statusOverride;
+    }
+    return item;
   });
 }
 

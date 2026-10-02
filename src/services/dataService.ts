@@ -57,6 +57,40 @@ export const FIRESTORE_COLLECTIONS = {
 export const MAX_FIRESTORE_BATCH_SIZE = 500;
 
 /**
+ * Recursively removes all undefined fields from an object or array to avoid Firestore setDoc errors
+ */
+export function stripUndefined<T>(val: T): T {
+  if (val === null || val === undefined) {
+    return undefined as unknown as T;
+  }
+  if (Array.isArray(val)) {
+    return val
+      .map((item) => stripUndefined(item))
+      .filter((item) => item !== undefined) as unknown as T;
+  }
+  if (typeof val === 'object') {
+    if (
+      (val as any)._methodName ||
+      (val as any).constructor?.name === 'FieldValue' ||
+      (val as any).constructor?.name === 'ServerTimestampTransform'
+    ) {
+      return val;
+    }
+    const result: Record<string, any> = {};
+    for (const [k, v] of Object.entries(val as Record<string, any>)) {
+      if (v !== undefined) {
+        const cleaned = stripUndefined(v);
+        if (cleaned !== undefined) {
+          result[k] = cleaned;
+        }
+      }
+    }
+    return result as T;
+  }
+  return val;
+}
+
+/**
  * Sanitiza um Site ID para ser usado como ID de documento no Firestore (sem barras ou caracteres proibidos)
  */
 export function sanitizeSiteDocId(rawSiteId: string, sheetName?: string): string {
@@ -439,7 +473,7 @@ class FirestoreDataService implements IDataService {
       };
 
       if (params.emailVerified) {
-        await setDoc(userRef, newUserDoc);
+        await setDoc(userRef, stripUndefined(newUserDoc));
       }
 
       return {
@@ -564,34 +598,40 @@ class FirestoreDataService implements IDataService {
       try {
         const snap = await getDoc(userRef);
         if (snap.exists()) {
-          await updateDoc(userRef, {
-            name: params.name.trim(),
-            role: params.role,
-            plataforma: params.plataforma,
-            assignedPlatform,
-            situacao: params.situacao,
-            accessReleased: isReleased,
-            equipe: (params.equipe || '').trim(),
-            releasedByEmail: params.ownerEmail || auth?.currentUser?.email || '',
-            releasedAt: nowIso,
-            updatedAt: serverTimestamp(),
-          });
+          await updateDoc(
+            userRef,
+            stripUndefined({
+              name: params.name.trim(),
+              role: params.role,
+              plataforma: params.plataforma,
+              assignedPlatform,
+              situacao: params.situacao,
+              accessReleased: isReleased,
+              equipe: (params.equipe || '').trim(),
+              releasedByEmail: params.ownerEmail || auth?.currentUser?.email || '',
+              releasedAt: nowIso,
+              updatedAt: serverTimestamp(),
+            })
+          );
         } else {
-          await setDoc(userRef, {
-            uid: targetDocId,
-            email: cleanEmail,
-            name: params.name.trim(),
-            role: params.role,
-            plataforma: params.plataforma,
-            assignedPlatform,
-            situacao: params.situacao,
-            accessReleased: isReleased,
-            equipe: (params.equipe || '').trim(),
-            releasedByEmail: params.ownerEmail || auth?.currentUser?.email || '',
-            releasedAt: nowIso,
-            createdAt: serverTimestamp(),
-            updatedAt: serverTimestamp(),
-          });
+          await setDoc(
+            userRef,
+            stripUndefined({
+              uid: targetDocId,
+              email: cleanEmail,
+              name: params.name.trim(),
+              role: params.role,
+              plataforma: params.plataforma,
+              assignedPlatform,
+              situacao: params.situacao,
+              accessReleased: isReleased,
+              equipe: (params.equipe || '').trim(),
+              releasedByEmail: params.ownerEmail || auth?.currentUser?.email || '',
+              releasedAt: nowIso,
+              createdAt: serverTimestamp(),
+              updatedAt: serverTimestamp(),
+            })
+          );
         }
       } catch (error) {
         handleFirestoreError(error, OperationType.WRITE, path);
@@ -1173,11 +1213,11 @@ class FirestoreDataService implements IDataService {
       }
       await setDoc(
         userRef,
-        {
+        stripUndefined({
           ...newUser,
           passwordHash: params.password,
           updatedAt: serverTimestamp(),
-        },
+        }),
         { merge: true }
       );
 
@@ -1195,7 +1235,7 @@ class FirestoreDataService implements IDataService {
           readByEmails: [],
           createdAt: nowIso,
         };
-        await this.criarNotificacao(notif);
+        await this.criarNotificacao(stripUndefined(notif));
       }
     }
 
@@ -1239,11 +1279,11 @@ class FirestoreDataService implements IDataService {
           }
           await setDoc(
             ref,
-            {
+            stripUndefined({
               ...ownerUser,
               passwordHash: params.password,
               updatedAt: nowIso,
-            },
+            }),
             { merge: true }
           );
         } catch (err) {
@@ -1331,7 +1371,7 @@ class FirestoreDataService implements IDataService {
       }));
       await setDoc(
         doc(db, FIRESTORE_COLLECTIONS.USUARIOS, targetId),
-        {
+        stripUndefined({
           email: cleanEmail,
           documents: slimDocs,
           ...(params.dispensadoDocumentos !== undefined
@@ -1339,7 +1379,7 @@ class FirestoreDataService implements IDataService {
             : {}),
           ...(params.statusRecurso ? { statusRecurso: params.statusRecurso } : {}),
           updatedAt: serverTimestamp(),
-        },
+        }),
         { merge: true }
       );
     } catch {
