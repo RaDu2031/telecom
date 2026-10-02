@@ -152,7 +152,8 @@ function saveLocalDbState(state: Record<string, any>) {
 }
 
 export async function pushWorkspaceToFirestore(state: Record<string, any>): Promise<void> {
-  if (!isFirebaseEnvConfigured || !auth.currentUser || !auth.currentUser.emailVerified) {
+  const currentUser = auth ? auth.currentUser : null;
+  if (!isFirebaseEnvConfigured || !currentUser || !currentUser.emailVerified) {
     return;
   }
   try {
@@ -167,13 +168,17 @@ export async function pushWorkspaceToFirestore(state: Record<string, any>): Prom
 export async function pullWorkspaceFromFirestore(
   _targetState: Record<string, any>
 ): Promise<boolean> {
-  return Boolean(isFirebaseEnvConfigured && auth.currentUser && auth.currentUser.emailVerified);
+  const currentUser = auth ? auth.currentUser : null;
+  return Boolean(isFirebaseEnvConfigured && currentUser && currentUser.emailVerified);
 }
 
 export async function signInWithGoogleFirebase(): Promise<{
   firebaseUser: FirebaseUser;
   ametaUser: AmetaUser;
 }> {
+  if (!auth) {
+    throw new Error('Firebase Auth não está configurado (.env.local).');
+  }
   const cred = await signInWithPopup(auth, googleProvider);
   const fbUser = cred.user;
   const email = (fbUser.email || '').trim().toLowerCase();
@@ -202,7 +207,7 @@ export async function connectAndSyncFirebaseCloud(
   firebaseEmail: string;
   state: Record<string, any>;
 }> {
-  const fbUser = auth.currentUser;
+  const fbUser = auth ? auth.currentUser : null;
   const state = await ensureLocalDbState();
 
   if (currentStateSnapshot && typeof currentStateSnapshot === 'object') {
@@ -245,7 +250,7 @@ export async function connectAndSyncFirebaseCloud(
 export function subscribeToFirebaseAuthStatus(
   onStatusChange: (status: { connected: boolean; email: string | null }) => void
 ): () => void {
-  if (!isFirebaseEnvConfigured) {
+  if (!isFirebaseEnvConfigured || !auth) {
     onStatusChange({ connected: false, email: null });
     return () => {};
   }
@@ -317,12 +322,13 @@ async function handleServerlessApiRequest(
   // POST /api/auth/login
   if (cleanPath === '/api/auth/login' && method === 'POST') {
     const email = String(body.email || '').trim().toLowerCase();
+    const currentUid = auth && auth.currentUser ? auth.currentUser.uid : undefined;
     let found = allKnownUsers.find((u) => u.email.trim().toLowerCase() === email);
     if (!found) {
       const isOwner = isOwnerAdmUser(email);
       found = {
-        id: auth.currentUser?.uid || `usr-${Date.now()}`,
-        uid: auth.currentUser?.uid,
+        id: currentUid || `usr-${Date.now()}`,
+        uid: currentUid,
         name: email.split('@')[0] || 'Colaborador Ameta',
         email,
         situacao: isOwner ? 'dono' : 'aguardando',
@@ -346,24 +352,33 @@ async function handleServerlessApiRequest(
     method === 'POST'
   ) {
     const email = String(body.email || '').trim().toLowerCase();
+    const currentUid = auth && auth.currentUser ? auth.currentUser.uid : undefined;
     const isOwner = isOwnerAdmUser(email);
+    const existing = allKnownUsers.find((u) => u.email.trim().toLowerCase() === email);
     const newUser: AmetaUser = {
-      id: auth.currentUser?.uid || `usr-${Date.now()}`,
-      uid: auth.currentUser?.uid,
-      name: String(body.name || email.split('@')[0] || 'Colaborador'),
+      id: existing?.id || currentUid || `usr-${Date.now()}`,
+      uid: existing?.uid || currentUid,
+      name: String(body.name || existing?.name || email.split('@')[0] || 'Colaborador'),
       email,
-      situacao: isOwner ? 'dono' : 'aguardando',
-      role: normalizeUserRole(isOwner ? 'ADM' : body.role || 'Vistoriador', email),
-      plataforma: isOwner ? 'BOTH' : 'NOKIA',
-      assignedPlatform: isOwner ? 'BOTH' : 'NOKIA',
-      accessReleased: isOwner,
-      equipe: isOwner ? 'Coordenação / ADM' : '',
-      emailVerified: true,
-      createdAt: new Date().toISOString(),
+      situacao: isOwner ? 'dono' : existing?.situacao || 'aguardando',
+      role: normalizeUserRole(isOwner ? 'ADM' : existing?.role || body.role || 'Vistoriador', email),
+      plataforma: isOwner ? 'BOTH' : existing?.plataforma || 'NOKIA',
+      assignedPlatform: isOwner ? 'BOTH' : existing?.assignedPlatform || 'NOKIA',
+      accessReleased: isOwner ? true : Boolean(existing?.accessReleased ?? false),
+      equipe: isOwner ? 'Coordenação / ADM' : existing?.equipe || '',
+      emailVerified: cleanPath === '/api/auth/verify-email',
+      createdAt: existing?.createdAt || new Date().toISOString(),
     };
-    state.users = [...(state.users || []).filter((u: any) => u.email !== email), newUser];
+    state.users = [
+      newUser,
+      ...(state.users || []).filter((u: any) => String(u.email || '').toLowerCase() !== email),
+    ];
     saveLocalDbState(state);
-    return jsonResponse({ user: newUser, requiresVerification: false });
+    return jsonResponse({
+      user: newUser,
+      requiresVerification: cleanPath === '/api/auth/register',
+      verificationCode: '123456',
+    });
   }
 
   // POST /api/admin/duplas/link-email
@@ -1604,7 +1619,8 @@ async function handleServerlessApiRequest(
 
 // Sincroniza mutações originadas no backend Express local para o Firestore (quando Firebase está configurado)
 async function syncMutationToFirestore(apiPath: string, method: string, reqBody: any, resData: any) {
-  if (!isFirebaseEnvConfigured || !auth.currentUser || !auth.currentUser.emailVerified) {
+  const currentUser = auth ? auth.currentUser : null;
+  if (!isFirebaseEnvConfigured || !currentUser || !currentUser.emailVerified) {
     return;
   }
   const cleanPath = apiPath.split('?')[0];

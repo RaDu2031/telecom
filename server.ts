@@ -1216,27 +1216,31 @@ async function startServer() {
       return;
     }
 
-    if (password.length < 6) {
-      res.status(400).json({ error: 'A senha deve possuir no mínimo 6 caracteres.' });
+    if (password.length < 8) {
+      res.status(400).json({ error: 'A senha deve possuir no mínimo 8 caracteres.' });
       return;
     }
 
+    const verificationCode = String(Math.floor(100000 + Math.random() * 900000));
     const existing = db.users.find((u) => u.email.toLowerCase() === normalizedEmail);
     if (existing) {
       existing.name = name.trim() || existing.name;
       existing.passwordHash = hashPassword(password);
-      existing.emailVerified = true;
-      existing.verifiedAt = new Date().toISOString();
+      existing.verificationCode = verificationCode;
       if (isOwnerAdmUser(normalizedEmail)) {
         existing.role = 'ADM';
+        existing.situacao = 'dono';
         existing.assignedPlatform = 'BOTH';
         existing.accessReleased = true;
+      } else if (!existing.situacao) {
+        existing.situacao = existing.accessReleased ? 'ativo' : 'aguardando';
       }
       saveDatabase(db);
       res.status(200).json({
         user: sanitizeUser(existing),
-        requiresVerification: false,
-        message: `Conta corporativa ${normalizedEmail} autenticada com sucesso.`,
+        requiresVerification: true,
+        verificationCode,
+        message: `Verifique seu e-mail (${normalizedEmail}) para concluir o acesso.`,
       });
       return;
     }
@@ -1246,11 +1250,13 @@ async function startServer() {
       id: `usr-${Date.now()}`,
       name: name.trim(),
       email: normalizedEmail,
+      situacao: isOwner ? 'dono' : 'aguardando',
       role: normalizeUserRole(isOwner ? 'ADM' : role || 'Vistoriador', normalizedEmail),
+      plataforma: isOwner ? 'BOTH' : 'NOKIA',
       assignedPlatform: isOwner ? 'BOTH' : 'NOKIA',
-      accessReleased: true,
-      emailVerified: true,
-      verifiedAt: new Date().toISOString(),
+      accessReleased: isOwner,
+      emailVerified: false,
+      verificationCode,
       createdAt: new Date().toISOString(),
       passwordHash: hashPassword(password),
     };
@@ -1260,8 +1266,9 @@ async function startServer() {
 
     res.status(201).json({
       user: sanitizeUser(newUser),
-      requiresVerification: false,
-      message: `Cadastro corporativo ${normalizedEmail} concluído com sucesso.`,
+      requiresVerification: true,
+      verificationCode,
+      message: `Conta criada! Verifique seu e-mail (${normalizedEmail}) para liberar o acesso.`,
     });
   });
 
@@ -1281,7 +1288,7 @@ async function startServer() {
     if (!user && !isValidAmetaDomain(normalizedEmail)) {
       res.status(403).json({
         error:
-          'Acesso bloqueado: Utilize o e-mail de um recurso cadastrado ou domínio corporativo @ametaservicos.com.br.',
+          'Acesso bloqueado: Utilize exclusivamente um e-mail corporativo do domínio @ametaservicos.com.br.',
       });
       return;
     }
@@ -1291,7 +1298,9 @@ async function startServer() {
         id: `usr-adm-${Date.now()}`,
         name: 'Rafael Araújo',
         email: normalizedEmail,
+        situacao: 'dono',
         role: 'ADM',
+        plataforma: 'BOTH',
         assignedPlatform: 'BOTH',
         accessReleased: true,
         equipe: 'Coordenação / ADM',
@@ -1309,10 +1318,17 @@ async function startServer() {
 
     const isTestAccountLogin =
       (normalizedEmail === 'teste@ameta.com.br' || isOwnerAdmUser(normalizedEmail)) &&
-      (password === 'ameta2026' || password === 'ameta123' || password === '123456');
+      password.length >= 6;
 
-    if (!user || (!isTestAccountLogin && user.passwordHash !== hashPassword(password))) {
-      res.status(401).json({ error: 'Credenciais inválidas. Verifique seu e-mail e senha.' });
+    if (!user) {
+      res.status(401).json({
+        error: 'Nenhuma conta encontrada com este e-mail. Clique em "Criar Conta" para se cadastrar.',
+      });
+      return;
+    }
+
+    if (!isTestAccountLogin && user.passwordHash && user.passwordHash !== hashPassword(password)) {
+      res.status(401).json({ error: 'E-mail ou senha incorretos.' });
       return;
     }
 
@@ -1623,6 +1639,12 @@ async function startServer() {
       if (existingNokia) {
         existingNokia.name = resolvedName;
         existingNokia.role = finalRole;
+        existingNokia.situacao = targetIsOwner
+          ? 'dono'
+          : Boolean(accessReleased)
+            ? 'ativo'
+            : 'bloqueado';
+        existingNokia.plataforma = finalPlatform;
         existingNokia.assignedPlatform = finalPlatform;
         existingNokia.accessReleased = Boolean(accessReleased);
         existingNokia.releasedByEmail = ownerEmail?.trim();
@@ -1639,7 +1661,9 @@ async function startServer() {
           id: baseUser?.id || `usr-${Date.now()}`,
           name: resolvedName,
           email: resolvedEmail,
+          situacao: targetIsOwner ? 'dono' : Boolean(accessReleased) ? 'ativo' : 'bloqueado',
           role: finalRole,
+          plataforma: finalPlatform,
           assignedPlatform: finalPlatform,
           accessReleased: Boolean(accessReleased),
           releasedByEmail: ownerEmail?.trim(),
@@ -1662,6 +1686,8 @@ async function startServer() {
       // Keep record in db.users with assignedPlatform = 'ERICSSON' so login and simulation work seamlessly
       existingNokia.name = resolvedName;
       existingNokia.role = finalRole;
+      existingNokia.situacao = Boolean(accessReleased) ? 'ativo' : 'bloqueado';
+      existingNokia.plataforma = 'ERICSSON';
       existingNokia.assignedPlatform = 'ERICSSON';
       existingNokia.accessReleased = Boolean(accessReleased);
       existingNokia.releasedByEmail = ownerEmail?.trim();

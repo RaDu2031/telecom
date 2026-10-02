@@ -592,7 +592,7 @@ export default function App() {
   };
 
   const handleLogout = async () => {
-    if (isFirebaseEnvConfigured) {
+    if (isFirebaseEnvConfigured && auth) {
       try {
         await signOut(auth);
       } catch {
@@ -610,7 +610,7 @@ export default function App() {
     if (!user || !user.emailVerified || !isFirebaseEnvConfigured) return;
 
     const unsubs: Array<() => void> = [];
-    const uid = user.uid || auth.currentUser?.uid || user.id;
+    const uid = user.uid || auth?.currentUser?.uid || user.id;
 
     // 1. Escuta em tempo real o documento do próprio usuário em usuarios/{uid}
     if (uid) {
@@ -2887,7 +2887,7 @@ export default function App() {
               <button
                 type="button"
                 onClick={async () => {
-                  const uid = user.uid || auth.currentUser?.uid || user.id;
+                  const uid = user.uid || auth?.currentUser?.uid || user.id;
                   if (uid && isFirebaseEnvConfigured) {
                     const refreshed = await dataService.obterPerfilUsuario(uid);
                     if (refreshed) {
@@ -2896,6 +2896,22 @@ export default function App() {
                         showToast('Acesso liberado! Bem-vindo ao sistema Ameta.');
                       } else {
                         showToast('Seu cadastro ainda aguarda liberação pelo dono.');
+                      }
+                    }
+                  } else {
+                    const res = await fetch('/api/state', { cache: 'no-store' });
+                    if (res.ok) {
+                      const st = await res.json();
+                      const match = (st.users || []).find(
+                        (u: AmetaUser) => u.email.toLowerCase() === user.email.toLowerCase()
+                      );
+                      if (match) {
+                        setUser({ ...user, ...match, emailVerified: true });
+                        if (!isUserAguardando(match) && match.situacao !== 'bloqueado') {
+                          showToast('Acesso liberado! Bem-vindo ao sistema Ameta.');
+                        } else {
+                          showToast('Seu cadastro ainda aguarda liberação pelo dono.');
+                        }
                       }
                     }
                   }

@@ -7,24 +7,31 @@ import {
   getDocFromServer,
 } from 'firebase/firestore';
 
+function cleanEnvValue(val: unknown): string | undefined {
+  if (typeof val !== 'string') return undefined;
+  const trimmed = val.trim().replace(/^['"]|['"]$/g, '').trim();
+  return trimmed.length > 0 ? trimmed : undefined;
+}
+
 /**
  * Configuração do Firebase lida EXCLUSIVAMENTE das variáveis de ambiente VITE_FIREBASE_*
  * Projeto: ameta-sistema-teste
  */
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY as string | undefined,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN as string | undefined,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID as string | undefined,
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET as string | undefined,
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID as string | undefined,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID as string | undefined,
+  apiKey: cleanEnvValue(import.meta.env.VITE_FIREBASE_API_KEY),
+  authDomain: cleanEnvValue(import.meta.env.VITE_FIREBASE_AUTH_DOMAIN),
+  projectId: cleanEnvValue(import.meta.env.VITE_FIREBASE_PROJECT_ID),
+  storageBucket: cleanEnvValue(import.meta.env.VITE_FIREBASE_STORAGE_BUCKET),
+  messagingSenderId: cleanEnvValue(import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID),
+  appId: cleanEnvValue(import.meta.env.VITE_FIREBASE_APP_ID),
 };
 
 export const isFirebaseEnvConfigured = Boolean(
   firebaseConfig.apiKey &&
     firebaseConfig.authDomain &&
     firebaseConfig.projectId &&
-    firebaseConfig.appId
+    firebaseConfig.appId &&
+    !firebaseConfig.apiKey.includes('SUA_')
 );
 
 export const ALLOWED_EMAIL_DOMAIN = 'ametaservicos.com.br';
@@ -85,16 +92,17 @@ export function handleFirestoreError(
   operationType: OperationType,
   path: string | null
 ): never {
+  const currentUser = authInstance ? authInstance.currentUser : null;
   const errInfo: FirestoreErrorInfo = {
     error: error instanceof Error ? error.message : String(error),
     authInfo: {
-      userId: authInstance?.currentUser?.uid,
-      email: authInstance?.currentUser?.email,
-      emailVerified: authInstance?.currentUser?.emailVerified,
-      isAnonymous: authInstance?.currentUser?.isAnonymous,
-      tenantId: authInstance?.currentUser?.tenantId,
+      userId: currentUser?.uid,
+      email: currentUser?.email,
+      emailVerified: currentUser?.emailVerified,
+      isAnonymous: currentUser?.isAnonymous,
+      tenantId: currentUser?.tenantId,
       providerInfo:
-        authInstance?.currentUser?.providerData?.map((provider) => ({
+        currentUser?.providerData?.map((provider) => ({
           providerId: provider.providerId,
           email: provider.email,
         })) || [],
