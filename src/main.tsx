@@ -2,10 +2,6 @@ import React from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App.tsx';
 import './index.css';
-import { installNetlifyCloudApiBridge } from './lib/firebaseCloud.ts';
-
-// Activate Netlify + Firebase Firestore Cloud API bridge before mounting App
-installNetlifyCloudApiBridge();
 
 interface ErrorBoundaryState {
   hasError: boolean;

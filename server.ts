@@ -2568,7 +2568,7 @@ async function startServer() {
     ) {
       res.status(403).json({
         error:
-          'O perfil Vistoriador não tem permissão para subir TSSR. Apenas o Executor pode subir TSSR.',
+          'O perfil Vistoriador não tem permissão para subir TSSR. Apenas o Executor e Coordenação de Engenharia podem subir TSSR.',
       });
       return;
     }
@@ -5008,7 +5008,7 @@ async function startServer() {
     ) {
       res.status(403).json({
         error:
-          'O perfil Vistoriador não tem permissão para subir TSSR. Apenas o Executor pode subir TSSR.',
+          'O perfil Vistoriador não tem permissão para subir TSSR. Apenas o Executor e Coordenação de Engenharia podem subir TSSR.',
       });
       return;
     }

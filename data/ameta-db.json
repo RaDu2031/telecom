@@ -11,7 +11,114 @@
       "accessReleased": true,
       "equipe": "Coordenação / ADM",
       "emailVerified": true,
-      "createdAt": "2026-01-01T08:00:00.000Z"
+      "createdAt": "2026-01-01T08:00:00.000Z",
+      "documents": [
+        {
+          "type": "NR10",
+          "label": "NR 10",
+          "fileName": "",
+          "fileSize": 0,
+          "uploadedAt": "",
+          "uploadedBy": "",
+          "storageFileName": "",
+          "expiresAt": "",
+          "notes": ""
+        },
+        {
+          "type": "NR35",
+          "label": "NR 35",
+          "fileName": "",
+          "fileSize": 0,
+          "uploadedAt": "",
+          "uploadedBy": "",
+          "storageFileName": "",
+          "expiresAt": "",
+          "notes": ""
+        },
+        {
+          "type": "ASO",
+          "label": "ASO",
+          "fileName": "",
+          "fileSize": 0,
+          "uploadedAt": "",
+          "uploadedBy": "",
+          "storageFileName": "",
+          "expiresAt": "",
+          "notes": ""
+        },
+        {
+          "type": "PCMSO",
+          "label": "PCMSO",
+          "fileName": "",
+          "fileSize": 0,
+          "uploadedAt": "",
+          "uploadedBy": "",
+          "storageFileName": "",
+          "expiresAt": "",
+          "notes": ""
+        },
+        {
+          "type": "PGR",
+          "label": "PGR",
+          "fileName": "",
+          "fileSize": 0,
+          "uploadedAt": "",
+          "uploadedBy": "",
+          "storageFileName": "",
+          "expiresAt": "",
+          "notes": ""
+        },
+        {
+          "type": "PRIMEIROS_SOCORROS",
+          "label": "Primeiros Socorros",
+          "fileName": "",
+          "fileSize": 0,
+          "uploadedAt": "",
+          "uploadedBy": "",
+          "storageFileName": "",
+          "expiresAt": "",
+          "notes": ""
+        },
+        {
+          "type": "CONTRATO_TRABALHO",
+          "label": "Contrato de Trabalho",
+          "fileName": "",
+          "fileSize": 0,
+          "uploadedAt": "",
+          "uploadedBy": "",
+          "storageFileName": "",
+          "expiresAt": "",
+          "notes": ""
+        },
+        {
+          "type": "RG",
+          "label": "RG",
+          "fileName": "",
+          "fileSize": 0,
+          "uploadedAt": "",
+          "uploadedBy": "",
+          "storageFileName": "",
+          "expiresAt": "",
+          "notes": ""
+        }
+      ],
+      "statusRecurso": "VALIDADO"
+    },
+    {
+      "id": "usr-1790981255592",
+      "name": "Colaborador Teste",
+      "email": "colaborador.teste@ametaservicos.com.br",
+      "situacao": "aguardando",
+      "role": "Vistoriador",
+      "plataforma": "NOKIA",
+      "assignedPlatform": "NOKIA",
+      "accessReleased": false,
+      "equipe": "Dupla Alpha",
+      "telefone": "61999998888",
+      "emailVerified": true,
+      "verifiedAt": "2026-10-02T22:47:35.592Z",
+      "createdAt": "2026-10-02T22:47:35.592Z",
+      "passwordHash": "6f73323705c94d35dd1abd5dcdda5218ecf1f528ef5961651818bbda627c274e"
     }
   ],
   "sites": [
@@ -64971,7 +65078,7 @@
       "sourceFileName": "Ericsson_Operacao_RAN.xlsx"
     }
   ],
-  "lastUpdated": "2026-10-02T14:02:03.674Z",
+  "lastUpdated": "2026-10-02T22:47:35.592Z",
   "engineeringFolders": [
     {
       "id": "folder-nokia-vistorias",
@@ -222765,10 +222872,118 @@
       "accessReleased": true,
       "equipe": "Coordenação / ADM",
       "emailVerified": true,
-      "createdAt": "2026-01-01T08:00:00.000Z"
+      "createdAt": "2026-01-01T08:00:00.000Z",
+      "documents": [
+        {
+          "type": "NR10",
+          "label": "NR 10",
+          "fileName": "",
+          "fileSize": 0,
+          "uploadedAt": "",
+          "uploadedBy": "",
+          "storageFileName": "",
+          "expiresAt": "",
+          "notes": ""
+        },
+        {
+          "type": "NR35",
+          "label": "NR 35",
+          "fileName": "",
+          "fileSize": 0,
+          "uploadedAt": "",
+          "uploadedBy": "",
+          "storageFileName": "",
+          "expiresAt": "",
+          "notes": ""
+        },
+        {
+          "type": "ASO",
+          "label": "ASO",
+          "fileName": "",
+          "fileSize": 0,
+          "uploadedAt": "",
+          "uploadedBy": "",
+          "storageFileName": "",
+          "expiresAt": "",
+          "notes": ""
+        },
+        {
+          "type": "PCMSO",
+          "label": "PCMSO",
+          "fileName": "",
+          "fileSize": 0,
+          "uploadedAt": "",
+          "uploadedBy": "",
+          "storageFileName": "",
+          "expiresAt": "",
+          "notes": ""
+        },
+        {
+          "type": "PGR",
+          "label": "PGR",
+          "fileName": "",
+          "fileSize": 0,
+          "uploadedAt": "",
+          "uploadedBy": "",
+          "storageFileName": "",
+          "expiresAt": "",
+          "notes": ""
+        },
+        {
+          "type": "PRIMEIROS_SOCORROS",
+          "label": "Primeiros Socorros",
+          "fileName": "",
+          "fileSize": 0,
+          "uploadedAt": "",
+          "uploadedBy": "",
+          "storageFileName": "",
+          "expiresAt": "",
+          "notes": ""
+        },
+        {
+          "type": "CONTRATO_TRABALHO",
+          "label": "Contrato de Trabalho",
+          "fileName": "",
+          "fileSize": 0,
+          "uploadedAt": "",
+          "uploadedBy": "",
+          "storageFileName": "",
+          "expiresAt": "",
+          "notes": ""
+        },
+        {
+          "type": "RG",
+          "label": "RG",
+          "fileName": "",
+          "fileSize": 0,
+          "uploadedAt": "",
+          "uploadedBy": "",
+          "storageFileName": "",
+          "expiresAt": "",
+          "notes": ""
+        }
+      ]
     }
   ],
   "notifications": [
+    {
+      "type": "PERMISSAO_LIBERADA_ADM",
+      "vendor": "NOKIA",
+      "title": "Nova Solicitação de Acesso: Colaborador Teste",
+      "message": "Colaborador Teste (colaborador.teste@ametaservicos.com.br) solicitou cadastro no sistema como Vistoriador — Dupla/Equipe: Dupla Alpha. Acesse o Painel de Liberação para aprovar.",
+      "actorName": "Colaborador Teste",
+      "actorEmail": "colaborador.teste@ametaservicos.com.br",
+      "actorRole": "Vistoriador",
+      "targetRoles": [
+        "ADM"
+      ],
+      "targetEmails": [
+        "rafael.araujo@ametaservicos.com.br"
+      ],
+      "id": "notif-1790981255592-xasv",
+      "readByEmails": [],
+      "createdAt": "2026-10-02T22:47:35.592Z"
+    },
     {
       "type": "ARQUIVO_ASSOCIADO_SITE_VISTORIADOR",
       "vendor": "NOKIA",

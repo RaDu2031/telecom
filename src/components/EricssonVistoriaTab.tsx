@@ -100,15 +100,23 @@ export const EricssonVistoriaTab: React.FC<EricssonVistoriaTabProps> = ({
   onUpdated,
   onOpenSitesTab,
 }) => {
-  const isAdmin =
-    effectiveRole === 'ADM' ||
-    effectiveRole === 'Coordenador Geral' ||
-    effectiveRole === 'Coordenador Engenharia';
+  const isAdmRole = effectiveRole === 'ADM';
+  const isCoordenadorGeral = effectiveRole === 'Coordenador Geral';
+  const isCoordenadorEngenharia = effectiveRole === 'Coordenador Engenharia';
+  const isAdmin = isAdmRole || isCoordenadorGeral || isCoordenadorEngenharia;
   const isVistoriador = effectiveRole === 'Vistoriador';
   const isExecutor = effectiveRole === 'Executor';
   const canCreateFolders = !isExecutor && !isVistoriador;
-  const canUploadTssr = isExecutor || isAdmin;
-  const canUploadVistoria = isVistoriador || isAdmin;
+  const canUploadTssr =
+    isExecutor ||
+    isCoordenadorEngenharia ||
+    isCoordenadorGeral ||
+    isAdmRole;
+  const canUploadVistoria =
+    isVistoriador ||
+    isCoordenadorEngenharia ||
+    isCoordenadorGeral ||
+    isAdmRole;
 
   // Dedicated Ericsson folders (completely isolated from Nokia)
   const ericssonFolders = useMemo(() => {
@@ -598,7 +606,7 @@ export const EricssonVistoriaTab: React.FC<EricssonVistoriaTabProps> = ({
 
     if (isVistoriador && uploadCategory === 'TSSR') {
       setUploadError(
-        'O perfil Vistoriador não tem permissão para subir TSSR. Apenas o Executor pode subir TSSR.'
+        'O perfil Vistoriador não tem permissão para subir TSSR. Apenas o Executor e Coordenação de Engenharia podem subir TSSR.'
       );
       return;
     }
@@ -1854,7 +1862,9 @@ export const EricssonVistoriaTab: React.FC<EricssonVistoriaTabProps> = ({
                         setUploadCategory('TSSR');
                         if (!uploadNotes.trim()) {
                           setUploadNotes(
-                            '[TSSR] Enviado pelo Executor para Coordenação de Engenharia Ericsson'
+                            isExecutor
+                              ? '[TSSR] Enviado pelo Executor para Coordenação de Engenharia Ericsson'
+                              : '[TSSR] Enviado pela Coordenação de Engenharia Ericsson'
                           );
                         }
                       }}

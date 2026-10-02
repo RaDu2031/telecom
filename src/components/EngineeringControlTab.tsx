@@ -119,11 +119,16 @@ export const EngineeringControlTab: React.FC<EngineeringControlTabProps> = ({
   onTssrUpdated,
   onNavigateToVistoria,
 }) => {
-  const isAdmin =
-    effectiveRole === 'ADM' ||
-    effectiveRole === 'Coordenador Geral' ||
-    effectiveRole === 'Coordenador Engenharia';
+  const isAdmRole = effectiveRole === 'ADM';
+  const isCoordenadorGeral = effectiveRole === 'Coordenador Geral';
+  const isCoordenadorEngenharia = effectiveRole === 'Coordenador Engenharia';
+  const isAdmin = isAdmRole || isCoordenadorGeral || isCoordenadorEngenharia;
   const isExecutor = effectiveRole === 'Executor';
+  const canUploadTssr =
+    isExecutor ||
+    isCoordenadorEngenharia ||
+    isCoordenadorGeral ||
+    isAdmRole;
 
   // Active Engineering Tab (starts on "TSSR TIM Nokia")
   const [activeSubTab, setActiveSubTab] = useState<'TSSR TIM Nokia'>('TSSR TIM Nokia');
@@ -1082,6 +1087,20 @@ export const EngineeringControlTab: React.FC<EngineeringControlTabProps> = ({
               <Plus className="w-3.5 h-3.5 text-blue-600" />
               <span>+ Nova Linha</span>
             </button>
+
+            {canUploadTssr && (
+              <button
+                type="button"
+                onClick={() => {
+                  setOpenProjectFolderType('TSSR');
+                }}
+                className="px-3.5 py-1.5 bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold rounded-lg transition-colors flex items-center gap-1.5 shadow-2xs cursor-pointer"
+                title="Abrir pasta TSSR da Engenharia para carregar projetos e pacotes"
+              >
+                <Upload className="w-3.5 h-3.5" />
+                <span>Subir TSSR (Engenharia)</span>
+              </button>
+            )}
 
             <button
               type="button"
@@ -2513,19 +2532,22 @@ export const EngineeringControlTab: React.FC<EngineeringControlTabProps> = ({
                   <span className="text-[11px] font-bold uppercase tracking-wider text-[#223585]">
                     Colunas Automáticas do Sistema (Vistoria)
                   </span>
-                  {isExecutor ? (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setSelectedRowId(null);
-                        setOpenProjectFolderType('TSSR');
-                      }}
-                      className="px-2.5 py-1 bg-purple-600 hover:bg-purple-700 text-white rounded-md text-[11px] font-semibold cursor-pointer"
-                    >
-                      Subir TSSR (Engenharia)
-                    </button>
-                  ) : (
-                    onNavigateToVistoria && (
+                  <div className="flex items-center gap-2">
+                    {canUploadTssr && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedRowId(null);
+                          setOpenProjectFolderType('TSSR');
+                        }}
+                        className="px-2.5 py-1 bg-purple-600 hover:bg-purple-700 text-white rounded-md text-[11px] font-bold flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                        title="Subir TSSR vinculado a este site/projeto"
+                      >
+                        <Upload className="w-3 h-3" />
+                        <span>Subir TSSR</span>
+                      </button>
+                    )}
+                    {onNavigateToVistoria && (
                       <button
                         type="button"
                         onClick={() => {
@@ -2535,10 +2557,10 @@ export const EngineeringControlTab: React.FC<EngineeringControlTabProps> = ({
                         }}
                         className="px-2.5 py-1 bg-[#223585] hover:bg-[#1b2a6b] text-white rounded-md text-[11px] font-semibold cursor-pointer"
                       >
-                        Enviar / Atualizar Arquivo na Vistoria
+                        Vistoria do Site
                       </button>
-                    )
-                  )}
+                    )}
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-2.5 pt-1">

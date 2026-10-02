@@ -61,7 +61,7 @@ const ASSIGNABLE_ROLES: Array<{
   {
     role: 'Coordenador Engenharia',
     label: 'Coordenador Engenharia',
-    description: 'Vê APENAS Engenharia (TSSR) e Vistoria da sua plataforma.',
+    description: 'Vê APENAS Engenharia (TSSR) e Vistoria da sua plataforma (sobe TSSR e Vistoria).',
     badgeColor: 'bg-purple-500/20 text-purple-300 border-purple-500/40',
   },
   {
@@ -647,7 +647,7 @@ export const OwnerPermissionsModal: React.FC<OwnerPermissionsModalProps> = ({
                   className="w-full px-3 py-2 rounded-lg bg-slate-900 border border-amber-500/50 text-xs font-bold text-amber-200 focus:border-amber-400 focus:outline-none"
                 >
                   <option value="Coordenador Geral">Coordenador Geral (Todas Planilhas)</option>
-                  <option value="Coordenador Engenharia">Coordenador Engenharia (Engenharia + Vistoria)</option>
+                  <option value="Coordenador Engenharia">Coordenador Engenharia (Engenharia + Vistoria + Subir TSSR)</option>
                   <option value="Executor">Executor (Sites Demandados + Vistoria/TSSR)</option>
                   <option value="Vistoriador">Vistoriador (Sites Demandados + Vistoria)</option>
                 </select>

@@ -124,16 +124,25 @@ export const EngineeringVistoriasTab: React.FC<EngineeringVistoriasTabProps> = (
   const currentRole: UserRole = simulatedTargetUser
     ? normalizeUserRole(simulatedTargetUser.role)
     : effectiveRole || normalizeUserRole(user.role);
+  const isAdmRole = currentRole === 'ADM';
+  const isCoordenadorGeral = currentRole === 'Coordenador Geral';
+  const isCoordenadorEngenharia = currentRole === 'Coordenador Engenharia';
   const isAdmin =
-    (currentRole === 'ADM' ||
-      currentRole === 'Coordenador Geral' ||
-      currentRole === 'Coordenador Engenharia') &&
+    (isAdmRole || isCoordenadorGeral || isCoordenadorEngenharia) &&
     !simulatedTargetUser;
   const isVistoriador = currentRole === 'Vistoriador';
   const isExecutor = currentRole === 'Executor';
   const canCreateFolders = !isExecutor && !isVistoriador;
-  const canUploadTssr = isExecutor || isAdmin;
-  const canUploadVistoria = isVistoriador || isAdmin;
+  const canUploadTssr =
+    isExecutor ||
+    isCoordenadorEngenharia ||
+    isCoordenadorGeral ||
+    isAdmRole;
+  const canUploadVistoria =
+    isVistoriador ||
+    isCoordenadorEngenharia ||
+    isCoordenadorGeral ||
+    isAdmRole;
   const isTssrProjectsMode = (mode === 'tssr-projects' || isExecutor) && !isVistoriador;
 
   // Hidden/collapsible tab state for "Demanda por Responsável" inside Documentos ("em uma aba escondida so abre se eu clicar")
@@ -618,7 +627,11 @@ export const EngineeringVistoriasTab: React.FC<EngineeringVistoriasTabProps> = (
     setNewTssrEnderecoId('');
     setUploadedFolderName('');
     setUploadNotes(
-      isExecutor ? '[TSSR] Enviado pelo Executor para Coordenação de Engenharia' : ''
+      isExecutor
+        ? '[TSSR] Enviado pelo Executor para Coordenação de Engenharia'
+        : isCoordenadorEngenharia
+        ? '[TSSR] Enviado pela Coordenação de Engenharia'
+        : ''
     );
     setUploadAssignedTo(
       !isAdmin
@@ -745,7 +758,7 @@ export const EngineeringVistoriasTab: React.FC<EngineeringVistoriasTabProps> = (
 
     if (isVistoriador && isUploadTargetTssrProject) {
       setUploadError(
-        'O perfil Vistoriador não tem permissão para subir TSSR. Apenas o Executor pode subir TSSR.'
+        'O perfil Vistoriador não tem permissão para subir TSSR. Apenas o Executor e Coordenação de Engenharia podem subir TSSR.'
       );
       return;
     }
@@ -1272,7 +1285,11 @@ export const EngineeringVistoriasTab: React.FC<EngineeringVistoriasTabProps> = (
                     allVendorFolders.find((f) => f.name === 'TSSR Entrada') ||
                     uploadableFolders[0];
                   openUploadModal(tssrFolder?.id || effectiveFolderId);
-                  setUploadNotes('[TSSR] Enviado pelo Executor para Coordenação de Engenharia');
+                  setUploadNotes(
+                    isExecutor
+                      ? '[TSSR] Enviado pelo Executor para Coordenação de Engenharia'
+                      : '[TSSR] Enviado pela Coordenação de Engenharia'
+                  );
                 }}
                 className="w-full sm:w-auto justify-center px-4 py-3.5 sm:py-2 bg-purple-600 hover:bg-purple-700 text-white text-xs font-black uppercase tracking-wide rounded-xl sm:rounded-lg transition-colors flex items-center gap-2 shadow-sm cursor-pointer"
               >

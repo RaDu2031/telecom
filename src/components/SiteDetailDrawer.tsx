@@ -18,6 +18,7 @@ import {
   Receipt,
   Table,
   Lock,
+  Key,
 } from 'lucide-react';
 import {
   TelecomSite,
@@ -641,25 +642,76 @@ export const SiteDetailDrawer: React.FC<SiteDetailDrawerProps> = ({
           )}
 
           {isVistoriadorRole ? (
-            /* Restricted Vistoriador View: ONLY SITE ID, END ID, Oc Site Pre, UF, PROJETO, EQUIPE, SI Executed, STATUS */
-            <div className="bg-white border border-slate-200/90 rounded-xl p-5 space-y-3">
-              <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
-                <span className="text-sm font-bold text-slate-900">
-                  Dados do Site (Visão Vistoriador)
-                </span>
-                <span className="text-[11px] font-mono text-slate-400">
-                  8 colunas essenciais
-                </span>
+            /* Vistoriador View: Dados Essenciais + Informações de Acesso (Coluna Acesso, Data de Acesso, Comentários do Acesso) */
+            <div className="space-y-4">
+              <div className="bg-white border border-slate-200/90 rounded-xl p-5 space-y-3 shadow-2xs">
+                <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
+                  <span className="text-sm font-bold text-slate-900">
+                    Dados da Demanda (Visão Vistoriador)
+                  </span>
+                  <span className="text-[11px] font-mono text-slate-400">
+                    Informações da Demanda
+                  </span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {renderFluidField('SITE ID', 'SITE ID')}
+                  {renderFluidField('END ID', 'END ID')}
+                  {renderFluidField('Oc Site Pre', 'Oc Site Pre')}
+                  {renderFluidField('UF', 'UF')}
+                  {renderFluidField('PROJETO', 'PROJETO')}
+                  {renderFluidField('EQUIPE', 'EQUIPE EXECUTANTE')}
+                  {renderFluidField('SI Executed (Data)', 'SI Executed')}
+                  {renderFluidField('STATUS', 'STATUS')}
+                </div>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {renderFluidField('SITE ID', 'SITE ID')}
-                {renderFluidField('END ID', 'END ID')}
-                {renderFluidField('Oc Site Pre', 'Oc Site Pre')}
-                {renderFluidField('UF', 'UF')}
-                {renderFluidField('PROJETO', 'PROJETO')}
-                {renderFluidField('EQUIPE', 'EQUIPE EXECUTANTE')}
-                {renderFluidField('SI Executed (Data)', 'SI Executed')}
-                {renderFluidField('STATUS', 'STATUS')}
+
+              {/* Informações de Acesso & Chaves liberadas para o Vistoriador */}
+              <div className="bg-amber-50/80 border border-amber-200 rounded-xl p-4.5 space-y-3.5 shadow-2xs">
+                <div className="flex items-center justify-between border-b border-amber-200/80 pb-2.5">
+                  <div className="flex items-center gap-2">
+                    <div className="w-7 h-7 rounded-lg bg-amber-100 border border-amber-300 flex items-center justify-center text-amber-700">
+                      <Key className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <span className="text-xs font-bold text-amber-950 block">
+                        Controle de Acesso & Chaves
+                      </span>
+                      <span className="text-[10px] text-amber-800/80 block">
+                        Informações necessárias para ida a campo
+                      </span>
+                    </div>
+                  </div>
+                  {colVal('Acesso') && (
+                    <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-200/80 text-amber-900 border border-amber-300">
+                      {colVal('Acesso')}
+                    </span>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {renderFluidField('Coluna Acesso (Status)', 'Acesso', 'AH')}
+                  {renderFluidField('Data de Acesso (Data Liberação)', 'Data', 'AI')}
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block mb-1">
+                    Comentários do Acesso (Col AJ)
+                  </label>
+                  <div className="p-3 bg-white rounded-xl border border-amber-200/90 text-xs font-medium text-slate-800 whitespace-pre-wrap leading-relaxed">
+                    {comentariosAcesso || 'Sem comentários de acesso registrados para este site.'}
+                  </div>
+                </div>
+
+                {comentariosGerais && (
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">
+                      Comentários Gerais de Engenharia (Col V)
+                    </label>
+                    <div className="p-3 bg-white rounded-xl border border-slate-200 text-xs font-medium text-slate-700 whitespace-pre-wrap leading-relaxed">
+                      {comentariosGerais}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           ) : (

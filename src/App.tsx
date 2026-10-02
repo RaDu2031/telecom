@@ -71,8 +71,7 @@ import {
   isEngineeringCoordinatorRole,
   canUserAccessVendor,
 } from './types/telecom';
-import { signOut } from 'firebase/auth';
-import { auth, isFirebaseEnvConfigured } from './lib/firebase';
+import { isFirebaseEnvConfigured } from './lib/firebase';
 import { dataService } from './services/dataService';
 import { INITIAL_SITES, INITIAL_SHEETS } from './data/initialSites';
 import { AuthGate } from './components/AuthGate';
@@ -99,13 +98,7 @@ import {
   getSiteExecutionSortBucket,
 } from './components/InteractiveSpreadsheetChart';
 import { DuplasInteractiveView } from './components/DuplasInteractiveView';
-import {
-  subscribeToCloudWorkspaceUpdates,
-  connectAndSyncFirebaseCloud,
-  subscribeToFirebaseAuthStatus,
-  updateCachedClientState,
-  cloudFetch,
-} from './lib/firebaseCloud';
+import { cloudFetch } from './lib/firebaseCloud';
 
 const fetch = cloudFetch;
 import {
@@ -442,12 +435,6 @@ export default function App() {
 
     fetchLatestState();
     connectStream();
-    subscribeToCloudWorkspaceUpdates(() => {
-      fetchLatestState();
-    });
-    const unsubFirebaseAuth = subscribeToFirebaseAuthStatus(() => {
-      // Firebase is always active in the background
-    });
 
     // Ensure non-owner seeded users are purged once on startup
     if (!localStorage.getItem('ameta_api_users_purged_v1')) {
@@ -482,41 +469,8 @@ export default function App() {
       window.removeEventListener('focus', handleFocusOrVisibility);
       document.removeEventListener('visibilitychange', handleFocusOrVisibility);
       eventSource?.close();
-      unsubFirebaseAuth();
     };
   }, [showToast]);
-
-  // Keep Firebase Cloud permanently connected and synchronized in the background
-  useEffect(() => {
-    if (!user || !user.emailVerified || !isFirebaseEnvConfigured) return;
-    let cancelled = false;
-    const autoSyncFirebase = async () => {
-      try {
-        if (isOwnerAdmUser(user.email) && !localStorage.getItem('ameta_firestore_owner_purge_v2')) {
-          await dataService.limparUsuariosExcetoDono();
-          localStorage.setItem('ameta_firestore_owner_purge_v2', '1');
-        }
-        const result = await connectAndSyncFirebaseCloud();
-        if (!cancelled && result.state) {
-          if (Array.isArray(result.state.users) && result.state.users.length > 0) {
-            setUsers(result.state.users);
-          }
-          if (Array.isArray(result.state.ericssonUsers)) {
-            setEricssonUsers(result.state.ericssonUsers);
-          }
-          if (result.state.duplaEmailsMap && typeof result.state.duplaEmailsMap === 'object') {
-            setServerDuplaEmailsMap(result.state.duplaEmailsMap);
-          }
-        }
-      } catch {
-        // background auto-sync silent fallback
-      }
-    };
-    autoSyncFirebase();
-    return () => {
-      cancelled = true;
-    };
-  }, [user?.id, user?.email, user?.emailVerified]);
 
   // Listen for direct Ctrl+V anywhere on the workspace (Nokia only)
   useEffect(() => {
@@ -589,144 +543,12 @@ export default function App() {
     setActiveTopTab('sites');
   };
 
-  const handleLogout = async () => {
-    if (isFirebaseEnvConfigured && auth) {
-      try {
-        await signOut(auth);
-      } catch {
-        // ignore signOut errors
-      }
-    }
+  const handleLogout = () => {
     setUser(null);
     setSimulatedTargetUser(null);
     localStorage.removeItem(STORAGE_USER_KEY);
     setSelectedSiteId(null);
   };
-
-  // Real-time Firestore subscriptions via decoupled dataService layer
-  useEffect(() => {
-    if (!user || !user.emailVerified || !isFirebaseEnvConfigured) return;
-
-    const unsubs: Array<() => void> = [];
-    const uid = user.uid || auth?.currentUser?.uid || user.id;
-
-    // 1. Escuta em tempo real o documento do próprio usuário em usuarios/{uid}
-    if (uid) {
-      unsubs.push(
-        dataService.observarPerfilUsuario(uid, (remoteProfile) => {
-          if (!remoteProfile) return;
-          setUser((prev) => {
-            if (!prev) return prev;
-            const merged: AmetaUser = {
-              ...prev,
-              ...remoteProfile,
-              emailVerified: true,
-            };
-            try {
-              localStorage.setItem(STORAGE_USER_KEY, JSON.stringify(merged));
-            } catch {
-              // ignore storage error
-            }
-            return merged;
-          });
-        })
-      );
-    }
-
-    // Se o usuário estiver em situação "aguardando" ou "bloqueado", não abre leituras de dados
-    if (isUserAguardando(user) || user.situacao === 'bloqueado') {
-      return () => {
-        unsubs.forEach((u) => u());
-      };
-    }
-
-    // 2. Escuta coleções isoladas por plataforma (TIM/Nokia ou Ericsson) e perfis de usuários
-    unsubs.push(
-      dataService.observarColecoesPlataforma(user, {
-        onUsuarios: (remoteUsers) => {
-          if (remoteUsers.length > 0) {
-            setUsers((prev) => {
-              const byEmail = new Map<string, AmetaUser>();
-              const ownerInPrev = prev.find((p) => isOwnerAdmUser(p.email));
-              if (ownerInPrev) {
-                byEmail.set('rafael.araujo@ametaservicos.com.br', {
-                  ...ownerInPrev,
-                  email: 'rafael.araujo@ametaservicos.com.br',
-                });
-              }
-              for (const r of remoteUsers) {
-                const em = isOwnerAdmUser(r.email)
-                  ? 'rafael.araujo@ametaservicos.com.br'
-                  : r.email.trim().toLowerCase();
-                const existing = byEmail.get(em);
-                byEmail.set(em, existing ? { ...existing, ...r, email: em } : { ...r, email: em });
-              }
-              const mergedList = Array.from(byEmail.values());
-              updateCachedClientState({ users: mergedList });
-              return mergedList;
-            });
-          }
-        },
-        onNokiaSites: (remoteSites) => {
-          if (remoteSites.length > 0) {
-            setSites(remoteSites);
-            updateCachedClientState({ sites: remoteSites });
-            setLastSyncTime(new Date().toISOString());
-          }
-        },
-        onNokiaTssr: (remoteTssr) => {
-          if (remoteTssr.length > 0) {
-            setTssrRows(remoteTssr);
-            updateCachedClientState({ tssrRows: remoteTssr });
-          }
-        },
-        onNokiaFolders: (remoteFolders) => {
-          if (remoteFolders.length > 0) {
-            setEngineeringFolders(remoteFolders);
-            updateCachedClientState({ engineeringFolders: remoteFolders });
-          }
-        },
-        onNokiaFiles: (remoteFiles) => {
-          if (remoteFiles.length > 0) {
-            setEngineeringFiles(remoteFiles);
-            updateCachedClientState({ engineeringFiles: remoteFiles });
-          }
-        },
-        onEricssonSites: (remoteEricRows) => {
-          if (remoteEricRows.length > 0) {
-            setEricssonRows(remoteEricRows);
-            updateCachedClientState({ ericssonRows: remoteEricRows });
-            setLastSyncTime(new Date().toISOString());
-          }
-        },
-        onEricssonFolders: (remoteEricFolders) => {
-          if (remoteEricFolders.length > 0) {
-            setEricssonFolders(remoteEricFolders);
-            updateCachedClientState({ ericssonFolders: remoteEricFolders });
-          }
-        },
-        onEricssonFiles: (remoteEricFiles) => {
-          if (remoteEricFiles.length > 0) {
-            setEricssonFiles(remoteEricFiles);
-            updateCachedClientState({ ericssonFiles: remoteEricFiles });
-          }
-        },
-      })
-    );
-
-    return () => {
-      unsubs.forEach((u) => u());
-    };
-  }, [
-    user?.id,
-    user?.uid,
-    user?.email,
-    user?.emailVerified,
-    user?.situacao,
-    user?.role,
-    user?.plataforma,
-    user?.assignedPlatform,
-  ]);
 
   const handleSwitchVendor = async (vendor: VendorType) => {
     setActiveVendor(vendor);
@@ -1301,11 +1123,11 @@ export default function App() {
       case 'FLUID_STATUS':
         return (getCellValueForColumn(site, 'STATUS') || site.status || '—').trim();
       case 'FLUID_ACESSO':
-        return (
-          getCellValueForColumn(site, 'Comentários do Acesso') ||
-          getCellValueForColumn(site, 'Acesso') ||
-          '—'
-        ).trim();
+        return (getCellValueForColumn(site, 'Acesso') || '—').trim();
+      case 'FLUID_DATA_ACESSO':
+        return (getCellValueForColumn(site, 'Data') || '—').trim();
+      case 'FLUID_COMENTARIOS_ACESSO':
+        return (getCellValueForColumn(site, 'Comentários do Acesso') || '—').trim();
       case 'FLUID_OBS':
         return (
           getCellValueForColumn(site, 'Observações/Motivo') ||
@@ -2370,29 +2192,35 @@ export default function App() {
                 {renderColumnHeaderWithFilter('FLUID_STATUS', 'STATUS', 'Status')}
               </th>
               {!isVistoriadorView && (
-                <>
-                  <th className={`${densityHeaderPad} border-b border-slate-200 bg-slate-100`}>
-                    {renderColumnHeaderWithFilter(
-                      'FLUID_STATUS_FINANCEIRO',
-                      'Status Financeiro',
-                      'Status Financeiro'
-                    )}
-                  </th>
-                  <th className={`${densityHeaderPad} border-b border-slate-200 bg-slate-100`}>
-                    {renderColumnHeaderWithFilter(
-                      'FLUID_ACESSO',
-                      'Acesso / Chaves',
-                      'Acesso / Chaves'
-                    )}
-                  </th>
-                  <th className={`${densityHeaderPad} border-b border-slate-200 bg-slate-100`}>
-                    {renderColumnHeaderWithFilter(
-                      'FLUID_OBS',
-                      'Observações / Comentários',
-                      'Observações / Comentários'
-                    )}
-                  </th>
-                </>
+                <th className={`${densityHeaderPad} border-b border-slate-200 bg-slate-100`}>
+                  {renderColumnHeaderWithFilter(
+                    'FLUID_STATUS_FINANCEIRO',
+                    'Status Financeiro',
+                    'Status Financeiro'
+                  )}
+                </th>
+              )}
+              <th className={`${densityHeaderPad} border-b border-slate-200 bg-slate-100`}>
+                {renderColumnHeaderWithFilter('FLUID_ACESSO', 'Acesso', 'Acesso')}
+              </th>
+              <th className={`${densityHeaderPad} border-b border-slate-200 bg-slate-100`}>
+                {renderColumnHeaderWithFilter('FLUID_DATA_ACESSO', 'Data Acesso', 'Data Acesso')}
+              </th>
+              <th className={`${densityHeaderPad} border-b border-slate-200 bg-slate-100`}>
+                {renderColumnHeaderWithFilter(
+                  'FLUID_COMENTARIOS_ACESSO',
+                  'Comentários Acesso',
+                  'Comentários do Acesso'
+                )}
+              </th>
+              {!isVistoriadorView && (
+                <th className={`${densityHeaderPad} border-b border-slate-200 bg-slate-100`}>
+                  {renderColumnHeaderWithFilter(
+                    'FLUID_OBS',
+                    'Observações / Comentários',
+                    'Observações / Comentários'
+                  )}
+                </th>
               )}
               <th className={`${densityHeaderPad} border-b border-slate-200 bg-slate-100 text-right`}>
                 Ficha
@@ -2436,10 +2264,10 @@ export default function App() {
                 const siExec = getCellValueForColumn(site, 'SI Executed') || site.dataAtivacao;
                 const statusFin =
                   getCellValueForColumn(site, 'Status Financeiro') || site.alarmesAtivos || '';
-                const acessoInfo =
-                  getCellValueForColumn(site, 'Comentários do Acesso') ||
-                  getCellValueForColumn(site, 'Acesso') ||
-                  '—';
+                const colAcesso = getCellValueForColumn(site, 'Acesso') || '—';
+                const dataAcesso = getCellValueForColumn(site, 'Data') || '—';
+                const comentariosAcesso =
+                  getCellValueForColumn(site, 'Comentários do Acesso') || '—';
                 const obs =
                   getCellValueForColumn(site, 'Observações/Motivo') ||
                   getCellValueForColumn(site, 'Comentários') ||
@@ -2456,7 +2284,7 @@ export default function App() {
                         }
                       >
                         <td
-                          colSpan={isVistoriadorView ? 10 : 15}
+                          colSpan={isVistoriadorView ? 13 : 17}
                           className="px-4 py-1.5 text-[11px] font-bold tracking-wide"
                         >
                           {currentBucket === 0 ? (
@@ -2651,55 +2479,93 @@ export default function App() {
                   </td>
 
                   {!isVistoriadorView && (
-                    <>
-                      {/* Status Financeiro — Compact Hover-to-Edit Cell */}
-                      <td
-                        onClick={(e) => e.stopPropagation()}
-                        className={`group/cell relative z-0 ${densityPad} border-b border-slate-100 bg-white group-hover:bg-slate-50`}
-                      >
-                        {effectiveRole === 'ADM' ? (
-                          <div className="relative inline-flex items-center">
-                            {renderStatusFinanceiroBadge(statusFin, true)}
-                            <select
-                              value={statusFin}
-                              onChange={(e) => {
-                                const nextFin = e.target.value;
-                                const updates = syncSiteColumnUpdate(
-                                  site,
-                                  'Status Financeiro',
-                                  nextFin
-                                );
-                                handleSaveSite(site.id, updates);
-                                showToast(
-                                  `Status Financeiro de ${site.siteId} atualizado para "${nextFin || 'Sem status'}"`
-                                );
-                              }}
-                              title="Clique para alterar Status Financeiro"
-                              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                            >
-                              <option value="">— Sem Status Financeiro —</option>
-                              {statusFin && !STATUS_FINANCEIRO_OPTIONS.includes(statusFin) && (
-                                <option value={statusFin}>{statusFin}</option>
-                              )}
-                              {STATUS_FINANCEIRO_OPTIONS.map((opt) => (
-                                <option key={opt} value={opt}>
-                                  {opt}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
-                        ) : (
-                          renderStatusFinanceiroBadge(statusFin, false)
-                        )}
-                      </td>
+                    /* Status Financeiro — Compact Hover-to-Edit Cell */
+                    <td
+                      onClick={(e) => e.stopPropagation()}
+                      className={`group/cell relative z-0 ${densityPad} border-b border-slate-100 bg-white group-hover:bg-slate-50`}
+                    >
+                      {effectiveRole === 'ADM' ? (
+                        <div className="relative inline-flex items-center">
+                          {renderStatusFinanceiroBadge(statusFin, true)}
+                          <select
+                            value={statusFin}
+                            onChange={(e) => {
+                              const nextFin = e.target.value;
+                              const updates = syncSiteColumnUpdate(
+                                site,
+                                'Status Financeiro',
+                                nextFin
+                              );
+                              handleSaveSite(site.id, updates);
+                              showToast(
+                                `Status Financeiro de ${site.siteId} atualizado para "${nextFin || 'Sem status'}"`
+                              );
+                            }}
+                            title="Clique para alterar Status Financeiro"
+                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                          >
+                            <option value="">— Sem Status Financeiro —</option>
+                            {statusFin && !STATUS_FINANCEIRO_OPTIONS.includes(statusFin) && (
+                              <option value={statusFin}>{statusFin}</option>
+                            )}
+                            {STATUS_FINANCEIRO_OPTIONS.map((opt) => (
+                              <option key={opt} value={opt}>
+                                {opt}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      ) : (
+                        renderStatusFinanceiroBadge(statusFin, false)
+                      )}
+                    </td>
+                  )}
 
-                      <td className={`${densityPad} border-b border-slate-100 bg-white group-hover:bg-slate-50 text-slate-600 max-w-[180px] truncate`}>
-                        {acessoInfo}
-                      </td>
-                      <td className={`${densityPad} border-b border-slate-100 bg-white group-hover:bg-slate-50 text-slate-500 max-w-[210px] truncate`}>
-                        {obs || '—'}
-                      </td>
-                    </>
+                  {/* Coluna Acesso (Status de Acesso) */}
+                  <td className={`${densityPad} border-b border-slate-100 bg-white group-hover:bg-slate-50 text-slate-700 max-w-[160px] truncate`}>
+                    {colAcesso !== '—' ? (
+                      <span
+                        className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold ${
+                          colAcesso.toLowerCase().includes('liberado') ||
+                          colAcesso.toLowerCase().includes('ok')
+                            ? 'bg-emerald-100 text-emerald-800'
+                            : colAcesso.toLowerCase().includes('sem acesso') ||
+                              colAcesso.toLowerCase().includes('crítico') ||
+                              colAcesso.toLowerCase().includes('rejeit')
+                            ? 'bg-rose-100 text-rose-800'
+                            : 'bg-amber-100 text-amber-900'
+                        }`}
+                      >
+                        {colAcesso}
+                      </span>
+                    ) : (
+                      <span className="text-slate-400">—</span>
+                    )}
+                  </td>
+
+                  {/* Data de Acesso */}
+                  <td className={`${densityPad} border-b border-slate-100 bg-white group-hover:bg-slate-50 font-mono text-slate-600 tabular-nums max-w-[120px] truncate`}>
+                    {dataAcesso}
+                  </td>
+
+                  {/* Comentários do Acesso */}
+                  <td
+                    className={`${densityPad} border-b border-slate-100 bg-white group-hover:bg-slate-50 text-slate-600 max-w-[240px] truncate`}
+                    title={comentariosAcesso !== '—' ? comentariosAcesso : undefined}
+                  >
+                    {comentariosAcesso !== '—' ? (
+                      <span className="truncate block" title={comentariosAcesso}>
+                        {comentariosAcesso}
+                      </span>
+                    ) : (
+                      <span className="text-slate-400">—</span>
+                    )}
+                  </td>
+
+                  {!isVistoriadorView && (
+                    <td className={`${densityPad} border-b border-slate-100 bg-white group-hover:bg-slate-50 text-slate-500 max-w-[210px] truncate`}>
+                      {obs || '—'}
+                    </td>
                   )}
                   <td className={`${densityPad} border-b border-slate-100 bg-white group-hover:bg-slate-50 text-right`}>
                     <span className="inline-flex items-center gap-1 text-blue-600 font-medium group-hover:translate-x-0.5 transition-transform">
@@ -2897,18 +2763,7 @@ export default function App() {
               <button
                 type="button"
                 onClick={async () => {
-                  const uid = user.uid || auth?.currentUser?.uid || user.id;
-                  if (uid && isFirebaseEnvConfigured) {
-                    const refreshed = await dataService.obterPerfilUsuario(uid);
-                    if (refreshed) {
-                      setUser({ ...user, ...refreshed, emailVerified: true });
-                      if (!isUserAguardando(refreshed) && refreshed.situacao !== 'bloqueado') {
-                        showToast('Acesso liberado! Bem-vindo ao sistema Ameta.');
-                      } else {
-                        showToast('Seu cadastro ainda aguarda liberação pelo dono.');
-                      }
-                    }
-                  } else {
+                  try {
                     const res = await fetch('/api/state', { cache: 'no-store' });
                     if (res.ok) {
                       const st = await res.json();
@@ -2924,6 +2779,8 @@ export default function App() {
                         }
                       }
                     }
+                  } catch {
+                    showToast('Não foi possível verificar no momento.');
                   }
                 }}
                 className="px-4 py-2.5 rounded-xl bg-[#223585] hover:bg-[#192868] text-white font-bold text-xs inline-flex items-center gap-2 cursor-pointer"
@@ -3074,7 +2931,13 @@ export default function App() {
                 }`}
               >
                 <FolderOpen className="w-3.5 h-3.5 text-blue-600 shrink-0" />
-                <span>{effectiveRole === 'Executor' ? 'Subir TSSR' : 'Vistoria'}</span>
+                <span>
+                  {effectiveRole === 'Executor'
+                    ? 'Subir TSSR'
+                    : effectiveRole === 'Coordenador Engenharia'
+                    ? 'Vistoria & TSSR'
+                    : 'Vistoria'}
+                </span>
                 <span className="font-mono text-[11px] text-slate-500 tabular-nums">
                   ({vendorEngineeringFilesCount})
                 </span>
@@ -3654,7 +3517,11 @@ export default function App() {
                   }`}
                 />
                 <span className="text-xs font-extrabold truncate">
-                  {effectiveRole === 'Executor' ? 'Subir TSSR' : 'Subir Vistoria'}
+                  {effectiveRole === 'Executor'
+                    ? 'Subir TSSR'
+                    : effectiveRole === 'Coordenador Engenharia'
+                    ? 'Vistoria & TSSR'
+                    : 'Subir Vistoria'}
                 </span>
               </div>
               <span
@@ -4758,7 +4625,9 @@ export default function App() {
                           FLUID_SI_EXECUTED: 'SI Executed',
                           FLUID_STATUS: 'Status',
                           FLUID_STATUS_FINANCEIRO: 'Status Financeiro',
-                          FLUID_ACESSO: 'Acesso / Chaves',
+                          FLUID_ACESSO: 'Acesso',
+                          FLUID_DATA_ACESSO: 'Data Acesso',
+                          FLUID_COMENTARIOS_ACESSO: 'Comentários Acesso',
                           FLUID_OBS: 'Observações',
                         };
                         const friendlyCol = labelMap[colKey] || colKey;
@@ -5844,7 +5713,11 @@ export default function App() {
         >
           <FolderOpen className="w-4 h-4" />
           <span className="truncate max-w-[80px]">
-            {effectiveRole === 'Executor' ? 'Subir TSSR' : 'Vistoria'}
+            {effectiveRole === 'Executor'
+              ? 'Subir TSSR'
+              : effectiveRole === 'Coordenador Engenharia'
+              ? 'Vistoria/TSSR'
+              : 'Vistoria'}
           </span>
         </button>
 
