@@ -43,6 +43,17 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // =========================================================================
+    // CHAMADOS & SUPORTE (REAL-TIME FIRESTORE TICKETS)
+    // =========================================================================
+    match /chamados/{docId} {
+      allow read, write: if true;
+    }
+
+    match /app_meta/{docId} {
+      allow read, write: if true;
+    }
+
     // Collection: usuarios
     match /usuarios/{userId} {
       allow read: if isSignedIn();

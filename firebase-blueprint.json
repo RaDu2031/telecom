@@ -41,12 +41,33 @@
         "uploadedByEmail": { "type": "string" }
       },
       "required": ["id", "fileName", "storageFileName"]
+    },
+    "Chamado": {
+      "title": "Chamado",
+      "description": "Chamado de suporte técnico ou dúvida aberta por usuário",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "protocolo": { "type": "string" },
+        "titulo": { "type": "string" },
+        "descricao": { "type": "string" },
+        "categoria": { "type": "string" },
+        "prioridade": { "type": "string" },
+        "status": { "type": "string" },
+        "usuarioNome": { "type": "string" },
+        "usuarioEmail": { "type": "string" }
+      },
+      "required": ["id", "protocolo", "titulo", "descricao", "usuarioEmail"]
     }
   },
   "firestore": {
     "/usuarios/{userId}": {
       "schema": { "$ref": "#/entities/User" },
       "description": "Coleção de perfis e permissões dos usuários"
+    },
+    "/chamados/{chamadoId}": {
+      "schema": { "$ref": "#/entities/Chamado" },
+      "description": "Coleção de chamados de suporte em tempo real"
     },
     "/nokia_sites/{siteId}": {
       "schema": { "$ref": "#/entities/TelecomSite" },
