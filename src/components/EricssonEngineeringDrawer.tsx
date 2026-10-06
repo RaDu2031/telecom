@@ -47,6 +47,7 @@ export interface EricssonEngineeringDrawerProps {
   user: AmetaUser;
   effectiveRole: UserRole;
   isOwner?: boolean;
+  readOnly?: boolean;
   files?: EngineeringFile[];
   onClose: () => void;
   onSaveRow: (updatedRow: EricssonEngineeringRow) => Promise<void>;
@@ -59,14 +60,15 @@ export const EricssonEngineeringDrawer: React.FC<EricssonEngineeringDrawerProps>
   user,
   effectiveRole,
   isOwner = false,
+  readOnly = false,
   files = [],
   onClose,
   onSaveRow,
   showToast,
 }) => {
-  // Permission calculation: Dono, ADM, Coordenador Geral, Coordenador Engenharia have full editing rights;
-  // Executor can edit if assigned to them or if role allows.
+  // Permission calculation
   const canEdit = useMemo(() => {
+    if (readOnly) return false;
     if (isOwner) return true;
     if (user?.situacao === 'dono') return true;
     if (effectiveRole === 'ADM' || effectiveRole === 'Coordenador Geral' || effectiveRole === 'Coordenador Engenharia') {

@@ -1025,8 +1025,18 @@ export function doesDocumentMatchResponsible(
     }
   }
 
-  // Also match if the non-ADM user themselves uploaded the file
+  // Also match if the non-ADM user themselves uploaded the file (by email or name)
+  const targetName =
+    typeof userOrName === 'object' && userOrName.name
+      ? userOrName.name.trim().toLowerCase()
+      : typeof userOrName === 'string'
+      ? userOrName.trim().toLowerCase()
+      : '';
+
   if (targetEmail && file.uploadedByEmail?.trim().toLowerCase() === targetEmail) {
+    return true;
+  }
+  if (targetName && file.uploadedByName?.trim().toLowerCase() === targetName) {
     return true;
   }
 

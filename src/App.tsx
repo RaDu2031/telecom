@@ -651,11 +651,14 @@ export default function App() {
     effectiveRole === 'Coordenador Geral' ||
     effectiveRole === 'Coordenador Engenharia' ||
     isEngCoordinator;
-  const canSeeSitesTab = !isEngCoordinator;
+  const canSeeSitesTab =
+    !isEngCoordinator &&
+    !(activeVendor === 'ERICSSON' && (effectiveRole === 'Executor' || effectiveRole === 'Vistoriador'));
   const canSeeEngenhariaTab =
     effectiveRole === 'ADM' ||
     effectiveRole === 'Coordenador Geral' ||
-    effectiveRole === 'Coordenador Engenharia';
+    effectiveRole === 'Coordenador Engenharia' ||
+    (activeVendor === 'NOKIA' && effectiveRole === 'Executor');
 
   // "essa opção aparece somente para os gestores engenharia e para gestor geral para todo resto é oculta"
   const canAccessDemandaExecutores =
@@ -1432,8 +1435,9 @@ export default function App() {
     if (isEngCoordinator && activeTopTab === 'sites') {
       return 'engenharia';
     }
-    // Executor sees ONLY Meus Sites Demandados and Pasta TSSR
+    // Executor sees ONLY Meus Sites Demandados (for Nokia) or PROJETO CLARO (for Ericsson)
     if (effectiveRole === 'Executor') {
+      if (activeVendor === 'ERICSSON') return 'vistoria';
       if (activeTopTab === 'vistoria') return 'vistoria';
       return 'sites';
     }
@@ -3918,13 +3922,8 @@ export default function App() {
                         }}
                         className="w-full px-3.5 py-2.5 sm:py-1.5 text-left flex items-center gap-2 hover:bg-slate-50 cursor-pointer text-slate-700"
                       >
-                        <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none">
-                          <path d="M4.5 19.5L8.5 12.5H19.5L15.5 19.5H4.5Z" fill="#4285F4" />
-                          <path d="M15.5 19.5L19.5 12.5L15.5 5.5H7.5L3.5 12.5L15.5 19.5Z" fill="#0F9D58" fillOpacity="0.85" />
-                          <path d="M8.5 12.5L12.5 5.5H19.5L15.5 12.5H8.5Z" fill="#FFBB00" />
-                          <path d="M4.5 19.5L8.5 12.5L12.5 5.5L8.5 5.5L0.5 19.5H4.5Z" fill="#EA4335" />
-                        </svg>
-                        <span>Google Drive (Oficial)</span>
+                        <Cloud className="w-4 h-4 shrink-0 text-amber-500" />
+                        <span>Nuvem Firebase (Conectado)</span>
                       </button>
 
                       <button
@@ -4276,7 +4275,9 @@ export default function App() {
                 />
                 <span className="text-xs font-extrabold truncate">
                   {activeVendor === 'ERICSSON'
-                    ? 'PROJETO CLARO'
+                    ? effectiveRole === 'Executor' || effectiveRole === 'Vistoriador'
+                      ? 'Demandas Engenharia Ericsson Claro'
+                      : 'PROJETO CLARO'
                     : effectiveRole === 'Executor'
                     ? 'Pastas TSSR'
                     : effectiveRole === 'Coordenador Engenharia'

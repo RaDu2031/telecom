@@ -1,0 +1,109 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function getUserData() {
+      return get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (
+        getUserData().role == 'ADM' || 
+        getUserData().role == 'Dono' || 
+        getUserData().situacao == 'dono'
+      );
+    }
+
+    function isGestor() {
+      return isSignedIn() && (
+        isAdmin() || 
+        getUserData().role == 'Coordenador Geral' || 
+        getUserData().role == 'Coordenador Engenharia'
+      );
+    }
+
+    function isExecutor() {
+      return isSignedIn() && getUserData().role == 'Executor';
+    }
+
+    function hasEricssonAccess() {
+      return isSignedIn() && (
+        getUserData().platform == 'ERICSSON' || 
+        getUserData().platform == 'AMBAS' || 
+        getUserData().platform == 'TIM/Nokia e Claro/Ericsson'
+      );
+    }
+
+    // Default deny catch-all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Collection: usuarios
+    match /usuarios/{userId} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn() && (request.auth.uid == userId || isAdmin());
+    }
+
+    // =========================================================================
+    // ERICSSON COLLECTIONS (PREFIX ericsson_)
+    // =========================================================================
+
+    // Collection: ericsson_sites
+    match /ericsson_sites/{docId} {
+      allow read: if isSignedIn() && hasEricssonAccess();
+      allow write: if isSignedIn() && isGestor();
+    }
+
+    // Collection: ericsson_engenharia (Engenharia Ericsson)
+    // EXECUTOR SECURITY RULE: Executor can ONLY READ if authenticated with Ericsson platform AND the row is explicitly assigned to them, NEVER WRITE.
+    match /ericsson_engenharia/{docId} {
+      allow get, list: if isSignedIn() && hasEricssonAccess() && (
+        isGestor() || 
+        (isExecutor() && (
+          resource.data.executor == getUserData().name || 
+          resource.data.executor == request.auth.token.email
+        ))
+      );
+      allow create, update, delete: if isSignedIn() && isGestor();
+    }
+
+    // Collection: ericsson_demandas
+    match /ericsson_demandas/{docId} {
+      allow read: if isSignedIn() && hasEricssonAccess();
+      allow create, update, delete: if isSignedIn() && isGestor();
+    }
+
+    // Collection: ericsson_pastas
+    match /ericsson_pastas/{docId} {
+      allow read: if isSignedIn() && hasEricssonAccess();
+      allow create, update, delete: if isSignedIn() && (isGestor() || isExecutor());
+    }
+
+    // Collection: ericsson_arquivos
+    match /ericsson_arquivos/{docId} {
+      allow read: if isSignedIn() && hasEricssonAccess();
+      allow create, update, delete: if isSignedIn() && (isGestor() || isExecutor());
+    }
+
+    // =========================================================================
+    // NOKIA / TIM COLLECTIONS (PREFIX nokia_) - PROTEGED AND UNTOUCHED
+    // =========================================================================
+    match /nokia_sites/{docId} {
+      allow read, write: if isSignedIn();
+    }
+    match /nokia_tssr/{docId} {
+      allow read, write: if isSignedIn();
+    }
+    match /nokia_pastas/{docId} {
+      allow read, write: if isSignedIn();
+    }
+    match /nokia_arquivos/{docId} {
+      allow read, write: if isSignedIn();
+    }
+  }
+}

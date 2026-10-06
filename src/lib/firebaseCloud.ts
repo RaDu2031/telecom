@@ -1,7 +1,20 @@
 // Firebase and Netlify have been completely dismantled as requested.
 // The system runs 100% on the Node.js/Express server (server.ts) with standard REST APIs and SSE.
 
+import { getGoogleDriveAccessToken } from './googleDriveAuth';
+
 export const cloudFetch = (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+  const token = getGoogleDriveAccessToken();
+  const urlStr = typeof input === 'string' ? input : (input instanceof URL ? input.toString() : (input as any)?.url || '');
+  
+  if (token && (urlStr.startsWith('/api/') || urlStr.includes('/api/'))) {
+    init = init || {};
+    const headers = new Headers(init.headers || {});
+    if (!headers.has('x-gdrive-token')) {
+      headers.set('x-gdrive-token', token);
+    }
+    init.headers = headers;
+  }
   return window.fetch(input, init);
 };
 

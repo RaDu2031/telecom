@@ -1,0 +1,68 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "Usuário corporativo cadastrado na plataforma Telecom",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "email": { "type": "string" },
+        "role": { "type": "string" },
+        "situacao": { "type": "string" },
+        "plataforma": { "type": "string" },
+        "accessReleased": { "type": "boolean" }
+      },
+      "required": ["id", "name", "email", "role"]
+    },
+    "TelecomSite": {
+      "title": "TelecomSite",
+      "description": "Site de Telecomunicações Nokia ou Ericsson",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "siteId": { "type": "string" },
+        "uf": { "type": "string" },
+        "status": { "type": "string" }
+      },
+      "required": ["id", "siteId"]
+    },
+    "EngineeringFile": {
+      "title": "EngineeringFile",
+      "description": "Arquivo de vistoria, TSSR ou projeto enviado",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "folderId": { "type": "string" },
+        "fileName": { "type": "string" },
+        "fileType": { "type": "string" },
+        "storageFileName": { "type": "string" },
+        "uploadedByName": { "type": "string" },
+        "uploadedByEmail": { "type": "string" }
+      },
+      "required": ["id", "fileName", "storageFileName"]
+    }
+  },
+  "firestore": {
+    "/usuarios/{userId}": {
+      "schema": { "$ref": "#/entities/User" },
+      "description": "Coleção de perfis e permissões dos usuários"
+    },
+    "/nokia_sites/{siteId}": {
+      "schema": { "$ref": "#/entities/TelecomSite" },
+      "description": "Coleção de sites Nokia"
+    },
+    "/ericsson_sites/{siteId}": {
+      "schema": { "$ref": "#/entities/TelecomSite" },
+      "description": "Coleção de sites Ericsson"
+    },
+    "/nokia_arquivos/{fileId}": {
+      "schema": { "$ref": "#/entities/EngineeringFile" },
+      "description": "Arquivos de engenharia Nokia"
+    },
+    "/ericsson_arquivos/{fileId}": {
+      "schema": { "$ref": "#/entities/EngineeringFile" },
+      "description": "Arquivos de engenharia Ericsson"
+    }
+  }
+}

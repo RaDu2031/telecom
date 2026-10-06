@@ -2,6 +2,11 @@ import express from 'express';
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
+import { initializeApp as initializeFirebaseApp } from 'firebase/app';
+import { getStorage as getFirebaseStorage, ref as firebaseStorageRef, uploadBytes, getBytes } from 'firebase/storage';
+import { getAuth as getFirebaseAuth, signInWithEmailAndPassword } from 'firebase/auth';
+import { getFirestore as getFirebaseFirestore, doc as firestoreDoc, setDoc as setFirestoreDoc } from 'firebase/firestore';
+import { Storage } from '@google-cloud/storage';
 import { GoogleGenAI, Type } from '@google/genai';
 import { createServer as createViteServer } from 'vite';
 import { INITIAL_SITES, INITIAL_SHEETS } from './src/data/initialSites.ts';
@@ -120,6 +125,169 @@ const UPLOADS_DIR = process.env.AMETA_UPLOADS_DIR
   ? path.resolve(process.env.AMETA_UPLOADS_DIR)
   : path.join(DATA_DIR, 'uploads');
 const DB_FILE = path.join(DATA_DIR, 'ameta-db.json');
+
+const firebaseConfig = (() => {
+  try {
+    return JSON.parse(fs.readFileSync(path.resolve(process.cwd(), 'firebase-applet-config.json'), 'utf-8'));
+  } catch (err) {
+    console.warn('[Cloud Storage] Failed to load firebase-applet-config.json:', err);
+    return {};
+  }
+})();
+
+const BUCKET_NAME = firebaseConfig.storageBucket || 'able-bit-jsmzh.firebasestorage.app';
+
+// Initialize Firebase Web SDK on the server-side to bypass GCP ADC credential requirements
+const firebaseApp = initializeFirebaseApp(firebaseConfig);
+const firebaseAuth = getFirebaseAuth(firebaseApp);
+const firebaseStorage = getFirebaseStorage(firebaseApp);
+
+let isFirebaseAuthInProgress = false;
+let isFirebaseAuthenticated = false;
+
+async function authenticateFirebaseServer(): Promise<boolean> {
+  if (isFirebaseAuthenticated) return true;
+  if (isFirebaseAuthInProgress) {
+    for (let i = 0; i < 20; i++) {
+      await new Promise((r) => setTimeout(r, 100));
+      if (isFirebaseAuthenticated) return true;
+    }
+  }
+  isFirebaseAuthInProgress = true;
+  try {
+    // Authenticate as the default owner to gain access to Firebase Storage
+    await signInWithEmailAndPassword(firebaseAuth, 'rafael.araujo@ametaservicos.com.br', 'ameta2026');
+    isFirebaseAuthenticated = true;
+    console.log('[Firebase Auth] Server authenticated successfully as rafael.araujo@ametaservicos.com.br');
+    return true;
+  } catch (err) {
+    console.warn('[Firebase Auth] Server authentication failed:', err);
+    return false;
+  } finally {
+    isFirebaseAuthInProgress = false;
+  }
+}
+
+async function syncDatabaseFromCloudStorage() {
+  try {
+    const authenticated = await authenticateFirebaseServer();
+    if (!authenticated) {
+      console.warn('[Firebase Storage] Skipping database download - auth failed.');
+      return;
+    }
+    const dbRef = firebaseStorageRef(firebaseStorage, 'ameta-db.json');
+    console.log(`[Firebase Storage] Downloading ameta-db.json from Firebase bucket: ${BUCKET_NAME}...`);
+    const bytes = await getBytes(dbRef);
+    if (bytes) {
+      if (!fs.existsSync(DATA_DIR)) {
+        fs.mkdirSync(DATA_DIR, { recursive: true });
+      }
+      fs.writeFileSync(DB_FILE, Buffer.from(bytes));
+      console.log('[Firebase Storage] ameta-db.json downloaded successfully.');
+    }
+  } catch (err: any) {
+    if (err && (err.code === 'storage/object-not-found' || err.status === 404)) {
+      console.log('[Firebase Storage] ameta-db.json not found in bucket. Starting with initial seed.');
+    } else {
+      console.error('[Firebase Storage] Error downloading ameta-db.json:', err);
+    }
+  }
+}
+
+async function syncDatabaseToCloudStorage() {
+  try {
+    const authenticated = await authenticateFirebaseServer();
+    if (!authenticated) {
+      console.warn('[Firebase Storage] Skipping database upload - auth failed.');
+      return;
+    }
+    console.log(`[Firebase Storage] Uploading ameta-db.json to Firebase bucket: ${BUCKET_NAME}...`);
+    const dbRef = firebaseStorageRef(firebaseStorage, 'ameta-db.json');
+    const content = fs.readFileSync(DB_FILE);
+    await uploadBytes(dbRef, content, { contentType: 'application/json' });
+    console.log('[Firebase Storage] ameta-db.json uploaded successfully.');
+
+    // Secondary backup sync to Firestore database
+    try {
+      const firestoreDb = getFirebaseFirestore(firebaseApp, firebaseConfig.firestoreDatabaseId);
+      const mainDocRef = firestoreDoc(firestoreDb, 'database', 'ameta-db');
+      await setFirestoreDoc(mainDocRef, {
+        lastUpdated: new Date().toISOString(),
+        status: 'active',
+        projectId: firebaseConfig.projectId || 'ameta-sistema-teste',
+      });
+      console.log('[Firestore Database] Metadata sync completed successfully.');
+    } catch (fsErr) {
+      console.warn('[Firestore Database] Secondary metadata sync warning:', fsErr);
+    }
+  } catch (err) {
+    console.error('[Firebase Storage] Error uploading ameta-db.json:', err);
+  }
+}
+
+async function uploadFileToCloudStorage(fileName: string, filePath: string) {
+  try {
+    const authenticated = await authenticateFirebaseServer();
+    if (!authenticated) {
+      console.warn(`[Firebase Storage] Cannot upload ${fileName} - auth failed.`);
+      return;
+    }
+    console.log(`[Firebase Storage] Uploading file ${fileName} to uploads/ in Firebase bucket...`);
+    const fileRef = firebaseStorageRef(firebaseStorage, `uploads/${fileName}`);
+    const content = fs.readFileSync(filePath);
+    
+    // Inline mime detection helper
+    const ext = path.extname(fileName || '').toLowerCase();
+    let mime = 'application/octet-stream';
+    if (ext === '.pdf') mime = 'application/pdf';
+    else if (ext === '.png') mime = 'image/png';
+    else if (ext === '.jpg' || ext === '.jpeg') mime = 'image/jpeg';
+    else if (ext === '.webp') mime = 'image/webp';
+    else if (ext === '.txt' || ext === '.csv') mime = 'text/plain';
+    else if (ext === '.html' || ext === '.htm') mime = 'text/html';
+    else if (ext === '.xlsx') mime = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+    else if (ext === '.zip') mime = 'application/zip';
+    else if (ext === '.rar') mime = 'application/x-rar-compressed';
+
+    await uploadBytes(fileRef, content, { contentType: mime });
+    console.log(`[Firebase Storage] File ${fileName} uploaded successfully.`);
+  } catch (err) {
+    console.error(`[Firebase Storage] Error uploading file ${fileName}:`, err);
+  }
+}
+
+function uploadFileToCloudStorageAsync(fileName: string, filePath: string) {
+  uploadFileToCloudStorage(fileName, filePath).catch((err) => {
+    console.error('[Firebase Storage] Async file upload failed:', err);
+  });
+}
+
+async function ensureLocalFileFromCloudStorage(fileName: string, filePath: string): Promise<boolean> {
+  if (fs.existsSync(filePath)) {
+    return true;
+  }
+  try {
+    const authenticated = await authenticateFirebaseServer();
+    if (!authenticated) {
+      console.warn(`[Firebase Storage] Cannot download ${fileName} - auth failed.`);
+      return false;
+    }
+    const fileRef = firebaseStorageRef(firebaseStorage, `uploads/${fileName}`);
+    console.log(`[Firebase Storage] Downloading ${fileName} from Firebase cloud to local uploads...`);
+    if (!fs.existsSync(UPLOADS_DIR)) {
+      fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+    }
+    const bytes = await getBytes(fileRef);
+    if (bytes) {
+      fs.writeFileSync(filePath, Buffer.from(bytes));
+      console.log(`[Firebase Storage] ${fileName} downloaded successfully.`);
+      return true;
+    }
+  } catch (err) {
+    console.error(`[Firebase Storage] Error ensuring local file ${fileName}:`, err);
+  }
+  return false;
+}
 const TSSR_SEED_FILE = path.join(DATA_DIR, 'tssr-seed.json');
 const ERICSSON_SEED_FILE = path.join(DATA_DIR, 'ericsson-seed.json');
 const ERICSSON_ENG_SEED_FILE = path.join(DATA_DIR, 'ericsson-engineering-seed.json');
@@ -138,6 +306,234 @@ const REGIONAL_SUBFOLDERS = [
   'Nordeste TNE',
   'SPI - São Paulo Interior',
 ];
+
+// Google Drive Integration module for full-stack persistence and storage
+let activeDriveToken: string | null = null;
+let lastSyncedDriveDbTime: string | null = null;
+let globalBroadcastUpdate: ((payload: any) => void) | null = null;
+
+async function findDriveFolder(token: string, name: string): Promise<string | null> {
+  const q = `name = '${name.replace(/'/g, "\\'")}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false`;
+  const url = `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(q)}&fields=files(id)`;
+  try {
+    const res = await fetch(url, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    if (!res.ok) return null;
+    const data = await res.json() as any;
+    return data.files?.[0]?.id || null;
+  } catch (err) {
+    console.error('Error finding folder in Google Drive:', err);
+    return null;
+  }
+}
+
+async function createDriveFolder(token: string, name: string, parentId?: string): Promise<string | null> {
+  const url = `https://www.googleapis.com/drive/v3/files?fields=id`;
+  const body: any = {
+    name,
+    mimeType: 'application/vnd.google-apps.folder'
+  };
+  if (parentId) {
+    body.parents = [parentId];
+  }
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`
+      },
+      body: JSON.stringify(body)
+    });
+    if (!res.ok) return null;
+    const data = await res.json() as any;
+    return data.id || null;
+  } catch (err) {
+    console.error('Error creating folder in Google Drive:', err);
+    return null;
+  }
+}
+
+async function getOrCreateFolder(token: string, name: string, parentId?: string): Promise<string | null> {
+  const existing = await findDriveFolder(token, name);
+  if (existing) return existing;
+  return await createDriveFolder(token, name, parentId);
+}
+
+async function findDriveFile(token: string, name: string, parentId?: string): Promise<{ id: string; webViewLink?: string } | null> {
+  let q = `name = '${name.replace(/'/g, "\\'")}' and trashed = false`;
+  if (parentId) {
+    q += ` and '${parentId}' in parents`;
+  }
+  const url = `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(q)}&fields=files(id,webViewLink)`;
+  try {
+    const res = await fetch(url, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    if (!res.ok) return null;
+    const data = await res.json() as any;
+    return data.files?.[0] || null;
+  } catch (err) {
+    console.error('Error finding file in Google Drive:', err);
+    return null;
+  }
+}
+
+async function uploadOrUpdateDriveFile(
+  token: string,
+  name: string,
+  mimeType: string,
+  content: Buffer,
+  parentId?: string
+): Promise<{ id: string; webViewLink?: string } | null> {
+  try {
+    const existing = await findDriveFile(token, name, parentId);
+    if (existing) {
+      // Update existing file content
+      const url = `https://www.googleapis.com/upload/drive/v3/files/${existing.id}?uploadType=media`;
+      const res = await fetch(url, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': mimeType,
+          Authorization: `Bearer ${token}`
+        },
+        body: content as any
+      });
+      if (!res.ok) {
+        console.error('Error updating file on Google Drive:', await res.text());
+        return null;
+      }
+      return existing;
+    } else {
+      // Create new file
+      const url = `https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,webViewLink`;
+      const metadata: any = { name };
+      if (parentId) {
+        metadata.parents = [parentId];
+      }
+
+      const boundary = '-------314159265358979323846';
+      const delimiter = `\r\n--${boundary}\r\n`;
+      const closeDelimiter = `\r\n--${boundary}--`;
+
+      const headers = {
+        'Content-Type': `multipart/related; boundary=${boundary}`,
+        Authorization: `Bearer ${token}`
+      };
+
+      const multipartBody = Buffer.concat([
+        Buffer.from(delimiter),
+        Buffer.from('Content-Type: application/json; charset=UTF-8\r\n\r\n'),
+        Buffer.from(JSON.stringify(metadata)),
+        Buffer.from(delimiter),
+        Buffer.from(`Content-Type: ${mimeType}\r\n\r\n`),
+        content,
+        Buffer.from(closeDelimiter)
+      ]);
+
+      const res = await fetch(url, {
+        method: 'POST',
+        headers,
+        body: multipartBody as any
+      });
+
+      if (!res.ok) {
+        console.error('Error uploading new file to Google Drive:', await res.text());
+        return null;
+      }
+      return await res.json() as any;
+    }
+  } catch (err) {
+    console.error('Error in uploadOrUpdateDriveFile:', err);
+    return null;
+  }
+}
+
+async function downloadDriveFile(token: string, fileId: string): Promise<Buffer | null> {
+  const url = `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`;
+  try {
+    const res = await fetch(url, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    if (!res.ok) return null;
+    const arrayBuffer = await res.arrayBuffer();
+    return Buffer.from(arrayBuffer);
+  } catch (err) {
+    console.error('Error downloading from Google Drive:', err);
+    return null;
+  }
+}
+
+async function uploadFileToDriveAndSave(
+  token: string,
+  fileName: string,
+  mimeType: string,
+  content: Buffer
+): Promise<{ id: string; webViewLink?: string } | null> {
+  try {
+    const parentFolderId = await getOrCreateFolder(token, 'Ameta Telecom Database & Uploads');
+    if (!parentFolderId) return null;
+
+    const uploadsFolderId = await getOrCreateFolder(token, 'Uploads', parentFolderId);
+    if (!uploadsFolderId) return null;
+
+    const uploaded = await uploadOrUpdateDriveFile(token, fileName, mimeType, content, uploadsFolderId);
+    return uploaded;
+  } catch (err) {
+    console.error('Error in uploadFileToDriveAndSave:', err);
+    return null;
+  }
+}
+
+async function syncDatabaseWithGoogleDrive(token: string, currentDb: DatabaseSchema) {
+  try {
+    const parentFolderId = await getOrCreateFolder(token, 'Ameta Telecom Database & Uploads');
+    if (!parentFolderId) return;
+
+    const driveFile = await findDriveFile(token, 'ameta-db.json', parentFolderId);
+    if (driveFile) {
+      const driveContent = await downloadDriveFile(token, driveFile.id);
+      if (driveContent) {
+        const driveDb = JSON.parse(driveContent.toString('utf-8')) as DatabaseSchema;
+        
+        // Compare lastUpdated
+        const localTime = new Date(currentDb.lastUpdated || '1970-01-01T00:00:00.000Z').getTime();
+        const driveTime = new Date(driveDb.lastUpdated || '1970-01-01T00:00:00.000Z').getTime();
+
+        if (driveTime > localTime) {
+          console.log(`[Google Drive Sync] Loading newer database from Google Drive (${driveDb.lastUpdated})`);
+          
+          // Merge/Replace in-memory db
+          Object.assign(currentDb, driveDb);
+          
+          // Save locally
+          fs.writeFileSync(DB_FILE, JSON.stringify(currentDb, null, 2), 'utf-8');
+
+          if (globalBroadcastUpdate) {
+            globalBroadcastUpdate({
+              type: 'DATABASE_LOADED_FROM_GDRIVE',
+              summary: 'O banco de dados foi sincronizado e atualizado a partir do seu Google Drive.',
+            });
+          }
+        } else if (localTime > driveTime) {
+          console.log(`[Google Drive Sync] Local database is newer. Uploading to Google Drive...`);
+          const dbBuffer = Buffer.from(JSON.stringify(currentDb, null, 2), 'utf-8');
+          await uploadOrUpdateDriveFile(token, 'ameta-db.json', 'application/json', dbBuffer, parentFolderId);
+        } else {
+          console.log(`[Google Drive Sync] Database is up to date.`);
+        }
+      }
+    } else {
+      console.log(`[Google Drive Sync] Uploading initial database to Google Drive...`);
+      const dbBuffer = Buffer.from(JSON.stringify(currentDb, null, 2), 'utf-8');
+      await uploadOrUpdateDriveFile(token, 'ameta-db.json', 'application/json', dbBuffer, parentFolderId);
+    }
+    lastSyncedDriveDbTime = new Date().toISOString();
+  } catch (err) {
+    console.error('[Google Drive Sync] Sync failed:', err);
+  }
+}
 
 function hashPassword(password: string): string {
   return crypto.createHash('sha256').update(`ameta_salt_${password}`).digest('hex');
@@ -1276,6 +1672,30 @@ function saveDatabase(db: DatabaseSchema): void {
   }
   db.lastUpdated = new Date().toISOString();
   fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2), 'utf-8');
+
+  // Sync to Google Cloud Storage (asynchronously in background)
+  syncDatabaseToCloudStorage().catch((err) => {
+    console.error('[Cloud Storage Sync] Async save failed:', err);
+  });
+
+  // Sync to Google Drive in the background if activeDriveToken is set
+  if (activeDriveToken) {
+    uploadDatabaseToDriveAsync(activeDriveToken, db).catch((err) => {
+      console.error('[Google Drive Sync] Async save failed:', err);
+    });
+  }
+}
+
+async function uploadDatabaseToDriveAsync(token: string, dbData: DatabaseSchema) {
+  try {
+    const parentFolderId = await getOrCreateFolder(token, 'Ameta Telecom Database & Uploads');
+    if (!parentFolderId) return;
+    const dbBuffer = Buffer.from(JSON.stringify(dbData, null, 2), 'utf-8');
+    await uploadOrUpdateDriveFile(token, 'ameta-db.json', 'application/json', dbBuffer, parentFolderId);
+    console.log('[Google Drive Sync] Async database save to Google Drive successful');
+  } catch (err) {
+    console.error('[Google Drive Sync] Async database save to Google Drive failed:', err);
+  }
 }
 
 function sanitizeUser(user: StoredUser): AmetaUser {
@@ -1285,10 +1705,14 @@ function sanitizeUser(user: StoredUser): AmetaUser {
 
 async function startServer() {
   const app = express();
-  const PORT = 3000;
+  const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
 
-  // Support up to 80MB payloads for .zip and WinRAR (.rar) uploads
-  app.use(express.json({ limit: '80mb' }));
+  // Support up to 250MB payloads for large .zip, WinRAR (.rar) and document uploads
+  app.use(express.json({ limit: '250mb' }));
+  app.use(express.urlencoded({ limit: '250mb', extended: true }));
+
+  // Pull database from GCS on startup before reading
+  await syncDatabaseFromCloudStorage();
 
   const db = loadDatabase();
 
@@ -1329,6 +1753,40 @@ async function startServer() {
       }
     }
   }
+
+  globalBroadcastUpdate = broadcastUpdate;
+
+  // Middleware to capture Google Drive Token and sync database
+  app.use((req, res, next) => {
+    const token = req.headers['x-gdrive-token'] as string;
+    if (token && typeof token === 'string' && token.trim()) {
+      activeDriveToken = token.trim();
+      const now = Date.now();
+      if (!lastSyncedDriveDbTime || now - new Date(lastSyncedDriveDbTime).getTime() > 120000) {
+        // Sync database in background (rate-limited to once every 2 minutes)
+        syncDatabaseWithGoogleDrive(activeDriveToken, db).catch((err) => {
+          console.error('[Google Drive Sync] Background sync failed:', err);
+        });
+      }
+    }
+    next();
+  });
+
+  // Synchronize database state directly with Firebase Cloud Storage & Firestore
+  app.post('/api/sync/firebase', async (req, res) => {
+    try {
+      await syncDatabaseToCloudStorage();
+      res.json({
+        success: true,
+        message: 'Banco de dados e arquivos sincronizados com sucesso na Nuvem Firebase!',
+        lastUpdated: db.lastUpdated,
+        projectId: firebaseConfig.projectId || 'ameta-sistema-teste',
+      });
+    } catch (err) {
+      console.error('Erro na sincronização Firebase:', err);
+      res.status(500).json({ error: 'Erro ao sincronizar com o Firebase.' });
+    }
+  });
 
   // ===================== AUTHENTICATION & @AMETA EMAIL VERIFICATION =====================
 
@@ -2132,7 +2590,9 @@ async function startServer() {
             const buffer = Buffer.from(cleanBase64, 'base64');
             const ext = path.extname(incomingDoc.fileName) || '.pdf';
             const storageFileName = `userdoc-${newUserId}-${incomingDoc.type}-${Date.now()}${ext}`;
-            fs.writeFileSync(path.join(UPLOADS_DIR, storageFileName), buffer);
+            const diskPath = path.join(UPLOADS_DIR, storageFileName);
+            fs.writeFileSync(diskPath, buffer);
+            uploadFileToCloudStorageAsync(storageFileName, diskPath);
             targetDoc.fileName = incomingDoc.fileName;
             targetDoc.fileSize = buffer.length;
             targetDoc.uploadedAt = new Date().toISOString();
@@ -2365,7 +2825,9 @@ async function startServer() {
       const buffer = Buffer.from(cleanBase64, 'base64');
       const ext = path.extname(fileName) || '.pdf';
       const storageFileName = `userdoc-${target.id}-${docEntry.type}-${Date.now()}${ext}`;
-      fs.writeFileSync(path.join(UPLOADS_DIR, storageFileName), buffer);
+      const diskPath = path.join(UPLOADS_DIR, storageFileName);
+      fs.writeFileSync(diskPath, buffer);
+      uploadFileToCloudStorageAsync(storageFileName, diskPath);
 
       docEntry.fileName = fileName;
       docEntry.fileSize = buffer.length;
@@ -2466,7 +2928,7 @@ async function startServer() {
   });
 
   // Download a user's uploaded mandatory document
-  app.get('/api/admin/users/:id/documents/:docType/download', (req, res) => {
+  app.get('/api/admin/users/:id/documents/:docType/download', async (req, res) => {
     const { id, docType } = req.params;
     const target = db.users.find((u) => u.id === id);
     if (!target) {
@@ -2480,6 +2942,7 @@ async function startServer() {
       return;
     }
     const filePath = path.join(UPLOADS_DIR, docEntry.storageFileName);
+    await ensureLocalFileFromCloudStorage(docEntry.storageFileName, filePath);
     if (!fs.existsSync(filePath)) {
       res.status(404).json({ error: 'Arquivo físico não encontrado no servidor.' });
       return;
@@ -2942,7 +3405,7 @@ async function startServer() {
 
   // Upload one or more files (.zip, .rar WinRAR, .7z, .xlsx, .pdf, etc.) or an entire uploaded folder into a folder
   // Also supports automatic linking to a site in "TSSR TIM Nokia" (setting Status = Entregue, link, date/time, vistoriador)
-  app.post('/api/engineering/files', (req, res) => {
+  app.post('/api/engineering/files', async (req, res) => {
     const {
       folderId,
       uploadedFolderName,
@@ -3039,11 +3502,16 @@ async function startServer() {
       return;
     }
 
-    if (!uploadedByName || !uploadedByName.trim()) {
-      res.status(400).json({
-        error: 'É obrigatório informar o nome do responsável que enviou o arquivo.',
-      });
-      return;
+    let finalUploadedByName = (uploadedByName || '').trim();
+    let finalUploadedByEmail = (uploadedByEmail || '').trim();
+    if (!finalUploadedByName) {
+      if (finalUploadedByEmail) {
+        const matchedU = db.users.find((u) => u.email.toLowerCase() === finalUploadedByEmail.toLowerCase());
+        if (matchedU) finalUploadedByName = matchedU.name;
+        else finalUploadedByName = finalUploadedByEmail.split('@')[0];
+      } else {
+        finalUploadedByName = 'Usuário';
+      }
     }
 
     if (!Array.isArray(files) || files.length === 0) {
@@ -3077,12 +3545,12 @@ async function startServer() {
       }
     }
     if (!linkedExecutorName && resolvedNokiaRole === 'Executor') {
-      linkedExecutorName = uploadedByName.trim();
+      linkedExecutorName = finalUploadedByName;
     }
     if (!linkedExecutorName) {
       const matchedUser = db.users.find(
         (u) =>
-          u.name.trim().toLowerCase() === uploadedByName.trim().toLowerCase() &&
+          u.name.trim().toLowerCase() === finalUploadedByName.toLowerCase() &&
           normalizeUserRole(u.role) === 'Executor'
       );
       if (matchedUser) {
@@ -3142,8 +3610,8 @@ async function startServer() {
           vendor,
           assignedTo: linkedExecutorName,
           description: `Pasta de TSSR liberada para o executor ${linkedExecutorName}`,
-          createdByName: uploadedByName.trim() || 'Gestor da Engenharia',
-          createdByEmail: uploadedByEmail?.trim() || 'engenharia@ametaservicos.com.br',
+          createdByName: finalUploadedByName,
+          createdByEmail: finalUploadedByEmail,
           createdAt: now,
           isSystem: false,
         };
@@ -3169,9 +3637,9 @@ async function startServer() {
           parentId: parentTargetId,
           name: cleanFolderName,
           vendor,
-          description: notes?.trim() || `Pasta enviada por ${uploadedByName.trim()}`,
-          createdByName: uploadedByName.trim(),
-          createdByEmail: uploadedByEmail?.trim() || 'engenharia@ametaservicos.com.br',
+          description: notes?.trim() || `Pasta enviada por ${finalUploadedByName}`,
+          createdByName: finalUploadedByName,
+          createdByEmail: finalUploadedByEmail,
           createdAt: now,
           isSystem: false,
         };
@@ -3189,7 +3657,8 @@ async function startServer() {
     });
     const createdFiles: EngineeringFile[] = [];
 
-    files.forEach((rawFile, idx) => {
+    for (let idx = 0; idx < files.length; idx++) {
+      const rawFile = files[idx];
       const cleanName = path.basename(rawFile.fileName || `arquivo_${idx + 1}.zip`);
       const fileId = `file-${Date.now()}-${idx}-${Math.random().toString(36).slice(2, 6)}`;
       const safeDiskName = `${fileId}_${cleanName.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
@@ -3202,6 +3671,23 @@ async function startServer() {
 
       const buffer = Buffer.from(base64Clean, 'base64');
       fs.writeFileSync(diskPath, buffer);
+      uploadFileToCloudStorageAsync(safeDiskName, diskPath);
+
+      let gdriveId: string | undefined = undefined;
+      let gdriveLink: string | undefined = undefined;
+
+      if (activeDriveToken) {
+        try {
+          const mimeType = detectMimeType(cleanName, rawFile.base64Data);
+          const gdRes = await uploadFileToDriveAndSave(activeDriveToken, cleanName, mimeType, buffer);
+          if (gdRes) {
+            gdriveId = gdRes.id;
+            gdriveLink = gdRes.webViewLink;
+          }
+        } catch (err) {
+          console.error('[Google Drive Sync] Nokia file upload failed:', err);
+        }
+      }
 
       const { fileType, extension } = detectFileType(cleanName);
 
@@ -3218,15 +3704,17 @@ async function startServer() {
         tssrRowId: tssrRowId?.trim() || undefined,
         notes: notes?.trim() || undefined,
         assignedTo: (linkedExecutorName || assignedTo || '').trim() || undefined,
-        uploadedByName: uploadedByName.trim(),
-        uploadedByEmail: uploadedByEmail?.trim() || 'engenharia@ametaservicos.com.br',
+        uploadedByName: finalUploadedByName,
+        uploadedByEmail: finalUploadedByEmail,
         uploadedAt: now,
         storageFileName: safeDiskName,
+        gdriveFileId: gdriveId,
+        gdriveWebViewLink: gdriveLink,
       };
 
       db.engineeringFiles.unshift(newFileRecord);
       createdFiles.push(newFileRecord);
-    });
+    }
 
     // Automatically update or create the linked site row in TSSR TIM Nokia when a Site ID is linked!
     const shouldUpdateTssrVistoria = Boolean(cleanSiteId);
@@ -3257,8 +3745,8 @@ async function startServer() {
           row.vistoriaFileUrl = fileViewUrl;
           row.vistoriaDownloadUrl = fileDownloadUrl;
           row.vistoriaDeliveredAt = formattedDeliveryDate;
-          row.vistoriaUploadedBy = uploadedByName.trim();
-          row.vistoriaUploadedByEmail = uploadedByEmail?.trim() || 'engenharia@ametaservicos.com.br';
+          row.vistoriaUploadedBy = finalUploadedByName;
+          row.vistoriaUploadedByEmail = finalUploadedByEmail;
           row.updatedAt = now;
           if (!row.fields) row.fields = {};
           row.fields['STATUS Engenharia'] = 'TSSR Aguardando aprovação';
@@ -3276,8 +3764,8 @@ async function startServer() {
             row.vistoriaFileUrl = fileViewUrl;
             row.vistoriaDownloadUrl = fileDownloadUrl;
             row.vistoriaDeliveredAt = formattedDeliveryDate;
-            row.vistoriaUploadedBy = uploadedByName.trim();
-            row.vistoriaUploadedByEmail = uploadedByEmail?.trim() || 'engenharia@ametaservicos.com.br';
+            row.vistoriaUploadedBy = finalUploadedByName;
+            row.vistoriaUploadedByEmail = finalUploadedByEmail;
             row.updatedAt = now;
             if (!row.fields) row.fields = {};
             row.fields['STATUS Engenharia'] = 'TSSR Aguardando aprovação';
@@ -3346,8 +3834,8 @@ async function startServer() {
           vistoriaFileUrl: fileViewUrl,
           vistoriaDownloadUrl: fileDownloadUrl,
           vistoriaDeliveredAt: formattedDeliveryDate,
-          vistoriaUploadedBy: uploadedByName.trim(),
-          vistoriaUploadedByEmail: uploadedByEmail?.trim() || 'engenharia@ametaservicos.com.br',
+          vistoriaUploadedBy: finalUploadedByName,
+          vistoriaUploadedByEmail: finalUploadedByEmail,
           createdAt: now,
           updatedAt: now,
         };
@@ -3367,13 +3855,13 @@ async function startServer() {
           type: 'TSSR_ENVIADO_EXECUTOR',
           vendor,
           title: `TSSR Enviado para Engenharia (${cleanSiteId || folder?.name || 'TSSR'})`,
-          message: `${uploadedByName.trim()} subiu o arquivo TSSR "${primaryFile.fileName}"${
+          message: `${finalUploadedByName} subiu o arquivo TSSR "${primaryFile.fileName}"${
             cleanSiteId ? ` do site ${cleanSiteId}` : ''
           } na pasta ${folder?.name || 'TSSR'} para análise da Coordenação de Engenharia.`,
           siteId: cleanSiteId || undefined,
           fileName: primaryFile.fileName,
-          actorName: uploadedByName.trim(),
-          actorEmail: uploadedByEmail?.trim() || 'executor@ametaservicos.com.br',
+          actorName: finalUploadedByName,
+          actorEmail: finalUploadedByEmail,
           targetRoles: ['Coordenador Engenharia', 'Coordenador Geral', 'ADM'],
         });
       } else if (shouldUpdateTssrVistoria) {
@@ -3383,11 +3871,11 @@ async function startServer() {
           title: `Vistoria na Pasta — Status OK (${cleanSiteId})`,
           message: `A vistoria do site ${cleanSiteId} ("${primaryFile.fileName}") foi entregue na pasta "${
             folder?.name || 'Vistorias Executadas'
-          }" por ${uploadedByName.trim()} e mudou o status para OK (Entregue).`,
+          }" por ${finalUploadedByName} e mudou o status para OK (Entregue).`,
           siteId: cleanSiteId,
           fileName: primaryFile.fileName,
-          actorName: uploadedByName.trim(),
-          actorEmail: uploadedByEmail?.trim() || 'vistoria@ametaservicos.com.br',
+          actorName: finalUploadedByName,
+          actorEmail: finalUploadedByEmail,
           targetRoles: ['Coordenador Engenharia', 'Coordenador Geral', 'ADM'],
         });
       }
@@ -3419,8 +3907,8 @@ async function startServer() {
           message: `Há ${createdFiles.length > 1 ? `${createdFiles.length} arquivos associados` : `um arquivo ("${primaryFile.fileName}") associado`} ao site ${cleanSiteId} pelo qual você é responsável (${folder?.name || 'Engenharia'}).`,
           siteId: cleanSiteId,
           fileName: primaryFile.fileName,
-          actorName: uploadedByName.trim(),
-          actorEmail: uploadedByEmail?.trim() || 'engenharia@ametaservicos.com.br',
+          actorName: finalUploadedByName,
+          actorEmail: finalUploadedByEmail,
           targetRoles: ['Vistoriador'],
           ...(siteEquipe ? { targetEquipes: [siteEquipe] } : {}),
           ...(siteEmails.length > 0 ? { targetEmails: siteEmails } : {}),
@@ -3433,11 +3921,11 @@ async function startServer() {
     broadcastUpdate({
       type: 'FILE_UPLOADED',
       timestamp: now,
-      actorEmail: uploadedByEmail,
+      actorEmail: finalUploadedByEmail,
       vendor,
       summary: cleanSiteId
-        ? `Arquivo ${primaryFile.fileName} (${cleanSiteId}) carregado por ${uploadedByName.trim()}`
-        : `Arquivo ${primaryFile.fileName} carregado em ${folder?.name || 'Engenharia'} por ${uploadedByName.trim()}`,
+        ? `Arquivo ${primaryFile.fileName} (${cleanSiteId}) carregado por ${finalUploadedByName}`
+        : `Arquivo ${primaryFile.fileName} carregado em ${folder?.name || 'Engenharia'} por ${finalUploadedByName}`,
     });
 
     res.status(201).json({
@@ -3453,7 +3941,7 @@ async function startServer() {
   });
 
   // View/open an engineering file directly in browser
-  app.get('/api/engineering/files/:id/view', (req, res) => {
+  app.get('/api/engineering/files/:id/view', async (req, res) => {
     const { id } = req.params;
     const fileRecord =
       db.engineeringFiles.find((f) => f.id === id) ||
@@ -3461,6 +3949,24 @@ async function startServer() {
     if (!fileRecord) {
       res.status(404).json({ error: 'Arquivo não encontrado.' });
       return;
+    }
+
+    if (fileRecord.gdriveFileId && activeDriveToken) {
+      try {
+        const fileContent = await downloadDriveFile(activeDriveToken, fileRecord.gdriveFileId);
+        if (fileContent) {
+          const mime = detectMimeType(fileRecord.fileName);
+          res.setHeader('Content-Type', mime);
+          res.setHeader(
+            'Content-Disposition',
+            `inline; filename="${encodeURIComponent(fileRecord.fileName)}"`
+          );
+          res.send(fileContent);
+          return;
+        }
+      } catch (err) {
+        console.warn('Google Drive view failed, falling back to disk:', err);
+      }
     }
 
     if (fileRecord.storageFileName) {
@@ -3481,7 +3987,7 @@ async function startServer() {
   });
 
   // Download an engineering file (.zip, .rar, .xlsx, .pdf, etc.)
-  app.get('/api/engineering/files/:id/download', (req, res) => {
+  app.get('/api/engineering/files/:id/download', async (req, res) => {
     const { id } = req.params;
     const fileRecord =
       db.engineeringFiles.find((f) => f.id === id) ||
@@ -3491,8 +3997,26 @@ async function startServer() {
       return;
     }
 
+    if (fileRecord.gdriveFileId && activeDriveToken) {
+      try {
+        const fileContent = await downloadDriveFile(activeDriveToken, fileRecord.gdriveFileId);
+        if (fileContent) {
+          res.setHeader(
+            'Content-Disposition',
+            `attachment; filename="${encodeURIComponent(fileRecord.fileName)}"`
+          );
+          res.setHeader('Content-Type', 'application/octet-stream');
+          res.send(fileContent);
+          return;
+        }
+      } catch (err) {
+        console.warn('Google Drive download failed, falling back to disk:', err);
+      }
+    }
+
     if (fileRecord.storageFileName) {
       const diskPath = path.join(UPLOADS_DIR, fileRecord.storageFileName);
+      await ensureLocalFileFromCloudStorage(fileRecord.storageFileName, diskPath);
       if (fs.existsSync(diskPath)) {
         res.download(diskPath, fileRecord.fileName);
         return;
@@ -3577,6 +4101,7 @@ async function startServer() {
       const base64Clean = base64Data.includes(',') ? base64Data.split(',')[1] : base64Data;
       const buffer = Buffer.from(base64Clean, 'base64');
       fs.writeFileSync(diskPath, buffer);
+      uploadFileToCloudStorageAsync(safeDiskName, diskPath);
       fileRecord.storageFileName = safeDiskName;
       fileRecord.fileSize = fileSize || buffer.length;
       fileRecord.uploadedAt = new Date().toISOString();
@@ -5958,7 +6483,7 @@ async function startServer() {
   });
 
   // 7. Attach file directly to Ericsson site/row (no subfolders as requested)
-  app.post('/api/ericsson/engenharia/upload-file', (req, res) => {
+  app.post('/api/ericsson/engenharia/upload-file', async (req, res) => {
     const { rowId, fileName, fileDataUrl, uploaderName, uploaderEmail } = req.body as {
       rowId?: string;
       fileName?: string;
@@ -5984,6 +6509,9 @@ async function startServer() {
 
     // If fileDataUrl is present, write to disk in uploads
     let downloadUrl = `/api/ericsson/engenharia/files/${fileId}/download`;
+    let gdriveId: string | undefined = undefined;
+    let gdriveLink: string | undefined = undefined;
+
     if (fileDataUrl && fileDataUrl.includes('base64,')) {
       try {
         const parts = fileDataUrl.split('base64,');
@@ -5992,6 +6520,16 @@ async function startServer() {
         const safeName = `${fileId}__${fileName.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
         const filePath = path.join(UPLOADS_DIR, safeName);
         fs.writeFileSync(filePath, buffer);
+        uploadFileToCloudStorageAsync(safeName, filePath);
+
+        if (activeDriveToken) {
+          const mimeType = detectMimeType(fileName, fileDataUrl);
+          const gdRes = await uploadFileToDriveAndSave(activeDriveToken, fileName, mimeType, buffer);
+          if (gdRes) {
+            gdriveId = gdRes.id;
+            gdriveLink = gdRes.webViewLink;
+          }
+        }
       } catch (e) {
         console.error('Failed to write attached file to disk:', e);
       }
@@ -6004,6 +6542,8 @@ async function startServer() {
       uploadedBy: uploaderName || 'Equipe Engenharia',
       uploadedByEmail: uploaderEmail || '',
       uploadedAt: now,
+      gdriveFileId: gdriveId,
+      gdriveWebViewLink: gdriveLink,
     };
 
     const currentFiles = Array.isArray(row.attachedFiles) ? [...row.attachedFiles] : [];
@@ -6448,7 +6988,7 @@ async function startServer() {
   });
 
   // 6. Upload Ericsson Vistoria file linked to a Row (vistoria always goes together for the link/site, just like Nokia)
-  app.post('/api/ericsson/vistoria/upload', (req, res) => {
+  app.post('/api/ericsson/vistoria/upload', async (req, res) => {
     const {
       rowId,
       targetSide = 'A',
@@ -6527,9 +7067,16 @@ async function startServer() {
       res.status(400).json({ error: 'Selecione pelo menos um arquivo da vistoria para enviar.' });
       return;
     }
-    if (!uploadedByName || !uploadedByName.trim()) {
-      res.status(400).json({ error: 'Nome de quem está enviando é obrigatório.' });
-      return;
+    let finalUploadedByName = (uploadedByName || '').trim();
+    let finalUploadedByEmail = (uploadedByEmail || '').trim();
+    if (!finalUploadedByName) {
+      if (finalUploadedByEmail) {
+        const matchedU = db.users.find((u) => u.email.toLowerCase() === finalUploadedByEmail.toLowerCase());
+        if (matchedU) finalUploadedByName = matchedU.name;
+        else finalUploadedByName = finalUploadedByEmail.split('@')[0];
+      } else {
+        finalUploadedByName = 'Usuário';
+      }
     }
 
     if (!Array.isArray(db.ericssonRows)) db.ericssonRows = [];
@@ -6654,9 +7201,9 @@ async function startServer() {
           parentId: validFolder,
           name: cleanFolderName,
           vendor: 'ERICSSON',
-          description: notes?.trim() || `Pasta enviada por ${uploadedByName.trim()}`,
-          createdByName: uploadedByName.trim(),
-          createdByEmail: (uploadedByEmail || 'executor@ametaservicos.com.br').trim(),
+          description: notes?.trim() || `Pasta enviada por ${finalUploadedByName}`,
+          createdByName: finalUploadedByName,
+          createdByEmail: finalUploadedByEmail,
           createdAt: now,
           isSystem: false,
         };
@@ -6667,7 +7214,8 @@ async function startServer() {
 
     const createdFiles: EngineeringFile[] = [];
 
-    filesToProcess.forEach((rawFile, idx) => {
+    for (let idx = 0; idx < filesToProcess.length; idx++) {
+      const rawFile = filesToProcess[idx];
       const cleanName = path.basename(rawFile.fileName || `vistoria_${idx + 1}.zip`);
       const fileId = `eric-vist-${Date.now()}-${idx}-${Math.random().toString(36).slice(2, 6)}`;
       const safeDiskName = `${fileId}_${cleanName.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
@@ -6678,6 +7226,23 @@ async function startServer() {
         : rawFile.base64Data || '';
       const buffer = Buffer.from(base64Clean, 'base64');
       fs.writeFileSync(diskPath, buffer);
+      uploadFileToCloudStorageAsync(safeDiskName, diskPath);
+
+      let gdriveId: string | undefined = undefined;
+      let gdriveLink: string | undefined = undefined;
+
+      if (activeDriveToken) {
+        try {
+          const mimeType = detectMimeType(cleanName, rawFile.base64Data);
+          const gdRes = await uploadFileToDriveAndSave(activeDriveToken, cleanName, mimeType, buffer);
+          if (gdRes) {
+            gdriveId = gdRes.id;
+            gdriveLink = gdRes.webViewLink;
+          }
+        } catch (err) {
+          console.error('[Google Drive Sync] Vistoria file upload failed:', err);
+        }
+      }
 
       const { fileType, extension } = detectFileType(cleanName);
 
@@ -6711,15 +7276,17 @@ async function startServer() {
               ? `LOS Ericsson (${linkedSiteId || pairLabel})`
               : `Vistoria Site ${targetSide} (${pairLabel})`),
         assignedTo: assignedTo?.trim() || undefined,
-        uploadedByName: uploadedByName.trim(),
-        uploadedByEmail: uploadedByEmail?.trim() || 'vistoria@ametaservicos.com.br',
+        uploadedByName: finalUploadedByName,
+        uploadedByEmail: finalUploadedByEmail,
         uploadedAt: now,
         storageFileName: safeDiskName,
+        gdriveFileId: gdriveId,
+        gdriveWebViewLink: gdriveLink,
       };
 
       db.ericssonFiles!.unshift(newFileRecord);
       createdFiles.push(newFileRecord);
-    });
+    }
 
     const primaryFile = createdFiles[0];
     const fileViewUrl = `/api/ericsson/files/${encodeURIComponent(primaryFile.id)}/view`;
@@ -6734,9 +7301,8 @@ async function startServer() {
       targetRow.siteAVistoriaFileUrl = fileViewUrl;
       targetRow.siteAVistoriaDownloadUrl = fileDownloadUrl;
       targetRow.siteAVistoriaDeliveredAt = formattedDeliveryDate;
-      targetRow.siteAVistoriaUploadedBy = uploadedByName.trim();
-      targetRow.siteAVistoriaUploadedByEmail =
-        uploadedByEmail?.trim() || 'vistoria@ametaservicos.com.br';
+      targetRow.siteAVistoriaUploadedBy = finalUploadedByName;
+      targetRow.siteAVistoriaUploadedByEmail = finalUploadedByEmail;
 
       targetRow.siteBVistoriaStatus = 'Dispensado';
     } else if (targetSide === 'B') {
@@ -6748,9 +7314,8 @@ async function startServer() {
       targetRow.siteBVistoriaFileUrl = fileViewUrl;
       targetRow.siteBVistoriaDownloadUrl = fileDownloadUrl;
       targetRow.siteBVistoriaDeliveredAt = formattedDeliveryDate;
-      targetRow.siteBVistoriaUploadedBy = uploadedByName.trim();
-      targetRow.siteBVistoriaUploadedByEmail =
-        uploadedByEmail?.trim() || 'vistoria@ametaservicos.com.br';
+      targetRow.siteBVistoriaUploadedBy = finalUploadedByName;
+      targetRow.siteBVistoriaUploadedByEmail = finalUploadedByEmail;
 
       targetRow.siteAVistoriaStatus = 'Dispensado';
     } else if (targetSide === 'BOTH') {
@@ -6761,9 +7326,8 @@ async function startServer() {
       targetRow.siteAVistoriaFileUrl = fileViewUrl;
       targetRow.siteAVistoriaDownloadUrl = fileDownloadUrl;
       targetRow.siteAVistoriaDeliveredAt = formattedDeliveryDate;
-      targetRow.siteAVistoriaUploadedBy = uploadedByName.trim();
-      targetRow.siteAVistoriaUploadedByEmail =
-        uploadedByEmail?.trim() || 'vistoria@ametaservicos.com.br';
+      targetRow.siteAVistoriaUploadedBy = finalUploadedByName;
+      targetRow.siteAVistoriaUploadedByEmail = finalUploadedByEmail;
 
       targetRow.siteBVistoriaStatus = 'Dispensado';
     } else if (targetSide === 'LOS') {
@@ -6776,13 +7340,12 @@ async function startServer() {
       targetRow.losFileUrl = fileViewUrl;
       targetRow.losDownloadUrl = fileDownloadUrl;
       targetRow.losDeliveredAt = formattedDeliveryDate;
-      targetRow.losUploadedBy = uploadedByName.trim();
-      targetRow.losUploadedByEmail =
-        uploadedByEmail?.trim() || 'vistoria@ametaservicos.com.br';
+      targetRow.losUploadedBy = finalUploadedByName;
+      targetRow.losUploadedByEmail = finalUploadedByEmail;
     }
     if (
       resolvedEricRole.toLowerCase().includes('execut') ||
-      (targetRow.fields?.['Executor'] || '').trim().toLowerCase() === uploadedByName.trim().toLowerCase() ||
+      (targetRow.fields?.['Executor'] || '').trim().toLowerCase() === finalUploadedByName.toLowerCase() ||
       (primaryFile.fileName || '').toUpperCase().includes('TSSR')
     ) {
       if (!targetRow.fields) targetRow.fields = {};
@@ -6802,11 +7365,11 @@ async function startServer() {
         type: 'TSSR_ENVIADO_EXECUTOR',
         vendor: 'ERICSSON',
         title: `TSSR Enviado na Ericsson (${pairLabel})`,
-        message: `${uploadedByName.trim()} subiu o arquivo TSSR "${primaryFile.fileName}" do site/enlace ${pairLabel} para revisão da Coordenação de Engenharia Ericsson.`,
+        message: `${finalUploadedByName} subiu o arquivo TSSR "${primaryFile.fileName}" do site/enlace ${pairLabel} para revisão da Coordenação de Engenharia Ericsson.`,
         siteId: pairLabel,
         fileName: primaryFile.fileName,
-        actorName: uploadedByName.trim(),
-        actorEmail: uploadedByEmail?.trim() || 'executor@ametaservicos.com.br',
+        actorName: finalUploadedByName,
+        actorEmail: finalUploadedByEmail,
         targetRoles: ['Coordenador Engenharia', 'Coordenador Geral', 'ADM'],
       });
     } else {
@@ -6814,13 +7377,13 @@ async function startServer() {
         type: 'VISTORIA_OK_PASTA',
         vendor: 'ERICSSON',
         title: `Vistoria na Pasta Ericsson — Status OK (${pairLabel})`,
-        message: `${uploadedByName.trim()} enviou o arquivo "${primaryFile.fileName}" para a pasta "${
+        message: `${finalUploadedByName} enviou o arquivo "${primaryFile.fileName}" para a pasta "${
           folderObj?.name || 'Vistoria Ericsson'
         }" e o status do site ${pairLabel} mudou para OK (Entregue).`,
         siteId: pairLabel,
         fileName: primaryFile.fileName,
-        actorName: uploadedByName.trim(),
-        actorEmail: uploadedByEmail?.trim() || 'vistoria@ametaservicos.com.br',
+        actorName: finalUploadedByName,
+        actorEmail: finalUploadedByEmail,
         targetRoles: ['Coordenador Engenharia', 'Coordenador Geral', 'ADM'],
       });
     }
@@ -6838,8 +7401,8 @@ async function startServer() {
       message: `Há ${createdFiles.length > 1 ? `${createdFiles.length} arquivos associados` : `um arquivo ("${primaryFile.fileName}") associado`} ao site/enlace ${pairLabel} pelo qual você é responsável.`,
       siteId: pairLabel,
       fileName: primaryFile.fileName,
-      actorName: uploadedByName.trim(),
-      actorEmail: uploadedByEmail?.trim() || 'engenharia@ametaservicos.com.br',
+      actorName: finalUploadedByName,
+      actorEmail: finalUploadedByEmail,
       targetRoles: ['Vistoriador'],
       ...(ericEquipe ? { targetEquipes: [ericEquipe] } : {}),
       ...(ericEmails.length > 0 ? { targetEmails: ericEmails } : {}),
@@ -6850,8 +7413,8 @@ async function startServer() {
       type: 'ERICSSON_UPDATED',
       timestamp: now,
       vendor: 'ERICSSON',
-      actorEmail: uploadedByEmail,
-      summary: `Vistoria entregue para ${pairLabel} por ${uploadedByName.trim()}`,
+      actorEmail: finalUploadedByEmail,
+      summary: `Vistoria entregue para ${pairLabel} por ${finalUploadedByName}`,
     });
 
     res.status(201).json({
@@ -6866,7 +7429,7 @@ async function startServer() {
   });
 
   // 6.0b. Upload Files to Projeto Claro folders (WR, QRF, PPI, SDC, SMART, BOQ) linked to Engenharia Ericsson
-  app.post('/api/ericsson/projetos/upload', (req, res) => {
+  app.post('/api/ericsson/projetos/upload', async (req, res) => {
     const {
       engineeringRowId,
       folderId,
@@ -6913,9 +7476,16 @@ async function startServer() {
       return;
     }
 
-    if (!uploadedByName || !uploadedByName.trim()) {
-      res.status(400).json({ error: 'Nome do remetente é obrigatório.' });
-      return;
+    let finalUploadedByName = (uploadedByName || '').trim();
+    let finalUploadedByEmail = (uploadedByEmail || '').trim();
+    if (!finalUploadedByName) {
+      if (finalUploadedByEmail) {
+        const matchedU = db.users.find((u) => u.email.toLowerCase() === finalUploadedByEmail.toLowerCase());
+        if (matchedU) finalUploadedByName = matchedU.name;
+        else finalUploadedByName = finalUploadedByEmail.split('@')[0];
+      } else {
+        finalUploadedByName = 'Usuário';
+      }
     }
 
     if (!fs.existsSync(UPLOADS_DIR)) {
@@ -6937,7 +7507,8 @@ async function startServer() {
     const rowStatus = (targetRow.status || targetRow.fields?.['Status'] || '').trim();
     const rowRegional = (targetRow.regional || targetRow.fields?.['Regional'] || '').trim();
 
-    filesToProcess.forEach((rawFile, idx) => {
+    for (let idx = 0; idx < filesToProcess.length; idx++) {
+      const rawFile = filesToProcess[idx];
       const cleanName = path.basename(rawFile.fileName || `projeto_${rowDocType}_${idx + 1}.zip`);
       const fileId = `eric-proj-${Date.now()}-${idx}-${Math.random().toString(36).slice(2, 6)}`;
       const safeDiskName = `${fileId}_${cleanName.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
@@ -6948,6 +7519,23 @@ async function startServer() {
         : rawFile.base64Data || '';
       const buffer = Buffer.from(base64Clean, 'base64');
       fs.writeFileSync(diskPath, buffer);
+      uploadFileToCloudStorageAsync(safeDiskName, diskPath);
+
+      let gdriveId: string | undefined = undefined;
+      let gdriveLink: string | undefined = undefined;
+
+      if (activeDriveToken) {
+        try {
+          const mimeType = detectMimeType(cleanName, rawFile.base64Data);
+          const gdRes = await uploadFileToDriveAndSave(activeDriveToken, cleanName, mimeType, buffer);
+          if (gdRes) {
+            gdriveId = gdRes.id;
+            gdriveLink = gdRes.webViewLink;
+          }
+        } catch (err) {
+          console.error('[Google Drive Sync] Project file upload failed:', err);
+        }
+      }
 
       const { fileType, extension } = detectFileType(cleanName);
 
@@ -6968,10 +7556,12 @@ async function startServer() {
         status: rowStatus,
         regional: rowRegional,
         notes: notes?.trim() || `Arquivo do projeto ${rowDocType} vinculado à Intervenção ${intervencao}`,
-        uploadedByName: uploadedByName.trim(),
-        uploadedByEmail: uploadedByEmail?.trim() || 'engenharia@ametaservicos.com.br',
+        uploadedByName: finalUploadedByName,
+        uploadedByEmail: finalUploadedByEmail,
         uploadedAt: now,
         storageFileName: safeDiskName,
+        gdriveFileId: gdriveId,
+        gdriveWebViewLink: gdriveLink,
       };
 
       db.ericssonFiles!.unshift(newFileRecord);
@@ -6983,17 +7573,19 @@ async function startServer() {
         id: fileId,
         name: cleanName,
         url: `/api/ericsson/files/${encodeURIComponent(fileId)}/download`,
-        uploadedBy: uploadedByName.trim(),
-        uploadedByEmail: uploadedByEmail?.trim() || '',
+        uploadedBy: finalUploadedByName,
+        uploadedByEmail: finalUploadedByEmail,
         uploadedAt: now,
+        gdriveFileId: gdriveId,
+        gdriveWebViewLink: gdriveLink,
       });
-    });
+    }
 
     if (!Array.isArray(targetRow.history)) targetRow.history = [];
     targetRow.history.unshift({
       id: `hist-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-      user: uploadedByName.trim(),
-      userEmail: uploadedByEmail || '',
+      user: finalUploadedByName,
+      userEmail: finalUploadedByEmail,
       timestamp: now,
       action: `${createdFiles.length} arquivo(s) anexado(s) na pasta ${rowDocType}`,
       details: `Arquivos vinculados: ${createdFiles.map((f) => f.fileName).join(', ')}`,
@@ -7295,12 +7887,30 @@ async function startServer() {
     });
   });
 
-  app.get('/api/ericsson/files/:id/view', (req, res) => {
+  app.get('/api/ericsson/files/:id/view', async (req, res) => {
     const { id } = req.params;
     const fileRecord = (db.ericssonFiles || []).find((f) => f.id === id);
     if (!fileRecord) {
       res.status(404).json({ error: 'Arquivo não encontrado na Ericsson.' });
       return;
+    }
+
+    if (fileRecord.gdriveFileId && activeDriveToken) {
+      try {
+        const fileContent = await downloadDriveFile(activeDriveToken, fileRecord.gdriveFileId);
+        if (fileContent) {
+          const mime = detectMimeType(fileRecord.fileName);
+          res.setHeader('Content-Type', mime);
+          res.setHeader(
+            'Content-Disposition',
+            `inline; filename="${encodeURIComponent(fileRecord.fileName)}"`
+          );
+          res.send(fileContent);
+          return;
+        }
+      } catch (err) {
+        console.warn('Google Drive view failed, falling back to disk:', err);
+      }
     }
 
     if (fileRecord.storageFileName) {
@@ -7320,7 +7930,7 @@ async function startServer() {
     res.redirect(`/api/ericsson/files/${encodeURIComponent(id)}/download`);
   });
 
-  app.get('/api/ericsson/files/:id/download', (req, res) => {
+  app.get('/api/ericsson/files/:id/download', async (req, res) => {
     const { id } = req.params;
     const fileRecord = (db.ericssonFiles || []).find((f) => f.id === id);
     if (!fileRecord) {
@@ -7328,8 +7938,26 @@ async function startServer() {
       return;
     }
 
+    if (fileRecord.gdriveFileId && activeDriveToken) {
+      try {
+        const fileContent = await downloadDriveFile(activeDriveToken, fileRecord.gdriveFileId);
+        if (fileContent) {
+          res.setHeader(
+            'Content-Disposition',
+            `attachment; filename="${encodeURIComponent(fileRecord.fileName)}"`
+          );
+          res.setHeader('Content-Type', 'application/octet-stream');
+          res.send(fileContent);
+          return;
+        }
+      } catch (err) {
+        console.warn('Google Drive download failed, falling back to disk:', err);
+      }
+    }
+
     if (fileRecord.storageFileName) {
       const diskPath = path.join(UPLOADS_DIR, fileRecord.storageFileName);
+      await ensureLocalFileFromCloudStorage(fileRecord.storageFileName, diskPath);
       if (fs.existsSync(diskPath)) {
         res.download(diskPath, fileRecord.fileName);
         return;
@@ -7348,10 +7976,34 @@ async function startServer() {
     res.send(fallbackBuffer);
   });
 
-  app.get('/api/ericsson/engenharia/files/:id/download', (req, res) => {
+  app.get('/api/ericsson/engenharia/files/:id/download', async (req, res) => {
     const { id } = req.params;
-    const row = (db.ericsson_engenharia || []).find((r) => r.attachedFileId === id);
-    const fileName = row?.attachedFileName || `engenharia-ericsson-${id}.bin`;
+    const row = (db.ericsson_engenharia || []).find((r) => r.attachedFileId === id || (r.attachedFiles && r.attachedFiles.some((f) => f.id === id)));
+    const fileRecord = row?.attachedFiles?.find((f) => f.id === id);
+    const fileName = fileRecord?.name || row?.attachedFileName || `engenharia-ericsson-${id}.bin`;
+    const gdriveId = fileRecord?.gdriveFileId || (row?.attachedFileId === id ? (row as any).gdriveFileId : undefined);
+
+    if (gdriveId && activeDriveToken) {
+      try {
+        const fileContent = await downloadDriveFile(activeDriveToken, gdriveId);
+        if (fileContent) {
+          res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(fileName)}"`);
+          res.setHeader('Content-Type', 'application/octet-stream');
+          res.send(fileContent);
+          return;
+        }
+      } catch (err) {
+        console.warn('Google Drive download failed, falling back to disk:', err);
+      }
+    }
+
+    const safeName = `${id}__${fileName.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
+    const diskPath = path.join(UPLOADS_DIR, safeName);
+    await ensureLocalFileFromCloudStorage(safeName, diskPath);
+    if (fs.existsSync(diskPath)) {
+      res.download(diskPath, fileName);
+      return;
+    }
 
     if (fs.existsSync(UPLOADS_DIR)) {
       const files = fs.readdirSync(UPLOADS_DIR);
@@ -7434,6 +8086,7 @@ async function startServer() {
       const base64Clean = base64Data.includes(',') ? base64Data.split(',')[1] : base64Data;
       const buffer = Buffer.from(base64Clean, 'base64');
       fs.writeFileSync(diskPath, buffer);
+      uploadFileToCloudStorageAsync(safeDiskName, diskPath);
       fileRecord.storageFileName = safeDiskName;
       fileRecord.fileSize = fileSize || buffer.length;
       fileRecord.uploadedAt = new Date().toISOString();
@@ -7992,7 +8645,9 @@ async function startServer() {
             const buffer = Buffer.from(cleanBase64, 'base64');
             const ext = path.extname(incomingDoc.fileName) || '.pdf';
             const storageFileName = `ericdoc-${newUserId}-${incomingDoc.type}-${Date.now()}${ext}`;
-            fs.writeFileSync(path.join(UPLOADS_DIR, storageFileName), buffer);
+            const diskPath = path.join(UPLOADS_DIR, storageFileName);
+            fs.writeFileSync(diskPath, buffer);
+            uploadFileToCloudStorageAsync(storageFileName, diskPath);
             targetDoc.fileName = incomingDoc.fileName;
             targetDoc.fileSize = buffer.length;
             targetDoc.uploadedAt = new Date().toISOString();
@@ -8231,6 +8886,17 @@ async function startServer() {
       appType: 'spa',
     });
     app.use(vite.middlewares);
+    app.use('*', async (req, res, next) => {
+      const url = req.originalUrl;
+      try {
+        let template = fs.readFileSync(path.resolve(process.cwd(), 'index.html'), 'utf-8');
+        template = await vite.transformIndexHtml(url, template);
+        res.status(200).set({ 'Content-Type': 'text/html' }).end(template);
+      } catch (e) {
+        vite.ssrFixStacktrace(e as Error);
+        next(e);
+      }
+    });
   } else {
     const distPath = path.join(process.cwd(), 'dist');
     app.use(express.static(distPath));

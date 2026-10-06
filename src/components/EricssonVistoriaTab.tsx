@@ -42,11 +42,19 @@ import {
   EricssonEngineeringRow,
   EngineeringFolder,
   EngineeringFile,
+  EricssonDocGroup,
+  ERICSSON_REAL_STATUSES_BY_DOC,
 } from '../types/telecom';
 import {
   doesEricssonRowMatchResponsible,
   doesFileMatchUserResponsibleSites,
 } from '../utils/spreadsheetUtils';
+import {
+  rowMatchesEricssonDocGroup,
+  normalizeEricssonRealStatus,
+  classifyEricssonStatus,
+} from '../utils/ericssonSpreadsheetUtils';
+import { EricssonEngineeringDrawer } from './EricssonEngineeringDrawer';
 import { cloudFetch } from '../lib/firebaseCloud';
 
 const fetch = cloudFetch;
@@ -251,20 +259,153 @@ export const EricssonVistoriaTab: React.FC<EricssonVistoriaTabProps> = ({
     [rows, user]
   );
 
-  // Vistoriador ONLY sees files associated with their sites
-  const ericssonFiles = useMemo(() => {
-    const base = files.filter(
-      (fl) =>
-        fl.vendor === 'ERICSSON' &&
-        (!fl.folderId || allowedFolderIds.has(fl.folderId) || fl.folderId === 'folder-ericsson-root')
-    );
-    if (isVistoriador) {
-      return base.filter((fl) => doesFileMatchUserResponsibleSites(fl, user, [], rows));
+  // Executor Assigned Engineering Rows for Ericsson
+  const executorAssignedEngRows = useMemo(() => {
+    if (!isExecutor) return [];
+    const myEmail = (user.email || '').trim().toLowerCase();
+    const myName = (user.name || '').trim().toLowerCase();
+    const myEquipe = (user.equipe || '').trim().toLowerCase();
+
+    return (engineeringRows || []).filter((r) => {
+      // If user is Executor, do not show finalized sites/rows
+      const rawStatus = r.status || r.fields?.['Status'] || '';
+      const isFinalizado =
+        classifyEricssonStatus(rawStatus) === 'Finalizado' ||
+        rawStatus.toLowerCase().includes('finaliz') ||
+        rawStatus.toLowerCase().trim() === 'finalizado';
+      if (isFinalizado) return false;
+
+      const rowEx = (
+        r.executor ||
+        r.fields?.['EXECUTOR'] ||
+        r.fields?.['EXECUTOR WR'] ||
+        r.fields?.['EXECUTOR QRF'] ||
+        r.fields?.['EXECUTOR PPI'] ||
+        r.fields?.['Executor'] ||
+        ''
+      )
+        .trim()
+        .toLowerCase();
+
+      const rowEq = (r.fields?.['EQUIPE'] || '').trim().toLowerCase();
+
+      return (
+        (myEmail && rowEx.includes(myEmail)) ||
+        (myName && (rowEx.includes(myName) || myName.includes(rowEx))) ||
+        (myEquipe && (rowEx.includes(myEquipe) || rowEq.includes(myEquipe))) ||
+        doesEricssonRowMatchResponsible(r as any, user)
+      );
+    });
+  }, [isExecutor, engineeringRows, user]);
+
+  const hasExecutorEricssonDemands = isExecutor && executorAssignedEngRows.length > 0;
+
+  // Sub-tab inside PROJETO CLARO for Executor
+  const [activeProjetoClaroSubTab, setActiveProjetoClaroSubTab] = useState<'pastas' | 'planilha'>(
+    () => (isExecutor ? 'planilha' : 'pastas')
+  );
+
+  // Executor Mirrored Table Filter States
+  const [executorDocTypeFilter, setExecutorDocTypeFilter] = useState<string>('ALL');
+  const [executorStatusFilter, setExecutorStatusFilter] = useState<string>('ALL');
+  const [executorRegionalFilter, setExecutorRegionalFilter] = useState<string>('ALL');
+  const [executorTipoSiteFilter, setExecutorTipoSiteFilter] = useState<string>('ALL');
+  const [executorIntervencaoSearch, setExecutorIntervencaoSearch] = useState<string>('');
+  const [selectedDrawerRow, setSelectedDrawerRow] = useState<EricssonEngineeringRow | null>(null);
+
+  // Real Statuses for selected Doc Type
+  const realStatusesForDoc = useMemo(() => {
+    if (executorDocTypeFilter !== 'ALL' && ERICSSON_REAL_STATUSES_BY_DOC[executorDocTypeFilter as EricssonDocGroup]) {
+      return ERICSSON_REAL_STATUSES_BY_DOC[executorDocTypeFilter as EricssonDocGroup];
     }
-    if (isExecutor) {
+    const set = new Set<string>();
+    Object.values(ERICSSON_REAL_STATUSES_BY_DOC).forEach((arr) => {
+      arr.forEach((st) => set.add(st));
+    });
+    return Array.from(set).sort();
+  }, [executorDocTypeFilter]);
+
+  const distinctRegionals = useMemo(() => {
+    const set = new Set<string>();
+    executorAssignedEngRows.forEach((r) => {
+      const reg = r.regional || r.fields?.['Regional'] || '';
+      if (reg) set.add(reg);
+    });
+    return Array.from(set).sort();
+  }, [executorAssignedEngRows]);
+
+  const distinctTipoSites = useMemo(() => {
+    const set = new Set<string>();
+    executorAssignedEngRows.forEach((r) => {
+      const ts = r.tipoSite || r.fields?.['TIPO SITE'] || r.fields?.['Tipo site'] || '';
+      if (ts) set.add(ts);
+    });
+    return Array.from(set).sort();
+  }, [executorAssignedEngRows]);
+
+  const filteredExecutorEngRows = useMemo(() => {
+    const q = executorIntervencaoSearch.trim().toLowerCase();
+    return executorAssignedEngRows.filter((r) => {
+      if (executorDocTypeFilter !== 'ALL') {
+        const rawDoc = String(r.tipoDoc || r.fields?.['Tipo doc'] || '');
+        if (!rowMatchesEricssonDocGroup(rawDoc, executorDocTypeFilter as EricssonDocGroup)) {
+          return false;
+        }
+      }
+
+      const rawStatus = r.status || r.fields?.['Status'] || '';
+      const realStatus = normalizeEricssonRealStatus(
+        rawStatus,
+        executorDocTypeFilter !== 'ALL' ? (executorDocTypeFilter as EricssonDocGroup) : undefined
+      );
+      const isFinalized = realStatus.toLowerCase() === 'finalizado' || rawStatus.toLowerCase().includes('finaliz');
+
+      if (executorStatusFilter === 'ALL') {
+        // By default, hide demands that the executor has ALREADY finalized
+        if (isFinalized) return false;
+      } else if (executorStatusFilter !== 'TODOS_INCLUINDO_FINALIZADOS') {
+        if (realStatus.toLowerCase() !== executorStatusFilter.toLowerCase()) {
+          return false;
+        }
+      }
+
+      if (executorRegionalFilter !== 'ALL') {
+        const reg = r.regional || r.fields?.['Regional'] || '';
+        if (reg !== executorRegionalFilter) return false;
+      }
+
+      if (executorTipoSiteFilter !== 'ALL') {
+        const ts = r.tipoSite || r.fields?.['TIPO SITE'] || r.fields?.['Tipo site'] || '';
+        if (ts !== executorTipoSiteFilter) return false;
+      }
+
+      if (q) {
+        const interv = (r.intervencaoClaro || r.siteIdA || r.fields?.['Intervencao Claro'] || '').toLowerCase();
+        const siteA = (r.siteIdA || '').toLowerCase();
+        const siteB = (r.siteIdB || '').toLowerCase();
+        if (!interv.includes(q) && !siteA.includes(q) && !siteB.includes(q)) {
+          return false;
+        }
+      }
+
+      return true;
+    });
+  }, [
+    executorAssignedEngRows,
+    executorDocTypeFilter,
+    executorStatusFilter,
+    executorRegionalFilter,
+    executorTipoSiteFilter,
+    executorIntervencaoSearch,
+  ]);
+
+  // Vistoriador / Executor ONLY sees files associated with their sites OR uploaded by them
+  const ericssonFiles = useMemo(() => {
+    const base = files.filter((fl) => fl.vendor === 'ERICSSON' || !fl.vendor);
+    if (isVistoriador || isExecutor) {
+      const myEmail = (user.email || '').trim().toLowerCase();
+      const myName = (user.name || '').trim().toLowerCase();
       return base.filter((fl) => {
-        const myEmail = (user.email || '').trim().toLowerCase();
-        const myName = (user.name || '').trim().toLowerCase();
         const isOwn =
           (myEmail && (fl.uploadedByEmail || '').trim().toLowerCase() === myEmail) ||
           (myName && (fl.uploadedByName || '').trim().toLowerCase() === myName);
@@ -272,7 +413,7 @@ export const EricssonVistoriaTab: React.FC<EricssonVistoriaTabProps> = ({
       });
     }
     return base;
-  }, [files, allowedFolderIds, isVistoriador, isExecutor, user, rows]);
+  }, [files, isVistoriador, isExecutor, user, rows]);
 
   const rootFolder = useMemo(
     () =>
@@ -545,6 +686,11 @@ export const EricssonVistoriaTab: React.FC<EricssonVistoriaTabProps> = ({
     const deduped: EngineeringFolder[] = [];
     const seen = new Set<string>();
     for (const f of list) {
+      if (isExecutor || isVistoriador) {
+        if (f.id === 'folder-ericsson-vistoria' || f.name.toUpperCase().trim() === 'VISTORIA') {
+          continue;
+        }
+      }
       if (effectiveFolderId === 'folder-ericsson-root') {
         if (f.name.toUpperCase().trim() === 'PROJETO CLARO' && f.id !== 'folder-ericsson-projetos') {
           continue;
@@ -726,8 +872,8 @@ export const EricssonVistoriaTab: React.FC<EricssonVistoriaTabProps> = ({
             tipoDoc: uploadProjectDocType,
             files: pendingFiles,
             notes: uploadNotes.trim() || undefined,
-            uploadedByName: user.name,
-            uploadedByEmail: user.email,
+            uploadedByName: (user?.name || user?.email || 'Usuário').trim(),
+            uploadedByEmail: (user?.email || '').trim(),
             uploadedByRole: effectiveRole,
           }),
         });
@@ -773,8 +919,8 @@ export const EricssonVistoriaTab: React.FC<EricssonVistoriaTabProps> = ({
             folderId: uploadTargetFolderId || 'folder-ericsson-vistoria',
             files: pendingFiles,
             notes: uploadNotes.trim() || undefined,
-            uploadedByName: user.name,
-            uploadedByEmail: user.email,
+            uploadedByName: (user?.name || user?.email || 'Usuário').trim(),
+            uploadedByEmail: (user?.email || '').trim(),
             uploadedByRole: effectiveRole,
           }),
         });
@@ -919,7 +1065,9 @@ export const EricssonVistoriaTab: React.FC<EricssonVistoriaTabProps> = ({
             <div>
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-xs font-black uppercase tracking-wider text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
-                  PROJETO CLARO · ERICSSON
+                  {isExecutor || isVistoriador
+                    ? 'DEMANDAS ENGENHARIA ERICSSON CLARO'
+                    : 'PROJETO CLARO · ERICSSON'}
                 </span>
                 <span className="text-slate-300">•</span>
                 <h1 className="text-lg font-black text-slate-900 tracking-tight">
@@ -927,15 +1075,16 @@ export const EricssonVistoriaTab: React.FC<EricssonVistoriaTabProps> = ({
                 </h1>
               </div>
               <p className="text-xs text-slate-500 mt-0.5">
-                Repositório oficial de arquivos: <strong>VISTORIA</strong> (vinculado aos Sites) e{' '}
-                <strong>PROJETO CLARO</strong> (WR, QRF, PPI, SDC, SMART e BOQ vinculados à Engenharia).
+                {isExecutor || isVistoriador
+                  ? 'Demandas de projetos vinculadas à Engenharia Ericsson (WR, QRF, PPI, SDC, SMART e BOQ).'
+                  : 'Repositório oficial de arquivos: VISTORIA (vinculado aos Sites) e PROJETO CLARO (WR, QRF, PPI, SDC, SMART e BOQ vinculados à Engenharia).'}
               </p>
             </div>
           </div>
 
           {/* Action Buttons */}
           <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
-            {onOpenSitesTab && (
+            {onOpenSitesTab && !isExecutor && !isVistoriador && (
               <button
                 type="button"
                 onClick={onOpenSitesTab}
@@ -953,7 +1102,11 @@ export const EricssonVistoriaTab: React.FC<EricssonVistoriaTabProps> = ({
                 className="flex-1 sm:flex-initial justify-center px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold rounded-xl transition-colors flex items-center gap-1.5 cursor-pointer shadow-2xs"
               >
                 <Layers className="w-3.5 h-3.5 text-teal-600 shrink-0" />
-                <span>Planilha Engenharia</span>
+                <span>
+                  {isExecutor || isVistoriador
+                    ? 'Planilha Demandas Engenharia'
+                    : 'Planilha Engenharia'}
+                </span>
               </button>
             )}
 
@@ -968,15 +1121,17 @@ export const EricssonVistoriaTab: React.FC<EricssonVistoriaTabProps> = ({
               </button>
             )}
 
-            {/* Subir Arquivo de LOS (sempre disponível) */}
-            <button
-              type="button"
-              onClick={() => openUploadModal('LOS', 'folder-ericsson-vistoria')}
-              className="flex-1 sm:flex-initial justify-center px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl transition-colors flex items-center gap-1.5 cursor-pointer shadow-2xs"
-            >
-              <Upload className="w-3.5 h-3.5 shrink-0" />
-              <span>Subir arquivo de LOS</span>
-            </button>
+            {/* Subir Arquivo de LOS (oculto para Executor/Vistoriador em Demandas Ericsson) */}
+            {!isExecutor && !isVistoriador && (
+              <button
+                type="button"
+                onClick={() => openUploadModal('LOS', 'folder-ericsson-vistoria')}
+                className="flex-1 sm:flex-initial justify-center px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl transition-colors flex items-center gap-1.5 cursor-pointer shadow-2xs"
+              >
+                <Upload className="w-3.5 h-3.5 shrink-0" />
+                <span>Subir arquivo de LOS</span>
+              </button>
+            )}
 
             {/* Contextual Upload Button */}
             {isVistoriaBranch && (
@@ -1014,38 +1169,259 @@ export const EricssonVistoriaTab: React.FC<EricssonVistoriaTabProps> = ({
         </div>
 
         {/* Breadcrumb Navigation Bar */}
-        <div className="flex flex-wrap items-center gap-1.5 pt-3 border-t border-slate-100 text-xs text-slate-600">
-          <button
-            type="button"
-            onClick={() => setCurrentFolderId('folder-ericsson-root')}
-            className={`font-black hover:text-amber-700 cursor-pointer flex items-center gap-1.5 ${
-              isAtRoot ? 'text-amber-700' : 'text-slate-700'
-            }`}
-          >
-            <Folder className="w-4 h-4 text-amber-500" />
-            <span>PROJETO CLARO</span>
-          </button>
+        <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-slate-100 text-xs text-slate-600">
+          <div className="flex flex-wrap items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => setCurrentFolderId('folder-ericsson-root')}
+              className={`font-black hover:text-amber-700 cursor-pointer flex items-center gap-1.5 ${
+                isAtRoot ? 'text-amber-700' : 'text-slate-700'
+              }`}
+            >
+              <Folder className="w-4 h-4 text-amber-500" />
+              <span>PROJETO CLARO</span>
+            </button>
 
-          {breadcrumbs.map((f, idx) => {
-            if (f.id === 'folder-ericsson-root') return null;
-            const isLast = idx === breadcrumbs.length - 1;
-            return (
-              <React.Fragment key={f.id}>
-                <ChevronRight className="w-3.5 h-3.5 text-slate-300 shrink-0" />
-                <button
-                  type="button"
-                  onClick={() => setCurrentFolderId(f.id)}
-                  className={`font-bold hover:text-amber-700 cursor-pointer ${
-                    isLast ? 'text-amber-700 font-black' : 'text-slate-600'
-                  }`}
-                >
-                  {f.name}
-                </button>
-              </React.Fragment>
-            );
-          })}
+            {breadcrumbs.map((f, idx) => {
+              if (f.id === 'folder-ericsson-root') return null;
+              const isLast = idx === breadcrumbs.length - 1;
+              return (
+                <React.Fragment key={f.id}>
+                  <ChevronRight className="w-3.5 h-3.5 text-slate-300 shrink-0" />
+                  <button
+                    type="button"
+                    onClick={() => setCurrentFolderId(f.id)}
+                    className={`font-bold hover:text-amber-700 cursor-pointer ${
+                      isLast ? 'text-amber-700 font-black' : 'text-slate-600'
+                    }`}
+                  >
+                    {f.name}
+                  </button>
+                </React.Fragment>
+              );
+            })}
+          </div>
+
+          {/* Sub-tab switcher for Executor with demands */}
+          {hasExecutorEricssonDemands && (
+            <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl">
+              <button
+                type="button"
+                onClick={() => setActiveProjetoClaroSubTab('pastas')}
+                className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                  activeProjetoClaroSubTab === 'pastas'
+                    ? 'bg-white text-slate-900 shadow-2xs font-extrabold'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <Folder className="w-3.5 h-3.5 text-amber-500" />
+                <span>Pastas</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveProjetoClaroSubTab('planilha')}
+                className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                  activeProjetoClaroSubTab === 'planilha'
+                    ? 'bg-[#1E8E8D] text-white shadow-2xs font-extrabold'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <FileSpreadsheet className="w-3.5 h-3.5" />
+                <span>Planilha Engenharia ({executorAssignedEngRows.length})</span>
+              </button>
+            </div>
+          )}
         </div>
       </div>
+
+      {activeProjetoClaroSubTab === 'planilha' && hasExecutorEricssonDemands ? (
+        /* =====================================================================
+            MIRRORED ERICSSON ENGINEERING VIEW FOR EXECUTOR (READ-ONLY)
+           ===================================================================== */
+        <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-3 bg-slate-50 p-3.5 rounded-xl border border-slate-200">
+            <div className="flex flex-wrap items-center gap-2.5 flex-1 min-w-[280px]">
+              {/* Tipo de Doc Filter */}
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs font-bold text-slate-600">Tipo de Doc:</span>
+                <select
+                  value={executorDocTypeFilter}
+                  onChange={(e) => {
+                    setExecutorDocTypeFilter(e.target.value);
+                    setExecutorStatusFilter('ALL');
+                  }}
+                  className="px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-800 focus:outline-none focus:border-amber-500 cursor-pointer"
+                >
+                  <option value="ALL">Todos os Tipos</option>
+                  <option value="WR">WR</option>
+                  <option value="QRF">QRF</option>
+                  <option value="PPI">PPI</option>
+                  <option value="SDC">SDC</option>
+                  <option value="SMART">SMART</option>
+                  <option value="BOQ">BOQ</option>
+                </select>
+              </div>
+
+              {/* Status Filter */}
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs font-bold text-slate-600">Status:</span>
+                <select
+                  value={executorStatusFilter}
+                  onChange={(e) => setExecutorStatusFilter(e.target.value)}
+                  className="px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-800 focus:outline-none focus:border-amber-500 cursor-pointer max-w-[240px]"
+                >
+                  <option value="ALL">Pendentes / Em Aberto (Oculta Finalizados)</option>
+                  <option value="TODOS_INCLUINDO_FINALIZADOS">Todos os Status (Inclui Finalizados)</option>
+                  {realStatusesForDoc.map((st) => (
+                    <option key={st} value={st}>
+                      {st}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Regional Filter */}
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs font-bold text-slate-600">Regional:</span>
+                <select
+                  value={executorRegionalFilter}
+                  onChange={(e) => setExecutorRegionalFilter(e.target.value)}
+                  className="px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-800 focus:outline-none focus:border-amber-500 cursor-pointer"
+                >
+                  <option value="ALL">Todas ({distinctRegionals.length})</option>
+                  {distinctRegionals.map((reg) => (
+                    <option key={reg} value={reg}>
+                      {reg}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Tipo Site Filter */}
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs font-bold text-slate-600">Tipo Site:</span>
+                <select
+                  value={executorTipoSiteFilter}
+                  onChange={(e) => setExecutorTipoSiteFilter(e.target.value)}
+                  className="px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-800 focus:outline-none focus:border-amber-500 cursor-pointer"
+                >
+                  <option value="ALL">Todos ({distinctTipoSites.length})</option>
+                  {distinctTipoSites.map((ts) => (
+                    <option key={ts} value={ts}>
+                      {ts}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Busca por Intervenção */}
+            <div className="relative min-w-[200px] flex-1 sm:flex-initial">
+              <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5" />
+              <input
+                type="text"
+                value={executorIntervencaoSearch}
+                onChange={(e) => setExecutorIntervencaoSearch(e.target.value)}
+                placeholder="Buscar por Intervenção..."
+                className="w-full pl-8 pr-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs text-slate-800 focus:outline-none focus:border-amber-500"
+              />
+            </div>
+          </div>
+
+          {/* Table (9 COLUMNS IN EXACT ORDER) */}
+          <div className="border border-slate-200 rounded-xl overflow-hidden shadow-xs">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs border-collapse">
+                <thead>
+                  <tr className="bg-slate-900 text-white font-bold text-[11px] uppercase tracking-wider divide-x divide-slate-800">
+                    <th className="py-3 px-3">Intervenção</th>
+                    <th className="py-3 px-3">Tipo de site</th>
+                    <th className="py-3 px-3">Regional</th>
+                    <th className="py-3 px-3">Tipo de doc</th>
+                    <th className="py-3 px-3">Status</th>
+                    <th className="py-3 px-3">Comentário</th>
+                    <th className="py-3 px-3">Planejado</th>
+                    <th className="py-3 px-3">Entregue</th>
+                    <th className="py-3 px-3">Observação</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 bg-white">
+                  {filteredExecutorEngRows.length === 0 ? (
+                    <tr>
+                      <td colSpan={9} className="py-12 text-center text-slate-400 font-semibold">
+                        Nenhuma demanda de Engenharia encontrada.
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredExecutorEngRows.map((r) => {
+                      const interv = r.intervencaoClaro || r.siteIdA || r.fields?.['Intervencao Claro'] || '—';
+                      const tipoSite = r.tipoSite || r.fields?.['TIPO SITE'] || r.fields?.['Tipo site'] || '—';
+                      const regional = r.regional || r.fields?.['Regional'] || '—';
+                      const tipoDoc = r.tipoDoc || r.fields?.['Tipo doc'] || '—';
+                      const rawStatus = r.status || r.fields?.['Status'] || '—';
+                      const statusReal = normalizeEricssonRealStatus(rawStatus, (r.tipoDoc || undefined) as EricssonDocGroup);
+                      const comentario =
+                        r.fields?.['Comentário'] ||
+                        r.fields?.['COMENTÁRIO'] ||
+                        r.fields?.['Comentario'] ||
+                        r.fields?.['Comentários'] ||
+                        '—';
+                      const planejado =
+                        r.fields?.['Planejado'] ||
+                        r.fields?.['PLANEJADO'] ||
+                        r.fields?.['Data Planejada'] ||
+                        r.fields?.['Planejada'] ||
+                        '—';
+                      const entregue =
+                        r.fields?.['Entregue'] ||
+                        r.fields?.['ENTREGUE'] ||
+                        r.fields?.['Data Entregue'] ||
+                        r.fields?.['Data de Envio'] ||
+                        '—';
+                      const observacao =
+                        r.fields?.['Observação'] ||
+                        r.fields?.['OBSERVAÇÃO'] ||
+                        r.fields?.['Observacao'] ||
+                        r.fields?.['Observações'] ||
+                        '—';
+
+                      return (
+                        <tr
+                          key={r.id}
+                          onClick={() => setSelectedDrawerRow(r)}
+                          className="hover:bg-amber-50/50 cursor-pointer transition-colors divide-x divide-slate-100"
+                        >
+                          <td className="py-2.5 px-3 font-bold text-slate-900 font-mono">
+                            {interv}
+                          </td>
+                          <td className="py-2.5 px-3 text-slate-700">{tipoSite}</td>
+                          <td className="py-2.5 px-3 text-slate-700 font-semibold">{regional}</td>
+                          <td className="py-2.5 px-3 font-bold text-teal-700">{tipoDoc}</td>
+                          <td className="py-2.5 px-3">
+                            <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold bg-slate-100 text-slate-800">
+                              {statusReal}
+                            </span>
+                          </td>
+                          <td className="py-2.5 px-3 text-slate-600 max-w-[180px] truncate" title={comentario}>
+                            {comentario}
+                          </td>
+                          <td className="py-2.5 px-3 text-slate-600 font-mono">{planejado}</td>
+                          <td className="py-2.5 px-3 text-slate-600 font-mono">{entregue}</td>
+                          <td className="py-2.5 px-3 text-slate-600 max-w-[180px] truncate" title={observacao}>
+                            {observacao}
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      ) : (
+        /* Folder Cards & Files View */
+        <>
 
       {/* =====================================================================
           2. FOLDER CARDS GRID
@@ -1281,6 +1657,8 @@ export const EricssonVistoriaTab: React.FC<EricssonVistoriaTabProps> = ({
           </div>
         )}
       </div>
+      </>
+      )}
 
       {/* =====================================================================
           5. UPLOAD MODAL (Vistoria vs Projeto Claro)
@@ -1644,6 +2022,21 @@ export const EricssonVistoriaTab: React.FC<EricssonVistoriaTabProps> = ({
             </form>
           </div>
         </div>
+      )}
+
+      {/* Drawer for Mirrored Row Details */}
+      {selectedDrawerRow && (
+        <EricssonEngineeringDrawer
+          row={selectedDrawerRow}
+          isOpen={Boolean(selectedDrawerRow)}
+          user={user}
+          effectiveRole={effectiveRole}
+          files={files}
+          readOnly={true}
+          onClose={() => setSelectedDrawerRow(null)}
+          onSaveRow={async () => {}}
+          showToast={() => {}}
+        />
       )}
     </div>
   );

@@ -50,6 +50,7 @@ import {
   normalizeEricssonRealStatus,
   isEricssonRowReproved,
 } from '../utils/ericssonSpreadsheetUtils';
+import { doesEricssonRowMatchResponsible } from '../utils/spreadsheetUtils';
 import { EricssonConsolidatedTopPanel } from './EricssonConsolidatedTopPanel';
 import { EricssonEngineeringDrawer } from './EricssonEngineeringDrawer';
 import {
@@ -88,6 +89,10 @@ export const EricssonEngineeringTab: React.FC<EricssonEngineeringTabProps> = ({
   }>({});
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isSyncingOneDrive, setIsSyncingOneDrive] = useState<boolean>(false);
+
+  const isExecutor = effectiveRole === 'Executor';
+  const isVistoriador = effectiveRole === 'Vistoriador';
+  const isUserRestricted = isExecutor || isVistoriador;
 
   // Filters state
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -277,6 +282,44 @@ export const EricssonEngineeringTab: React.FC<EricssonEngineeringTabProps> = ({
   const filteredRows = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
     return rows.filter((r) => {
+      // 0. User permission restriction: Executor / Vistoriador sees only permitted rows
+      if (isUserRestricted) {
+        const myEmail = (user?.email || '').trim().toLowerCase();
+        const myName = (user?.name || '').trim().toLowerCase();
+        const myEquipe = (user?.equipe || '').trim().toLowerCase();
+
+        const rowEx = (
+          r.executor ||
+          r.fields?.['EXECUTOR'] ||
+          r.fields?.['EXECUTOR WR'] ||
+          r.fields?.['EXECUTOR QRF'] ||
+          r.fields?.['EXECUTOR PPI'] ||
+          r.fields?.['Executor'] ||
+          ''
+        )
+          .trim()
+          .toLowerCase();
+
+        const rowEq = (r.fields?.['EQUIPE'] || '').trim().toLowerCase();
+
+        const matchesEx =
+          (myEmail && rowEx.includes(myEmail)) ||
+          (myName && (rowEx.includes(myName) || myName.includes(rowEx))) ||
+          (myEquipe && (rowEx.includes(myEquipe) || rowEq.includes(myEquipe))) ||
+          doesEricssonRowMatchResponsible(r as any, user);
+
+        if (!matchesEx) return false;
+
+        // If user is Executor, do not show finalized sites/rows
+        if (isExecutor) {
+          const rawStatus = r.status || r.fields?.['Status'] || '';
+          const isFinalizado =
+            classifyEricssonStatus(rawStatus) === 'Finalizado' ||
+            rawStatus.toLowerCase().includes('finaliz') ||
+            rawStatus.toLowerCase().trim() === 'finalizado';
+          if (isFinalizado) return false;
+        }
+      }
       // 0. Weekly Deliveries filter (sites delivered in the selected week, optionally matching selectedDeliveryDocGroup)
       if (selectedDeliveryWeek) {
         const rawStatus = r.status || r.fields?.['Status'] || '';
@@ -806,56 +849,67 @@ export const EricssonEngineeringTab: React.FC<EricssonEngineeringTabProps> = ({
             <div>
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider bg-teal-100 text-teal-900 border border-teal-300">
-                  ERICSSON · ENGENHARIA EXCLUSIVA
+                  {isUserRestricted
+                    ? 'DEMANDAS ENGENHARIA ERICSSON CLARO'
+                    : 'ERICSSON · ENGENHARIA EXCLUSIVA'}
                 </span>
                 <span className="text-slate-300">•</span>
                 <h1 className="text-sm font-bold text-slate-900">
-                  Planilha de Documentação & Planejamento Ericsson
+                  {isUserRestricted
+                    ? 'Demandas da Planilha de Engenharia Ericsson Claro'
+                    : 'Planilha de Documentação & Planejamento Ericsson'}
                 </h1>
               </div>
               <p className="text-xs text-slate-500">
-                Aba <strong>{meta.tabName || 'Site list'}</strong> — 51 colunas originais da planilha.
+                Aba <strong>{meta.tabName || 'Site list'}</strong> —{' '}
+                {isUserRestricted
+                  ? 'Exibindo apenas demandas atribuídas a você'
+                  : '51 colunas originais da planilha.'}
               </p>
             </div>
           </div>
 
           {/* Action Buttons */}
           <div className="flex flex-wrap items-center gap-2">
-            {/* Sync OneDrive */}
-            <button
-              type="button"
-              onClick={() => setIsOneDriveModalOpen(true)}
-              disabled={isSyncingOneDrive}
-              className="px-3.5 py-2 bg-[#1E8E8D] hover:bg-[#177271] text-white text-xs font-bold rounded-xl transition-all shadow-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
-              title="Sincronizar planilha com o OneDrive do Excel Online"
-            >
-              <RefreshCw
-                className={`w-3.5 h-3.5 ${isSyncingOneDrive ? 'animate-spin' : ''}`}
-              />
-              <span>{isSyncingOneDrive ? 'Sincronizando...' : 'Sincronizar OneDrive'}</span>
-            </button>
+            {!isUserRestricted && (
+              <>
+                {/* Sync OneDrive */}
+                <button
+                  type="button"
+                  onClick={() => setIsOneDriveModalOpen(true)}
+                  disabled={isSyncingOneDrive}
+                  className="px-3.5 py-2 bg-[#1E8E8D] hover:bg-[#177271] text-white text-xs font-bold rounded-xl transition-all shadow-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                  title="Sincronizar planilha com o OneDrive do Excel Online"
+                >
+                  <RefreshCw
+                    className={`w-3.5 h-3.5 ${isSyncingOneDrive ? 'animate-spin' : ''}`}
+                  />
+                  <span>{isSyncingOneDrive ? 'Sincronizando...' : 'Sincronizar OneDrive'}</span>
+                </button>
 
-            {/* Upload Local .XLSX */}
-            <label className="px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold rounded-xl transition-all shadow-xs flex items-center gap-1.5 cursor-pointer">
-              <Upload className="w-3.5 h-3.5 text-amber-400" />
-              <span>Carregar .XLSX</span>
-              <input
-                type="file"
-                accept=".xlsx,.xls"
-                onChange={handleUploadLocalFile}
-                className="hidden"
-              />
-            </label>
+                {/* Upload Local .XLSX */}
+                <label className="px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold rounded-xl transition-all shadow-xs flex items-center gap-1.5 cursor-pointer">
+                  <Upload className="w-3.5 h-3.5 text-amber-400" />
+                  <span>Carregar .XLSX</span>
+                  <input
+                    type="file"
+                    accept=".xlsx,.xls"
+                    onChange={handleUploadLocalFile}
+                    className="hidden"
+                  />
+                </label>
 
-            {/* + Nova Linha */}
-            <button
-              type="button"
-              onClick={handleOpenNewRowModal}
-              className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold rounded-xl transition-all flex items-center gap-1.5 cursor-pointer border border-slate-200"
-            >
-              <Plus className="w-3.5 h-3.5 text-teal-700" />
-              <span>+ Nova Linha</span>
-            </button>
+                {/* + Nova Linha */}
+                <button
+                  type="button"
+                  onClick={handleOpenNewRowModal}
+                  className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold rounded-xl transition-all flex items-center gap-1.5 cursor-pointer border border-slate-200"
+                >
+                  <Plus className="w-3.5 h-3.5 text-teal-700" />
+                  <span>+ Nova Linha</span>
+                </button>
+              </>
+            )}
 
             {/* Export XLSX */}
             <button
@@ -893,7 +947,7 @@ export const EricssonEngineeringTab: React.FC<EricssonEngineeringTabProps> = ({
         </div>
 
         {/* Sync Info / Last Update */}
-        {meta.lastSyncAt && (
+        {meta.lastSyncAt && !isUserRestricted && (
           <div className="flex flex-wrap items-center justify-between text-[11px] text-slate-400 font-mono border-t border-slate-100 pt-2">
             <span>
               Arquivo de origem: <strong>{meta.sourceFileName || 'AMETA_REPORT DOCUMENTACAO_PLANEJAMENTO_WXX.xlsx'}</strong>
@@ -905,50 +959,54 @@ export const EricssonEngineeringTab: React.FC<EricssonEngineeringTabProps> = ({
         )}
       </div>
 
-      {/* =====================================================================
-          2. CONSOLIDATED TOP PANEL (WR, QRF, PPI, BOQ, SMART, SDC - STATUS REAIS)
-         ===================================================================== */}
-      <EricssonConsolidatedTopPanel
-        stats={consolidatedStats}
-        selectedDocGroup={selectedDocGroup}
-        selectedRealStatus={selectedRealStatus}
-        onSelectFilter={(docGroup, realStatus) => {
-          setSelectedDocGroup(docGroup);
-          setSelectedRealStatus(realStatus);
-        }}
-        onClearFilter={() => {
-          setSelectedDocGroup(null);
-          setSelectedRealStatus(null);
-        }}
-      />
+      {!isUserRestricted && (
+        <>
+          {/* =====================================================================
+              2. CONSOLIDATED TOP PANEL (WR, QRF, PPI, BOQ, SMART, SDC - STATUS REAIS)
+             ===================================================================== */}
+          <EricssonConsolidatedTopPanel
+            stats={consolidatedStats}
+            selectedDocGroup={selectedDocGroup}
+            selectedRealStatus={selectedRealStatus}
+            onSelectFilter={(docGroup, realStatus) => {
+              setSelectedDocGroup(docGroup);
+              setSelectedRealStatus(realStatus);
+            }}
+            onClearFilter={() => {
+              setSelectedDocGroup(null);
+              setSelectedRealStatus(null);
+            }}
+          />
 
-      {/* =====================================================================
-          2.5. PAINEL DE ENTREGAS POR SEMANA (ÚLTIMOS 30 DIAS EMPILHADO POR TIPO)
-         ===================================================================== */}
-      <EricssonWeeklyDeliveriesPanel
-        rows={rows}
-        selectedWeekKey={selectedDeliveryWeek ? selectedDeliveryWeek.key : null}
-        selectedDocGroupFilter={selectedDeliveryDocGroup}
-        onSelectWeekAndDoc={(week, docGroup) => {
-          setSelectedDeliveryWeek(week);
-          setSelectedDeliveryDocGroup(docGroup);
-        }}
-      />
+          {/* =====================================================================
+              2.5. PAINEL DE ENTREGAS POR SEMANA (ÚLTIMOS 30 DIAS EMPILHADO POR TIPO)
+             ===================================================================== */}
+          <EricssonWeeklyDeliveriesPanel
+            rows={rows}
+            selectedWeekKey={selectedDeliveryWeek ? selectedDeliveryWeek.key : null}
+            selectedDocGroupFilter={selectedDeliveryDocGroup}
+            onSelectWeekAndDoc={(week, docGroup) => {
+              setSelectedDeliveryWeek(week);
+              setSelectedDeliveryDocGroup(docGroup);
+            }}
+          />
 
-      {/* =====================================================================
-          2.6. PAINEL DE DOCUMENTOS REPROVADOS POR EXECUTOR
-         ===================================================================== */}
-      <EricssonReprovadosPanel
-        rows={rows}
-        reprovacoes={reprovacoes}
-        onRegisterReprovacao={handleRegisterReprovacao}
-        selectedReprovadoExecutor={selectedReprovadoExecutor}
-        selectedReprovadoDocGroup={selectedReprovadoDocGroup}
-        onSelectReprovadoFilter={(executor, docGroup) => {
-          setSelectedReprovadoExecutor(executor);
-          setSelectedReprovadoDocGroup(docGroup);
-        }}
-      />
+          {/* =====================================================================
+              2.6. PAINEL DE DOCUMENTOS REPROVADOS POR EXECUTOR
+             ===================================================================== */}
+          <EricssonReprovadosPanel
+            rows={rows}
+            reprovacoes={reprovacoes}
+            onRegisterReprovacao={handleRegisterReprovacao}
+            selectedReprovadoExecutor={selectedReprovadoExecutor}
+            selectedReprovadoDocGroup={selectedReprovadoDocGroup}
+            onSelectReprovadoFilter={(executor, docGroup) => {
+              setSelectedReprovadoExecutor(executor);
+              setSelectedReprovadoDocGroup(docGroup);
+            }}
+          />
+        </>
+      )}
 
       {/* =====================================================================
           3. SEARCH, FILTERS & TABLE CONTROLS BAR

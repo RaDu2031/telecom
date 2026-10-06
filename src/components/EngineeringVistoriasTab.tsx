@@ -1055,8 +1055,8 @@ export const EngineeringVistoriasTab: React.FC<EngineeringVistoriasTabProps> = (
         body: JSON.stringify({
           folderId: uploadTargetFolderId,
           vendor: activeVendor,
-          uploadedByName: user.name,
-          uploadedByEmail: user.email,
+          uploadedByName: (user?.name || user?.email || 'Usuário').trim(),
+          uploadedByEmail: (user?.email || '').trim(),
           uploadedByRole: currentRole,
           siteId: finalSiteId || undefined,
           ocSitePre: uploadOcSitePre.trim() || undefined,

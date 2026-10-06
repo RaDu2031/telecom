@@ -601,6 +601,8 @@ export interface EngineeringFile {
   uploadedByEmail: string;
   uploadedAt: string;
   storageFileName?: string; // File name stored in data/uploads/
+  gdriveFileId?: string; // Google Drive unique file ID
+  gdriveWebViewLink?: string; // Google Drive browser viewable link
   dataUrl?: string;
   responsaveisUids?: string[];
   responsaveisEmails?: string[];
@@ -1052,6 +1054,8 @@ export interface EricssonAttachedFile {
   uploadedByEmail?: string;
   uploadedAt: string;
   sizeBytes?: number;
+  gdriveFileId?: string; // Google Drive unique file ID
+  gdriveWebViewLink?: string; // Google Drive browser viewable link
 }
 
 export interface EricssonAuditLogEntry {

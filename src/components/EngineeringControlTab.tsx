@@ -14,6 +14,7 @@ import {
   Download,
   FileSpreadsheet,
   Upload,
+  Cloud,
   CloudDownload,
   CheckCircle2,
   AlertCircle,
@@ -1276,20 +1277,15 @@ export const EngineeringControlTab: React.FC<EngineeringControlTabProps> = ({
               <span>Carregar Planilha TSSR (.XLSX / OneDrive)</span>
             </button>
 
-            {/* Google Drive Button */}
+            {/* Firebase Cloud Status Button */}
             <button
               type="button"
               onClick={() => setIsGoogleDriveOpen(true)}
-              className="px-3.5 py-1.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-xs font-semibold rounded-lg transition-all flex items-center gap-1.5 shadow-2xs cursor-pointer"
-              title="Conectar ao Google Drive para importar ou exportar planilhas"
+              className="px-3.5 py-1.5 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white text-xs font-semibold rounded-lg transition-all flex items-center gap-1.5 shadow-2xs cursor-pointer"
+              title="Status de Sincronização em Tempo Real na Nuvem Firebase (Storage e Firestore)"
             >
-              <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none">
-                <path d="M4.5 19.5L8.5 12.5H19.5L15.5 19.5H4.5Z" fill="#4285F4" />
-                <path d="M15.5 19.5L19.5 12.5L15.5 5.5H7.5L3.5 12.5L15.5 19.5Z" fill="#0F9D58" fillOpacity="0.85" />
-                <path d="M8.5 12.5L12.5 5.5H19.5L15.5 12.5H8.5Z" fill="#FFBB00" />
-                <path d="M4.5 19.5L8.5 12.5L12.5 5.5L8.5 5.5L0.5 19.5H4.5Z" fill="#EA4335" />
-              </svg>
-              <span>Google Drive</span>
+              <Cloud className="w-3.5 h-3.5 text-white" />
+              <span>Nuvem Firebase</span>
             </button>
 
             <button
