@@ -22,6 +22,8 @@ import {
   Table as TableIcon,
   HardHat,
   ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
   FileCheck,
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
@@ -32,8 +34,10 @@ import {
   EricssonEngineeringRow,
   EricssonConsolidatedStats,
   EricssonDocGroup,
-  EricssonDocStatusCategory,
+  EricssonReprovacaoRecord,
+  EngineeringFile,
   ERICSSON_SITE_LIST_COLUMNS,
+  ERICSSON_REAL_STATUSES_BY_DOC,
   DEFAULT_ERICSSON_ENG_ONEDRIVE_URL,
 } from '../types/telecom';
 import {
@@ -43,8 +47,17 @@ import {
   classifyEricssonDocGroup,
   rowMatchesEricssonDocGroup,
   classifyEricssonStatus,
+  normalizeEricssonRealStatus,
+  isEricssonRowReproved,
 } from '../utils/ericssonSpreadsheetUtils';
 import { EricssonConsolidatedTopPanel } from './EricssonConsolidatedTopPanel';
+import { EricssonEngineeringDrawer } from './EricssonEngineeringDrawer';
+import {
+  EricssonWeeklyDeliveriesPanel,
+  DeliveryWeekBucket,
+  getRowDeliveryDate,
+} from './EricssonWeeklyDeliveriesPanel';
+import { EricssonReprovadosPanel } from './EricssonReprovadosPanel';
 
 interface EricssonEngineeringTabProps {
   user: AmetaUser;
@@ -63,6 +76,7 @@ export const EricssonEngineeringTab: React.FC<EricssonEngineeringTabProps> = ({
 }) => {
   // Main data state
   const [rows, setRows] = useState<EricssonEngineeringRow[]>([]);
+  const [reprovacoes, setReprovacoes] = useState<EricssonReprovacaoRecord[]>([]);
   const [columns, setColumns] = useState<string[]>([...ERICSSON_SITE_LIST_COLUMNS]);
   const [meta, setMeta] = useState<{
     id?: string;
@@ -78,10 +92,15 @@ export const EricssonEngineeringTab: React.FC<EricssonEngineeringTabProps> = ({
   // Filters state
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedDocGroup, setSelectedDocGroup] = useState<EricssonDocGroup | null>(null);
-  const [selectedStatusCat, setSelectedStatusCat] = useState<EricssonDocStatusCategory | null>(null);
+  const [selectedRealStatus, setSelectedRealStatus] = useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = useState<string>('ALL');
   const [regionalFilter, setRegionalFilter] = useState<string>('ALL');
   const [tipoSiteFilter, setTipoSiteFilter] = useState<string>('ALL');
   const [executorFilter, setExecutorFilter] = useState<string>('ALL');
+
+  // Reprovados filter state
+  const [selectedReprovadoExecutor, setSelectedReprovadoExecutor] = useState<string | null>(null);
+  const [selectedReprovadoDocGroup, setSelectedReprovadoDocGroup] = useState<EricssonDocGroup | null>(null);
 
   // View mode: 'all' (all 51 columns) vs 'essential' (clean primary columns + double site IDs)
   const [viewMode, setViewMode] = useState<'essential' | 'all'>('all');
@@ -90,12 +109,18 @@ export const EricssonEngineeringTab: React.FC<EricssonEngineeringTabProps> = ({
   const [page, setPage] = useState<number>(1);
   const [pageSize, setPageSize] = useState<number>(100);
 
+  // Weekly deliveries filter state (rolling 30-day window)
+  const [selectedDeliveryWeek, setSelectedDeliveryWeek] = useState<DeliveryWeekBucket | null>(null);
+  const [selectedDeliveryDocGroup, setSelectedDeliveryDocGroup] = useState<EricssonDocGroup | null>(null);
+
   // Modals
   const [isOneDriveModalOpen, setIsOneDriveModalOpen] = useState<boolean>(false);
   const [oneDriveInputUrl, setOneDriveInputUrl] = useState<string>(DEFAULT_ERICSSON_ENG_ONEDRIVE_URL);
   const [isNewRowModalOpen, setIsNewRowModalOpen] = useState<boolean>(false);
   const [editingRow, setEditingRow] = useState<EricssonEngineeringRow | null>(null);
   const [attachingFileRow, setAttachingFileRow] = useState<EricssonEngineeringRow | null>(null);
+  const [selectedDrawerRow, setSelectedDrawerRow] = useState<EricssonEngineeringRow | null>(null);
+  const [ericssonFiles, setEricssonFiles] = useState<EngineeringFile[]>([]);
 
   // Form states for new/edit row
   const [formIntervencao, setFormIntervencao] = useState<string>('');
@@ -119,12 +144,31 @@ export const EricssonEngineeringTab: React.FC<EricssonEngineeringTabProps> = ({
   const loadData = async () => {
     try {
       setIsLoading(true);
-      const res = await fetch('/api/ericsson/engenharia/data');
-      if (res.ok) {
-        const data = await res.json();
+      const [resData, resRep, resInit] = await Promise.all([
+        fetch('/api/ericsson/engenharia/data'),
+        fetch('/api/ericsson/engenharia/reprovacoes'),
+        fetch('/api/initial-data'),
+      ]);
+
+      if (resData.ok) {
+        const data = await resData.json();
         if (Array.isArray(data.rows)) setRows(data.rows);
         if (data.meta) setMeta(data.meta);
         if (Array.isArray(data.columns) && data.columns.length > 0) setColumns(data.columns);
+      }
+
+      if (resRep.ok) {
+        const repData = await resRep.json();
+        if (Array.isArray(repData.reprovacoes)) {
+          setReprovacoes(repData.reprovacoes);
+        }
+      }
+
+      if (resInit.ok) {
+        const initData = await resInit.json();
+        if (Array.isArray(initData.ericssonFiles)) {
+          setEricssonFiles(initData.ericssonFiles);
+        }
       }
     } catch (e) {
       console.error('Failed to load Ericsson engineering data:', e);
@@ -137,7 +181,27 @@ export const EricssonEngineeringTab: React.FC<EricssonEngineeringTabProps> = ({
     loadData();
   }, []);
 
-  // Compute live stats for WR, QRF, PPI, BOQ
+  // Register Reprovação handler
+  const handleRegisterReprovacao = async (record: Omit<EricssonReprovacaoRecord, 'id' | 'createdAt'>) => {
+    try {
+      const res = await fetch('/api/ericsson/engenharia/reprovacoes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(record),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.reprovacoes) setReprovacoes(data.reprovacoes);
+        showToast(`Reprovação registrada para o site ${record.intervencaoClaro}.`);
+        loadData();
+      }
+    } catch (err) {
+      console.error('Erro ao registrar reprovação:', err);
+      showToast('Erro ao salvar reprovação.');
+    }
+  };
+
+  // Compute live stats for WR, QRF, PPI, BOQ, SMART, SDC
   const consolidatedStats: EricssonConsolidatedStats = useMemo(() => {
     return computeEricssonConsolidatedStats(rows);
   }, [rows]);
@@ -164,26 +228,151 @@ export const EricssonEngineeringTab: React.FC<EricssonEngineeringTabProps> = ({
   const distinctExecutores = useMemo(() => {
     const s = new Set<string>();
     rows.forEach((r) => {
-      const ex = r.executor || r.fields?.['EXECUTOR'];
-      if (ex) s.add(ex);
+      const ex =
+        r.executor ||
+        r.fields?.['EXECUTOR'] ||
+        r.fields?.['EXECUTOR WR'] ||
+        r.fields?.['EXECUTOR QRF'] ||
+        r.fields?.['EXECUTOR PPI'] ||
+        r.fields?.['Executor'];
+      if (ex && ex.trim() && ex.trim() !== '—' && ex.trim() !== '-') {
+        s.add(ex.trim());
+      }
     });
     return Array.from(s).sort();
   }, [rows]);
+
+  // Real statuses available based on currently selected doc group
+  const availableRealStatuses = useMemo(() => {
+    if (selectedDocGroup && ERICSSON_REAL_STATUSES_BY_DOC[selectedDocGroup]) {
+      return ERICSSON_REAL_STATUSES_BY_DOC[selectedDocGroup];
+    }
+    // All real statuses across all 6 document types
+    const all = new Set<string>();
+    Object.values(ERICSSON_REAL_STATUSES_BY_DOC).forEach((list) => {
+      list.forEach((st) => all.add(st));
+    });
+    return Array.from(all).sort();
+  }, [selectedDocGroup]);
+
+  // Column sorting state
+  const [sortColumn, setSortColumn] = useState<string | null>(null);
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+
+  const handleSortColumn = (colName: string) => {
+    if (sortColumn === colName) {
+      if (sortDirection === 'asc') {
+        setSortDirection('desc');
+      } else {
+        setSortColumn(null);
+        setSortDirection('asc');
+      }
+    } else {
+      setSortColumn(colName);
+      setSortDirection('asc');
+    }
+  };
 
   // Filtered rows
   const filteredRows = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
     return rows.filter((r) => {
+      // 0. Weekly Deliveries filter (sites delivered in the selected week, optionally matching selectedDeliveryDocGroup)
+      if (selectedDeliveryWeek) {
+        const rawStatus = r.status || r.fields?.['Status'] || '';
+        const isFinalizado =
+          classifyEricssonStatus(rawStatus) === 'Finalizado' ||
+          rawStatus.toLowerCase().includes('finaliz');
+        if (!isFinalizado) return false;
+
+        const deliveryDate = getRowDeliveryDate(r);
+        if (!deliveryDate) return false;
+        if (
+          deliveryDate < selectedDeliveryWeek.startDate ||
+          deliveryDate > selectedDeliveryWeek.endDate
+        ) {
+          return false;
+        }
+
+        if (selectedDeliveryDocGroup) {
+          const rawDoc = String(r.tipoDoc || r.fields?.['Tipo doc'] || '');
+          if (!rowMatchesEricssonDocGroup(rawDoc, selectedDeliveryDocGroup)) {
+            return false;
+          }
+        }
+      }
+
       // 1. Doc Group filter
       if (selectedDocGroup) {
         const rawDoc = String(r.tipoDoc || r.fields?.['Tipo doc'] || '');
         if (!rowMatchesEricssonDocGroup(rawDoc, selectedDocGroup)) return false;
       }
 
-      // 2. Status Category filter
-      if (selectedStatusCat) {
-        const cat = classifyEricssonStatus(r.status || r.fields?.['Status'] || '');
-        if (cat !== selectedStatusCat) return false;
+      // 2. Real Status filter from Top Panel
+      if (selectedRealStatus) {
+        const rawStatus = r.status || r.fields?.['Status'] || '';
+        const real = normalizeEricssonRealStatus(rawStatus, selectedDocGroup || undefined);
+        if (real.toLowerCase() !== selectedRealStatus.toLowerCase()) {
+          return false;
+        }
+      }
+
+      // 2.1 Table Toolbar Status Filter
+      if (statusFilter !== 'ALL') {
+        const rawStatus = r.status || r.fields?.['Status'] || '';
+        const real = normalizeEricssonRealStatus(rawStatus, selectedDocGroup || undefined);
+        if (real.toLowerCase() !== statusFilter.toLowerCase()) {
+          return false;
+        }
+      }
+
+      // 2.2 Reprovados Filter from Reprovados Panel
+      if (selectedReprovadoExecutor || selectedReprovadoDocGroup) {
+        const isReproved = isEricssonRowReproved(r, reprovacoes);
+        if (!isReproved) return false;
+
+        if (selectedReprovadoExecutor) {
+          const target = selectedReprovadoExecutor.trim().toLowerCase();
+          const rowEx = (
+            r.executor ||
+            r.fields?.['EXECUTOR'] ||
+            r.fields?.['EXECUTOR WR'] ||
+            r.fields?.['EXECUTOR QRF'] ||
+            r.fields?.['EXECUTOR PPI'] ||
+            r.fields?.['Executor'] ||
+            ''
+          )
+            .trim()
+            .toLowerCase();
+
+          const directMatch =
+            rowEx === target || rowEx.includes(target) || target.includes(rowEx);
+
+          const linkedReproval =
+            Array.isArray(reprovacoes) &&
+            reprovacoes.some(
+              (rep) =>
+                (rep.rowId === r.id ||
+                  (rep.intervencaoClaro &&
+                    (r.intervencaoClaro || r.siteIdA || '')
+                      .trim()
+                      .toLowerCase() === rep.intervencaoClaro.trim().toLowerCase())) &&
+                ((rep.executor || '').trim().toLowerCase() === target ||
+                  (rep.executor || '').trim().toLowerCase().includes(target) ||
+                  target.includes((rep.executor || '').trim().toLowerCase()))
+            );
+
+          if (!directMatch && !linkedReproval) {
+            return false;
+          }
+        }
+
+        if (selectedReprovadoDocGroup) {
+          const rawDoc = String(r.tipoDoc || r.fields?.['Tipo doc'] || '');
+          if (!rowMatchesEricssonDocGroup(rawDoc, selectedReprovadoDocGroup)) {
+            return false;
+          }
+        }
       }
 
       // 3. Dropdowns
@@ -196,7 +385,14 @@ export const EricssonEngineeringTab: React.FC<EricssonEngineeringTabProps> = ({
         if (ts !== tipoSiteFilter) return false;
       }
       if (executorFilter !== 'ALL') {
-        const ex = r.executor || r.fields?.['EXECUTOR'] || '';
+        const ex =
+          r.executor ||
+          r.fields?.['EXECUTOR'] ||
+          r.fields?.['EXECUTOR WR'] ||
+          r.fields?.['EXECUTOR QRF'] ||
+          r.fields?.['EXECUTOR PPI'] ||
+          r.fields?.['Executor'] ||
+          '';
         if (ex !== executorFilter) return false;
       }
 
@@ -207,7 +403,15 @@ export const EricssonEngineeringTab: React.FC<EricssonEngineeringTabProps> = ({
         const matchSiteB = (r.siteIdB || '').toLowerCase().includes(q);
         const matchStatus = (r.status || '').toLowerCase().includes(q);
         const matchDoc = (r.tipoDoc || '').toLowerCase().includes(q);
-        const matchExec = (r.executor || '').toLowerCase().includes(q);
+        const matchExec = (
+          r.executor ||
+          r.fields?.['EXECUTOR'] ||
+          r.fields?.['EXECUTOR WR'] ||
+          r.fields?.['EXECUTOR QRF'] ||
+          r.fields?.['EXECUTOR PPI'] ||
+          r.fields?.['Executor'] ||
+          ''
+        ).toLowerCase().includes(q);
         if (matchIntervencao || matchSiteA || matchSiteB || matchStatus || matchDoc || matchExec) {
           return true;
         }
@@ -222,28 +426,73 @@ export const EricssonEngineeringTab: React.FC<EricssonEngineeringTabProps> = ({
     });
   }, [
     rows,
+    selectedDeliveryWeek,
+    selectedDeliveryDocGroup,
     selectedDocGroup,
-    selectedStatusCat,
+    selectedRealStatus,
+    statusFilter,
+    selectedReprovadoExecutor,
+    selectedReprovadoDocGroup,
     regionalFilter,
     tipoSiteFilter,
     executorFilter,
     searchQuery,
   ]);
 
+  // Sorted rows
+  const sortedRows = useMemo(() => {
+    if (!sortColumn) return filteredRows;
+    return [...filteredRows].sort((a, b) => {
+      let valA = String(a.fields?.[sortColumn] ?? (a as any)[sortColumn] ?? '').trim();
+      let valB = String(b.fields?.[sortColumn] ?? (b as any)[sortColumn] ?? '').trim();
+
+      // Special fallback for EXECUTOR column
+      if (sortColumn === 'EXECUTOR') {
+        valA =
+          valA ||
+          a.executor ||
+          a.fields?.['EXECUTOR WR'] ||
+          a.fields?.['EXECUTOR QRF'] ||
+          a.fields?.['EXECUTOR PPI'] ||
+          '';
+        valB =
+          valB ||
+          b.executor ||
+          b.fields?.['EXECUTOR WR'] ||
+          b.fields?.['EXECUTOR QRF'] ||
+          b.fields?.['EXECUTOR PPI'] ||
+          '';
+      }
+
+      const numA = Number(valA);
+      const numB = Number(valB);
+      if (!isNaN(numA) && !isNaN(numB) && valA !== '' && valB !== '') {
+        return sortDirection === 'asc' ? numA - numB : numB - numA;
+      }
+      const cmp = valA.localeCompare(valB, 'pt-BR', { numeric: true, sensitivity: 'base' });
+      return sortDirection === 'asc' ? cmp : -cmp;
+    });
+  }, [filteredRows, sortColumn, sortDirection]);
+
   // Pagination slice
-  const totalPages = Math.max(1, Math.ceil(filteredRows.length / pageSize));
+  const totalPages = Math.max(1, Math.ceil(sortedRows.length / pageSize));
   const paginatedRows = useMemo(() => {
     const start = (page - 1) * pageSize;
-    return filteredRows.slice(start, start + pageSize);
-  }, [filteredRows, page, pageSize]);
+    return sortedRows.slice(start, start + pageSize);
+  }, [sortedRows, page, pageSize]);
 
   // Reset page on filter changes
   useEffect(() => {
     setPage(1);
   }, [
+    selectedDeliveryWeek,
+    selectedDeliveryDocGroup,
     searchQuery,
     selectedDocGroup,
-    selectedStatusCat,
+    selectedRealStatus,
+    statusFilter,
+    selectedReprovadoExecutor,
+    selectedReprovadoDocGroup,
     regionalFilter,
     tipoSiteFilter,
     executorFilter,
@@ -657,19 +906,47 @@ export const EricssonEngineeringTab: React.FC<EricssonEngineeringTabProps> = ({
       </div>
 
       {/* =====================================================================
-          2. CONSOLIDATED TOP PANEL (WR, QRF, PPI, BOQ CARDS & BAR CHARTS)
+          2. CONSOLIDATED TOP PANEL (WR, QRF, PPI, BOQ, SMART, SDC - STATUS REAIS)
          ===================================================================== */}
       <EricssonConsolidatedTopPanel
         stats={consolidatedStats}
         selectedDocGroup={selectedDocGroup}
-        selectedStatusCat={selectedStatusCat}
-        onSelectFilter={(docGroup, statusCat) => {
+        selectedRealStatus={selectedRealStatus}
+        onSelectFilter={(docGroup, realStatus) => {
           setSelectedDocGroup(docGroup);
-          setSelectedStatusCat(statusCat);
+          setSelectedRealStatus(realStatus);
         }}
         onClearFilter={() => {
           setSelectedDocGroup(null);
-          setSelectedStatusCat(null);
+          setSelectedRealStatus(null);
+        }}
+      />
+
+      {/* =====================================================================
+          2.5. PAINEL DE ENTREGAS POR SEMANA (ÚLTIMOS 30 DIAS EMPILHADO POR TIPO)
+         ===================================================================== */}
+      <EricssonWeeklyDeliveriesPanel
+        rows={rows}
+        selectedWeekKey={selectedDeliveryWeek ? selectedDeliveryWeek.key : null}
+        selectedDocGroupFilter={selectedDeliveryDocGroup}
+        onSelectWeekAndDoc={(week, docGroup) => {
+          setSelectedDeliveryWeek(week);
+          setSelectedDeliveryDocGroup(docGroup);
+        }}
+      />
+
+      {/* =====================================================================
+          2.6. PAINEL DE DOCUMENTOS REPROVADOS POR EXECUTOR
+         ===================================================================== */}
+      <EricssonReprovadosPanel
+        rows={rows}
+        reprovacoes={reprovacoes}
+        onRegisterReprovacao={handleRegisterReprovacao}
+        selectedReprovadoExecutor={selectedReprovadoExecutor}
+        selectedReprovadoDocGroup={selectedReprovadoDocGroup}
+        onSelectReprovadoFilter={(executor, docGroup) => {
+          setSelectedReprovadoExecutor(executor);
+          setSelectedReprovadoDocGroup(docGroup);
         }}
       />
 
@@ -692,7 +969,7 @@ export const EricssonEngineeringTab: React.FC<EricssonEngineeringTabProps> = ({
               <button
                 type="button"
                 onClick={() => setSearchQuery('')}
-                className="absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-600"
+                className="absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-600 cursor-pointer"
               >
                 <X className="w-3.5 h-3.5" />
               </button>
@@ -705,7 +982,7 @@ export const EricssonEngineeringTab: React.FC<EricssonEngineeringTabProps> = ({
             <select
               value={regionalFilter}
               onChange={(e) => setRegionalFilter(e.target.value)}
-              className="px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-xl font-medium text-slate-700 focus:outline-none focus:border-teal-500"
+              className="px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-xl font-medium text-slate-700 focus:outline-none focus:border-teal-500 cursor-pointer"
             >
               <option value="ALL">Regional: Todas ({distinctRegionais.length})</option>
               {distinctRegionais.map((r) => (
@@ -719,7 +996,7 @@ export const EricssonEngineeringTab: React.FC<EricssonEngineeringTabProps> = ({
             <select
               value={tipoSiteFilter}
               onChange={(e) => setTipoSiteFilter(e.target.value)}
-              className="px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-xl font-medium text-slate-700 focus:outline-none focus:border-teal-500"
+              className="px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-xl font-medium text-slate-700 focus:outline-none focus:border-teal-500 cursor-pointer"
             >
               <option value="ALL">Tipo Site: Todos</option>
               {distinctTipoSites.map((ts) => (
@@ -729,11 +1006,27 @@ export const EricssonEngineeringTab: React.FC<EricssonEngineeringTabProps> = ({
               ))}
             </select>
 
+            {/* Status Real Filter (Dynamic based on selectedDocGroup) */}
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-xl font-medium text-slate-700 focus:outline-none focus:border-teal-500 cursor-pointer max-w-[170px]"
+            >
+              <option value="ALL">
+                Status: Todos {selectedDocGroup ? `(${selectedDocGroup})` : ''}
+              </option>
+              {availableRealStatuses.map((st) => (
+                <option key={st} value={st}>
+                  {st}
+                </option>
+              ))}
+            </select>
+
             {/* Executor Filter */}
             <select
               value={executorFilter}
               onChange={(e) => setExecutorFilter(e.target.value)}
-              className="px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-xl font-medium text-slate-700 focus:outline-none focus:border-teal-500 max-w-[160px]"
+              className="px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-xl font-medium text-slate-700 focus:outline-none focus:border-teal-500 max-w-[160px] cursor-pointer"
             >
               <option value="ALL">Executor: Todos</option>
               {distinctExecutores.map((ex) => (
@@ -772,6 +1065,167 @@ export const EricssonEngineeringTab: React.FC<EricssonEngineeringTabProps> = ({
             </div>
           </div>
         </div>
+
+        {/* Active Filters Badges & Summary */}
+        {(selectedDocGroup ||
+          selectedRealStatus ||
+          statusFilter !== 'ALL' ||
+          regionalFilter !== 'ALL' ||
+          tipoSiteFilter !== 'ALL' ||
+          executorFilter !== 'ALL' ||
+          selectedDeliveryWeek ||
+          selectedReprovadoExecutor ||
+          selectedReprovadoDocGroup ||
+          searchQuery) && (
+          <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t border-slate-100 text-xs">
+            <span className="text-[11px] font-bold text-slate-400 mr-1">Filtros ativos:</span>
+
+            {selectedDocGroup && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-800 border border-indigo-200 text-[11px] font-bold">
+                Tipo: {selectedDocGroup}
+                <button
+                  type="button"
+                  onClick={() => setSelectedDocGroup(null)}
+                  className="hover:text-indigo-950 cursor-pointer"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </span>
+            )}
+
+            {selectedRealStatus && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-teal-50 text-teal-800 border border-teal-200 text-[11px] font-bold">
+                Status: {selectedRealStatus}
+                <button
+                  type="button"
+                  onClick={() => setSelectedRealStatus(null)}
+                  className="hover:text-teal-950 cursor-pointer"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </span>
+            )}
+
+            {statusFilter !== 'ALL' && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-blue-50 text-blue-800 border border-blue-200 text-[11px] font-bold">
+                Filtro Status: {statusFilter}
+                <button
+                  type="button"
+                  onClick={() => setStatusFilter('ALL')}
+                  className="hover:text-blue-950 cursor-pointer"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </span>
+            )}
+
+            {regionalFilter !== 'ALL' && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-100 text-slate-800 border border-slate-300 text-[11px] font-bold">
+                Regional: {regionalFilter}
+                <button
+                  type="button"
+                  onClick={() => setRegionalFilter('ALL')}
+                  className="hover:text-slate-950 cursor-pointer"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </span>
+            )}
+
+            {tipoSiteFilter !== 'ALL' && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-100 text-slate-800 border border-slate-300 text-[11px] font-bold">
+                Tipo Site: {tipoSiteFilter}
+                <button
+                  type="button"
+                  onClick={() => setTipoSiteFilter('ALL')}
+                  className="hover:text-slate-950 cursor-pointer"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </span>
+            )}
+
+            {executorFilter !== 'ALL' && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-50 text-amber-800 border border-amber-200 text-[11px] font-bold">
+                Executor: {executorFilter}
+                <button
+                  type="button"
+                  onClick={() => setExecutorFilter('ALL')}
+                  className="hover:text-amber-950 cursor-pointer"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </span>
+            )}
+
+            {selectedDeliveryWeek && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-800 border border-emerald-200 text-[11px] font-bold">
+                Semana: {selectedDeliveryWeek.label}
+                {selectedDeliveryDocGroup && ` (${selectedDeliveryDocGroup})`}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedDeliveryWeek(null);
+                    setSelectedDeliveryDocGroup(null);
+                  }}
+                  className="hover:text-emerald-950 cursor-pointer"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </span>
+            )}
+
+            {selectedReprovadoExecutor && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-rose-50 text-rose-800 border border-rose-200 text-[11px] font-bold">
+                Reprovado Executor: {selectedReprovadoExecutor}
+                {selectedReprovadoDocGroup && ` • ${selectedReprovadoDocGroup}`}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedReprovadoExecutor(null);
+                    setSelectedReprovadoDocGroup(null);
+                  }}
+                  className="hover:text-rose-950 cursor-pointer"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </span>
+            )}
+
+            {searchQuery && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-100 text-slate-800 border border-slate-300 text-[11px] font-bold">
+                Busca: "{searchQuery}"
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery('')}
+                  className="hover:text-slate-950 cursor-pointer"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </span>
+            )}
+
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedDocGroup(null);
+                setSelectedRealStatus(null);
+                setStatusFilter('ALL');
+                setRegionalFilter('ALL');
+                setTipoSiteFilter('ALL');
+                setExecutorFilter('ALL');
+                setSelectedDeliveryWeek(null);
+                setSelectedDeliveryDocGroup(null);
+                setSelectedReprovadoExecutor(null);
+                setSelectedReprovadoDocGroup(null);
+                setSearchQuery('');
+              }}
+              className="text-[11px] font-bold text-rose-600 hover:text-rose-800 underline ml-1 cursor-pointer"
+            >
+              Limpar todos os filtros
+            </button>
+          </div>
+        )}
 
         {/* Counter indicator */}
         <div className="flex items-center justify-between text-xs text-slate-500 pt-1">
@@ -824,12 +1278,28 @@ export const EricssonEngineeringTab: React.FC<EricssonEngineeringTabProps> = ({
                   ) {
                     return null;
                   }
+                  const isSorted = sortColumn === colName;
                   return (
                     <th
                       key={colName}
-                      className="px-3 py-2.5 text-left font-bold border-b border-slate-800 whitespace-nowrap min-w-[110px]"
+                      onClick={() => handleSortColumn(colName)}
+                      className="px-3 py-2.5 text-left font-bold border-b border-slate-800 whitespace-nowrap min-w-[110px] cursor-pointer hover:bg-slate-800 transition-colors select-none group"
+                      title={`Clique para ordenar por ${colName}`}
                     >
-                      {colName}
+                      <div className="flex items-center gap-1.5">
+                        <span>{colName}</span>
+                        <span className="text-slate-400 group-hover:text-white shrink-0">
+                          {isSorted ? (
+                            sortDirection === 'asc' ? (
+                              <ArrowUp className="w-3.5 h-3.5 text-teal-400" />
+                            ) : (
+                              <ArrowDown className="w-3.5 h-3.5 text-teal-400" />
+                            )
+                          ) : (
+                            <ArrowUpDown className="w-3 h-3 opacity-30 group-hover:opacity-100" />
+                          )}
+                        </span>
+                      </div>
                     </th>
                   );
                 })}
@@ -867,7 +1337,9 @@ export const EricssonEngineeringTab: React.FC<EricssonEngineeringTabProps> = ({
                   return (
                     <tr
                       key={row.id}
-                      className="hover:bg-slate-50/90 transition-colors group cursor-default"
+                      onClick={() => setSelectedDrawerRow(row)}
+                      className="hover:bg-teal-50/60 hover:shadow-2xs transition-all group cursor-pointer"
+                      title="Clique para abrir detalhes completos do site"
                     >
                       {/* 51 Exact Columns in Order */}
                       {columns.map((colName) => {
@@ -938,13 +1410,37 @@ export const EricssonEngineeringTab: React.FC<EricssonEngineeringTabProps> = ({
                           );
                         }
 
+                        if (colName === 'EXECUTOR') {
+                          const exVal =
+                            cellVal ||
+                            row.executor ||
+                            row.fields?.['EXECUTOR WR'] ||
+                            row.fields?.['EXECUTOR QRF'] ||
+                            row.fields?.['EXECUTOR PPI'] ||
+                            row.fields?.['Executor'] ||
+                            '';
+                          return (
+                            <td
+                              key={colName}
+                              className="px-3 py-2 whitespace-nowrap text-slate-700 max-w-[200px] truncate"
+                              title={String(exVal || '')}
+                            >
+                              {exVal ? (
+                                <span className="font-semibold text-slate-900">{exVal}</span>
+                              ) : (
+                                <span className="text-slate-400 italic">—</span>
+                              )}
+                            </td>
+                          );
+                        }
+
                         return (
                           <td
                             key={colName}
                             className="px-3 py-2 whitespace-nowrap text-slate-700 max-w-[200px] truncate"
                             title={String(cellVal)}
                           >
-                            {cellVal}
+                            {cellVal || '—'}
                           </td>
                         );
                       })}
@@ -954,7 +1450,10 @@ export const EricssonEngineeringTab: React.FC<EricssonEngineeringTabProps> = ({
                         <div className="flex items-center justify-center gap-1">
                           <button
                             type="button"
-                            onClick={() => handleOpenEditRowModal(row)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleOpenEditRowModal(row);
+                            }}
                             className="p-1 text-slate-400 hover:text-blue-600 rounded hover:bg-slate-100 cursor-pointer"
                             title="Editar linha"
                           >
@@ -962,7 +1461,10 @@ export const EricssonEngineeringTab: React.FC<EricssonEngineeringTabProps> = ({
                           </button>
                           <button
                             type="button"
-                            onClick={() => handleDeleteRow(row.id)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteRow(row.id);
+                            }}
                             className="p-1 text-slate-400 hover:text-red-600 rounded hover:bg-slate-100 cursor-pointer"
                             title="Excluir linha"
                           >
@@ -1356,6 +1858,28 @@ export const EricssonEngineeringTab: React.FC<EricssonEngineeringTabProps> = ({
             </div>
           </div>
         </div>
+      )}
+
+      {/* =====================================================================
+          8. SIDE DRAWER: INFORMAÇÕES COMPLETAS DO SITE (ENGENHARIA ERICSSON)
+         ===================================================================== */}
+      {selectedDrawerRow && (
+        <EricssonEngineeringDrawer
+          row={selectedDrawerRow}
+          isOpen={Boolean(selectedDrawerRow)}
+          user={user}
+          effectiveRole={effectiveRole}
+          isOwner={user?.situacao === 'dono' || (Boolean(user?.email) && Boolean(user?.email?.includes('rafael.araujo')))}
+          files={ericssonFiles}
+          onClose={() => setSelectedDrawerRow(null)}
+          onSaveRow={async (updatedRow) => {
+            setRows((prev) =>
+              prev.map((r) => (r.id === updatedRow.id ? updatedRow : r))
+            );
+            setSelectedDrawerRow(updatedRow);
+          }}
+          showToast={showToast}
+        />
       )}
     </div>
   );

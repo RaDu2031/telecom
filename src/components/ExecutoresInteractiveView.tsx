@@ -23,11 +23,73 @@ import {
   Building,
   Tag,
   ShieldAlert,
+  Layers,
+  Filter,
+  MessageSquare,
 } from 'lucide-react';
 import { TssrRow, AmetaUser, VendorType } from '../types/telecom';
 import { normalizeAccents } from '../utils/spreadsheetUtils';
+import { isEricssonRowAssignedToExecutor } from '../utils/ericssonSpreadsheetUtils';
 
 const STORAGE_EXECUTOR_EMAILS_KEY = 'ameta_executor_emails_map_v1';
+
+export const ERICSSON_PROJECT_STATUSES: Record<string, string[]> = {
+  WR: [
+    'Finalizado',
+    'Documentação paralisada',
+    'Demanda cancelada',
+    'Em correção',
+    'Pendente Verificação EDB',
+    'Pendente PE',
+    'Pendente - Dúvida',
+    'Pendente Vistoria',
+    'Em produção',
+  ],
+  QRF: [
+    'Aguardando Predecessor',
+    'Finalizado',
+    'Em correção',
+    'Demanda cancelada',
+    'Documentação paralisada',
+    'Pendente - Dúvida',
+    'Pronto para envio',
+    'Em produção',
+  ],
+  PPI: [
+    'Finalizado',
+    'Documentação paralisada',
+    'Em correção',
+    'Demanda cancelada',
+    'Aguardando Predecessor',
+    'Pendente - Dúvida',
+    'Pendente PE',
+    'Pronto para envio',
+    'Em produção',
+  ],
+  SDC: [
+    'Finalizado',
+    'Documentação paralisada',
+    'Em correção',
+    'Demanda cancelada',
+    'Aguardando Predecessor',
+    'Pendente - Dúvida',
+    'Em produção',
+  ],
+  SMART: [
+    'Finalizado',
+    'Demanda cancelada',
+    'Pendente Verificação EDB',
+    'Em correção',
+    'Pendente - Dúvida',
+    'Em produção',
+  ],
+  BOQ: [
+    'Finalizado',
+    'BoQ-Pendencia',
+    'Em produção',
+    'Demanda cancelada',
+  ],
+};
 
 interface RowItem {
   id: string;
@@ -43,7 +105,6 @@ interface RowItem {
   vistoriaUploadedBy?: string;
   vistoriaUploadedByEmail?: string;
   updatedAt: string;
-  // Extra fields for type compatibility
   rowKey: string;
   tabName: string;
   ocSitePre: string;
@@ -55,6 +116,11 @@ interface RowItem {
   tipoSite?: string;
   status?: string;
   demanda?: string;
+  comentario?: string;
+  planejado?: string;
+  entregue?: string;
+  isUnlinked?: boolean;
+  isRemovedRow?: boolean;
 }
 
 interface ExecutoresInteractiveViewProps {
@@ -109,7 +175,7 @@ export const ExecutoresInteractiveView: React.FC<ExecutoresInteractiveViewProps>
   const [editingExecutor, setEditingExecutor] = useState<string | null>(null);
   const [editingExecutorValue, setEditingExecutorValue] = useState<string>('');
 
-  // Selected TSSR Row for Details Drawer
+  // Selected Row for Details Drawer
   const [drawerRow, setDrawerRow] = useState<RowItem | null>(null);
 
   // Registered profiles (vendor isolated)
@@ -148,12 +214,16 @@ export const ExecutoresInteractiveView: React.FC<ExecutoresInteractiveViewProps>
       setExecutorEmailsMap((prev) => {
         const merged = { ...prev, ...serverExecutorEmailsMap };
         try {
-          localStorage.setItem(STORAGE_EXECUTOR_EMAILS_KEY, JSON.stringify(merged));
+          const storageKey =
+            activeVendor === 'ERICSSON'
+              ? 'ameta_ericsson_executor_emails_map_v1'
+              : STORAGE_EXECUTOR_EMAILS_KEY;
+          localStorage.setItem(storageKey, JSON.stringify(merged));
         } catch {}
         return merged;
       });
     }
-  }, [serverExecutorEmailsMap]);
+  }, [serverExecutorEmailsMap, activeVendor]);
 
   // Email linking controls
   const [selectedUserEmailToLink, setSelectedUserEmailToLink] = useState<string>('');
@@ -176,8 +246,19 @@ export const ExecutoresInteractiveView: React.FC<ExecutoresInteractiveViewProps>
   const [sitePickerFilter, setSitePickerFilter] = useState<
     'ALL' | 'SEM_EXECUTOR' | 'PARA_FAZER' | 'ENTREGUES' | 'AGUARDANDO_APROVACAO'
   >('ALL');
+
+  // Ericsson Specific Filters
+  const [ericssonProjectFilter, setEricssonProjectFilter] = useState<
+    'ALL' | 'WR' | 'QRF' | 'PPI' | 'SDC' | 'SMART' | 'BOQ'
+  >('ALL');
+  const [ericssonStatusFilter, setEricssonStatusFilter] = useState<string>('ALL');
+  const [ericssonRegionalFilter, setEricssonRegionalFilter] = useState<string>('ALL');
+  const [ericssonTipoSiteFilter, setEricssonTipoSiteFilter] = useState<string>('ALL');
+
+  // Nokia specific
   const [sitePickerUf, setSitePickerUf] = useState<string>('ALL');
   const [sitePickerProjeto, setSitePickerProjeto] = useState<string>('ALL');
+
   const [selectedRowIds, setSelectedRowIds] = useState<string[]>([]);
   const [isAssigning, setIsAssigning] = useState<boolean>(false);
   const [isClearing, setIsClearing] = useState<boolean>(false);
@@ -233,7 +314,11 @@ export const ExecutoresInteractiveView: React.FC<ExecutoresInteractiveViewProps>
     };
     setExecutorEmailsMap(nextMap);
     try {
-      localStorage.setItem(STORAGE_EXECUTOR_EMAILS_KEY, JSON.stringify(nextMap));
+      const storageKey =
+        activeVendor === 'ERICSSON'
+          ? 'ameta_ericsson_executor_emails_map_v1'
+          : STORAGE_EXECUTOR_EMAILS_KEY;
+      localStorage.setItem(storageKey, JSON.stringify(nextMap));
     } catch {}
     setIsLinkingEmail(true);
     try {
@@ -266,27 +351,68 @@ export const ExecutoresInteractiveView: React.FC<ExecutoresInteractiveViewProps>
 
   // Helper match for row assigned to executor
   const isRowAssignedToExecutor = (row: RowItem, executorName: string): boolean => {
+    if (activeVendor === 'ERICSSON') {
+      return isEricssonRowAssignedToExecutor(row, executorName);
+    }
     const exField = (row.fields?.['Executor'] || row.fields?.['EXECUTOR'] || row.executor || '').trim();
     if (!exField || !executorName) return false;
     return normalizeAccents(exField.toLowerCase()) === normalizeAccents(executorName.trim().toLowerCase());
   };
 
-  // Assigned rows for selected executor
-  const assignedRowsForSelectedExecutor = useMemo(() => {
-    if (!selectedExecutor) return [];
-    return activeSourceRows.filter((r) => isRowAssignedToExecutor(r, selectedExecutor));
-  }, [activeSourceRows, selectedExecutor]);
-
-  const filteredAssignedRows = useMemo(() => {
-    const q = assignedSearch.trim().toLowerCase();
-    if (!q) return assignedRowsForSelectedExecutor;
-    return assignedRowsForSelectedExecutor.filter((r) => {
-      const hay = `${r.siteId} ${r.intervencaoClaro || ''} ${r.ocSitePre} ${r.enderecoId} ${r.fields?.['UF'] || ''} ${r.fields?.['Regional'] || ''} ${r.regional || ''} ${r.fields?.['Cidade'] || ''} ${r.fields?.['PROJETO'] || ''} ${r.fields?.['Tipo doc'] || ''} ${r.tipoDoc || ''} ${r.fields?.['TIPO SITE'] || ''} ${r.tipoSite || ''} ${r.fields?.['STATUS Engenharia'] || ''} ${r.fields?.['Status'] || ''}`.toLowerCase();
-      return hay.includes(q);
+  // Project counts for Ericsson project selector bar
+  const ericssonProjectCounts = useMemo(() => {
+    const counts: Record<string, number> = {
+      ALL: ericssonRows.length,
+      WR: 0,
+      QRF: 0,
+      PPI: 0,
+      SDC: 0,
+      SMART: 0,
+      BOQ: 0,
+    };
+    ericssonRows.forEach((r) => {
+      const docType = (r.tipoDoc || r.fields?.['Tipo doc'] || '').toUpperCase().trim();
+      if (docType in counts && docType !== 'ALL') {
+        counts[docType]++;
+      }
     });
-  }, [assignedRowsForSelectedExecutor, assignedSearch]);
+    return counts;
+  }, [ericssonRows]);
 
-  // Dynamic filter options from activeSourceRows
+  // Available Statuses for selected Ericsson project
+  const ericssonAvailableStatuses = useMemo(() => {
+    if (ericssonProjectFilter !== 'ALL' && ERICSSON_PROJECT_STATUSES[ericssonProjectFilter]) {
+      return ERICSSON_PROJECT_STATUSES[ericssonProjectFilter];
+    }
+    const set = new Set<string>();
+    ericssonRows.forEach((r) => {
+      const st = (r.status || r.fields?.['Status'] || '').trim();
+      if (st) set.add(st);
+    });
+    return Array.from(set).sort();
+  }, [ericssonProjectFilter, ericssonRows]);
+
+  // Dynamic Regionals from activeSourceRows (Ericsson)
+  const availableRegionals = useMemo(() => {
+    const set = new Set<string>();
+    activeSourceRows.forEach((r) => {
+      const reg = (r.regional || r.fields?.['Regional'] || r.fields?.['UF'] || '').trim();
+      if (reg && reg !== '—' && reg !== '-') set.add(reg);
+    });
+    return Array.from(set).sort();
+  }, [activeSourceRows]);
+
+  // Dynamic Tipo Sites from activeSourceRows (Ericsson)
+  const availableTipoSites = useMemo(() => {
+    const set = new Set<string>();
+    activeSourceRows.forEach((r) => {
+      const ts = (r.tipoSite || r.fields?.['TIPO SITE'] || '').trim();
+      if (ts && ts !== '—' && ts !== '-') set.add(ts);
+    });
+    return Array.from(set).sort();
+  }, [activeSourceRows]);
+
+  // Dynamic filter options for Nokia
   const availableUfs = useMemo(() => {
     const set = new Set<string>();
     activeSourceRows.forEach((r) => {
@@ -305,6 +431,48 @@ export const ExecutoresInteractiveView: React.FC<ExecutoresInteractiveViewProps>
     return Array.from(set).sort();
   }, [activeSourceRows]);
 
+  // Assigned rows for selected executor
+  const assignedRowsForSelectedExecutor = useMemo(() => {
+    if (!selectedExecutor) return [];
+    return activeSourceRows.filter((r) => isRowAssignedToExecutor(r, selectedExecutor));
+  }, [activeSourceRows, selectedExecutor]);
+
+  const filteredAssignedRows = useMemo(() => {
+    const q = assignedSearch.trim().toLowerCase();
+    return assignedRowsForSelectedExecutor.filter((r) => {
+      if (activeVendor === 'ERICSSON') {
+        if (ericssonProjectFilter !== 'ALL') {
+          const docType = (r.tipoDoc || r.fields?.['Tipo doc'] || '').toUpperCase().trim();
+          if (docType !== ericssonProjectFilter) return false;
+        }
+        if (ericssonStatusFilter !== 'ALL') {
+          const st = (r.status || r.fields?.['Status'] || '').trim();
+          if (st !== ericssonStatusFilter) return false;
+        }
+        if (ericssonRegionalFilter !== 'ALL') {
+          const reg = (r.regional || r.fields?.['Regional'] || '').trim();
+          if (reg !== ericssonRegionalFilter) return false;
+        }
+        if (ericssonTipoSiteFilter !== 'ALL') {
+          const ts = (r.tipoSite || r.fields?.['TIPO SITE'] || '').trim();
+          if (ts !== ericssonTipoSiteFilter) return false;
+        }
+      }
+
+      if (!q) return true;
+      const hay = `${r.siteId} ${r.intervencaoClaro || ''} ${r.ocSitePre} ${r.enderecoId} ${r.fields?.['UF'] || ''} ${r.fields?.['Regional'] || ''} ${r.regional || ''} ${r.fields?.['Cidade'] || ''} ${r.fields?.['PROJETO'] || ''} ${r.fields?.['Tipo doc'] || ''} ${r.tipoDoc || ''} ${r.fields?.['TIPO SITE'] || ''} ${r.tipoSite || ''} ${r.fields?.['STATUS Engenharia'] || ''} ${r.fields?.['Status'] || ''} ${r.comentario || ''}`.toLowerCase();
+      return hay.includes(q);
+    });
+  }, [
+    assignedRowsForSelectedExecutor,
+    assignedSearch,
+    activeVendor,
+    ericssonProjectFilter,
+    ericssonStatusFilter,
+    ericssonRegionalFilter,
+    ericssonTipoSiteFilter,
+  ]);
+
   // Candidate engineering sites in picker
   const pickerEngineeringRows = useMemo(() => {
     const assignedIds = new Set(assignedRowsForSelectedExecutor.map((r) => r.id));
@@ -319,17 +487,51 @@ export const ExecutoresInteractiveView: React.FC<ExecutoresInteractiveViewProps>
     return activeSourceRows.filter((row) => {
       if (assignedIds.has(row.id)) return false;
 
-      if (sitePickerUf !== 'ALL') {
-        const u = (row.fields?.['Regional'] || row.fields?.['UF'] || row.regional || row.enderecoId || '').trim().toUpperCase();
-        if (u !== sitePickerUf) return false;
+      if (activeVendor === 'ERICSSON') {
+        // Project filter (Tipo doc)
+        if (ericssonProjectFilter !== 'ALL') {
+          const docType = (row.tipoDoc || row.fields?.['Tipo doc'] || '').toUpperCase().trim();
+          if (docType !== ericssonProjectFilter) return false;
+        }
+
+        // Status filter
+        if (ericssonStatusFilter !== 'ALL') {
+          const st = (row.status || row.fields?.['Status'] || '').trim();
+          if (st !== ericssonStatusFilter) return false;
+        }
+
+        // Regional filter
+        if (ericssonRegionalFilter !== 'ALL') {
+          const reg = (row.regional || row.fields?.['Regional'] || '').trim();
+          if (reg !== ericssonRegionalFilter) return false;
+        }
+
+        // Tipo Site filter
+        if (ericssonTipoSiteFilter !== 'ALL') {
+          const ts = (row.tipoSite || row.fields?.['TIPO SITE'] || '').trim();
+          if (ts !== ericssonTipoSiteFilter) return false;
+        }
+      } else {
+        if (sitePickerUf !== 'ALL') {
+          const u = (row.fields?.['Regional'] || row.fields?.['UF'] || row.regional || row.enderecoId || '').trim().toUpperCase();
+          if (u !== sitePickerUf) return false;
+        }
+
+        if (sitePickerProjeto !== 'ALL') {
+          const p = (row.fields?.['Tipo doc'] || row.fields?.['PROJETO'] || row.fields?.['TIPO SITE'] || row.tipoDoc || '').trim();
+          if (p !== sitePickerProjeto) return false;
+        }
       }
 
-      if (sitePickerProjeto !== 'ALL') {
-        const p = (row.fields?.['Tipo doc'] || row.fields?.['PROJETO'] || row.fields?.['TIPO SITE'] || row.tipoDoc || '').trim();
-        if (p !== sitePickerProjeto) return false;
-      }
-
-      const ex = (row.fields?.['Executor'] || row.fields?.['EXECUTOR'] || row.executor || '').trim();
+      const ex = (
+        row.fields?.['EXECUTOR'] ||
+        row.fields?.['EXECUTOR WR'] ||
+        row.fields?.['EXECUTOR QRF'] ||
+        row.fields?.['EXECUTOR PPI'] ||
+        row.fields?.['Executor'] ||
+        row.executor ||
+        ''
+      ).trim();
       const hasExecutor = ex !== '' && ex !== '—' && ex !== '-';
       const statusEng = (row.fields?.['STATUS Engenharia'] || row.fields?.['Status'] || row.vistoriaStatus || row.status || '').trim();
       const statusLower = statusEng.toLowerCase();
@@ -353,7 +555,7 @@ export const ExecutoresInteractiveView: React.FC<ExecutoresInteractiveViewProps>
       }
 
       if (tokens.length > 0) {
-        const hay = `${row.siteId} ${row.intervencaoClaro || ''} ${row.ocSitePre} ${row.enderecoId} ${row.fields?.['UF'] || ''} ${row.fields?.['Regional'] || ''} ${row.regional || ''} ${row.fields?.['Cidade'] || ''} ${row.fields?.['PROJETO'] || ''} ${row.fields?.['Tipo doc'] || ''} ${row.tipoDoc || ''} ${row.fields?.['TIPO SITE'] || ''} ${row.tipoSite || ''} ${statusEng} ${ex}`.toLowerCase();
+        const hay = `${row.siteId} ${row.intervencaoClaro || ''} ${row.ocSitePre} ${row.enderecoId} ${row.fields?.['UF'] || ''} ${row.fields?.['Regional'] || ''} ${row.regional || ''} ${row.fields?.['Cidade'] || ''} ${row.fields?.['PROJETO'] || ''} ${row.fields?.['Tipo doc'] || ''} ${row.tipoDoc || ''} ${row.fields?.['TIPO SITE'] || ''} ${row.tipoSite || ''} ${statusEng} ${ex} ${row.comentario || ''}`.toLowerCase();
         if (tokens.length === 1) {
           return hay.includes(tokens[0]);
         }
@@ -367,6 +569,11 @@ export const ExecutoresInteractiveView: React.FC<ExecutoresInteractiveViewProps>
     assignedRowsForSelectedExecutor,
     sitePickerSearch,
     sitePickerFilter,
+    activeVendor,
+    ericssonProjectFilter,
+    ericssonStatusFilter,
+    ericssonRegionalFilter,
+    ericssonTipoSiteFilter,
     sitePickerUf,
     sitePickerProjeto,
   ]);
@@ -390,6 +597,17 @@ export const ExecutoresInteractiveView: React.FC<ExecutoresInteractiveViewProps>
 
   const handleConfirmAssignSelected = async () => {
     if (selectedRowIds.length === 0 || !selectedExecutor) return;
+
+    // Check duplicate assignment
+    const duplicates = pickerEngineeringRows.filter(
+      (r) => selectedRowIds.includes(r.id) && isRowAssignedToExecutor(r, selectedExecutor) && r.status !== 'Finalizado'
+    );
+    if (duplicates.length > 0) {
+      const dupNames = duplicates.map((d) => d.intervencaoClaro || d.siteId).join(', ');
+      alert(`O(s) site(s) [${dupNames}] já estão demandados para "${selectedExecutor}" em aberto.`);
+      return;
+    }
+
     setIsAssigning(true);
     try {
       await onAssignRowsToExecutor(selectedRowIds, selectedExecutor);
@@ -466,6 +684,79 @@ export const ExecutoresInteractiveView: React.FC<ExecutoresInteractiveViewProps>
 
   return (
     <div className="space-y-3">
+      {/* =====================================================================
+          ERICSSON TOP BAR: SELETOR DE PROJETO COM CONTAGEM DE DEMANDAS
+         ===================================================================== */}
+      {activeVendor === 'ERICSSON' && (
+        <div className="bg-slate-900 border-2 border-amber-500/50 rounded-2xl p-3 sm:p-4 shadow-lg text-white space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 pb-2.5">
+            <div className="flex items-center gap-2">
+              <Layers className="w-5 h-5 text-amber-400 shrink-0" />
+              <div>
+                <h3 className="text-sm font-black text-white flex items-center gap-2">
+                  <span>Demandar Executores — Engenharia Ericsson</span>
+                  <span className="px-2 py-0.5 bg-amber-500/20 border border-amber-500/40 text-amber-300 text-[11px] rounded-lg font-mono">
+                    {ericssonRows.length} linhas na Engenharia
+                  </span>
+                </h3>
+                <p className="text-[11px] text-slate-400">
+                  Filtre a planilha de Engenharia por projeto (Tipo de doc), escolha o status real do projeto e atribua ao Executor.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Project Selector Pills */}
+          <div className="space-y-1">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
+              1. Selecione o Projeto (Tipo de Doc):
+            </span>
+            <div className="flex flex-wrap items-center gap-1.5">
+              {(
+                [
+                  { id: 'ALL', label: 'Todos' },
+                  { id: 'WR', label: 'WR' },
+                  { id: 'QRF', label: 'QRF' },
+                  { id: 'PPI', label: 'PPI' },
+                  { id: 'SDC', label: 'SDC' },
+                  { id: 'SMART', label: 'SMART' },
+                  { id: 'BOQ', label: 'BOQ' },
+                ] as const
+              ).map((proj) => {
+                const count = ericssonProjectCounts[proj.id] || 0;
+                const isSelected = ericssonProjectFilter === proj.id;
+                return (
+                  <button
+                    key={proj.id}
+                    type="button"
+                    onClick={() => {
+                      setEricssonProjectFilter(proj.id);
+                      setEricssonStatusFilter('ALL');
+                    }}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 border ${
+                      isSelected
+                        ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-md scale-105'
+                        : 'bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700'
+                    }`}
+                  >
+                    <span>{proj.label}</span>
+                    <span
+                      className={`px-1.5 py-0.2 rounded-md text-[10px] font-mono ${
+                        isSelected
+                          ? 'bg-slate-950 text-amber-300 font-bold'
+                          : 'bg-slate-900 text-slate-400'
+                      }`}
+                    >
+                      {count}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* =====================================================================
           MOBILE QUICK BAR (lg:hidden): OPÇÕES BEM APARENTES NO MOBILE
          ===================================================================== */}
@@ -609,154 +900,162 @@ export const ExecutoresInteractiveView: React.FC<ExecutoresInteractiveViewProps>
                 </p>
               </div>
             )}
-              {filteredExecutores.map((executor) => {
-                const isSelected = selectedExecutor === executor;
-                const isEditing = editingExecutor === executor;
-                const linkedEmails = getLinkedEmailsForExecutor(executor);
+            {filteredExecutores.map((executor) => {
+              const isSelected = selectedExecutor === executor;
+              const isEditing = editingExecutor === executor;
+              const linkedEmails = getLinkedEmailsForExecutor(executor);
 
-                const executorRows = [
-                  ...tssrRows.filter((r) => isRowAssignedToExecutor(r, executor)),
-                  ...ericssonRows.filter((r) => isRowAssignedToExecutor(r, executor)),
-                ];
-                const totalSitesCount = executorRows.length;
-                const entreguesCount = executorRows.filter(
-                  (r) => r.vistoriaStatus === 'Entregue'
-                ).length;
-                const fazerCount = totalSitesCount - entreguesCount;
-                const aguardandoCount = executorRows.filter((r) =>
-                  (r.fields?.['STATUS Engenharia'] || '').toLowerCase().includes('aguardando')
-                ).length;
-                
-                const nokiaActive = executorRows.some(r => r.vendor === 'NOKIA' && r.vistoriaStatus !== 'Entregue');
-                const ericssonActive = executorRows.some(r => r.vendor === 'ERICSSON' && r.vistoriaStatus !== 'Entregue');
-                const isDisponivel = totalSitesCount > 0 && entreguesCount === totalSitesCount;
+              const executorRows = [
+                ...tssrRows.filter((r) => isRowAssignedToExecutor(r, executor)),
+                ...ericssonRows.filter((r) => isRowAssignedToExecutor(r, executor)),
+              ];
+              const totalSitesCount = executorRows.length;
+              const entreguesCount = executorRows.filter(
+                (r) => r.vistoriaStatus === 'Entregue' || r.status === 'Finalizado'
+              ).length;
+              const fazerCount = totalSitesCount - entreguesCount;
+              const aguardandoCount = executorRows.filter((r) =>
+                (r.fields?.['STATUS Engenharia'] || r.status || '').toLowerCase().includes('aguardando')
+              ).length;
 
-                return (
-                  <div
-                    key={executor}
-                    onClick={() => {
-                      setSelectedExecutor(executor);
-                      setSelectedRowIds([]);
-                    }}
-                    className={`p-2.5 rounded-xl cursor-pointer transition-all border ${
-                      isSelected
-                        ? 'bg-amber-50/80 border-amber-400 shadow-2xs ring-1 ring-amber-400'
-                        : 'bg-white hover:bg-slate-50 border-slate-200/80'
-                    }`}
-                  >
-                    {isEditing ? (
-                      <div
-                        className="flex items-center gap-1.5"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <input
-                          type="text"
-                          value={editingExecutorValue}
-                          onChange={(e) => setEditingExecutorValue(e.target.value)}
-                          className="flex-1 px-2 py-1 border border-amber-500 rounded text-xs focus:outline-none"
-                          autoFocus
-                        />
-                        <button
-                          type="button"
-                          onClick={async () => {
-                            if (editingExecutorValue.trim()) {
-                              await onRenameExecutor(executor, editingExecutorValue.trim());
-                              if (selectedExecutor === executor) {
-                                setSelectedExecutor(editingExecutorValue.trim());
-                              }
+              const nokiaActive = executorRows.some(
+                (r) => r.vendor === 'NOKIA' && r.vistoriaStatus !== 'Entregue'
+              );
+              const ericssonActive = executorRows.some(
+                (r) => r.vendor === 'ERICSSON' && r.status !== 'Finalizado'
+              );
+              const isDisponivel = totalSitesCount > 0 && entreguesCount === totalSitesCount;
+
+              return (
+                <div
+                  key={executor}
+                  onClick={() => {
+                    setSelectedExecutor(executor);
+                    setSelectedRowIds([]);
+                  }}
+                  className={`p-2.5 rounded-xl cursor-pointer transition-all border ${
+                    isSelected
+                      ? 'bg-amber-50/80 border-amber-400 shadow-2xs ring-1 ring-amber-400'
+                      : 'bg-white hover:bg-slate-50 border-slate-200/80'
+                  }`}
+                >
+                  {isEditing ? (
+                    <div
+                      className="flex items-center gap-1.5"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <input
+                        type="text"
+                        value={editingExecutorValue}
+                        onChange={(e) => setEditingExecutorValue(e.target.value)}
+                        className="flex-1 px-2 py-1 border border-amber-500 rounded text-xs focus:outline-none"
+                        autoFocus
+                      />
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          if (editingExecutorValue.trim()) {
+                            await onRenameExecutor(executor, editingExecutorValue.trim());
+                            if (selectedExecutor === executor) {
+                              setSelectedExecutor(editingExecutorValue.trim());
                             }
-                            setEditingExecutor(null);
-                          }}
-                          className="px-2 py-1 bg-emerald-600 text-white rounded text-xs font-semibold cursor-pointer"
-                        >
-                          Salvar
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setEditingExecutor(null)}
-                          className="px-2 py-1 bg-slate-200 text-slate-700 rounded text-xs cursor-pointer"
-                        >
-                          Cancelar
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="space-y-1.5">
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="min-w-0">
-                            <div className="flex items-center gap-1.5">
-                              <span className="font-bold text-xs text-slate-900 truncate">
-                                {executor}
-                              </span>
-                              <span className="px-1.5 py-0.2 bg-amber-100 text-amber-900 rounded text-[10px] font-mono font-bold">
-                                {totalSitesCount} sites
-                              </span>
-                            </div>
-                            <div className="flex items-center gap-1 text-[10px] text-slate-500 mt-1">
-                                {isDisponivel ? <span className="text-emerald-600 font-bold">Disponível</span> : (
-                                  <>
-                                    {nokiaActive && <span className="text-blue-600 font-bold">Nokia Ativo</span>}
-                                    {ericssonActive && <span className="text-teal-600 font-bold">Ericsson Ativo</span>}
-                                  </>
-                                )}
-                            </div>
-                            {linkedEmails.length > 0 ? (
-                              <p className="text-[10px] text-blue-600 truncate flex items-center gap-1 mt-0.5">
-                                <Mail className="w-3 h-3 shrink-0" />
-                                <span className="truncate">{linkedEmails[0]}</span>
-                                {linkedEmails.length > 1 && (
-                                  <span className="text-slate-400">+{linkedEmails.length - 1}</span>
-                                )}
-                              </p>
+                          }
+                          setEditingExecutor(null);
+                        }}
+                        className="px-2 py-1 bg-emerald-600 text-white rounded text-xs font-semibold cursor-pointer"
+                      >
+                        Salvar
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setEditingExecutor(null)}
+                        className="px-2 py-1 bg-slate-200 text-slate-700 rounded text-xs cursor-pointer"
+                      >
+                        Cancelar
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="space-y-1.5">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-bold text-xs text-slate-900 truncate">
+                              {executor}
+                            </span>
+                            <span className="px-1.5 py-0.2 bg-amber-100 text-amber-900 rounded text-[10px] font-mono font-bold">
+                              {totalSitesCount} demandas
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-1 text-[10px] text-slate-500 mt-1">
+                            {isDisponivel ? (
+                              <span className="text-emerald-600 font-bold">Disponível</span>
                             ) : (
-                              <p className="text-[10px] text-slate-400 italic mt-0.5">
-                                Sem e-mail vinculado
-                              </p>
+                              <>
+                                {nokiaActive && <span className="text-blue-600 font-bold">Nokia Ativo</span>}
+                                {ericssonActive && (
+                                  <span className="text-teal-600 font-bold">Ericsson Ativo</span>
+                                )}
+                              </>
                             )}
                           </div>
-                          <div
-                            className="flex items-center gap-1 shrink-0"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setEditingExecutor(executor);
-                                setEditingExecutorValue(executor);
-                              }}
-                              className="p-1 text-slate-400 hover:text-amber-600 rounded hover:bg-white cursor-pointer"
-                              title="Renomear executor"
-                            >
-                              <Edit3 className="w-3.5 h-3.5" />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => onDeleteExecutor(executor)}
-                              className="p-1 text-slate-400 hover:text-red-600 rounded hover:bg-white cursor-pointer"
-                              title="Remover executor"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                        </div>
-                        {/* Mini stats row */}
-                        <div className="flex items-center gap-1.5 text-[10px] font-mono pt-1 border-t border-slate-200/60">
-                          <span className="px-1.5 py-0.5 rounded bg-amber-50 text-amber-800 border border-amber-200/80">
-                            Pendente: {fazerCount}
-                          </span>
-                          <span className="px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-800 border border-emerald-200/80">
-                            Entregue: {entreguesCount}
-                          </span>
-                          {aguardandoCount > 0 && (
-                            <span className="px-1.5 py-0.5 rounded bg-purple-50 text-purple-800 border border-purple-200/80">
-                              Aguardando: {aguardandoCount}
-                            </span>
+                          {linkedEmails.length > 0 ? (
+                            <p className="text-[10px] text-blue-600 truncate flex items-center gap-1 mt-0.5">
+                              <Mail className="w-3 h-3 shrink-0" />
+                              <span className="truncate">{linkedEmails[0]}</span>
+                              {linkedEmails.length > 1 && (
+                                <span className="text-slate-400">+{linkedEmails.length - 1}</span>
+                              )}
+                            </p>
+                          ) : (
+                            <p className="text-[10px] text-slate-400 italic mt-0.5">
+                              Sem e-mail vinculado
+                            </p>
                           )}
                         </div>
+                        <div
+                          className="flex items-center gap-1 shrink-0"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEditingExecutor(executor);
+                              setEditingExecutorValue(executor);
+                            }}
+                            className="p-1 text-slate-400 hover:text-amber-600 rounded hover:bg-white cursor-pointer"
+                            title="Renomear executor"
+                          >
+                            <Edit3 className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => onDeleteExecutor(executor)}
+                            className="p-1 text-slate-400 hover:text-red-600 rounded hover:bg-white cursor-pointer"
+                            title="Remover executor"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
                       </div>
-                    )}
-                  </div>
-                );
-              })}
+                      {/* Mini stats row */}
+                      <div className="flex items-center gap-1.5 text-[10px] font-mono pt-1 border-t border-slate-200/60">
+                        <span className="px-1.5 py-0.5 rounded bg-amber-50 text-amber-800 border border-amber-200/80">
+                          Pendente: {fazerCount}
+                        </span>
+                        <span className="px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-800 border border-emerald-200/80">
+                          Entregue: {entreguesCount}
+                        </span>
+                        {aguardandoCount > 0 && (
+                          <span className="px-1.5 py-0.5 rounded bg-purple-50 text-purple-800 border border-purple-200/80">
+                            Aguardando: {aguardandoCount}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
 
@@ -781,11 +1080,11 @@ export const ExecutoresInteractiveView: React.FC<ExecutoresInteractiveViewProps>
                       Executor Selecionado: {selectedExecutor}
                     </h3>
                     <span className="px-2 py-0.5 bg-amber-100 border border-amber-300 text-amber-900 rounded-md text-[11px] font-mono font-bold">
-                      {activeAssignedCount} site(s) da Engenharia
+                      {activeAssignedCount} demanda(s) da Engenharia
                     </span>
                   </div>
                   <p className="text-xs text-slate-500">
-                    Vincule o e-mail de login abaixo e selecione quais sites da Engenharia vão aparecer para ele.
+                    Vincule o e-mail de login abaixo e escolha quais linhas da Engenharia atribuir.
                   </p>
                 </div>
               </div>
@@ -798,7 +1097,7 @@ export const ExecutoresInteractiveView: React.FC<ExecutoresInteractiveViewProps>
                   title="Ver exatamente como a planilha e os sites aparecem quando este executor entra no sistema"
                 >
                   <Eye className="w-4 h-4 text-amber-400 shrink-0" />
-                  <span>Ver como aparece para ele ({activeAssignedCount} sites)</span>
+                  <span>Ver como aparece para ele ({activeAssignedCount} demandas)</span>
                 </button>
               )}
             </div>
@@ -958,7 +1257,7 @@ export const ExecutoresInteractiveView: React.FC<ExecutoresInteractiveViewProps>
             </div>
           </div>
 
-          {/* Card B: Dual-Column Workspace (Sites da Planilha da Engenharia) */}
+          {/* Card B: Dual-Column Workspace (Linhas da Planilha da Engenharia) */}
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
             {/* PANEL 1: SELECIONAR SITES DA ENGENHARIA PARA MANDAR PARA O EXECUTOR */}
             <div
@@ -972,14 +1271,14 @@ export const ExecutoresInteractiveView: React.FC<ExecutoresInteractiveViewProps>
                     <h4 className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
                       <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
                       <span>
-                        2. Sites da Engenharia{' '}
+                        2. Demandar Linhas da Engenharia{' '}
                         {activeVendor === 'ERICSSON' ? 'Ericsson' : 'TIM Nokia'}{' '}
                         para "{selectedExecutor}"
                       </span>
                     </h4>
                     <p className="text-[11px] text-slate-500">
                       {activeVendor === 'ERICSSON'
-                        ? 'Somente sites da planilha de Engenharia da Ericsson'
+                        ? 'Vinculado à linha da Engenharia pelo ID interno'
                         : 'Somente sites da planilha TSSR TIM Nokia da Engenharia'}
                     </p>
                   </div>
@@ -997,7 +1296,7 @@ export const ExecutoresInteractiveView: React.FC<ExecutoresInteractiveViewProps>
                     onChange={(e) => setSitePickerSearch(e.target.value)}
                     placeholder={
                       activeVendor === 'ERICSSON'
-                        ? 'Buscar Intervenção Claro, Site ID, Regional, Tipo Doc...'
+                        ? 'Buscar Intervenção Claro, Regional, Tipo Site, Status, Comentário...'
                         : 'Buscar Site Id, Oc Site Pre, Enderecoid, Cidade...'
                     }
                     className="w-full pl-8 pr-7 py-1.5 bg-[#F3F4F6] border border-slate-200 rounded-lg text-xs text-slate-900 placeholder-slate-400 focus:bg-white focus:outline-none focus:border-amber-500"
@@ -1013,64 +1312,108 @@ export const ExecutoresInteractiveView: React.FC<ExecutoresInteractiveViewProps>
                   )}
                 </div>
 
-                {/* Filter Pills + Dropdowns */}
+                {/* Filter Dropdowns */}
                 <div className="flex flex-wrap items-center justify-between gap-1.5">
-                  <div className="flex flex-wrap items-center gap-1">
-                    {(
-                      [
-                        { id: 'ALL', label: 'Todos' },
-                        { id: 'SEM_EXECUTOR', label: 'Sem Executor' },
-                        { id: 'PARA_FAZER', label: 'Pendente' },
-                        { id: 'ENTREGUES', label: 'Entregues' },
-                        { id: 'AGUARDANDO_APROVACAO', label: 'Aguardando' },
-                      ] as const
-                    ).map((f) => (
-                      <button
-                        key={f.id}
-                        type="button"
-                        onClick={() => setSitePickerFilter(f.id)}
-                        className={`px-2 py-1 rounded-md text-[11px] font-medium cursor-pointer ${
-                          sitePickerFilter === f.id
-                            ? 'bg-slate-900 text-white font-semibold'
-                            : 'bg-[#F3F4F6] hover:bg-slate-200 text-slate-600'
-                        }`}
+                  {activeVendor === 'ERICSSON' ? (
+                    <div className="flex flex-wrap items-center gap-1.5 w-full">
+                      {/* Status Filter */}
+                      <select
+                        value={ericssonStatusFilter}
+                        onChange={(e) => setEricssonStatusFilter(e.target.value)}
+                        className="px-2 py-1 bg-[#F3F4F6] border border-slate-200 rounded-md text-[11px] font-semibold text-slate-700 flex-1 min-w-[120px]"
                       >
-                        {f.label}
-                      </button>
-                    ))}
-                  </div>
+                        <option value="ALL">Status: Todos ({ericssonProjectFilter})</option>
+                        {ericssonAvailableStatuses.map((st) => (
+                          <option key={st} value={st}>
+                            {st}
+                          </option>
+                        ))}
+                      </select>
 
-                  <div className="flex items-center gap-1">
-                    <select
-                      value={sitePickerUf}
-                      onChange={(e) => setSitePickerUf(e.target.value)}
-                      className="px-2 py-1 bg-[#F3F4F6] border border-slate-200 rounded-md text-[11px] font-semibold text-slate-700"
-                    >
-                      <option value="ALL">
-                        {activeVendor === 'ERICSSON' ? 'Todas Regionais' : 'Todas UFs'}
-                      </option>
-                      {availableUfs.map((u) => (
-                        <option key={u} value={u}>
-                          {activeVendor === 'ERICSSON' ? `Reg: ${u}` : `UF: ${u}`}
-                        </option>
-                      ))}
-                    </select>
+                      {/* Regional Filter */}
+                      <select
+                        value={ericssonRegionalFilter}
+                        onChange={(e) => setEricssonRegionalFilter(e.target.value)}
+                        className="px-2 py-1 bg-[#F3F4F6] border border-slate-200 rounded-md text-[11px] font-semibold text-slate-700 min-w-[100px]"
+                      >
+                        <option value="ALL">Regional: Todas</option>
+                        {availableRegionals.map((r) => (
+                          <option key={r} value={r}>
+                            {r}
+                          </option>
+                        ))}
+                      </select>
 
-                    <select
-                      value={sitePickerProjeto}
-                      onChange={(e) => setSitePickerProjeto(e.target.value)}
-                      className="px-2 py-1 bg-[#F3F4F6] border border-slate-200 rounded-md text-[11px] font-semibold text-slate-700 max-w-[120px] truncate"
-                    >
-                      <option value="ALL">
-                        {activeVendor === 'ERICSSON' ? 'Tipo Doc / Projeto' : 'Projetos'}
-                      </option>
-                      {availableProjetos.map((p) => (
-                        <option key={p} value={p}>
-                          {p}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+                      {/* Tipo Site Filter */}
+                      <select
+                        value={ericssonTipoSiteFilter}
+                        onChange={(e) => setEricssonTipoSiteFilter(e.target.value)}
+                        className="px-2 py-1 bg-[#F3F4F6] border border-slate-200 rounded-md text-[11px] font-semibold text-slate-700 min-w-[100px]"
+                      >
+                        <option value="ALL">Tipo Site: Todos</option>
+                        {availableTipoSites.map((ts) => (
+                          <option key={ts} value={ts}>
+                            {ts}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="flex flex-wrap items-center gap-1">
+                        {(
+                          [
+                            { id: 'ALL', label: 'Todos' },
+                            { id: 'SEM_EXECUTOR', label: 'Sem Executor' },
+                            { id: 'PARA_FAZER', label: 'Pendente' },
+                            { id: 'ENTREGUES', label: 'Entregues' },
+                            { id: 'AGUARDANDO_APROVACAO', label: 'Aguardando' },
+                          ] as const
+                        ).map((f) => (
+                          <button
+                            key={f.id}
+                            type="button"
+                            onClick={() => setSitePickerFilter(f.id)}
+                            className={`px-2 py-1 rounded-md text-[11px] font-medium cursor-pointer ${
+                              sitePickerFilter === f.id
+                                ? 'bg-slate-900 text-white font-semibold'
+                                : 'bg-[#F3F4F6] hover:bg-slate-200 text-slate-600'
+                            }`}
+                          >
+                            {f.label}
+                          </button>
+                        ))}
+                      </div>
+
+                      <div className="flex items-center gap-1">
+                        <select
+                          value={sitePickerUf}
+                          onChange={(e) => setSitePickerUf(e.target.value)}
+                          className="px-2 py-1 bg-[#F3F4F6] border border-slate-200 rounded-md text-[11px] font-semibold text-slate-700"
+                        >
+                          <option value="ALL">Todas UFs</option>
+                          {availableUfs.map((u) => (
+                            <option key={u} value={u}>
+                              UF: {u}
+                            </option>
+                          ))}
+                        </select>
+
+                        <select
+                          value={sitePickerProjeto}
+                          onChange={(e) => setSitePickerProjeto(e.target.value)}
+                          className="px-2 py-1 bg-[#F3F4F6] border border-slate-200 rounded-md text-[11px] font-semibold text-slate-700 max-w-[120px] truncate"
+                        >
+                          <option value="ALL">Projetos</option>
+                          {availableProjetos.map((p) => (
+                            <option key={p} value={p}>
+                              {p}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </>
+                  )}
                 </div>
 
                 {/* Bulk Action Bar */}
@@ -1095,7 +1438,7 @@ export const ExecutoresInteractiveView: React.FC<ExecutoresInteractiveViewProps>
                     className="w-full sm:w-auto justify-center px-4 py-3 sm:py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white text-xs font-black uppercase tracking-wide rounded-xl flex items-center gap-1.5 cursor-pointer shadow-sm"
                   >
                     <span>
-                      Demandar {selectedRowIds.length > 0 ? `${selectedRowIds.length} ` : ''}Site(s)
+                      Demandar {selectedRowIds.length > 0 ? `${selectedRowIds.length} ` : ''}Linha(s)
                       para {selectedExecutor}
                     </span>
                     <ArrowRight className="w-4 h-4 shrink-0" />
@@ -1107,18 +1450,24 @@ export const ExecutoresInteractiveView: React.FC<ExecutoresInteractiveViewProps>
               <div className="divide-y divide-slate-100 max-h-[460px] overflow-y-auto">
                 {pickerEngineeringRows.slice(0, 120).map((row) => {
                   const isChecked = selectedRowIds.includes(row.id);
-                  const currentEx = (row.fields?.['Executor'] || row.fields?.['EXECUTOR'] || row.executor || '').trim();
-                  const statusEng = (row.fields?.['STATUS Engenharia'] || row.fields?.['Status'] || row.vistoriaStatus || row.status || '').trim();
-                  const statusLower = statusEng.toLowerCase();
-                  const isEntregue =
-                    row.vistoriaStatus === 'Entregue' ||
-                    row.status === 'Finalizado' ||
-                    statusLower.includes('finalizado') ||
-                    statusLower.includes('entregue') ||
-                    statusLower.includes('aprovado');
-                  const uf = (row.fields?.['Regional'] || row.fields?.['UF'] || row.regional || row.enderecoId || '').trim();
-                  const cidade = (row.fields?.['Cidade'] || '').trim();
-                  const projeto = (row.fields?.['Tipo doc'] || row.fields?.['PROJETO'] || row.fields?.['TIPO SITE'] || row.tipoDoc || '').trim();
+                  const currentEx = (
+                    row.fields?.['EXECUTOR'] ||
+                    row.fields?.['EXECUTOR WR'] ||
+                    row.fields?.['EXECUTOR QRF'] ||
+                    row.fields?.['EXECUTOR PPI'] ||
+                    row.fields?.['Executor'] ||
+                    row.executor ||
+                    ''
+                  ).trim();
+                  const statusEng = (row.status || row.fields?.['Status'] || row.vistoriaStatus || '').trim();
+                  const isFinalizado = statusEng === 'Finalizado' || row.vistoriaStatus === 'Entregue';
+                  const intervencao = row.intervencaoClaro || row.siteId;
+                  const tipoSite = row.tipoSite || row.fields?.['TIPO SITE'] || '';
+                  const regional = row.regional || row.fields?.['Regional'] || '';
+                  const tipoDoc = row.tipoDoc || row.fields?.['Tipo doc'] || '';
+                  const comentario = row.comentario || row.fields?.['Comentário'] || row.fields?.['Comentários'] || '';
+                  const planejado = row.planejado || row.fields?.['Planejado'] || row.fields?.['Data Planejada'] || '';
+                  const entregue = row.entregue || row.fields?.['Entregue'] || row.fields?.['Data Entregue'] || '';
 
                   return (
                     <div
@@ -1135,50 +1484,75 @@ export const ExecutoresInteractiveView: React.FC<ExecutoresInteractiveViewProps>
                           onChange={() => {}}
                           className="w-4 h-4 rounded text-amber-600 focus:ring-amber-500 border-slate-300 mt-0.5 shrink-0 pointer-events-none"
                         />
-                        <div className="min-w-0">
+                        <div className="min-w-0 space-y-1">
                           <div className="flex flex-wrap items-center gap-1.5">
-                            <span className="font-mono font-black text-slate-900">
-                              {row.siteId}
+                            <span className="font-mono font-black text-slate-900 text-xs">
+                              {intervencao}
                             </span>
-                            {row.ocSitePre && (
-                              <span className="px-1.5 py-0.5 bg-slate-100 text-slate-700 rounded text-[10px] font-mono">
-                                OC: {row.ocSitePre}
+
+                            {tipoDoc && (
+                              <span className="px-1.5 py-0.5 bg-amber-100 text-amber-900 rounded text-[10px] font-mono font-bold">
+                                {tipoDoc}
                               </span>
                             )}
-                            {row.enderecoId && (
-                              <span className="px-1.5 py-0.5 bg-blue-50 text-blue-800 rounded text-[10px] font-mono">
-                                {row.enderecoId}
+
+                            {regional && (
+                              <span className="px-1.5 py-0.5 bg-slate-100 text-slate-700 rounded text-[10px] font-bold">
+                                Reg: {regional}
                               </span>
                             )}
-                            {uf && (
-                              <span className="px-1.5 py-0.5 bg-slate-100 text-slate-600 rounded text-[10px] font-bold">
-                                {uf} {cidade ? `· ${cidade}` : ''}
+
+                            {tipoSite && (
+                              <span className="px-1.5 py-0.5 bg-blue-50 text-blue-800 rounded text-[10px] font-bold">
+                                {tipoSite}
                               </span>
                             )}
+
                             <span
-                              className={`px-1.5 py-0.5 rounded text-[10px] font-semibold ${
-                                isEntregue
-                                  ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                                  : 'bg-amber-50 text-amber-700 border border-amber-200'
+                              className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
+                                isFinalizado
+                                  ? 'bg-emerald-100 text-emerald-900 border border-emerald-300'
+                                  : 'bg-purple-50 text-purple-900 border border-purple-200'
                               }`}
                             >
-                              {isEntregue ? 'Entregue' : 'Pendente'}
+                              {statusEng || 'Pendente'}
                             </span>
-                          </div>
 
-                          <div className="text-[11px] text-slate-500 truncate mt-0.5 flex flex-wrap items-center gap-1.5">
-                            {projeto && <span>{projeto} ·</span>}
-                            {statusEng && (
-                              <span className="font-semibold text-slate-700">
-                                {statusEng} ·
+                            {row.isUnlinked && (
+                              <span className="px-1.5 py-0.5 bg-red-100 text-red-800 border border-red-300 rounded text-[10px] font-bold">
+                                sem vínculo
                               </span>
                             )}
-                            {currentEx ? (
-                              <span className="text-amber-800 font-semibold">
-                                Atual: {currentEx}
+
+                            {row.isRemovedRow && (
+                              <span className="px-1.5 py-0.5 bg-red-100 text-red-800 border border-red-300 rounded text-[10px] font-bold">
+                                linha removida da Engenharia
                               </span>
+                            )}
+                          </div>
+
+                          {/* Extra info for Ericsson */}
+                          <div className="text-[11px] text-slate-600 space-y-0.5">
+                            {(planejado || entregue) && (
+                              <div className="flex flex-wrap items-center gap-2 text-[10px] text-slate-500 font-mono">
+                                {planejado && <span>Plan: {planejado}</span>}
+                                {entregue && <span className="text-emerald-700 font-bold">Entregue: {entregue}</span>}
+                              </div>
+                            )}
+
+                            {comentario && (
+                              <p className="text-[10px] text-slate-500 italic truncate max-w-md flex items-center gap-1">
+                                <MessageSquare className="w-3 h-3 shrink-0 text-slate-400" />
+                                <span className="truncate">{comentario}</span>
+                              </p>
+                            )}
+
+                            {currentEx ? (
+                              <p className="text-[10px] text-amber-800 font-bold">
+                                Demandado para: {currentEx}
+                              </p>
                             ) : (
-                              <span className="text-slate-400 italic">Sem executor</span>
+                              <p className="text-[10px] text-slate-400 italic">Sem executor atribuído</p>
                             )}
                           </div>
                         </div>
@@ -1192,7 +1566,7 @@ export const ExecutoresInteractiveView: React.FC<ExecutoresInteractiveViewProps>
                             setDrawerRow(row);
                           }}
                           className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg cursor-pointer"
-                          title="Ver detalhes da planilha"
+                          title="Ver detalhes completos da linha"
                         >
                           <ExternalLink className="w-3.5 h-3.5" />
                         </button>
@@ -1206,7 +1580,7 @@ export const ExecutoresInteractiveView: React.FC<ExecutoresInteractiveViewProps>
                             }
                           }}
                           className="px-2.5 py-1 bg-white hover:bg-emerald-600 hover:text-white text-emerald-700 border border-emerald-300 rounded-lg text-[11px] font-bold transition-colors flex items-center gap-1 shrink-0 cursor-pointer shadow-2xs"
-                          title={`Mandar ${row.siteId} para ${selectedExecutor}`}
+                          title={`Mandar ${intervencao} para ${selectedExecutor}`}
                         >
                           <span>Mandar</span>
                           <ArrowRight className="w-3 h-3" />
@@ -1218,7 +1592,7 @@ export const ExecutoresInteractiveView: React.FC<ExecutoresInteractiveViewProps>
 
                 {activePickerCount === 0 && (
                   <div className="p-8 text-center text-xs text-slate-400">
-                    Nenhum site da Engenharia encontrado com este filtro.
+                    Nenhuma linha da Engenharia encontrada com os filtros selecionados.
                   </div>
                 )}
               </div>
@@ -1236,10 +1610,10 @@ export const ExecutoresInteractiveView: React.FC<ExecutoresInteractiveViewProps>
                     <UserCheck className="w-4 h-4 text-emerald-400" />
                     <div>
                       <h4 className="text-xs font-bold">
-                        3. Sites que Aparecem para "{selectedExecutor}" ({activeAssignedCount})
+                        3. Demandas de "{selectedExecutor}" ({activeAssignedCount})
                       </h4>
                       <p className="text-[11px] text-slate-400">
-                        Aparecem na Engenharia filtrados para {activeExecutorLinkedEmails[0] || 'este executor'}
+                        Linhas da Engenharia atribuídas a este executor em tempo real
                       </p>
                     </div>
                   </div>
@@ -1262,7 +1636,7 @@ export const ExecutoresInteractiveView: React.FC<ExecutoresInteractiveViewProps>
                     type="text"
                     value={assignedSearch}
                     onChange={(e) => setAssignedSearch(e.target.value)}
-                    placeholder={`Filtrar nos ${activeAssignedCount} sites deste executor...`}
+                    placeholder={`Filtrar nas ${activeAssignedCount} demandas deste executor...`}
                     className="w-full pl-8 pr-2.5 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-xs text-white placeholder-slate-400 focus:outline-none focus:border-amber-400"
                   />
                 </div>
@@ -1270,71 +1644,92 @@ export const ExecutoresInteractiveView: React.FC<ExecutoresInteractiveViewProps>
 
               <div className="divide-y divide-slate-100 max-h-[515px] overflow-y-auto">
                 {filteredAssignedRows.map((row) => {
-                  const statusEng = (row.fields?.['STATUS Engenharia'] || row.fields?.['Status'] || row.vistoriaStatus || row.status || '').trim();
-                  const statusLower = statusEng.toLowerCase();
-                  const isEntregue =
-                    row.vistoriaStatus === 'Entregue' ||
-                    row.status === 'Finalizado' ||
-                    statusLower.includes('finalizado') ||
-                    statusLower.includes('entregue') ||
-                    statusLower.includes('aprovado');
-                  const demandDate = (row.fields?.['Data de demanda'] || row.fields?.['Data Demanda'] || row.fields?.['Demanda'] || row.demanda || '').trim();
-                  const uf = (row.fields?.['Regional'] || row.fields?.['UF'] || row.regional || row.enderecoId || '').trim();
-                  const cidade = (row.fields?.['Cidade'] || '').trim();
-                  const projeto = (row.fields?.['Tipo doc'] || row.fields?.['PROJETO'] || row.fields?.['TIPO SITE'] || row.tipoDoc || '').trim();
+                  const statusEng = (row.status || row.fields?.['Status'] || row.vistoriaStatus || '').trim();
+                  const isFinalizado = statusEng === 'Finalizado' || row.vistoriaStatus === 'Entregue';
+                  const demandDate = (row.fields?.['Data Demanda'] || row.fields?.['Data de demanda'] || row.demanda || '').trim();
+                  const intervencao = row.intervencaoClaro || row.siteId;
+                  const tipoSite = row.tipoSite || row.fields?.['TIPO SITE'] || '';
+                  const regional = row.regional || row.fields?.['Regional'] || '';
+                  const tipoDoc = row.tipoDoc || row.fields?.['Tipo doc'] || '';
+                  const comentario = row.comentario || row.fields?.['Comentário'] || row.fields?.['Comentários'] || '';
+                  const planejado = row.planejado || row.fields?.['Planejado'] || row.fields?.['Data Planejada'] || '';
+                  const entregue = row.entregue || row.fields?.['Entregue'] || row.fields?.['Data Entregue'] || '';
 
                   return (
                     <div
                       key={row.id}
                       className="px-3.5 py-2.5 hover:bg-slate-50 flex items-center justify-between gap-2 text-xs"
                     >
-                      <div className="min-w-0">
+                      <div className="min-w-0 space-y-1">
                         <div className="flex flex-wrap items-center gap-1.5">
-                          <span className="font-mono font-black text-slate-900">
-                            {row.siteId}
+                          <span className="font-mono font-black text-slate-900 text-xs">
+                            {intervencao}
                           </span>
-                          {row.ocSitePre && (
-                            <span className="px-1.5 py-0.5 bg-slate-100 text-slate-700 rounded text-[10px] font-mono">
-                              OC: {row.ocSitePre}
+
+                          {tipoDoc && (
+                            <span className="px-1.5 py-0.5 bg-amber-100 text-amber-900 rounded text-[10px] font-mono font-bold">
+                              {tipoDoc}
                             </span>
                           )}
-                          {row.enderecoId && (
-                            <span className="px-1.5 py-0.5 bg-blue-50 text-blue-800 rounded text-[10px] font-mono">
-                              {row.enderecoId}
+
+                          {regional && (
+                            <span className="px-1.5 py-0.5 bg-slate-100 text-slate-700 rounded text-[10px] font-bold">
+                              Reg: {regional}
                             </span>
                           )}
-                          {uf && (
-                            <span className="px-1.5 py-0.5 bg-slate-100 text-slate-600 rounded text-[10px] font-mono">
-                              {uf} {cidade ? `· ${cidade}` : ''}
+
+                          {tipoSite && (
+                            <span className="px-1.5 py-0.5 bg-blue-50 text-blue-800 rounded text-[10px] font-bold">
+                              {tipoSite}
                             </span>
                           )}
+
                           <span
-                            className={`px-1.5 py-0.5 rounded text-[10px] font-semibold inline-flex items-center gap-1 ${
-                              isEntregue
-                                ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                                : 'bg-amber-50 text-amber-700 border border-amber-200'
+                            className={`px-1.5 py-0.5 rounded text-[10px] font-bold inline-flex items-center gap-1 ${
+                              isFinalizado
+                                ? 'bg-emerald-100 text-emerald-900 border border-emerald-300'
+                                : 'bg-purple-50 text-purple-900 border border-purple-200'
                             }`}
                           >
-                            {isEntregue ? (
-                              <CheckCircle2 className="w-3 h-3" />
+                            {isFinalizado ? (
+                              <CheckCircle2 className="w-3 h-3 text-emerald-600" />
                             ) : (
-                              <Clock className="w-3 h-3" />
+                              <Clock className="w-3 h-3 text-purple-600" />
                             )}
-                            <span>{isEntregue ? 'Entregue' : 'Pendente'}</span>
+                            <span>{statusEng || 'Pendente'}</span>
                           </span>
-                        </div>
 
-                        <div className="text-[11px] text-slate-500 truncate mt-0.5 flex flex-wrap items-center gap-1.5">
-                          {projeto && <span>{projeto} ·</span>}
-                          {statusEng && (
-                            <span className="font-semibold text-slate-700">
-                              {statusEng}
+                          {row.isUnlinked && (
+                            <span className="px-1.5 py-0.5 bg-red-100 text-red-800 border border-red-300 rounded text-[10px] font-bold">
+                              sem vínculo
                             </span>
                           )}
-                          {demandDate && (
-                            <span className="text-[10px] px-1.5 py-0.2 rounded bg-amber-50 text-amber-800 border border-amber-200">
-                              Demanda: {demandDate}
+
+                          {row.isRemovedRow && (
+                            <span className="px-1.5 py-0.5 bg-red-100 text-red-800 border border-red-300 rounded text-[10px] font-bold">
+                              linha removida da Engenharia
                             </span>
+                          )}
+                        </div>
+
+                        <div className="text-[11px] text-slate-600 space-y-0.5">
+                          {(planejado || entregue || demandDate) && (
+                            <div className="flex flex-wrap items-center gap-2 text-[10px] text-slate-500 font-mono">
+                              {demandDate && (
+                                <span className="bg-amber-50 text-amber-900 px-1.5 py-0.2 rounded border border-amber-200">
+                                  Demanda: {demandDate}
+                                </span>
+                              )}
+                              {planejado && <span>Plan: {planejado}</span>}
+                              {entregue && <span className="text-emerald-700 font-bold">Entregue: {entregue}</span>}
+                            </div>
+                          )}
+
+                          {comentario && (
+                            <p className="text-[10px] text-slate-500 italic truncate max-w-md flex items-center gap-1">
+                              <MessageSquare className="w-3 h-3 shrink-0 text-slate-400" />
+                              <span className="truncate">{comentario}</span>
+                            </p>
                           )}
                         </div>
                       </div>
@@ -1354,7 +1749,7 @@ export const ExecutoresInteractiveView: React.FC<ExecutoresInteractiveViewProps>
                           type="button"
                           onClick={() => onUnassignRowsFromExecutor([row.id], selectedExecutor)}
                           className="px-2 py-1 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 rounded-md text-[11px] font-medium cursor-pointer"
-                          title={`Desvincular ${row.siteId} deste executor`}
+                          title={`Desvincular ${intervencao} deste executor`}
                         >
                           Remover
                         </button>
@@ -1365,7 +1760,7 @@ export const ExecutoresInteractiveView: React.FC<ExecutoresInteractiveViewProps>
 
                 {activeAssignedCount === 0 && (
                   <div className="p-8 text-center text-xs text-slate-400">
-                    Nenhum site da Engenharia demandado para este executor ainda. Selecione na coluna ao lado para demandar.
+                    Nenhuma demanda da Engenharia atribuída para este executor ainda. Selecione na coluna ao lado para demandar.
                   </div>
                 )}
               </div>
@@ -1375,7 +1770,7 @@ export const ExecutoresInteractiveView: React.FC<ExecutoresInteractiveViewProps>
       </div>
 
       {/* =====================================================================
-          SLIDE-OVER DRAWER: DETALHES COMPLETOS DO SITE DA ENGENHARIA (TSSR ROW)
+          SLIDE-OVER DRAWER: DETALHES COMPLETOS DA LINHA DA ENGENHARIA ERICSSON
          ===================================================================== */}
       {drawerRow && (
         <div className="fixed inset-0 z-50 overflow-hidden flex justify-end bg-black/50 backdrop-blur-2xs animate-fadeIn">
@@ -1389,15 +1784,15 @@ export const ExecutoresInteractiveView: React.FC<ExecutoresInteractiveViewProps>
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
                     <h3 className="font-mono font-black text-sm text-white truncate">
-                      {drawerRow.siteId}
+                      {drawerRow.intervencaoClaro || drawerRow.siteId}
                     </h3>
                     <span className="px-2 py-0.5 bg-amber-400 text-slate-950 rounded text-[10px] font-bold">
-                      {drawerRow.tabName || (activeVendor === 'ERICSSON' ? 'Engenharia Ericsson' : 'TSSR TIM Nokia')}
+                      {drawerRow.tipoDoc || drawerRow.tabName || 'Engenharia Ericsson'}
                     </span>
                   </div>
                   <p className="text-[11px] text-slate-400">
-                    {drawerRow.ocSitePre ? `OC: ${drawerRow.ocSitePre} · ` : ''}
-                    {drawerRow.enderecoId ? `Endereço: ${drawerRow.enderecoId}` : ''}
+                    Regional: {drawerRow.regional || drawerRow.fields?.['Regional'] || '—'} ·
+                    Tipo Site: {drawerRow.tipoSite || drawerRow.fields?.['TIPO SITE'] || '—'}
                   </p>
                 </div>
               </div>
@@ -1416,125 +1811,108 @@ export const ExecutoresInteractiveView: React.FC<ExecutoresInteractiveViewProps>
               {/* Highlight Card: Executor & Demanda Status */}
               <div className="p-3.5 bg-amber-50/80 border-2 border-amber-300 rounded-xl space-y-2">
                 <span className="text-[10px] font-black uppercase text-amber-900 tracking-wider">
-                  Status de Demanda do Executor
+                  Status da Demanda do Executor
                 </span>
                 <div className="grid grid-cols-2 gap-2 text-xs">
                   <div>
-                    <span className="text-slate-500 block text-[10px]">Executor Atual:</span>
+                    <span className="text-slate-500 block text-[10px]">Executor Atribuído:</span>
                     <span className="font-bold text-slate-900">
-                      {drawerRow.fields?.['Executor'] || 'Nenhum'}
+                      {drawerRow.executor || drawerRow.fields?.['EXECUTOR'] || 'Nenhum'}
                     </span>
                   </div>
                   <div>
                     <span className="text-slate-500 block text-[10px]">Data de Demanda:</span>
                     <span className="font-mono font-semibold text-slate-800">
-                      {drawerRow.fields?.['Data de demanda'] || '—'}
+                      {drawerRow.demanda || drawerRow.fields?.['Data Demanda'] || '—'}
                     </span>
                   </div>
                   <div>
                     <span className="text-slate-500 block text-[10px]">STATUS Engenharia:</span>
                     <span className="font-bold text-purple-900 bg-purple-100 px-1.5 py-0.5 rounded inline-block">
-                      {drawerRow.fields?.['STATUS Engenharia'] || '—'}
+                      {drawerRow.status || drawerRow.fields?.['Status'] || '—'}
                     </span>
                   </div>
                   <div>
-                    <span className="text-slate-500 block text-[10px]">Vistoria:</span>
+                    <span className="text-slate-500 block text-[10px]">Situação:</span>
                     <span
                       className={`font-bold px-1.5 py-0.5 rounded inline-block ${
-                        drawerRow.vistoriaStatus === 'Entregue'
+                        drawerRow.status === 'Finalizado' || drawerRow.vistoriaStatus === 'Entregue'
                           ? 'bg-emerald-100 text-emerald-900'
                           : 'bg-amber-100 text-amber-900'
                       }`}
                     >
-                      {drawerRow.vistoriaStatus === 'Entregue' ? 'Entregue' : 'Pendente'}
+                      {drawerRow.status === 'Finalizado' || drawerRow.vistoriaStatus === 'Entregue'
+                        ? 'Finalizado / Entregue'
+                        : 'Pendente'}
                     </span>
                   </div>
                 </div>
               </div>
 
-              {/* Localização & Identificação */}
-              <div className="space-y-2">
-                <h4 className="font-bold text-slate-900 flex items-center gap-1.5 border-b pb-1">
-                  <MapPin className="w-4 h-4 text-slate-500" />
-                  <span>Identificação & Localização</span>
-                </h4>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                  <div className="p-2 bg-slate-50 rounded-lg">
-                    <span className="text-[10px] text-slate-500 block">Site Id:</span>
-                    <span className="font-mono font-bold text-slate-900">{drawerRow.siteId}</span>
-                  </div>
-                  <div className="p-2 bg-slate-50 rounded-lg">
-                    <span className="text-[10px] text-slate-500 block">OC Site Pre:</span>
-                    <span className="font-mono font-bold text-slate-900">
-                      {drawerRow.ocSitePre || drawerRow.fields?.['Oc Site Pre'] || '—'}
-                    </span>
-                  </div>
-                  <div className="p-2 bg-slate-50 rounded-lg">
-                    <span className="text-[10px] text-slate-500 block">Enderecoid:</span>
-                    <span className="font-mono font-bold text-slate-900">
-                      {drawerRow.enderecoId || drawerRow.fields?.['Enderecoid'] || '—'}
-                    </span>
-                  </div>
-                  <div className="p-2 bg-slate-50 rounded-lg">
-                    <span className="text-[10px] text-slate-500 block">Regional (Reg):</span>
-                    <span className="font-bold text-slate-900">{drawerRow.fields?.['Reg'] || '—'}</span>
-                  </div>
-                  <div className="p-2 bg-slate-50 rounded-lg">
-                    <span className="text-[10px] text-slate-500 block">UF:</span>
-                    <span className="font-bold text-slate-900">{drawerRow.fields?.['UF'] || '—'}</span>
-                  </div>
-                  <div className="p-2 bg-slate-50 rounded-lg">
-                    <span className="text-[10px] text-slate-500 block">Cidade:</span>
-                    <span className="font-bold text-slate-900">{drawerRow.fields?.['Cidade'] || '—'}</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Projeto & Escopo */}
+              {/* Identificação & Projeto */}
               <div className="space-y-2">
                 <h4 className="font-bold text-slate-900 flex items-center gap-1.5 border-b pb-1">
                   <Tag className="w-4 h-4 text-slate-500" />
-                  <span>Projeto & Engenharia</span>
+                  <span>Informações da Engenharia Ericsson</span>
                 </h4>
                 <div className="grid grid-cols-2 gap-2">
                   <div className="p-2 bg-slate-50 rounded-lg">
-                    <span className="text-[10px] text-slate-500 block">PROJETO:</span>
-                    <span className="font-bold text-slate-900">{drawerRow.fields?.['PROJETO'] || '—'}</span>
-                  </div>
-                  <div className="p-2 bg-slate-50 rounded-lg">
-                    <span className="text-[10px] text-slate-500 block">DETENTORA:</span>
-                    <span className="font-bold text-slate-900">{drawerRow.fields?.['DETENTORA'] || '—'}</span>
-                  </div>
-                  <div className="p-2 bg-slate-50 rounded-lg">
-                    <span className="text-[10px] text-slate-500 block">DEMANDA RECEBIDA:</span>
-                    <span className="font-mono text-slate-800">
-                      {drawerRow.fields?.['DEMANDA RECEBIDA'] || '—'}
+                    <span className="text-[10px] text-slate-500 block">Intervenção Claro:</span>
+                    <span className="font-mono font-bold text-slate-900">
+                      {drawerRow.intervencaoClaro || drawerRow.siteId}
                     </span>
                   </div>
                   <div className="p-2 bg-slate-50 rounded-lg">
-                    <span className="text-[10px] text-slate-500 block">TIPO DE DOC:</span>
-                    <span className="font-bold text-slate-900">{drawerRow.fields?.['TIPO DE DOC'] || '—'}</span>
-                  </div>
-                  <div className="p-2 bg-slate-50 rounded-lg">
-                    <span className="text-[10px] text-slate-500 block">Prioridade Homero:</span>
+                    <span className="text-[10px] text-slate-500 block">Tipo de Doc (Projeto):</span>
                     <span className="font-bold text-slate-900">
-                      {drawerRow.fields?.['Prioridade Homero'] || '—'}
+                      {drawerRow.tipoDoc || drawerRow.fields?.['Tipo doc'] || '—'}
                     </span>
                   </div>
                   <div className="p-2 bg-slate-50 rounded-lg">
-                    <span className="text-[10px] text-slate-500 block">Plan Entrega:</span>
+                    <span className="text-[10px] text-slate-500 block">Regional:</span>
+                    <span className="font-bold text-slate-900">
+                      {drawerRow.regional || drawerRow.fields?.['Regional'] || '—'}
+                    </span>
+                  </div>
+                  <div className="p-2 bg-slate-50 rounded-lg">
+                    <span className="text-[10px] text-slate-500 block">Tipo Site:</span>
+                    <span className="font-bold text-slate-900">
+                      {drawerRow.tipoSite || drawerRow.fields?.['TIPO SITE'] || '—'}
+                    </span>
+                  </div>
+                  <div className="p-2 bg-slate-50 rounded-lg">
+                    <span className="text-[10px] text-slate-500 block">Data Planejada:</span>
                     <span className="font-mono text-slate-800">
-                      {drawerRow.fields?.['Plan entrega'] || '—'}
+                      {drawerRow.planejado || drawerRow.fields?.['Planejado'] || '—'}
+                    </span>
+                  </div>
+                  <div className="p-2 bg-slate-50 rounded-lg">
+                    <span className="text-[10px] text-slate-500 block">Data Entregue:</span>
+                    <span className="font-mono text-emerald-800 font-bold">
+                      {drawerRow.entregue || drawerRow.fields?.['Entregue'] || '—'}
                     </span>
                   </div>
                 </div>
               </div>
 
-              {/* Arquivos de Vistoria / TSSR */}
+              {/* Comentário */}
+              <div className="space-y-2">
+                <h4 className="font-bold text-slate-900 flex items-center gap-1.5 border-b pb-1">
+                  <MessageSquare className="w-4 h-4 text-slate-500" />
+                  <span>Comentário</span>
+                </h4>
+                <div className="p-3 bg-slate-50 rounded-xl text-slate-700 leading-relaxed font-sans">
+                  {drawerRow.comentario || drawerRow.fields?.['Comentário'] || drawerRow.fields?.['Comentários'] || (
+                    <span className="text-slate-400 italic">Nenhum comentário registrado.</span>
+                  )}
+                </div>
+              </div>
+
+              {/* Arquivos do Projeto */}
               <div className="space-y-2">
                 <h4 className="font-bold text-slate-900 flex items-center gap-1.5 border-b pb-1">
                   <FileSpreadsheet className="w-4 h-4 text-slate-500" />
-                  <span>Documento & Upload</span>
+                  <span>Arquivos do Projeto</span>
                 </h4>
                 {drawerRow.vistoriaFileName ? (
                   <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl space-y-1">
@@ -1542,16 +1920,6 @@ export const ExecutoresInteractiveView: React.FC<ExecutoresInteractiveViewProps>
                       <CheckCircle2 className="w-4 h-4 text-emerald-600" />
                       <span className="truncate">{drawerRow.vistoriaFileName}</span>
                     </div>
-                    {drawerRow.vistoriaDeliveredAt && (
-                      <p className="text-[10px] text-emerald-800">
-                        Entregue em: {new Date(drawerRow.vistoriaDeliveredAt).toLocaleString('pt-BR')}
-                      </p>
-                    )}
-                    {drawerRow.vistoriaUploadedBy && (
-                      <p className="text-[10px] text-emerald-800">
-                        Enviado por: {drawerRow.vistoriaUploadedBy} ({drawerRow.vistoriaUploadedByEmail})
-                      </p>
-                    )}
                     {drawerRow.vistoriaDownloadUrl && (
                       <a
                         href={drawerRow.vistoriaDownloadUrl}
@@ -1564,7 +1932,7 @@ export const ExecutoresInteractiveView: React.FC<ExecutoresInteractiveViewProps>
                     )}
                   </div>
                 ) : (
-                  <p className="text-slate-400 italic">Nenhum arquivo de vistoria enviado ainda.</p>
+                  <p className="text-slate-400 italic">Nenhum arquivo enviado para esta linha ainda.</p>
                 )}
               </div>
             </div>

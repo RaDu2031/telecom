@@ -586,6 +586,12 @@ export interface EngineeringFile {
   fileSize: number; // in bytes
   siteId?: string; // Optional linked Site ID e.g. "SN-OI65J2"
   rowId?: string; // Optional linked Ericsson or custom row ID
+  engineeringRowId?: string; // Optional linked Ericsson Engineering row ID
+  intervencaoClaro?: string; // Optional linked Intervencao Claro
+  tipoDoc?: string; // Optional linked Tipo de doc (WR, QRF, PPI, SDC, SMART, BOQ)
+  docGroup?: string;
+  status?: string; // Status of the linked document/site
+  regional?: string; // Regional of the linked document/site
   ocSitePre?: string; // Optional linked Work Order / Oc Site Pre
   tssrRowId?: string; // Optional linked row ID in TSSR TIM Nokia
   notes?: string;
@@ -980,6 +986,99 @@ export const ERICSSON_SITE_LIST_COLUMNS: string[] = [
 export type EricssonDocGroup = 'WR' | 'QRF' | 'PPI' | 'BOQ' | 'SMART' | 'SDC';
 export type EricssonDocStatusCategory = 'Finalizado' | 'Em produção' | 'Pendente' | 'Dúvida';
 
+export const ERICSSON_REAL_STATUSES_BY_DOC: Record<EricssonDocGroup, string[]> = {
+  WR: [
+    'Finalizado',
+    'Documentação paralisada',
+    'Demanda cancelada',
+    'Em correção',
+    'Pendente Verificação EDB',
+    'Pendente PE',
+    'Pendente - Dúvida',
+    'Pendente Vistoria',
+    'Em produção',
+  ],
+  QRF: [
+    'Aguardando Predecessor',
+    'Finalizado',
+    'Em correção',
+    'Demanda cancelada',
+    'Documentação paralisada',
+    'Pendente - Dúvida',
+    'Pronto para envio',
+    'Em produção',
+  ],
+  PPI: [
+    'Finalizado',
+    'Documentação paralisada',
+    'Em correção',
+    'Demanda cancelada',
+    'Aguardando Predecessor',
+    'Pendente - Dúvida',
+    'Pendente PE',
+    'Pronto para envio',
+    'Em produção',
+  ],
+  SDC: [
+    'Finalizado',
+    'Documentação paralisada',
+    'Em correção',
+    'Demanda cancelada',
+    'Aguardando Predecessor',
+    'Pendente - Dúvida',
+    'Em produção',
+  ],
+  SMART: [
+    'Finalizado',
+    'Demanda cancelada',
+    'Pendente Verificação EDB',
+    'Em correção',
+    'Pendente - Dúvida',
+    'Em produção',
+  ],
+  BOQ: [
+    'Finalizado',
+    'BoQ-Pendencia',
+    'Em produção',
+    'Demanda cancelada',
+  ],
+};
+
+export interface EricssonAttachedFile {
+  id: string;
+  name: string;
+  url: string;
+  uploadedBy?: string;
+  uploadedByEmail?: string;
+  uploadedAt: string;
+  sizeBytes?: number;
+}
+
+export interface EricssonAuditLogEntry {
+  id: string;
+  user: string;
+  userEmail?: string;
+  timestamp: string;
+  action: string;
+  details?: string;
+  fieldChanges?: Record<string, { old: string; new: string }>;
+}
+
+export interface EricssonReprovacaoRecord {
+  id: string;
+  rowId?: string;
+  intervencaoClaro: string;
+  tipoDoc: EricssonDocGroup | string;
+  executor: string; // Quem reprovou ou executor responsável
+  motivo: string;
+  dataReprovacao: string; // YYYY-MM-DD ou ISO
+  regional?: string;
+  tipoSite?: string;
+  statusOriginal?: string;
+  createdAt?: string;
+  createdBy?: string;
+}
+
 export interface EricssonEngineeringRow {
   id: string;
   rowKey: string;
@@ -1001,16 +1100,21 @@ export interface EricssonEngineeringRow {
   attachedFileUrl?: string;
   attachedUploadedBy?: string;
   attachedUploadedAt?: string;
+  attachedFiles?: EricssonAttachedFile[];
+  history?: EricssonAuditLogEntry[];
+  reprovacoes?: EricssonReprovacaoRecord[];
   updatedAt: string;
 }
 
 export interface EricssonDocItemStats {
   total: number;
   finalizado: number;
-  emProducao: number;
-  pendente: number;
-  duvida: number;
-  outros: number;
+  taxaFinalizacao: number;
+  emProducao?: number;
+  pendente?: number;
+  duvida?: number;
+  outros?: number;
+  statusCounts: Record<string, number>;
 }
 
 export interface EricssonConsolidatedStats {

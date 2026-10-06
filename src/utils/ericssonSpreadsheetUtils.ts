@@ -2,12 +2,15 @@ import * as XLSX from 'xlsx';
 import {
   ERICSSON_ORIGINAL_COLUMNS,
   ERICSSON_SITE_LIST_COLUMNS,
+  ERICSSON_REAL_STATUSES_BY_DOC,
   EricssonRow,
   EricssonEngineeringRow,
   EricssonDocGroup,
   EricssonDocStatusCategory,
   EricssonConsolidatedStats,
+  EricssonDocItemStats,
   EricssonVistoriaStatus,
+  EricssonReprovacaoRecord,
 } from '../types/telecom';
 
 function normalizeHeader(h: unknown): string {
@@ -552,55 +555,313 @@ export function classifyEricssonStatus(statusRaw: string): EricssonDocStatusCate
   return 'Pendente';
 }
 
+export interface EricssonRealStatusStyle {
+  label: string;
+  bgClass: string;
+  textClass: string;
+  borderClass: string;
+  badgeClass: string;
+  hex: string;
+}
+
+export function getEricssonRealStatusStyle(statusName: string): EricssonRealStatusStyle {
+  const norm = String(statusName || '').trim();
+  const lower = norm.toLowerCase();
+
+  if (lower === 'finalizado' || lower.includes('finaliz')) {
+    return {
+      label: 'Finalizado',
+      bgClass: 'bg-emerald-500',
+      textClass: 'text-emerald-700',
+      borderClass: 'border-emerald-200',
+      badgeClass: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+      hex: '#10b981',
+    };
+  }
+  if (lower === 'em produção' || lower === 'em producao' || lower.includes('produ')) {
+    return {
+      label: 'Em produção',
+      bgClass: 'bg-blue-500',
+      textClass: 'text-blue-700',
+      borderClass: 'border-blue-200',
+      badgeClass: 'bg-blue-50 text-blue-700 border-blue-200',
+      hex: '#3b82f6',
+    };
+  }
+  if (lower === 'em correção' || lower === 'em correcao' || lower.includes('corre')) {
+    return {
+      label: 'Em correção',
+      bgClass: 'bg-amber-500',
+      textClass: 'text-amber-800',
+      borderClass: 'border-amber-300',
+      badgeClass: 'bg-amber-50 text-amber-800 border-amber-300',
+      hex: '#f59e0b',
+    };
+  }
+  if (lower.includes('paralisad')) {
+    return {
+      label: 'Documentação paralisada',
+      bgClass: 'bg-slate-500',
+      textClass: 'text-slate-700',
+      borderClass: 'border-slate-300',
+      badgeClass: 'bg-slate-100 text-slate-700 border-slate-300',
+      hex: '#64748b',
+    };
+  }
+  if (lower.includes('cancelad')) {
+    return {
+      label: 'Demanda cancelada',
+      bgClass: 'bg-rose-500',
+      textClass: 'text-rose-700',
+      borderClass: 'border-rose-200',
+      badgeClass: 'bg-rose-50 text-rose-700 border-rose-200',
+      hex: '#ef4444',
+    };
+  }
+  if (lower.includes('dúvida') || lower.includes('duvida')) {
+    return {
+      label: 'Pendente - Dúvida',
+      bgClass: 'bg-purple-500',
+      textClass: 'text-purple-700',
+      borderClass: 'border-purple-200',
+      badgeClass: 'bg-purple-50 text-purple-700 border-purple-200',
+      hex: '#8b5cf6',
+    };
+  }
+  if (lower.includes('verificação edb') || lower.includes('verificacao edb') || lower.includes('edb')) {
+    return {
+      label: 'Pendente Verificação EDB',
+      bgClass: 'bg-indigo-500',
+      textClass: 'text-indigo-700',
+      borderClass: 'border-indigo-200',
+      badgeClass: 'bg-indigo-50 text-indigo-700 border-indigo-200',
+      hex: '#6366f1',
+    };
+  }
+  if (lower.includes('pendente pe') || lower === 'pe') {
+    return {
+      label: 'Pendente PE',
+      bgClass: 'bg-cyan-500',
+      textClass: 'text-cyan-700',
+      borderClass: 'border-cyan-200',
+      badgeClass: 'bg-cyan-50 text-cyan-700 border-cyan-200',
+      hex: '#06b6d4',
+    };
+  }
+  if (lower.includes('vistoria')) {
+    return {
+      label: 'Pendente Vistoria',
+      bgClass: 'bg-teal-500',
+      textClass: 'text-teal-700',
+      borderClass: 'border-teal-200',
+      badgeClass: 'bg-teal-50 text-teal-700 border-teal-200',
+      hex: '#14b8a6',
+    };
+  }
+  if (lower.includes('predecessor')) {
+    return {
+      label: 'Aguardando Predecessor',
+      bgClass: 'bg-orange-500',
+      textClass: 'text-orange-700',
+      borderClass: 'border-orange-200',
+      badgeClass: 'bg-orange-50 text-orange-700 border-orange-200',
+      hex: '#f97316',
+    };
+  }
+  if (lower.includes('pronto') || lower.includes('envio')) {
+    return {
+      label: 'Pronto para envio',
+      bgClass: 'bg-lime-500',
+      textClass: 'text-lime-800',
+      borderClass: 'border-lime-300',
+      badgeClass: 'bg-lime-50 text-lime-800 border-lime-300',
+      hex: '#84cc16',
+    };
+  }
+  if (lower.includes('pendencia') || lower.includes('pendência')) {
+    return {
+      label: 'BoQ-Pendencia',
+      bgClass: 'bg-yellow-500',
+      textClass: 'text-yellow-800',
+      borderClass: 'border-yellow-300',
+      badgeClass: 'bg-yellow-50 text-yellow-800 border-yellow-300',
+      hex: '#eab308',
+    };
+  }
+
+  return {
+    label: norm || 'Pendente',
+    bgClass: 'bg-slate-400',
+    textClass: 'text-slate-700',
+    borderClass: 'border-slate-200',
+    badgeClass: 'bg-slate-100 text-slate-700 border-slate-200',
+    hex: '#94a3b8',
+  };
+}
+
+export function normalizeEricssonRealStatus(
+  rawStatus: string | undefined | null,
+  docGroup?: EricssonDocGroup
+): string {
+  const clean = String(rawStatus || '').trim();
+  if (!clean) return 'Em produção';
+
+  if (docGroup && ERICSSON_REAL_STATUSES_BY_DOC[docGroup]) {
+    const list = ERICSSON_REAL_STATUSES_BY_DOC[docGroup];
+    const exact = list.find((s) => s.toLowerCase() === clean.toLowerCase());
+    if (exact) return exact;
+
+    const norm = clean.toLowerCase();
+    if (norm.includes('finaliz')) return 'Finalizado';
+    if (norm.includes('paralisad')) return 'Documentação paralisada';
+    if (norm.includes('cancelad')) return 'Demanda cancelada';
+    if (norm.includes('corre')) return 'Em correção';
+    if (norm.includes('predecessor')) return 'Aguardando Predecessor';
+    if (norm.includes('edb')) return 'Pendente Verificação EDB';
+    if (norm.includes('pe')) return 'Pendente PE';
+    if (norm.includes('vistoria')) return 'Pendente Vistoria';
+    if (norm.includes('duvida') || norm.includes('dúvida')) return 'Pendente - Dúvida';
+    if (norm.includes('pronto') || norm.includes('envio')) return 'Pronto para envio';
+    if (norm.includes('pendencia') || norm.includes('pendência')) return 'BoQ-Pendencia';
+    if (norm.includes('produ')) return 'Em produção';
+  }
+
+  return clean;
+}
+
+export function isEricssonRowReproved(
+  row: EricssonEngineeringRow,
+  allReprovacoes?: EricssonReprovacaoRecord[]
+): boolean {
+  const status = (row.status || row.fields?.['Status'] || '').trim().toLowerCase();
+
+  // If status is Finalizado, Pronto para envio, Demanda cancelada or Em produção without reproval, it is not reproved
+  if (status.includes('finaliz') || status.includes('pronto') || status === 'em produção' || status === 'em producao') {
+    // Only reproved if an explicit manual reproval record exists for this specific row/site
+    if (Array.isArray(row.reprovacoes) && row.reprovacoes.length > 0) return true;
+    if (allReprovacoes && allReprovacoes.length > 0) {
+      const rowId = row.id;
+      const interv = (row.intervencaoClaro || row.siteIdA || '').trim().toLowerCase();
+      return allReprovacoes.some(
+        (rep) =>
+          rep.rowId === rowId ||
+          (interv && rep.intervencaoClaro && rep.intervencaoClaro.trim().toLowerCase() === interv)
+      );
+    }
+    return false;
+  }
+
+  // True reproval / correction statuses from Ericsson engineering
+  if (
+    status === 'em correção' ||
+    status === 'em correcao' ||
+    status === 'boq-pendencia' ||
+    status.includes('corre') ||
+    status.includes('reprov') ||
+    status.includes('revisar')
+  ) {
+    return true;
+  }
+
+  // Check explicit reprovação collections
+  if (Array.isArray(row.reprovacoes) && row.reprovacoes.length > 0) {
+    return true;
+  }
+
+  const mot = row.fields?.['MOTIVO REPROVAÇÃO'] || row.fields?.['REPROVAÇÃO'];
+  if (mot && mot.trim() && mot.trim() !== '—' && mot.trim() !== '-' && mot.trim() !== 'N/A') {
+    return true;
+  }
+
+  if (allReprovacoes && allReprovacoes.length > 0) {
+    const rowId = row.id;
+    const interv = (row.intervencaoClaro || row.siteIdA || '').trim().toLowerCase();
+    const matches = allReprovacoes.some(
+      (rep) =>
+        rep.rowId === rowId ||
+        (interv && rep.intervencaoClaro && rep.intervencaoClaro.trim().toLowerCase() === interv)
+    );
+    if (matches) return true;
+  }
+
+  return false;
+}
+
 export function computeEricssonConsolidatedStats(
   rows: EricssonEngineeringRow[]
 ): EricssonConsolidatedStats {
-  const initGroup = () => ({
-    total: 0,
-    finalizado: 0,
-    emProducao: 0,
-    pendente: 0,
-    duvida: 0,
-    outros: 0,
-  });
+  const createDocStats = (docGroup: EricssonDocGroup): EricssonDocItemStats => {
+    const statusCounts: Record<string, number> = {};
+    ERICSSON_REAL_STATUSES_BY_DOC[docGroup].forEach((st) => {
+      statusCounts[st] = 0;
+    });
+
+    return {
+      total: 0,
+      finalizado: 0,
+      taxaFinalizacao: 0,
+      emProducao: 0,
+      pendente: 0,
+      duvida: 0,
+      outros: 0,
+      statusCounts,
+    };
+  };
 
   const stats: EricssonConsolidatedStats = {
     totalRows: rows.length,
-    wr: initGroup(),
-    qrf: initGroup(),
-    ppi: initGroup(),
-    boq: initGroup(),
-    smart: initGroup(),
-    sdc: initGroup(),
+    wr: createDocStats('WR'),
+    qrf: createDocStats('QRF'),
+    ppi: createDocStats('PPI'),
+    boq: createDocStats('BOQ'),
+    smart: createDocStats('SMART'),
+    sdc: createDocStats('SDC'),
     outrosDocs: 0,
   };
 
   rows.forEach((r) => {
     const rawTipo = String(r.tipoDoc || r.fields?.['Tipo doc'] || '').toUpperCase();
-    const statusCat = classifyEricssonStatus(r.status || r.fields?.['Status'] || '');
+    const rawStatus = (r.status || r.fields?.['Status'] || '').trim();
 
-    let matchedAny = false;
+    let matched = false;
 
-    const assignTo = (group: typeof stats.wr) => {
-      group.total++;
-      if (statusCat === 'Finalizado') group.finalizado++;
-      else if (statusCat === 'Em produção') group.emProducao++;
-      else if (statusCat === 'Pendente') group.pendente++;
-      else if (statusCat === 'Dúvida') group.duvida++;
-      else group.outros++;
-      matchedAny = true;
+    const recordForGroup = (docGroup: EricssonDocGroup, groupStats: EricssonDocItemStats) => {
+      matched = true;
+      groupStats.total++;
+      const realStatus = normalizeEricssonRealStatus(rawStatus, docGroup);
+      groupStats.statusCounts[realStatus] = (groupStats.statusCounts[realStatus] || 0) + 1;
+      if (realStatus === 'Finalizado') {
+        groupStats.finalizado++;
+      } else if (realStatus === 'Em produção') {
+        groupStats.emProducao = (groupStats.emProducao || 0) + 1;
+      }
     };
 
-    if (rawTipo.includes('WR')) assignTo(stats.wr);
-    if (rawTipo.includes('QRF')) assignTo(stats.qrf);
-    if (rawTipo.includes('PPI')) assignTo(stats.ppi);
-    if (rawTipo.includes('BOQ')) assignTo(stats.boq);
-    if (rawTipo.includes('SMART')) assignTo(stats.smart);
-    if (rawTipo.includes('SDC')) assignTo(stats.sdc);
+    if (rawTipo.includes('WR')) recordForGroup('WR', stats.wr);
+    if (rawTipo.includes('QRF')) recordForGroup('QRF', stats.qrf);
+    if (rawTipo.includes('PPI')) recordForGroup('PPI', stats.ppi);
+    if (rawTipo.includes('BOQ')) recordForGroup('BOQ', stats.boq);
+    if (rawTipo.includes('SMART')) recordForGroup('SMART', stats.smart);
+    if (rawTipo.includes('SDC')) recordForGroup('SDC', stats.sdc);
 
-    if (!matchedAny) {
+    if (!matched) {
       stats.outrosDocs++;
     }
+  });
+
+  // Compute Taxa de Finalização (%) for each document group
+  const docGroups: (keyof Pick<EricssonConsolidatedStats, 'wr' | 'qrf' | 'ppi' | 'boq' | 'smart' | 'sdc'>)[] = [
+    'wr',
+    'qrf',
+    'ppi',
+    'boq',
+    'smart',
+    'sdc',
+  ];
+
+  docGroups.forEach((g) => {
+    const item = stats[g];
+    item.taxaFinalizacao = item.total > 0 ? Number(((item.finalizado / item.total) * 100).toFixed(1)) : 0;
   });
 
   return stats;
@@ -708,7 +969,13 @@ export function parseEricssonEngineeringWorkbookBuffer(buffer: ArrayBuffer): {
       status: statusVal,
       regional: fields['Regional'] || '',
       tipoSite: fields['TIPO SITE'] || '',
-      executor: fields['EXECUTOR'] || '',
+      executor:
+        fields['EXECUTOR'] ||
+        fields['EXECUTOR WR'] ||
+        fields['EXECUTOR QRF'] ||
+        fields['EXECUTOR PPI'] ||
+        fields['Executor'] ||
+        '',
       fields,
       siteAVistoriaStatus: 'Pendente',
       siteBVistoriaStatus: siteIdB ? 'Pendente' : undefined,
@@ -768,7 +1035,11 @@ export function exportEricssonEngineeringToCsv(
 }
 
 function normalizeAccents(str: string): string {
-  return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  return String(str || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim();
 }
 
 export function isEricssonRowAssignedToExecutor(
@@ -776,31 +1047,43 @@ export function isEricssonRowAssignedToExecutor(
   executorName: string
 ): boolean {
   if (!executorName) return false;
-  const exCandidates = [
+  const rawCandidates = [
     row.executor,
     row.fields?.['EXECUTOR'],
     row.fields?.['EXECUTOR PPI'],
     row.fields?.['EXECUTOR QRF'],
     row.fields?.['EXECUTOR WR'],
     row.fields?.['Executor'],
-  ]
-    .filter(Boolean)
-    .map((v) => normalizeAccents(String(v).toLowerCase().trim()));
+  ].filter(Boolean);
 
-  if (exCandidates.length === 0) return false;
+  if (rawCandidates.length === 0) return false;
 
-  const targetNorm = normalizeAccents(executorName.toLowerCase().trim());
+  const targetNorm = normalizeAccents(executorName).replace(/\*+/g, '').trim();
+  if (!targetNorm) return false;
 
-  return exCandidates.some((c) => {
-    if (c === targetNorm) return true;
+  return rawCandidates.some((raw) => {
+    const cleanRaw = normalizeAccents(String(raw || '')).replace(/\*+/g, '').trim();
+    if (!cleanRaw) return false;
+    if (cleanRaw === targetNorm) return true;
+
+    // Check slash or ampersand splits (e.g. Fulvio / Alex or Felipe Pimentel / Tatiane Brandão)
+    const slashParts = cleanRaw.split(/[\/\&]/).map((p) => p.trim());
+    if (slashParts.some((p) => p === targetNorm || p.includes(targetNorm) || targetNorm.includes(p))) {
+      return true;
+    }
+
     const insideParen = targetNorm.match(/\((.*?)\)/)?.[1];
-    if (insideParen && (c.includes(insideParen) || insideParen.includes(c))) return true;
+    if (insideParen && (cleanRaw.includes(insideParen) || insideParen.includes(cleanRaw))) return true;
     const mainName = targetNorm.replace(/\(.*?\)/g, '').trim();
-    if (mainName && (c.includes(mainName) || mainName.includes(c))) return true;
-    const targetWords = targetNorm.split(/\s+/).filter((w: string) => w.length > 2);
-    const candWords = c.split(/\s+/).filter((w: string) => w.length > 2);
-    const commonWords = targetWords.filter((w: string) => candWords.includes(w));
-    return commonWords.length >= 2;
+    if (mainName && (cleanRaw === mainName || cleanRaw.startsWith(mainName + ' ') || cleanRaw.endsWith(' ' + mainName))) return true;
+
+    const targetWords = targetNorm.split(/\s+/).filter((w) => w.length > 2);
+    const candWords = cleanRaw.split(/\s+/).filter((w) => w.length > 2);
+    if (targetWords.length === 1 && candWords.length >= 1) {
+      if (candWords.includes(targetWords[0])) return true;
+    }
+    const commonWords = targetWords.filter((w) => candWords.includes(w));
+    return commonWords.length >= 2 || (targetWords.length === 1 && commonWords.length === 1);
   });
 }
 

@@ -28,6 +28,7 @@ import {
   ERICSSON_ORIGINAL_COLUMNS,
   ERICSSON_SITE_LIST_COLUMNS,
   EricssonEngineeringRow,
+  EricssonReprovacaoRecord,
   EricssonColaborador,
   DEFAULT_ERICSSON_COLABORADORES,
   AmetaNotification,
@@ -85,6 +86,7 @@ interface DatabaseSchema {
     columns: string[];
   };
   ericsson_colaboradores?: EricssonColaborador[];
+  ericsson_engenharia_reprovacoes?: EricssonReprovacaoRecord[];
   ericssonExecutorEmailsMap?: Record<string, string[]>;
   ericssonDuplaEmailsMap?: Record<string, string[]>;
   notifications?: AmetaNotification[];
@@ -807,35 +809,187 @@ function ensureEricssonSeedAndUsers(db: DatabaseSchema): boolean {
     changed = true;
   }
 
-  // Ensure the clean Ericsson root folder exists
-  if (!db.ericssonFolders.some((f) => f.id === 'folder-ericsson-root')) {
-    db.ericssonFolders.unshift({
+  // -------------------------------------------------------------------------
+  // ERICSSON FOLDERS: Restructure into PROJETO CLARO root with exactly 2 main subfolders:
+  // 1. VISTORIA ('folder-ericsson-vistoria')
+  // 2. PROJETO CLARO ('folder-ericsson-projetos') -> contains WR, QRF, PPI, SDC, SMART, BOQ
+  // -------------------------------------------------------------------------
+  const requiredEricFolders: EngineeringFolder[] = [
+    {
       id: 'folder-ericsson-root',
       parentId: null,
-      name: 'Vistoria Ericsson',
+      name: 'PROJETO CLARO',
       vendor: 'ERICSSON',
-      description: 'Repositório exclusivo de Vistoria e LOS do sistema Ericsson',
+      description: 'Área principal do Projeto Claro Ericsson',
       createdByName: 'Rafael Araújo',
       createdByEmail: 'rafael.araujo@ametaservicos.com.br',
       createdAt: '2026-09-29T14:00:00.000Z',
       isSystem: true,
-    });
-    changed = true;
-  }
+    },
+    {
+      id: 'folder-ericsson-vistoria',
+      parentId: 'folder-ericsson-root',
+      name: 'VISTORIA',
+      vendor: 'ERICSSON',
+      description: 'Arquivos de Vistoria e LOS vinculados à planilha Sites Ericsson',
+      createdByName: 'Rafael Araújo',
+      createdByEmail: 'rafael.araujo@ametaservicos.com.br',
+      createdAt: '2026-09-29T14:00:00.000Z',
+      isSystem: true,
+    },
+    {
+      id: 'folder-ericsson-projetos',
+      parentId: 'folder-ericsson-root',
+      name: 'PROJETO CLARO',
+      vendor: 'ERICSSON',
+      description: 'Pastas de documentação técnica dos projetos (WR, QRF, PPI, SDC, SMART, BOQ)',
+      createdByName: 'Rafael Araújo',
+      createdByEmail: 'rafael.araujo@ametaservicos.com.br',
+      createdAt: '2026-09-29T14:00:00.000Z',
+      isSystem: true,
+    },
+    {
+      id: 'folder-ericsson-proj-wr',
+      parentId: 'folder-ericsson-projetos',
+      name: 'WR',
+      vendor: 'ERICSSON',
+      description: 'Documentos do projeto WR vinculados à Engenharia Ericsson',
+      createdByName: 'Rafael Araújo',
+      createdByEmail: 'rafael.araujo@ametaservicos.com.br',
+      createdAt: '2026-09-29T14:00:00.000Z',
+      isSystem: true,
+    },
+    {
+      id: 'folder-ericsson-proj-qrf',
+      parentId: 'folder-ericsson-projetos',
+      name: 'QRF',
+      vendor: 'ERICSSON',
+      description: 'Documentos do projeto QRF vinculados à Engenharia Ericsson',
+      createdByName: 'Rafael Araújo',
+      createdByEmail: 'rafael.araujo@ametaservicos.com.br',
+      createdAt: '2026-09-29T14:00:00.000Z',
+      isSystem: true,
+    },
+    {
+      id: 'folder-ericsson-proj-ppi',
+      parentId: 'folder-ericsson-projetos',
+      name: 'PPI',
+      vendor: 'ERICSSON',
+      description: 'Documentos do projeto PPI vinculados à Engenharia Ericsson',
+      createdByName: 'Rafael Araújo',
+      createdByEmail: 'rafael.araujo@ametaservicos.com.br',
+      createdAt: '2026-09-29T14:00:00.000Z',
+      isSystem: true,
+    },
+    {
+      id: 'folder-ericsson-proj-sdc',
+      parentId: 'folder-ericsson-projetos',
+      name: 'SDC',
+      vendor: 'ERICSSON',
+      description: 'Documentos do projeto SDC vinculados à Engenharia Ericsson',
+      createdByName: 'Rafael Araújo',
+      createdByEmail: 'rafael.araujo@ametaservicos.com.br',
+      createdAt: '2026-09-29T14:00:00.000Z',
+      isSystem: true,
+    },
+    {
+      id: 'folder-ericsson-proj-smart',
+      parentId: 'folder-ericsson-projetos',
+      name: 'SMART',
+      vendor: 'ERICSSON',
+      description: 'Documentos do projeto SMART vinculados à Engenharia Ericsson',
+      createdByName: 'Rafael Araújo',
+      createdByEmail: 'rafael.araujo@ametaservicos.com.br',
+      createdAt: '2026-09-29T14:00:00.000Z',
+      isSystem: true,
+    },
+    {
+      id: 'folder-ericsson-proj-boq',
+      parentId: 'folder-ericsson-projetos',
+      name: 'BOQ',
+      vendor: 'ERICSSON',
+      description: 'Documentos do projeto BOQ vinculados à Engenharia Ericsson',
+      createdByName: 'Rafael Araújo',
+      createdByEmail: 'rafael.araujo@ametaservicos.com.br',
+      createdAt: '2026-09-29T14:00:00.000Z',
+      isSystem: true,
+    },
+  ];
 
-  // Ensure any custom Ericsson folders have valid parentId pointing to folder-ericsson-root or another valid Ericsson folder
-  const validEricFolderIds = new Set(db.ericssonFolders.map((f) => f.id));
-  db.ericssonFolders.forEach((f) => {
-    if (f.id !== 'folder-ericsson-root' && (!f.parentId || !validEricFolderIds.has(f.parentId))) {
-      f.parentId = 'folder-ericsson-root';
+  if (!Array.isArray(db.ericssonFolders)) db.ericssonFolders = [];
+  if (!Array.isArray(db.ericssonFiles)) db.ericssonFiles = [];
+
+  // 1. Remap any file pointing to old / duplicate IDs
+  db.ericssonFiles.forEach((fl) => {
+    if (fl.folderId === 'folder-ericsson-entregas-claro') {
+      fl.folderId = 'folder-ericsson-projetos';
+      changed = true;
+    }
+    if (fl.folderId === 'folder-ericsson-vistorias' || fl.folderId === 'folder-ericsson-root') {
+      fl.folderId = 'folder-ericsson-vistoria';
       changed = true;
     }
   });
 
-  // Ensure any existing Ericsson files point to a valid Ericsson folder (defaulting to folder-ericsson-root)
+  // 2. Remove legacy duplicate folder IDs ('folder-ericsson-entregas-claro', duplicate PROJETO CLARO, etc.)
+  db.ericssonFolders = db.ericssonFolders.filter((f) => {
+    if (f.id === 'folder-ericsson-entregas-claro') return false;
+    if (f.id === 'folder-ericsson-vistorias') return false;
+    // Disallow duplicate 'PROJETO CLARO' under root if ID is not the canonical ones
+    if (
+      (f.parentId === 'folder-ericsson-root' || f.parentId === null) &&
+      f.name.toUpperCase().trim() === 'PROJETO CLARO' &&
+      f.id !== 'folder-ericsson-root' &&
+      f.id !== 'folder-ericsson-projetos'
+    ) {
+      return false;
+    }
+    // Disallow duplicate 'VISTORIA' under root if ID is not the canonical one
+    if (
+      f.parentId === 'folder-ericsson-root' &&
+      f.name.toUpperCase().trim() === 'VISTORIA' &&
+      f.id !== 'folder-ericsson-vistoria'
+    ) {
+      return false;
+    }
+    return true;
+  });
+
+  // 3. Ensure all project subfolders point to 'folder-ericsson-projetos'
+  db.ericssonFolders.forEach((f) => {
+    if (['WR', 'QRF', 'PPI', 'SDC', 'SMART', 'BOQ'].includes(f.name.toUpperCase())) {
+      f.parentId = 'folder-ericsson-projetos';
+    }
+  });
+
+  // 4. Ensure each required folder exists and is up to date
+  if (!Array.isArray(db.ericssonFolders)) db.ericssonFolders = [];
+  requiredEricFolders.forEach((reqF) => {
+    const existingIndex = db.ericssonFolders!.findIndex((f) => f.id === reqF.id);
+    if (existingIndex >= 0) {
+      db.ericssonFolders![existingIndex] = {
+        ...db.ericssonFolders![existingIndex],
+        ...reqF,
+      };
+    } else {
+      db.ericssonFolders!.push(reqF);
+      changed = true;
+    }
+  });
+
+  // 5. Ensure any custom Ericsson folders have valid parentId
+  const validEricFolderIds = new Set(db.ericssonFolders!.map((f) => f.id));
+  db.ericssonFolders!.forEach((f) => {
+    if (f.id !== 'folder-ericsson-root' && (!f.parentId || !validEricFolderIds.has(f.parentId))) {
+      f.parentId = 'folder-ericsson-vistoria';
+      changed = true;
+    }
+  });
+
+  // 6. Ensure any existing Ericsson files point to a valid folder
   db.ericssonFiles.forEach((fl) => {
-    if (!fl.folderId || !validEricFolderIds.has(fl.folderId)) {
-      fl.folderId = 'folder-ericsson-root';
+    if (!fl.folderId || fl.folderId === 'folder-ericsson-root' || !validEricFolderIds.has(fl.folderId)) {
+      fl.folderId = 'folder-ericsson-vistoria';
       changed = true;
     }
   });
@@ -876,6 +1030,14 @@ function ensureEricssonSeedAndUsers(db: DatabaseSchema): boolean {
   if (!Array.isArray(db.ericsson_engenharia)) {
     db.ericsson_engenharia = [];
     changed = true;
+  } else {
+    db.ericsson_engenharia.forEach((r) => {
+      const exFromField = (r.fields?.['EXECUTOR'] || r.fields?.['EXECUTOR PPI'] || r.fields?.['EXECUTOR QRF'] || r.fields?.['EXECUTOR WR'] || '').trim();
+      if (exFromField && (!r.executor || r.executor.trim() === '')) {
+        r.executor = exFromField;
+        changed = true;
+      }
+    });
   }
 
   if (!Array.isArray(db.ericsson_colaboradores) || db.ericsson_colaboradores.length === 0) {
@@ -5428,10 +5590,33 @@ async function startServer() {
       updatedFields['EXECUTOR'] = patch.executor;
     }
 
+    const historyEntries = Array.isArray(current.history) ? [...current.history] : [];
+    const updaterName = (req.body as any).updaterName || (patch as any).updaterName;
+    const updaterEmail = (req.body as any).updaterEmail || (patch as any).updaterEmail;
+
+    if (patch.history && Array.isArray(patch.history)) {
+      // Direct history array provided
+      patch.history.forEach((h) => {
+        if (!historyEntries.some((existing) => existing.id === h.id)) {
+          historyEntries.unshift(h);
+        }
+      });
+    } else if (updaterName) {
+      historyEntries.unshift({
+        id: `hist-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        user: updaterName,
+        userEmail: updaterEmail || '',
+        timestamp: now,
+        action: 'Dados atualizados no painel lateral',
+        details: `Atualização de informações do site ${patch.intervencaoClaro || current.intervencaoClaro || id}`,
+      });
+    }
+
     const updatedRow: EricssonEngineeringRow = {
       ...current,
       ...patch,
       fields: updatedFields,
+      history: historyEntries,
       updatedAt: now,
     };
 
@@ -5681,6 +5866,97 @@ async function startServer() {
     res.json({ success: true, ericssonExecutorEmailsMap: db.ericssonExecutorEmailsMap });
   });
 
+  // 6.8 Get all Reprovações Ericsson Engenharia
+  app.get('/api/ericsson/engenharia/reprovacoes', (_req, res) => {
+    if (!Array.isArray(db.ericsson_engenharia_reprovacoes)) {
+      db.ericsson_engenharia_reprovacoes = [];
+    }
+    res.json({ reprovacoes: db.ericsson_engenharia_reprovacoes });
+  });
+
+  // 6.9 Register new Reprovação Ericsson Engenharia
+  app.post('/api/ericsson/engenharia/reprovacoes', (req, res) => {
+    const { intervencaoClaro, tipoDoc, executor, motivo, dataReprovacao, regional, rowId } =
+      req.body as Partial<EricssonReprovacaoRecord>;
+
+    if (!intervencaoClaro || !executor || !motivo) {
+      res.status(400).json({ error: 'Informe intervenção, executor e motivo da reprovação.' });
+      return;
+    }
+
+    if (!Array.isArray(db.ericsson_engenharia_reprovacoes)) {
+      db.ericsson_engenharia_reprovacoes = [];
+    }
+
+    const now = new Date().toISOString();
+    const newRecord: EricssonReprovacaoRecord = {
+      id: `rep-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      rowId: rowId || '',
+      intervencaoClaro: intervencaoClaro.trim(),
+      tipoDoc: tipoDoc || 'WR',
+      executor: executor.trim(),
+      motivo: motivo.trim(),
+      dataReprovacao: dataReprovacao || now.slice(0, 10),
+      regional: regional || 'SPM',
+      createdAt: now,
+    };
+
+    db.ericsson_engenharia_reprovacoes.unshift(newRecord);
+
+    // Also update row in ericsson_engenharia if rowId or matching intervencao exists
+    if (Array.isArray(db.ericsson_engenharia)) {
+      const targetIdx = db.ericsson_engenharia.findIndex(
+        (r) =>
+          r.id === rowId ||
+          (r.intervencaoClaro || '').toUpperCase() === intervencaoClaro.trim().toUpperCase()
+      );
+      if (targetIdx >= 0) {
+        const row = db.ericsson_engenharia[targetIdx];
+        const rowReprovacoes = Array.isArray(row.reprovacoes) ? [...row.reprovacoes] : [];
+        rowReprovacoes.unshift(newRecord);
+
+        db.ericsson_engenharia[targetIdx] = {
+          ...row,
+          reprovacoes: rowReprovacoes,
+          status: row.status === 'Finalizado' ? 'Em correção' : row.status,
+          fields: {
+            ...(row.fields || {}),
+            Status: row.status === 'Finalizado' ? 'Em correção' : row.fields?.['Status'] || row.status,
+            'MOTIVO REPROVAÇÃO': motivo.trim(),
+            'Data Reprovação': newRecord.dataReprovacao,
+          },
+          updatedAt: now,
+        };
+      }
+    }
+
+    saveDatabase(db);
+    broadcastUpdate({
+      type: 'ERICSSON_REPROVACOES_UPDATE',
+      summary: `Nova reprovação registrada para o site "${intervencaoClaro}" (${executor}).`,
+      reprovacoes: db.ericsson_engenharia_reprovacoes,
+      ericsson_engenharia: db.ericsson_engenharia,
+    });
+
+    res.status(201).json({ success: true, record: newRecord, reprovacoes: db.ericsson_engenharia_reprovacoes });
+  });
+
+  // 6.10 Delete Reprovação
+  app.delete('/api/ericsson/engenharia/reprovacoes/:id', (req, res) => {
+    const { id } = req.params;
+    if (!Array.isArray(db.ericsson_engenharia_reprovacoes)) {
+      db.ericsson_engenharia_reprovacoes = [];
+    }
+    db.ericsson_engenharia_reprovacoes = db.ericsson_engenharia_reprovacoes.filter((r) => r.id !== id);
+    saveDatabase(db);
+    broadcastUpdate({
+      type: 'ERICSSON_REPROVACOES_UPDATE',
+      summary: `Registro de reprovação removido.`,
+      reprovacoes: db.ericsson_engenharia_reprovacoes,
+    });
+    res.json({ success: true, reprovacoes: db.ericsson_engenharia_reprovacoes });
+  });
+
   // 7. Attach file directly to Ericsson site/row (no subfolders as requested)
   app.post('/api/ericsson/engenharia/upload-file', (req, res) => {
     const { rowId, fileName, fileDataUrl, uploaderName, uploaderEmail } = req.body as {
@@ -5721,11 +5997,44 @@ async function startServer() {
       }
     }
 
+    const newAttachedFile = {
+      id: fileId,
+      name: fileName,
+      url: downloadUrl,
+      uploadedBy: uploaderName || 'Equipe Engenharia',
+      uploadedByEmail: uploaderEmail || '',
+      uploadedAt: now,
+    };
+
+    const currentFiles = Array.isArray(row.attachedFiles) ? [...row.attachedFiles] : [];
+    if (row.attachedFileName && !currentFiles.some((f) => f.id === row.attachedFileId || f.name === row.attachedFileName)) {
+      currentFiles.push({
+        id: row.attachedFileId || 'legacy-1',
+        name: row.attachedFileName,
+        url: row.attachedFileUrl || downloadUrl,
+        uploadedBy: row.attachedUploadedBy || 'Equipe Engenharia',
+        uploadedAt: row.attachedUploadedAt || now,
+      });
+    }
+    currentFiles.unshift(newAttachedFile);
+
+    const historyEntries = Array.isArray(row.history) ? [...row.history] : [];
+    historyEntries.unshift({
+      id: `hist-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      user: uploaderName || 'Equipe Engenharia',
+      userEmail: uploaderEmail || '',
+      timestamp: now,
+      action: `Arquivo "${fileName}" anexado`,
+      details: `Upload realizado para a intervenção ${row.intervencaoClaro}`,
+    });
+
     row.attachedFileId = fileId;
     row.attachedFileName = fileName;
     row.attachedFileUrl = downloadUrl;
     row.attachedUploadedBy = uploaderName || 'Equipe Engenharia';
     row.attachedUploadedAt = now;
+    row.attachedFiles = currentFiles;
+    row.history = historyEntries;
     row.updatedAt = now;
 
     saveDatabase(db);
@@ -6553,6 +6862,168 @@ async function startServer() {
       ericssonSheetMeta: db.ericssonSheetMeta,
       ericssonFolders: db.ericssonFolders,
       ericssonFiles: db.ericssonFiles,
+    });
+  });
+
+  // 6.0b. Upload Files to Projeto Claro folders (WR, QRF, PPI, SDC, SMART, BOQ) linked to Engenharia Ericsson
+  app.post('/api/ericsson/projetos/upload', (req, res) => {
+    const {
+      engineeringRowId,
+      folderId,
+      tipoDoc,
+      files: incomingFiles,
+      notes,
+      uploadedByName,
+      uploadedByEmail,
+      uploadedByRole,
+    } = req.body as {
+      engineeringRowId?: string;
+      folderId?: string;
+      tipoDoc?: string;
+      files?: Array<{
+        fileName: string;
+        fileSize: number;
+        base64Data: string;
+      }>;
+      notes?: string;
+      uploadedByName?: string;
+      uploadedByEmail?: string;
+      uploadedByRole?: string;
+    };
+
+    if (!engineeringRowId) {
+      res.status(400).json({
+        error: 'Vínculo obrigatório: Selecione uma linha da Engenharia Ericsson.',
+      });
+      return;
+    }
+
+    if (!Array.isArray(db.ericsson_engenharia)) db.ericsson_engenharia = [];
+    const targetRow = db.ericsson_engenharia.find((r) => r.id === engineeringRowId);
+    if (!targetRow) {
+      res.status(404).json({
+        error: 'Linha de Engenharia não encontrada na base de dados.',
+      });
+      return;
+    }
+
+    const filesToProcess = Array.isArray(incomingFiles) && incomingFiles.length > 0 ? incomingFiles : [];
+    if (filesToProcess.length === 0) {
+      res.status(400).json({ error: 'Selecione pelo menos um arquivo para enviar.' });
+      return;
+    }
+
+    if (!uploadedByName || !uploadedByName.trim()) {
+      res.status(400).json({ error: 'Nome do remetente é obrigatório.' });
+      return;
+    }
+
+    if (!fs.existsSync(UPLOADS_DIR)) {
+      fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+    }
+
+    const now = new Date().toISOString();
+    if (!Array.isArray(db.ericssonFolders)) db.ericssonFolders = [];
+    if (!Array.isArray(db.ericssonFiles)) db.ericssonFiles = [];
+
+    const targetFolderId =
+      folderId && db.ericssonFolders.some((f) => f.id === folderId)
+        ? folderId
+        : 'folder-ericsson-projetos';
+
+    const createdFiles: EngineeringFile[] = [];
+    const intervencao = (targetRow.intervencaoClaro || targetRow.fields?.['Intervencao Claro'] || targetRow.siteIdA || '').trim();
+    const rowDocType = (tipoDoc || targetRow.tipoDoc || targetRow.fields?.['Tipo doc'] || 'WR').trim();
+    const rowStatus = (targetRow.status || targetRow.fields?.['Status'] || '').trim();
+    const rowRegional = (targetRow.regional || targetRow.fields?.['Regional'] || '').trim();
+
+    filesToProcess.forEach((rawFile, idx) => {
+      const cleanName = path.basename(rawFile.fileName || `projeto_${rowDocType}_${idx + 1}.zip`);
+      const fileId = `eric-proj-${Date.now()}-${idx}-${Math.random().toString(36).slice(2, 6)}`;
+      const safeDiskName = `${fileId}_${cleanName.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
+      const diskPath = path.join(UPLOADS_DIR, safeDiskName);
+
+      const base64Clean = (rawFile.base64Data || '').includes(',')
+        ? rawFile.base64Data.split(',')[1]
+        : rawFile.base64Data || '';
+      const buffer = Buffer.from(base64Clean, 'base64');
+      fs.writeFileSync(diskPath, buffer);
+
+      const { fileType, extension } = detectFileType(cleanName);
+
+      const newFileRecord: EngineeringFile = {
+        id: fileId,
+        folderId: targetFolderId,
+        vendor: 'ERICSSON',
+        fileName: cleanName,
+        fileType,
+        extension,
+        fileSize: rawFile.fileSize || buffer.length,
+        siteId: intervencao,
+        rowId: targetRow.id,
+        engineeringRowId: targetRow.id,
+        intervencaoClaro: intervencao,
+        tipoDoc: rowDocType,
+        docGroup: rowDocType,
+        status: rowStatus,
+        regional: rowRegional,
+        notes: notes?.trim() || `Arquivo do projeto ${rowDocType} vinculado à Intervenção ${intervencao}`,
+        uploadedByName: uploadedByName.trim(),
+        uploadedByEmail: uploadedByEmail?.trim() || 'engenharia@ametaservicos.com.br',
+        uploadedAt: now,
+        storageFileName: safeDiskName,
+      };
+
+      db.ericssonFiles!.unshift(newFileRecord);
+      createdFiles.push(newFileRecord);
+
+      // Attach file to target row
+      if (!Array.isArray(targetRow.attachedFiles)) targetRow.attachedFiles = [];
+      targetRow.attachedFiles.unshift({
+        id: fileId,
+        name: cleanName,
+        url: `/api/ericsson/files/${encodeURIComponent(fileId)}/download`,
+        uploadedBy: uploadedByName.trim(),
+        uploadedByEmail: uploadedByEmail?.trim() || '',
+        uploadedAt: now,
+      });
+    });
+
+    if (!Array.isArray(targetRow.history)) targetRow.history = [];
+    targetRow.history.unshift({
+      id: `hist-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      user: uploadedByName.trim(),
+      userEmail: uploadedByEmail || '',
+      timestamp: now,
+      action: `${createdFiles.length} arquivo(s) anexado(s) na pasta ${rowDocType}`,
+      details: `Arquivos vinculados: ${createdFiles.map((f) => f.fileName).join(', ')}`,
+    });
+    targetRow.updatedAt = now;
+
+    saveDatabase(db);
+    broadcastUpdate({
+      type: 'ERICSSON_ENGENHARIA_UPDATED',
+      timestamp: now,
+      vendor: 'ERICSSON',
+      summary: `${createdFiles.length} arquivo(s) do projeto ${rowDocType} enviado(s) para ${intervencao}`,
+      rows: db.ericsson_engenharia,
+    });
+    broadcastUpdate({
+      type: 'ERICSSON_UPDATED',
+      timestamp: now,
+      vendor: 'ERICSSON',
+      summary: `${createdFiles.length} arquivo(s) enviado(s) na pasta Projeto Claro / ${rowDocType}`,
+      ericssonFiles: db.ericssonFiles,
+      ericssonFolders: db.ericssonFolders,
+    });
+
+    res.status(201).json({
+      success: true,
+      files: createdFiles,
+      row: targetRow,
+      ericssonFiles: db.ericssonFiles,
+      ericssonFolders: db.ericssonFolders,
+      ericssonEngenharia: db.ericsson_engenharia,
     });
   });
 

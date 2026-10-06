@@ -952,6 +952,28 @@ export default function App() {
   // ERICSSON ONLY Executores list (Completely isolated from Nokia)
   const listaExecutoresEricsson = useMemo<string[]>(() => {
     const set = new Set<string>();
+    ericssonEngineeringRows.forEach((r) => {
+      const exCandidates = [
+        r.executor,
+        r.fields?.['EXECUTOR'],
+        r.fields?.['EXECUTOR PPI'],
+        r.fields?.['EXECUTOR QRF'],
+        r.fields?.['EXECUTOR WR'],
+      ];
+      exCandidates.forEach((raw) => {
+        const clean = (raw || '').replace(/\*+/g, '').trim();
+        if (clean && clean !== '—' && clean !== '-') {
+          if (clean.includes('/')) {
+            clean.split(/[\/\&]/).forEach((part) => {
+              const p = part.trim();
+              if (p && p.length >= 2) set.add(p);
+            });
+          } else {
+            set.add(clean);
+          }
+        }
+      });
+    });
     ericssonUsers.forEach((u) => {
       if (u.role === 'Executor') {
         const name = (u.name || '').trim();
@@ -960,10 +982,6 @@ export default function App() {
     });
     DEFAULT_ERICSSON_COLABORADORES.forEach((c) => {
       if (c.nome) set.add(c.nome.trim());
-    });
-    ericssonEngineeringRows.forEach((r) => {
-      const ex = (r.executor || r.fields?.['EXECUTOR'] || '').trim();
-      if (ex && ex !== '—' && ex !== '-') set.add(ex);
     });
     customExecutoresEricsson.forEach((ex) => {
       const clean = (ex || '').trim();
@@ -3584,13 +3602,23 @@ export default function App() {
                 onClick={() => setActiveTopTab('vistoria')}
                 className={`px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${
                   resolvedTopTab === 'vistoria'
-                    ? 'bg-blue-600/10 text-blue-700 font-bold border border-blue-600/30'
+                    ? activeVendor === 'ERICSSON'
+                      ? 'bg-amber-500/10 text-amber-700 font-bold border border-amber-500/30'
+                      : 'bg-blue-600/10 text-blue-700 font-bold border border-blue-600/30'
+                    : activeVendor === 'ERICSSON'
+                    ? 'text-slate-600 hover:text-amber-700 hover:bg-slate-50'
                     : 'text-slate-600 hover:text-blue-700 hover:bg-slate-50'
                 }`}
               >
-                <FolderOpen className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                <FolderOpen
+                  className={`w-3.5 h-3.5 shrink-0 ${
+                    activeVendor === 'ERICSSON' ? 'text-amber-600' : 'text-blue-600'
+                  }`}
+                />
                 <span>
-                  {effectiveRole === 'Executor'
+                  {activeVendor === 'ERICSSON'
+                    ? 'Projeto Claro'
+                    : effectiveRole === 'Executor'
                     ? 'Pastas TSSR'
                     : effectiveRole === 'Coordenador Engenharia'
                     ? 'Vistoria & TSSR'
@@ -4226,7 +4254,9 @@ export default function App() {
               onClick={() => setActiveTopTab('vistoria')}
               className={`p-2.5 rounded-xl border-2 text-left flex items-center justify-between gap-2 transition-all cursor-pointer ${
                 resolvedTopTab === 'vistoria'
-                  ? effectiveRole === 'Executor'
+                  ? activeVendor === 'ERICSSON'
+                    ? 'bg-amber-600 border-amber-600 text-white shadow-sm'
+                    : effectiveRole === 'Executor'
                     ? 'bg-purple-700 border-purple-700 text-white shadow-sm'
                     : 'bg-blue-600 border-blue-600 text-white shadow-sm'
                   : 'bg-white border-slate-200 text-slate-800 hover:border-blue-600'
@@ -4237,13 +4267,17 @@ export default function App() {
                   className={`w-4 h-4 shrink-0 ${
                     resolvedTopTab === 'vistoria'
                       ? 'text-white'
+                      : activeVendor === 'ERICSSON'
+                      ? 'text-amber-600'
                       : effectiveRole === 'Executor'
                       ? 'text-purple-600'
                       : 'text-blue-600'
                   }`}
                 />
                 <span className="text-xs font-extrabold truncate">
-                  {effectiveRole === 'Executor'
+                  {activeVendor === 'ERICSSON'
+                    ? 'PROJETO CLARO'
+                    : effectiveRole === 'Executor'
                     ? 'Pastas TSSR'
                     : effectiveRole === 'Coordenador Engenharia'
                     ? 'Vistoria & TSSR'
@@ -4458,11 +4492,16 @@ export default function App() {
               onClick={() => setActiveTopTab('vistoria')}
               className={`px-2.5 py-1 rounded text-[11px] font-semibold cursor-pointer ${
                 resolvedTopTab === 'vistoria'
-                  ? 'bg-blue-600 text-white'
+                  ? 'bg-amber-600 text-white font-bold'
                   : 'bg-slate-800 hover:bg-slate-700 text-slate-200'
               }`}
             >
-              {effectiveRole === 'Executor' ? 'Pasta TSSR' : 'Pasta Vistoria'} ({vendorEngineeringFilesCount})
+              {activeVendor === 'ERICSSON'
+                ? 'Projeto Claro'
+                : effectiveRole === 'Executor'
+                ? 'Pasta TSSR'
+                : 'Pasta Vistoria'}{' '}
+              ({vendorEngineeringFilesCount})
             </button>
             <button
               type="button"
@@ -4544,6 +4583,7 @@ export default function App() {
                 effectiveRole={effectiveRole}
                 rows={ericssonRows}
                 sheetMeta={ericssonSheetMeta || null}
+                engineeringRows={ericssonEngineeringRows}
                 folders={ericssonFolders}
                 files={ericssonFiles}
                 focusedFolderId={ericssonVistoriaFocus?.folderId || null}
@@ -4559,6 +4599,9 @@ export default function App() {
                 }}
                 onOpenSitesTab={
                   canSeeSitesTab ? () => setActiveTopTab('sites') : undefined
+                }
+                onOpenEngenhariaTab={
+                  canSeeEngenhariaTab ? () => setActiveTopTab('engenharia') : undefined
                 }
               />
             )}
@@ -5989,25 +6032,57 @@ export default function App() {
                 <ExecutoresInteractiveView
                   activeVendor={activeVendor}
                   tssrRows={tssrRows}
-                  ericssonRows={ericssonRows.map((r) => ({
-                    ...r,
-                    vendor: 'ERICSSON',
-                    siteId: r.siteIdA || r.siteIdB || '',
-                    fields: r.fields,
-                    vistoriaStatus: r.siteAVistoriaStatus || 'NAO_DISPONIVEL',
-                    vistoriaFileId: r.siteAVistoriaFileId,
-                    vistoriaFileName: r.siteAVistoriaFileName,
-                    vistoriaFileUrl: r.siteAVistoriaFileUrl,
-                    vistoriaDownloadUrl: r.siteAVistoriaDownloadUrl,
-                    vistoriaDeliveredAt: r.siteAVistoriaDeliveredAt,
-                    vistoriaUploadedBy: r.siteAVistoriaUploadedBy,
-                    vistoriaUploadedByEmail: r.siteAVistoriaUploadedByEmail,
-                    updatedAt: r.updatedAt,
-                    rowKey: r.rowKey,
-                    tabName: 'Ericsson',
-                    ocSitePre: '',
-                    enderecoId: '',
-                  }))}
+                  ericssonRows={
+                    activeVendor === 'ERICSSON'
+                      ? ericssonEngineeringRows.map((r) => {
+                          const statusStr = r.status || r.fields?.['Status'] || '';
+                          const isFinalizado =
+                            statusStr === 'Finalizado' ||
+                            (r.fields?.['Entregue'] || '').trim() !== '' ||
+                            (r.fields?.['Data Entregue'] || '').trim() !== '';
+                          return {
+                            ...r,
+                            vendor: 'ERICSSON' as VendorType,
+                            siteId: r.intervencaoClaro || r.siteIdA || r.siteIdB || r.id,
+                            fields: r.fields || {},
+                            vistoriaStatus: isFinalizado ? 'Entregue' : 'Pendente',
+                            vistoriaFileId: r.attachedFileId,
+                            vistoriaFileName: r.attachedFileName,
+                            vistoriaFileUrl: r.attachedFileUrl,
+                            vistoriaDownloadUrl: r.attachedFileUrl,
+                            vistoriaDeliveredAt:
+                              (r.fields?.['Entregue'] || '').trim() ||
+                              (r.fields?.['Data Entregue'] || '').trim() ||
+                              r.attachedUploadedAt ||
+                              r.updatedAt,
+                            vistoriaUploadedBy: r.attachedUploadedBy,
+                            vistoriaUploadedByEmail: '',
+                            updatedAt: r.updatedAt,
+                            rowKey: r.rowKey || r.id,
+                            tabName: 'Engenharia Ericsson',
+                            ocSitePre: r.intervencaoClaro || '',
+                            enderecoId: r.regional || '',
+                            executor:
+                              r.executor ||
+                              r.fields?.['EXECUTOR'] ||
+                              r.fields?.['EXECUTOR WR'] ||
+                              r.fields?.['EXECUTOR QRF'] ||
+                              r.fields?.['EXECUTOR PPI'] ||
+                              r.fields?.['Executor'] ||
+                              '',
+                            intervencaoClaro: r.intervencaoClaro || '',
+                            regional: r.regional || r.fields?.['Regional'] || '',
+                            tipoDoc: r.tipoDoc || r.fields?.['Tipo doc'] || '',
+                            tipoSite: r.tipoSite || r.fields?.['TIPO SITE'] || '',
+                            status: statusStr,
+                            demanda: r.fields?.['Demanda'] || r.fields?.['Data Demanda'] || '',
+                            comentario: r.fields?.['Comentário'] || r.fields?.['Comentários'] || '',
+                            planejado: r.fields?.['Planejado'] || r.fields?.['Data Planejada'] || '',
+                            entregue: r.fields?.['Entregue'] || r.fields?.['Data Entregue'] || r.attachedUploadedAt || '',
+                          };
+                        })
+                      : []
+                  }
                   users={users}
                   ericssonUsers={ericssonUsers}
                   serverExecutorEmailsMap={activeVendor === 'ERICSSON' ? serverEricssonExecutorEmailsMap : serverExecutorEmailsMap}
@@ -6556,13 +6631,17 @@ export default function App() {
           onClick={() => setActiveTopTab('vistoria')}
           className={`flex-1 py-1 px-1 rounded-lg flex flex-col items-center justify-center gap-0.5 text-[10px] font-bold transition-colors cursor-pointer ${
             resolvedTopTab === 'vistoria'
-              ? 'text-blue-700 bg-blue-600/10'
+              ? activeVendor === 'ERICSSON'
+                ? 'text-amber-700 bg-amber-600/10'
+                : 'text-blue-700 bg-blue-600/10'
               : 'text-slate-500 hover:text-slate-900'
           }`}
         >
           <FolderOpen className="w-4 h-4" />
           <span className="truncate max-w-[80px]">
-            {effectiveRole === 'Executor'
+            {activeVendor === 'ERICSSON'
+              ? 'Projeto Claro'
+              : effectiveRole === 'Executor'
               ? 'Pasta TSSR'
               : effectiveRole === 'Coordenador Engenharia'
               ? 'Vistoria/TSSR'
