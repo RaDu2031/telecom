@@ -48,6 +48,13 @@ interface RowItem {
   tabName: string;
   ocSitePre: string;
   enderecoId: string;
+  executor?: string;
+  intervencaoClaro?: string;
+  regional?: string;
+  tipoDoc?: string;
+  tipoSite?: string;
+  status?: string;
+  demanda?: string;
 }
 
 interface ExecutoresInteractiveViewProps {

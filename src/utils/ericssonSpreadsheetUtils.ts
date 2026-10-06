@@ -767,6 +767,10 @@ export function exportEricssonEngineeringToCsv(
   URL.revokeObjectURL(url);
 }
 
+function normalizeAccents(str: string): string {
+  return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+}
+
 export function isEricssonRowAssignedToExecutor(
   row: { executor?: string; fields?: Record<string, string> },
   executorName: string
@@ -793,9 +797,9 @@ export function isEricssonRowAssignedToExecutor(
     if (insideParen && (c.includes(insideParen) || insideParen.includes(c))) return true;
     const mainName = targetNorm.replace(/\(.*?\)/g, '').trim();
     if (mainName && (c.includes(mainName) || mainName.includes(c))) return true;
-    const targetWords = targetNorm.split(/\s+/).filter((w) => w.length > 2);
-    const candWords = c.split(/\s+/).filter((w) => w.length > 2);
-    const commonWords = targetWords.filter((w) => candWords.includes(w));
+    const targetWords = targetNorm.split(/\s+/).filter((w: string) => w.length > 2);
+    const candWords = c.split(/\s+/).filter((w: string) => w.length > 2);
+    const commonWords = targetWords.filter((w: string) => candWords.includes(w));
     return commonWords.length >= 2;
   });
 }

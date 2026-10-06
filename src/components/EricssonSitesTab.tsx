@@ -1420,10 +1420,6 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
                 <option value="PENDENTE">Vistoria A/B Pendente</option>
                 <option value="LOS_FINALIZADO">LOS Finalizado ({losCounters.entregues})</option>
                 <option value="LOS_PENDENTE">LOS Pendente ({losCounters.pendentes})</option>
-                <option value="SMART_FINALIZADO">SMART Entregue ({smartCounters.entregues})</option>
-                <option value="SMART_PENDENTE">SMART Pendente ({smartCounters.pendentes})</option>
-                <option value="SDC_FINALIZADO">SDC Entregue ({sdcCounters.entregues})</option>
-                <option value="SDC_PENDENTE">SDC Pendente ({sdcCounters.pendentes})</option>
               </select>
             </div>
           </div>
@@ -1494,12 +1490,6 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
                   </th>
                   <th className="py-2.5 px-3 font-bold bg-amber-50 text-amber-800 border-l border-slate-200">
                     LOS
-                  </th>
-                  <th className="py-2.5 px-3 font-bold bg-violet-50 text-violet-800 border-l border-slate-200">
-                    SMART
-                  </th>
-                  <th className="py-2.5 px-3 font-bold bg-rose-50 text-rose-800 border-l border-slate-200">
-                    SDC
                   </th>
                 </tr>
               </thead>
@@ -1573,16 +1563,6 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
                       {/* NOVA COLUNA: LOS */}
                       <td className={`${cellPad} bg-amber-50/20 border-l border-slate-200`}>
                         {renderVistoriaOrLosCell(row, 'LOS')}
-                      </td>
-
-                      {/* NOVA COLUNA: SMART */}
-                      <td className={`${cellPad} bg-violet-50/20 border-l border-slate-200`}>
-                        {renderVistoriaOrLosCell(row, 'SMART')}
-                      </td>
-
-                      {/* NOVA COLUNA: SDC */}
-                      <td className={`${cellPad} bg-rose-50/20 border-l border-slate-200`}>
-                        {renderVistoriaOrLosCell(row, 'SDC')}
                       </td>
                     </tr>
                   );
@@ -2428,7 +2408,7 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
             {/* VISTORIA A, VISTORIA B, LOS, SMART AND SDC BOX */}
             <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-3 text-xs">
               <div className="font-bold text-slate-900">
-                Controle de Entregas do Enlace (Vistoria A, Vistoria B, LOS, SMART e SDC)
+                Controle de Entregas do Enlace (Vistoria A, Vistoria B, LOS)
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">

@@ -565,8 +565,7 @@ export const EricssonEngineeringTab: React.FC<EricssonEngineeringTabProps> = ({
                 </h1>
               </div>
               <p className="text-xs text-slate-500">
-                Aba <strong>{meta.tabName || 'Site list'}</strong> — 51 colunas originais,
-                dois Site IDs com status independentes por torre.
+                Aba <strong>{meta.tabName || 'Site list'}</strong> — 51 colunas originais da planilha.
               </p>
             </div>
           </div>
@@ -800,37 +799,13 @@ export const EricssonEngineeringTab: React.FC<EricssonEngineeringTabProps> = ({
       </div>
 
       {/* =====================================================================
-          4. INTERACTIVE SPREADSHEET TABLE WITH DUAL SITE ID & STATUS COLUMNS
+          4. INTERACTIVE SPREADSHEET TABLE
          ===================================================================== */}
       <div className="bg-white border border-slate-200/90 rounded-2xl shadow-xs overflow-hidden">
         <div className="overflow-x-auto max-h-[640px]">
           <table className="w-full text-xs border-collapse">
             <thead className="bg-slate-900 text-white sticky top-0 z-20 select-none">
               <tr>
-                {/* Index / Action Column */}
-                <th className="px-3 py-2.5 text-center font-mono font-bold w-12 border-b border-slate-800 text-slate-400">
-                  #
-                </th>
-
-                {/* Highlighted Dual Site ID & Status columns */}
-                <th className="px-3 py-2.5 text-left font-bold border-b border-slate-800 bg-slate-950 text-amber-300 whitespace-nowrap min-w-[140px]">
-                  Torre A (Site ID A)
-                </th>
-                <th className="px-3 py-2.5 text-left font-bold border-b border-slate-800 bg-slate-950 text-amber-300 whitespace-nowrap min-w-[120px]">
-                  Status Site A
-                </th>
-                <th className="px-3 py-2.5 text-left font-bold border-b border-slate-800 bg-slate-950 text-cyan-300 whitespace-nowrap min-w-[140px]">
-                  Torre B (Site ID B)
-                </th>
-                <th className="px-3 py-2.5 text-left font-bold border-b border-slate-800 bg-slate-950 text-cyan-300 whitespace-nowrap min-w-[120px]">
-                  Status Site B
-                </th>
-
-                {/* File Attachment Column */}
-                <th className="px-3 py-2.5 text-center font-bold border-b border-slate-800 bg-slate-950 text-emerald-300 whitespace-nowrap">
-                  Arquivo
-                </th>
-
                 {/* Columns from the spreadsheet in exact order */}
                 {columns.map((colName) => {
                   if (
@@ -869,14 +844,14 @@ export const EricssonEngineeringTab: React.FC<EricssonEngineeringTabProps> = ({
             <tbody className="divide-y divide-slate-100">
               {isLoading ? (
                 <tr>
-                  <td colSpan={columns.length + 6} className="p-12 text-center text-slate-400">
+                  <td colSpan={columns.length + 1} className="p-12 text-center text-slate-400">
                     <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-teal-600" />
                     <p className="font-semibold text-slate-700">Carregando dados da Engenharia Ericsson...</p>
                   </td>
                 </tr>
               ) : paginatedRows.length === 0 ? (
                 <tr>
-                  <td colSpan={columns.length + 6} className="p-12 text-center text-slate-400">
+                  <td colSpan={columns.length + 1} className="p-12 text-center text-slate-400">
                     <FileSpreadsheet className="w-8 h-8 mx-auto mb-2 text-slate-300" />
                     <p className="font-bold text-slate-700 text-sm">Nenhuma linha encontrada</p>
                     <p className="text-xs text-slate-400 mt-1">
@@ -885,8 +860,7 @@ export const EricssonEngineeringTab: React.FC<EricssonEngineeringTabProps> = ({
                   </td>
                 </tr>
               ) : (
-                paginatedRows.map((row, idx) => {
-                  const globalIdx = (page - 1) * pageSize + idx + 1;
+                paginatedRows.map((row) => {
                   const docGroup = classifyEricssonDocGroup(row.tipoDoc || row.fields?.['Tipo doc'] || '');
                   const statusCat = classifyEricssonStatus(row.status || row.fields?.['Status'] || '');
 
@@ -895,96 +869,6 @@ export const EricssonEngineeringTab: React.FC<EricssonEngineeringTabProps> = ({
                       key={row.id}
                       className="hover:bg-slate-50/90 transition-colors group cursor-default"
                     >
-                      {/* Row Index */}
-                      <td className="px-3 py-2 text-center font-mono text-[11px] text-slate-400">
-                        {globalIdx}
-                      </td>
-
-                      {/* Torre A (Site ID A) */}
-                      <td className="px-3 py-2 font-mono font-bold text-slate-900 whitespace-nowrap bg-amber-50/20">
-                        <span className="px-1.5 py-0.5 rounded bg-amber-100/70 border border-amber-300 text-amber-950 font-black">
-                          {row.siteIdA || '-'}
-                        </span>
-                      </td>
-
-                      {/* Status Site A */}
-                      <td className="px-3 py-2 whitespace-nowrap bg-amber-50/20">
-                        <span
-                          className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${
-                            statusCat === 'Finalizado'
-                              ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
-                              : statusCat === 'Em produção'
-                              ? 'bg-blue-50 text-blue-800 border-blue-300'
-                              : statusCat === 'Dúvida'
-                              ? 'bg-purple-50 text-purple-800 border-purple-300'
-                              : 'bg-amber-50 text-amber-800 border-amber-300'
-                          }`}
-                        >
-                          {row.statusA || row.status || 'Pendente'}
-                        </span>
-                      </td>
-
-                      {/* Torre B (Site ID B) */}
-                      <td className="px-3 py-2 font-mono font-bold text-slate-900 whitespace-nowrap bg-cyan-50/20">
-                        {row.siteIdB ? (
-                          <span className="px-1.5 py-0.5 rounded bg-cyan-100/70 border border-cyan-300 text-cyan-950 font-black">
-                            {row.siteIdB}
-                          </span>
-                        ) : (
-                          <span className="text-slate-300 font-normal italic">
-                            (Sem par B)
-                          </span>
-                        )}
-                      </td>
-
-                      {/* Status Site B */}
-                      <td className="px-3 py-2 whitespace-nowrap bg-cyan-50/20">
-                        {row.siteIdB ? (
-                          <span
-                            className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${
-                              statusCat === 'Finalizado'
-                                ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
-                                : statusCat === 'Em produção'
-                                ? 'bg-blue-50 text-blue-800 border-blue-300'
-                                : statusCat === 'Dúvida'
-                                ? 'bg-purple-50 text-purple-800 border-purple-300'
-                                : 'bg-amber-50 text-amber-800 border-amber-300'
-                            }`}
-                          >
-                            {row.statusB || row.status || 'Pendente'}
-                          </span>
-                        ) : (
-                          <span className="text-slate-300">-</span>
-                        )}
-                      </td>
-
-                      {/* Attachment Icon */}
-                      <td className="px-2 py-2 text-center whitespace-nowrap">
-                        {row.attachedFileUrl ? (
-                          <a
-                            href={row.attachedFileUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-300 text-[10px] font-bold hover:bg-emerald-100"
-                            title={`Baixar anexo: ${row.attachedFileName}`}
-                          >
-                            <Paperclip className="w-3 h-3 text-emerald-600" />
-                            <span className="truncate max-w-[80px]">
-                              {row.attachedFileName}
-                            </span>
-                          </a>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={() => setAttachingFileRow(row)}
-                            className="p-1 text-slate-300 hover:text-teal-600 rounded cursor-pointer"
-                            title="Anexar arquivo diretamente a este site"
-                          >
-                            <Paperclip className="w-3.5 h-3.5" />
-                          </button>
-                        )}
-                      </td>
-
                       {/* 51 Exact Columns in Order */}
                       {columns.map((colName) => {
                         if (
