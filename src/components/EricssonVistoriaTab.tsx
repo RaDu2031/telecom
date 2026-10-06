@@ -114,6 +114,7 @@ export const EricssonVistoriaTab: React.FC<EricssonVistoriaTabProps> = ({
     isAdmRole;
   const canUploadVistoria =
     isVistoriador ||
+    isExecutor ||
     isCoordenadorEngenharia ||
     isCoordenadorGeral ||
     isAdmRole;
@@ -607,12 +608,6 @@ export const EricssonVistoriaTab: React.FC<EricssonVistoriaTabProps> = ({
     if (isVistoriador && uploadCategory === 'TSSR') {
       setUploadError(
         'O perfil Vistoriador não tem permissão para subir TSSR. Apenas o Executor e Coordenação de Engenharia podem subir TSSR.'
-      );
-      return;
-    }
-    if (isExecutor && uploadCategory !== 'TSSR') {
-      setUploadError(
-        'O perfil Executor não tem permissão para subir Vistoria ou LOS. O Executor pode subir apenas TSSR.'
       );
       return;
     }

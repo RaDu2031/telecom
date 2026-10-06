@@ -1,7 +1,12 @@
 import * as XLSX from 'xlsx';
 import {
   ERICSSON_ORIGINAL_COLUMNS,
+  ERICSSON_SITE_LIST_COLUMNS,
   EricssonRow,
+  EricssonEngineeringRow,
+  EricssonDocGroup,
+  EricssonDocStatusCategory,
+  EricssonConsolidatedStats,
   EricssonVistoriaStatus,
 } from '../types/telecom';
 
@@ -498,3 +503,301 @@ export function computeEricssonSiteCounters(rows: EricssonRow[]): EricssonSiteCo
     statusOutrosSites,
   };
 }
+
+// ============================================================================
+// ERICSSON ENGENHARIA UTILS (WR, QRF, PPI, BOQ & 51 COLUNAS EXATAS)
+// ============================================================================
+
+export function classifyEricssonDocGroup(tipoDocRaw: string): EricssonDocGroup | null {
+  const norm = String(tipoDocRaw || '').toUpperCase();
+  if (norm.includes('SMART')) return 'SMART';
+  if (norm.includes('SDC')) return 'SDC';
+  if (norm.includes('WR')) return 'WR';
+  if (norm.includes('QRF')) return 'QRF';
+  if (norm.includes('PPI')) return 'PPI';
+  if (norm.includes('BOQ')) return 'BOQ';
+  return null;
+}
+
+export function rowMatchesEricssonDocGroup(tipoDocRaw: string, group: EricssonDocGroup): boolean {
+  const norm = String(tipoDocRaw || '').toUpperCase();
+  return norm.includes(group);
+}
+
+export function classifyEricssonStatus(statusRaw: string): EricssonDocStatusCategory {
+  const norm = String(statusRaw || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+
+  if (norm.includes('duvida')) return 'Dúvida';
+  if (
+    norm.includes('finaliz') ||
+    norm.includes('conclu') ||
+    norm.includes('aprovad') ||
+    norm.includes('entregue') ||
+    norm.includes('pronto')
+  ) {
+    return 'Finalizado';
+  }
+  if (
+    norm.includes('producao') ||
+    norm.includes('produz') ||
+    norm.includes('correcao') ||
+    norm.includes('ajuste')
+  ) {
+    return 'Em produção';
+  }
+  // Default for all active / pending statuses
+  return 'Pendente';
+}
+
+export function computeEricssonConsolidatedStats(
+  rows: EricssonEngineeringRow[]
+): EricssonConsolidatedStats {
+  const initGroup = () => ({
+    total: 0,
+    finalizado: 0,
+    emProducao: 0,
+    pendente: 0,
+    duvida: 0,
+    outros: 0,
+  });
+
+  const stats: EricssonConsolidatedStats = {
+    totalRows: rows.length,
+    wr: initGroup(),
+    qrf: initGroup(),
+    ppi: initGroup(),
+    boq: initGroup(),
+    smart: initGroup(),
+    sdc: initGroup(),
+    outrosDocs: 0,
+  };
+
+  rows.forEach((r) => {
+    const rawTipo = String(r.tipoDoc || r.fields?.['Tipo doc'] || '').toUpperCase();
+    const statusCat = classifyEricssonStatus(r.status || r.fields?.['Status'] || '');
+
+    let matchedAny = false;
+
+    const assignTo = (group: typeof stats.wr) => {
+      group.total++;
+      if (statusCat === 'Finalizado') group.finalizado++;
+      else if (statusCat === 'Em produção') group.emProducao++;
+      else if (statusCat === 'Pendente') group.pendente++;
+      else if (statusCat === 'Dúvida') group.duvida++;
+      else group.outros++;
+      matchedAny = true;
+    };
+
+    if (rawTipo.includes('WR')) assignTo(stats.wr);
+    if (rawTipo.includes('QRF')) assignTo(stats.qrf);
+    if (rawTipo.includes('PPI')) assignTo(stats.ppi);
+    if (rawTipo.includes('BOQ')) assignTo(stats.boq);
+    if (rawTipo.includes('SMART')) assignTo(stats.smart);
+    if (rawTipo.includes('SDC')) assignTo(stats.sdc);
+
+    if (!matchedAny) {
+      stats.outrosDocs++;
+    }
+  });
+
+  return stats;
+}
+
+export function parseEricssonEngineeringWorkbookBuffer(buffer: ArrayBuffer): {
+  tabName: string;
+  columns: string[];
+  rows: EricssonEngineeringRow[];
+} {
+  const workbook = XLSX.read(buffer, { type: 'array', cellDates: true });
+
+  const targetSheetName =
+    workbook.SheetNames.find((n) => n.trim().toLowerCase() === 'site list') ||
+    workbook.SheetNames.find(
+      (n) =>
+        !['REPORT', 'REPORT ERICSSON', 'RECURSOS DOC', 'COMBOS', 'ORIENTAÇÕES', 'ORIENTACOES'].includes(
+          n.trim().toUpperCase()
+        )
+    ) ||
+    workbook.SheetNames[0];
+
+  if (!targetSheetName) {
+    return { tabName: 'Site list', columns: [...ERICSSON_SITE_LIST_COLUMNS], rows: [] };
+  }
+
+  const sheet = workbook.Sheets[targetSheetName];
+  const rawRows = XLSX.utils.sheet_to_json<unknown[]>(sheet, {
+    header: 1,
+    defval: '',
+    raw: false,
+  });
+
+  if (rawRows.length === 0) {
+    return { tabName: targetSheetName, columns: [...ERICSSON_SITE_LIST_COLUMNS], rows: [] };
+  }
+
+  // Find header row: look for row that contains 'ASP' or 'Intervencao Claro' or has maximum non-empty cells
+  let headerRowIndex = 0;
+  for (let i = 0; i < Math.min(10, rawRows.length); i++) {
+    const rowCells = (rawRows[i] || []).map((c) => normalizeHeader(c).toLowerCase());
+    if (rowCells.some((c) => c === 'asp' || c.includes('intervencao') || c.includes('tipo doc'))) {
+      headerRowIndex = i;
+      break;
+    }
+  }
+
+  const rawHeaders = (rawRows[headerRowIndex] || []).map((c) => normalizeHeader(c));
+  const detectedColumns: string[] = [];
+  rawHeaders.forEach((h, idx) => {
+    if (h) detectedColumns.push(h);
+    else if (idx < ERICSSON_SITE_LIST_COLUMNS.length) {
+      detectedColumns.push(ERICSSON_SITE_LIST_COLUMNS[idx]);
+    }
+  });
+
+  const columns =
+    detectedColumns.length >= 10 ? detectedColumns : [...ERICSSON_SITE_LIST_COLUMNS];
+
+  const parsedRows: EricssonEngineeringRow[] = [];
+  const now = new Date().toISOString();
+
+  for (let rIdx = headerRowIndex + 1; rIdx < rawRows.length; rIdx++) {
+    const row = rawRows[rIdx];
+    if (!Array.isArray(row)) continue;
+
+    const fields: Record<string, string> = {};
+    let hasAnyValue = false;
+
+    columns.forEach((colName, cIdx) => {
+      const val = formatEricssonCellValue(row[cIdx]);
+      if (val) hasAnyValue = true;
+      fields[colName] = val;
+    });
+
+    if (!hasAnyValue) continue;
+
+    const intervencao = fields['Intervencao Claro'] || '';
+    let siteIdA = intervencao;
+    let siteIdB = '';
+
+    if (intervencao.includes('-')) {
+      const parts = intervencao.split('-');
+      siteIdA = parts[0].trim();
+      siteIdB = parts[1] ? parts[1].trim() : '';
+    } else if (intervencao.includes('/')) {
+      const parts = intervencao.split('/');
+      siteIdA = parts[0].trim();
+      siteIdB = parts[1] ? parts[1].trim() : '';
+    }
+
+    const rowId = `eric-eng-${rIdx - headerRowIndex}`;
+    const statusVal = fields['Status'] || '';
+    const tipoDocVal = fields['Tipo doc'] || '';
+
+    parsedRows.push({
+      id: rowId,
+      rowKey: `${intervencao}__${tipoDocVal}__${rIdx}`,
+      intervencaoClaro: intervencao,
+      siteIdA: siteIdA || `SITE_${rIdx}`,
+      siteIdB: siteIdB,
+      statusA: statusVal || 'Pendente',
+      statusB: siteIdB ? statusVal || 'Pendente' : '',
+      tipoDoc: tipoDocVal,
+      status: statusVal,
+      regional: fields['Regional'] || '',
+      tipoSite: fields['TIPO SITE'] || '',
+      executor: fields['EXECUTOR'] || '',
+      fields,
+      siteAVistoriaStatus: 'Pendente',
+      siteBVistoriaStatus: siteIdB ? 'Pendente' : undefined,
+      updatedAt: now,
+    });
+  }
+
+  return {
+    tabName: targetSheetName,
+    columns,
+    rows: parsedRows,
+  };
+}
+
+export function exportEricssonEngineeringToXlsx(
+  rows: EricssonEngineeringRow[],
+  columns: string[],
+  fileName: string = 'Engenharia_Ericsson.xlsx'
+): void {
+  const cols = columns && columns.length > 0 ? columns : ERICSSON_SITE_LIST_COLUMNS;
+  const data = rows.map((r) => {
+    const obj: Record<string, string> = {};
+    cols.forEach((c) => {
+      obj[c] = r.fields?.[c] || '';
+    });
+    return obj;
+  });
+
+  const ws = XLSX.utils.json_to_sheet(data, { header: cols });
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Site list');
+  XLSX.writeFile(wb, fileName);
+}
+
+export function exportEricssonEngineeringToCsv(
+  rows: EricssonEngineeringRow[],
+  columns: string[],
+  fileName: string = 'Engenharia_Ericsson.csv'
+): void {
+  const cols = columns && columns.length > 0 ? columns : ERICSSON_SITE_LIST_COLUMNS;
+  const headerLine = cols.map((c) => `"${c.replace(/"/g, '""')}"`).join(';');
+  const dataLines = rows.map((r) =>
+    cols
+      .map((c) => `"${(r.fields?.[c] || '').replace(/"/g, '""')}"`)
+      .join(';')
+  );
+  const csvContent = [headerLine, ...dataLines].join('\r\n');
+  const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = fileName;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+export function isEricssonRowAssignedToExecutor(
+  row: { executor?: string; fields?: Record<string, string> },
+  executorName: string
+): boolean {
+  if (!executorName) return false;
+  const exCandidates = [
+    row.executor,
+    row.fields?.['EXECUTOR'],
+    row.fields?.['EXECUTOR PPI'],
+    row.fields?.['EXECUTOR QRF'],
+    row.fields?.['EXECUTOR WR'],
+    row.fields?.['Executor'],
+  ]
+    .filter(Boolean)
+    .map((v) => normalizeAccents(String(v).toLowerCase().trim()));
+
+  if (exCandidates.length === 0) return false;
+
+  const targetNorm = normalizeAccents(executorName.toLowerCase().trim());
+
+  return exCandidates.some((c) => {
+    if (c === targetNorm) return true;
+    const insideParen = targetNorm.match(/\((.*?)\)/)?.[1];
+    if (insideParen && (c.includes(insideParen) || insideParen.includes(c))) return true;
+    const mainName = targetNorm.replace(/\(.*?\)/g, '').trim();
+    if (mainName && (c.includes(mainName) || mainName.includes(c))) return true;
+    const targetWords = targetNorm.split(/\s+/).filter((w) => w.length > 2);
+    const candWords = c.split(/\s+/).filter((w) => w.length > 2);
+    const commonWords = targetWords.filter((w) => candWords.includes(w));
+    return commonWords.length >= 2;
+  });
+}
+
+

@@ -100,7 +100,15 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
   const [filterEquipe, setFilterEquipe] = useState<string>('ALL');
   const [filterSheetStatus, setFilterSheetStatus] = useState<string>('ALL');
   const [filterVistoriaStatus, setFilterVistoriaStatus] = useState<
-    'ALL' | 'FINALIZADO' | 'PENDENTE' | 'LOS_FINALIZADO' | 'LOS_PENDENTE'
+    | 'ALL'
+    | 'FINALIZADO'
+    | 'PENDENTE'
+    | 'LOS_FINALIZADO'
+    | 'LOS_PENDENTE'
+    | 'SMART_FINALIZADO'
+    | 'SMART_PENDENTE'
+    | 'SDC_FINALIZADO'
+    | 'SDC_PENDENTE'
   >('ALL');
   const [togglingRowKey, setTogglingRowKey] = useState<string | null>(null);
 
@@ -208,12 +216,18 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
 
   const distinctEquipes = useMemo(() => {
     const set = new Set<string>();
+    // Exclusively Ericsson teams from rows
     roleScopedRows.forEach((r) => {
       const val = (r.equipe || r.fields?.['EQUIPE'] || '').trim();
-      if (val) set.add(val);
+      if (val && val !== '—' && val !== '-' && val !== 'Cancelado') set.add(val);
+    });
+    // Plus registered Ericsson users' teams
+    ericssonUsers.forEach((u) => {
+      const val = (u.equipe || '').trim();
+      if (val && !val.startsWith('Coordenação') && val !== 'Ameta Telecom') set.add(val);
     });
     return Array.from(set).sort();
-  }, [roleScopedRows]);
+  }, [roleScopedRows, ericssonUsers]);
 
   const distinctSheetStatuses = useMemo(() => {
     const set = new Set<string>();
@@ -248,6 +262,8 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
       const isAFinalizado = r.siteAVistoriaStatus === 'Entregue';
       const isBFinalizado = r.siteBVistoriaStatus === 'Entregue';
       const isLosFinalizado = r.losStatus === 'Entregue';
+      const isSmartFinalizado = r.smartStatus === 'Entregue';
+      const isSdcFinalizado = r.sdcStatus === 'Entregue';
 
       if (filterVistoriaStatus === 'FINALIZADO') {
         if (!isAFinalizado && !isBFinalizado) return false;
@@ -257,6 +273,14 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
         if (!isLosFinalizado) return false;
       } else if (filterVistoriaStatus === 'LOS_PENDENTE') {
         if (isLosFinalizado) return false;
+      } else if (filterVistoriaStatus === 'SMART_FINALIZADO') {
+        if (!isSmartFinalizado) return false;
+      } else if (filterVistoriaStatus === 'SMART_PENDENTE') {
+        if (isSmartFinalizado) return false;
+      } else if (filterVistoriaStatus === 'SDC_FINALIZADO') {
+        if (!isSdcFinalizado) return false;
+      } else if (filterVistoriaStatus === 'SDC_PENDENTE') {
+        if (isSdcFinalizado) return false;
       }
 
       if (searchTokens.length === 0) return true;
@@ -304,7 +328,7 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
     searchTokens,
   ]);
 
-  // Top Counters: COUNTED BY SITE (plus LOS counter)
+  // Top Counters: COUNTED BY SITE (plus LOS, SMART, SDC counters)
   const siteCounters = useMemo(
     () => computeEricssonSiteCounters(filteredRows),
     [filteredRows]
@@ -315,6 +339,26 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
     let pendentes = 0;
     filteredRows.forEach((r) => {
       if (r.losStatus === 'Entregue') entregues++;
+      else pendentes++;
+    });
+    return { entregues, pendentes };
+  }, [filteredRows]);
+
+  const smartCounters = useMemo(() => {
+    let entregues = 0;
+    let pendentes = 0;
+    filteredRows.forEach((r) => {
+      if (r.smartStatus === 'Entregue') entregues++;
+      else pendentes++;
+    });
+    return { entregues, pendentes };
+  }, [filteredRows]);
+
+  const sdcCounters = useMemo(() => {
+    let entregues = 0;
+    let pendentes = 0;
+    filteredRows.forEach((r) => {
+      if (r.sdcStatus === 'Entregue') entregues++;
       else pendentes++;
     });
     return { entregues, pendentes };
@@ -386,10 +430,10 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
       .slice(0, 15);
   }, [filteredRows]);
 
-  // Toggle Finalizado / Pendente directly on A, B, or LOS in the normal spreadsheet
+  // Toggle Finalizado / Pendente directly on A, B, LOS, SMART, or SDC in the normal spreadsheet
   const handleToggleFinalizado = async (
     row: EricssonRow,
-    side: 'A' | 'B' | 'LOS' | 'BOTH',
+    side: 'A' | 'B' | 'LOS' | 'SMART' | 'SDC' | 'BOTH',
     e?: React.MouseEvent
   ) => {
     if (e) e.stopPropagation();
@@ -427,8 +471,16 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
                   ? 'Entregue (A Dispensado)'
                   : 'Pendente'
               }`
-            : `LOS (${row.siteIdA} ↔ ${row.siteIdB}) marcado como ${
+            : side === 'LOS'
+            ? `LOS (${row.siteIdA} ↔ ${row.siteIdB}) marcado como ${
                 updatedRow?.losStatus === 'Entregue' ? 'Entregue' : 'Pendente'
+              }`
+            : side === 'SMART'
+            ? `SMART (${row.siteIdA || row.siteIdB || row.chaves}) marcado como ${
+                updatedRow?.smartStatus === 'Entregue' ? 'Entregue' : 'Pendente'
+              }`
+            : `SDC (${row.siteIdA || row.siteIdB || row.chaves}) marcado como ${
+                updatedRow?.sdcStatus === 'Entregue' ? 'Entregue' : 'Pendente'
               }`;
         onUpdated(data.ericssonRows, sheetMeta, `${label}.`);
       }
@@ -439,10 +491,10 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
     }
   };
 
-  // Delete Vistoria A, Vistoria B, or LOS file from an Ericsson row
+  // Delete Vistoria A, Vistoria B, LOS, SMART, or SDC file from an Ericsson row
   const handleDeleteRowFile = async (
     row: EricssonRow,
-    side: 'A' | 'B' | 'LOS',
+    side: 'A' | 'B' | 'LOS' | 'SMART' | 'SDC',
     e?: React.MouseEvent
   ) => {
     if (e) e.stopPropagation();
@@ -457,10 +509,18 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
         if (selectedRow && selectedRow.id === row.id && updatedRow) {
           setSelectedRow(updatedRow);
         }
+        const sideLabel =
+          side === 'LOS'
+            ? 'LOS'
+            : side === 'SMART'
+            ? 'SMART'
+            : side === 'SDC'
+            ? 'SDC'
+            : `Vistoria ${side}`;
         onUpdated(
           data.ericssonRows,
           sheetMeta,
-          `Arquivo de ${side === 'LOS' ? 'LOS' : `Vistoria ${side}`} excluído com sucesso!`,
+          `Arquivo de ${sideLabel} excluído com sucesso!`,
           data.ericssonFiles
         );
       }
@@ -553,6 +613,8 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
       rowObj['Vistoria Site A'] = r.siteAVistoriaStatus || 'Pendente';
       rowObj['Vistoria Site B'] = r.siteBVistoriaStatus || 'Pendente';
       rowObj['LOS'] = r.losStatus || 'Pendente';
+      rowObj['SMART'] = r.smartStatus || 'Pendente';
+      rowObj['SDC'] = r.sdcStatus || 'Pendente';
       return rowObj;
     });
 
@@ -743,34 +805,50 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
 
   // Control for Vistoria A, Vistoria B, and LOS in the Mother Spreadsheet (Sites):
   // Displays Entregue / Dispensado / Pendente and ONLY ONE shortcut that navigates to the file in the Vistoria folder
-  const renderVistoriaOrLosCell = (row: EricssonRow, side: 'A' | 'B' | 'LOS') => {
+  const renderVistoriaOrLosCell = (row: EricssonRow, side: 'A' | 'B' | 'LOS' | 'SMART' | 'SDC') => {
     const status =
       side === 'A'
         ? row.siteAVistoriaStatus || 'Pendente'
         : side === 'B'
         ? row.siteBVistoriaStatus || 'Pendente'
-        : row.losStatus || 'Pendente';
+        : side === 'LOS'
+        ? row.losStatus || 'Pendente'
+        : side === 'SMART'
+        ? row.smartStatus || 'Pendente'
+        : row.sdcStatus || 'Pendente';
 
     const fileId =
       side === 'A'
         ? row.siteAVistoriaFileId
         : side === 'B'
         ? row.siteBVistoriaFileId
-        : row.losFileId;
+        : side === 'LOS'
+        ? row.losFileId
+        : side === 'SMART'
+        ? row.smartFileId
+        : row.sdcFileId;
 
     const folderId =
       side === 'A'
         ? row.siteAVistoriaFolderId
         : side === 'B'
         ? row.siteBVistoriaFolderId
-        : row.losFolderId;
+        : side === 'LOS'
+        ? row.losFolderId
+        : side === 'SMART'
+        ? row.smartFolderId
+        : row.sdcFolderId;
 
     const fileName =
       side === 'A'
         ? row.siteAVistoriaFileName
         : side === 'B'
         ? row.siteBVistoriaFileName
-        : row.losFileName;
+        : side === 'LOS'
+        ? row.losFileName
+        : side === 'SMART'
+        ? row.smartFileName
+        : row.sdcFileName;
 
     const isToggling = togglingRowKey === `${row.id}:${side}`;
 
@@ -785,14 +863,20 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
           onClick={(e) => handleToggleFinalizado(row, side, e)}
           title={
             status === 'Entregue'
-              ? 'Entregue (clique para alternar status)'
+              ? `${side}: Entregue (clique para alternar status)`
               : status === 'Dispensado'
-              ? 'Dispensado (a outra ponta foi entregue — clique se desejar marcar este lado como Entregue)'
-              : 'Pendente (clique para marcar como Entregue)'
+              ? `${side}: Dispensado (a outra ponta foi entregue — clique se desejar marcar este lado como Entregue)`
+              : `${side}: Pendente (clique para marcar como Entregue)`
           }
           className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border transition-colors cursor-pointer ${
             status === 'Entregue'
-              ? 'bg-emerald-50 text-emerald-700 border-emerald-300 hover:bg-emerald-100'
+              ? side === 'SMART'
+                ? 'bg-violet-50 text-violet-700 border-violet-300 hover:bg-violet-100'
+                : side === 'SDC'
+                ? 'bg-rose-50 text-rose-700 border-rose-300 hover:bg-rose-100'
+                : side === 'LOS'
+                ? 'bg-amber-50 text-amber-800 border-amber-300 hover:bg-amber-100'
+                : 'bg-emerald-50 text-emerald-700 border-emerald-300 hover:bg-emerald-100'
               : status === 'Dispensado'
               ? 'bg-sky-50 text-sky-700 border-sky-300 hover:bg-sky-100'
               : 'bg-red-50 text-red-700 border-red-200 hover:bg-red-100'
@@ -800,7 +884,17 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
         >
           {status === 'Entregue' ? (
             <>
-              <CheckCircle2 className="w-3 h-3 text-emerald-600 shrink-0" />
+              <CheckCircle2
+                className={`w-3 h-3 shrink-0 ${
+                  side === 'SMART'
+                    ? 'text-violet-600'
+                    : side === 'SDC'
+                    ? 'text-rose-600'
+                    : side === 'LOS'
+                    ? 'text-amber-600'
+                    : 'text-emerald-600'
+                }`}
+              />
               <span>
                 Entregue
                 {side === 'LOS' && row.losLinkedSiteId ? ` (${row.losLinkedSiteId})` : ''}
@@ -1054,6 +1148,56 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
             </div>
           </button>
 
+          <button
+            type="button"
+            onClick={() =>
+              setFilterVistoriaStatus((prev) =>
+                prev === 'SMART_FINALIZADO' ? 'ALL' : 'SMART_FINALIZADO'
+              )
+            }
+            className={`text-left p-3.5 rounded-xl border transition-all cursor-pointer ${
+              filterVistoriaStatus === 'SMART_FINALIZADO'
+                ? 'bg-violet-50 border-violet-500 ring-1 ring-violet-500/20'
+                : 'bg-violet-50/40 hover:bg-violet-50 border-violet-200'
+            }`}
+          >
+            <div className="text-[10px] font-bold uppercase tracking-wider text-violet-800 flex items-center justify-between">
+              <span>SMART Entregues</span>
+              <CheckCircle2 className="w-3.5 h-3.5 text-violet-600" />
+            </div>
+            <div className="text-2xl font-extrabold font-mono text-violet-800 mt-0.5 tabular-nums">
+              {smartCounters.entregues}
+            </div>
+            <div className="text-[10px] text-violet-800/80 mt-0.5">
+              {smartCounters.pendentes} SMART pendentes
+            </div>
+          </button>
+
+          <button
+            type="button"
+            onClick={() =>
+              setFilterVistoriaStatus((prev) =>
+                prev === 'SDC_FINALIZADO' ? 'ALL' : 'SDC_FINALIZADO'
+              )
+            }
+            className={`text-left p-3.5 rounded-xl border transition-all cursor-pointer ${
+              filterVistoriaStatus === 'SDC_FINALIZADO'
+                ? 'bg-rose-50 border-rose-500 ring-1 ring-rose-500/20'
+                : 'bg-rose-50/40 hover:bg-rose-50 border-rose-200'
+            }`}
+          >
+            <div className="text-[10px] font-bold uppercase tracking-wider text-rose-800 flex items-center justify-between">
+              <span>SDC Entregues</span>
+              <CheckCircle2 className="w-3.5 h-3.5 text-rose-600" />
+            </div>
+            <div className="text-2xl font-extrabold font-mono text-rose-800 mt-0.5 tabular-nums">
+              {sdcCounters.entregues}
+            </div>
+            <div className="text-[10px] text-rose-800/80 mt-0.5">
+              {sdcCounters.pendentes} SDC pendentes
+            </div>
+          </button>
+
           <div className="p-3.5 rounded-xl bg-slate-50/70 border border-slate-200">
             <div className="text-[10px] font-bold uppercase tracking-wider text-teal-700">
               Status Planilha: Liberado
@@ -1263,15 +1407,23 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
                       | 'PENDENTE'
                       | 'LOS_FINALIZADO'
                       | 'LOS_PENDENTE'
+                      | 'SMART_FINALIZADO'
+                      | 'SMART_PENDENTE'
+                      | 'SDC_FINALIZADO'
+                      | 'SDC_PENDENTE'
                   )
                 }
                 className="w-full px-2.5 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-700 font-medium focus:outline-none focus:border-[#223585]"
               >
-                <option value="ALL">Filtro Vistoria / LOS: Todos</option>
+                <option value="ALL">Filtro Documentos / Vistorias: Todos</option>
                 <option value="FINALIZADO">Vistoria A/B Finalizado</option>
                 <option value="PENDENTE">Vistoria A/B Pendente</option>
                 <option value="LOS_FINALIZADO">LOS Finalizado ({losCounters.entregues})</option>
                 <option value="LOS_PENDENTE">LOS Pendente ({losCounters.pendentes})</option>
+                <option value="SMART_FINALIZADO">SMART Entregue ({smartCounters.entregues})</option>
+                <option value="SMART_PENDENTE">SMART Pendente ({smartCounters.pendentes})</option>
+                <option value="SDC_FINALIZADO">SDC Entregue ({sdcCounters.entregues})</option>
+                <option value="SDC_PENDENTE">SDC Pendente ({sdcCounters.pendentes})</option>
               </select>
             </div>
           </div>
@@ -1342,6 +1494,12 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
                   </th>
                   <th className="py-2.5 px-3 font-bold bg-amber-50 text-amber-800 border-l border-slate-200">
                     LOS
+                  </th>
+                  <th className="py-2.5 px-3 font-bold bg-violet-50 text-violet-800 border-l border-slate-200">
+                    SMART
+                  </th>
+                  <th className="py-2.5 px-3 font-bold bg-rose-50 text-rose-800 border-l border-slate-200">
+                    SDC
                   </th>
                 </tr>
               </thead>
@@ -1416,6 +1574,16 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
                       <td className={`${cellPad} bg-amber-50/20 border-l border-slate-200`}>
                         {renderVistoriaOrLosCell(row, 'LOS')}
                       </td>
+
+                      {/* NOVA COLUNA: SMART */}
+                      <td className={`${cellPad} bg-violet-50/20 border-l border-slate-200`}>
+                        {renderVistoriaOrLosCell(row, 'SMART')}
+                      </td>
+
+                      {/* NOVA COLUNA: SDC */}
+                      <td className={`${cellPad} bg-rose-50/20 border-l border-slate-200`}>
+                        {renderVistoriaOrLosCell(row, 'SDC')}
+                      </td>
                     </tr>
                   );
                 })}
@@ -1476,6 +1644,12 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
                   </th>
                   <th className="py-2.5 px-3 font-bold whitespace-nowrap bg-amber-50 text-amber-800 border-r border-slate-200">
                     LOS
+                  </th>
+                  <th className="py-2.5 px-3 font-bold whitespace-nowrap bg-violet-50 text-violet-800 border-r border-slate-200">
+                    SMART
+                  </th>
+                  <th className="py-2.5 px-3 font-bold whitespace-nowrap bg-rose-50 text-rose-800 border-r border-slate-200">
+                    SDC
                   </th>
                 </tr>
               </thead>
@@ -1539,6 +1713,16 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
                     {/* NOVA COLUNA: LOS */}
                     <td className={`${cellPad} whitespace-nowrap bg-amber-50/20 border-r border-slate-200`}>
                       {renderVistoriaOrLosCell(row, 'LOS')}
+                    </td>
+
+                    {/* NOVA COLUNA: SMART */}
+                    <td className={`${cellPad} whitespace-nowrap bg-violet-50/20 border-r border-slate-200`}>
+                      {renderVistoriaOrLosCell(row, 'SMART')}
+                    </td>
+
+                    {/* NOVA COLUNA: SDC */}
+                    <td className={`${cellPad} whitespace-nowrap bg-rose-50/20 border-r border-slate-200`}>
+                      {renderVistoriaOrLosCell(row, 'SDC')}
                     </td>
                   </tr>
                 ))}
@@ -2241,13 +2425,13 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
               </div>
             </div>
 
-            {/* VISTORIA A, VISTORIA B, AND LOS BOX */}
+            {/* VISTORIA A, VISTORIA B, LOS, SMART AND SDC BOX */}
             <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-3 text-xs">
               <div className="font-bold text-slate-900">
-                Controle de Entregas do Enlace (Vistoria A, Vistoria B e LOS)
+                Controle de Entregas do Enlace (Vistoria A, Vistoria B, LOS, SMART e SDC)
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
                 <div className="p-3 bg-white rounded-lg border border-blue-200 space-y-2">
                   <div className="flex items-center justify-between">
                     <span className="text-[10px] font-bold uppercase text-[#223585]">
@@ -2280,6 +2464,26 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
                     <span className="font-mono font-bold text-amber-800">A ↔ B</span>
                   </div>
                   {renderVistoriaOrLosCell(selectedRow, 'LOS')}
+                </div>
+
+                <div className="p-3 bg-white rounded-lg border border-violet-200 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-bold uppercase text-violet-800">
+                      Documento SMART
+                    </span>
+                    <span className="font-mono font-bold text-violet-800">SMART</span>
+                  </div>
+                  {renderVistoriaOrLosCell(selectedRow, 'SMART')}
+                </div>
+
+                <div className="p-3 bg-white rounded-lg border border-rose-200 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-bold uppercase text-rose-800">
+                      Documento SDC
+                    </span>
+                    <span className="font-mono font-bold text-rose-800">SDC</span>
+                  </div>
+                  {renderVistoriaOrLosCell(selectedRow, 'SDC')}
                 </div>
               </div>
             </div>

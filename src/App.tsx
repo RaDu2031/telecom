@@ -41,6 +41,7 @@ import {
   Edit3,
   Trash2,
   Users,
+  HardHat,
   Cloud,
 } from 'lucide-react';
 import {
@@ -50,6 +51,7 @@ import {
   UserRole,
   normalizeUserRole,
   VendorType,
+  DEFAULT_ERICSSON_ENG_ONEDRIVE_URL,
   SiteStatus,
   EngineeringFolder,
   EngineeringFile,
@@ -60,6 +62,8 @@ import {
   TssrSheetMeta,
   EricssonRow,
   EricssonSheetMeta,
+  EricssonEngineeringRow,
+  DEFAULT_ERICSSON_COLABORADORES,
   CONTROLE_GERAL_COLUMNS,
   CONTROLE_CANCELADOS_COLUMNS,
   EQUIPES_COLUMNS,
@@ -84,6 +88,7 @@ import { EngineeringControlTab } from './components/EngineeringControlTab';
 import { EricssonSitesTab } from './components/EricssonSitesTab';
 import { EricssonVistoriaTab } from './components/EricssonVistoriaTab';
 import { EricssonEngenhariaTab } from './components/EricssonEngenhariaTab';
+import { EricssonEngineeringTab } from './components/EricssonEngineeringTab';
 import { computeEricssonSiteCounters } from './utils/ericssonSpreadsheetUtils';
 import { AdminAccessPanel } from './components/AdminAccessPanel';
 import { NotificationBellDropdown } from './components/NotificationBellDropdown';
@@ -98,6 +103,8 @@ import {
   getSiteExecutionSortBucket,
 } from './components/InteractiveSpreadsheetChart';
 import { DuplasInteractiveView } from './components/DuplasInteractiveView';
+import { ExecutoresInteractiveView } from './components/ExecutoresInteractiveView';
+import { GoogleDriveModal } from './components/GoogleDriveModal';
 import { cloudFetch } from './lib/firebaseCloud';
 
 const fetch = cloudFetch;
@@ -121,6 +128,7 @@ import {
 
 const STORAGE_USER_KEY = 'ameta_authenticated_user_v1';
 const STORAGE_DUPLAS_KEY = 'ameta_custom_duplas_v2';
+const STORAGE_EXECUTORES_KEY = 'ameta_custom_executores_v1';
 
 type TableDensity = 'comfortable' | 'compact' | 'ultra';
 
@@ -129,6 +137,7 @@ type WorkspaceTopTab =
   | 'engenharia'
   | 'vistoria'
   | 'duplas'
+  | 'executores'
   | 'perfis'
   | 'novo_site'
   | 'importar'
@@ -197,9 +206,13 @@ export default function App() {
   const [ericssonFolders, setEricssonFolders] = useState<EngineeringFolder[]>([]);
   const [ericssonFiles, setEricssonFiles] = useState<EngineeringFile[]>([]);
   const [ericssonUsers, setEricssonUsers] = useState<AmetaUser[]>([]);
+  const [ericssonEngineeringRows, setEricssonEngineeringRows] = useState<EricssonEngineeringRow[]>([]);
+  const [serverEricssonExecutorEmailsMap, setServerEricssonExecutorEmailsMap] = useState<Record<string, string[]>>({});
+  const [serverEricssonDuplaEmailsMap, setServerEricssonDuplaEmailsMap] = useState<Record<string, string[]>>({});
   const [notifications, setNotifications] = useState<AmetaNotification[]>([]);
   const [serverDuplaEmailsMap, setServerDuplaEmailsMap] = useState<Record<string, string[]>>({});
   const [ownerPermissionsModalOpen, setOwnerPermissionsModalOpen] = useState<boolean>(false);
+  const [isAppGoogleDriveOpen, setIsAppGoogleDriveOpen] = useState<boolean>(false);
   const [ericssonVistoriaFocus, setEricssonVistoriaFocus] = useState<{
     folderId?: string;
     fileId?: string;
@@ -276,6 +289,21 @@ export default function App() {
   const [editingDuplaValue, setEditingDuplaValue] = useState<string>('');
   const [isRaMenuOpen, setIsRaMenuOpen] = useState<boolean>(false);
 
+  // Dynamic Executores (Planilha da Engenharia TSSR TIM Nokia)
+  const [customExecutores, setCustomExecutores] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_EXECUTORES_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch {
+      // ignore
+    }
+    return [];
+  });
+  const [serverExecutorEmailsMap, setServerExecutorEmailsMap] = useState<Record<string, string[]>>({});
+
   // Top bar quick search state
   const [quickSiteQuery, setQuickSiteQuery] = useState<string>('');
   const [quickDropdownOpen, setQuickDropdownOpen] = useState<boolean>(false);
@@ -349,11 +377,23 @@ export default function App() {
       if (Array.isArray(payload.ericssonUsers)) {
         setEricssonUsers(payload.ericssonUsers as AmetaUser[]);
       }
+      if (Array.isArray(payload.ericsson_engenharia)) {
+        setEricssonEngineeringRows(payload.ericsson_engenharia as EricssonEngineeringRow[]);
+      }
+      if (payload.ericssonExecutorEmailsMap && typeof payload.ericssonExecutorEmailsMap === 'object') {
+        setServerEricssonExecutorEmailsMap(payload.ericssonExecutorEmailsMap as Record<string, string[]>);
+      }
+      if (payload.ericssonDuplaEmailsMap && typeof payload.ericssonDuplaEmailsMap === 'object') {
+        setServerEricssonDuplaEmailsMap(payload.ericssonDuplaEmailsMap as Record<string, string[]>);
+      }
       if (Array.isArray(payload.notifications)) {
         setNotifications(payload.notifications as AmetaNotification[]);
       }
       if (payload.duplaEmailsMap && typeof payload.duplaEmailsMap === 'object') {
         setServerDuplaEmailsMap(payload.duplaEmailsMap as Record<string, string[]>);
+      }
+      if (payload.executorEmailsMap && typeof payload.executorEmailsMap === 'object') {
+        setServerExecutorEmailsMap(payload.executorEmailsMap as Record<string, string[]>);
       }
       if (Array.isArray(payload.users)) {
         const nextUsers = payload.users as AmetaUser[];
@@ -606,11 +646,22 @@ export default function App() {
 
   const canSeeFullSpreadsheets = hasFullSpreadsheetAccess(effectiveRole);
   const isEngCoordinator = isEngineeringCoordinatorRole(effectiveRole);
+  const isGestorEngenharia =
+    effectiveRole === 'ADM' ||
+    effectiveRole === 'Coordenador Geral' ||
+    effectiveRole === 'Coordenador Engenharia' ||
+    isEngCoordinator;
   const canSeeSitesTab = !isEngCoordinator;
   const canSeeEngenhariaTab =
     effectiveRole === 'ADM' ||
     effectiveRole === 'Coordenador Geral' ||
     effectiveRole === 'Coordenador Engenharia';
+
+  // "essa opção aparece somente para os gestores engenharia e para gestor geral para todo resto é oculta"
+  const canAccessDemandaExecutores =
+    (effectiveRole === 'ADM' ||
+      effectiveRole === 'Coordenador Geral' ||
+      effectiveRole === 'Coordenador Engenharia');
 
   const canAccessNokia = canUserAccessVendor(activeTargetUser, 'NOKIA');
   const canAccessEricsson = canUserAccessVendor(activeTargetUser, 'ERICSSON');
@@ -661,8 +712,25 @@ export default function App() {
     ).length;
   }, [users]);
 
-  // Unified list of Duplas / Equipes Executantes — starts zeroed out and is fed by newly registered users & customDuplas
-  const equipesDuplas = useMemo<string[]>(() => {
+  // 1. Custom duplas for Ericsson (isolated storage)
+  const [customDuplasEricsson, setCustomDuplasEricsson] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem('ameta_custom_duplas_ericsson_v1');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  const saveCustomDuplasEricsson = (nextList: string[]) => {
+    setCustomDuplasEricsson(nextList);
+    try {
+      localStorage.setItem('ameta_custom_duplas_ericsson_v1', JSON.stringify(nextList));
+    } catch {}
+  };
+
+  // NOKIA ONLY Duplas / Equipes Executantes (Completely isolated from Ericsson)
+  const nokiaEquipesDuplas = useMemo<string[]>(() => {
     const set = new Set<string>();
     customDuplas.forEach((d) => {
       const c = getCanonicalDuplaName(d) || d.trim();
@@ -672,54 +740,119 @@ export default function App() {
       const c = getCanonicalDuplaName(d) || d.trim();
       if (c) set.add(c);
     });
-    const addFromUserList = (list: AmetaUser[]) => {
-      list.forEach((u) => {
-        if (isOwnerAdmUser(u.email, u.situacao) || normalizeUserRole(u.role) === 'ADM') return;
-        const roleNorm = normalizeUserRole(u.role, u.email);
-        if (roleNorm.includes('Coordenador')) return;
-        const rawEq = (u.equipe || '').trim();
-        if (
-          rawEq &&
-          rawEq !== 'Ameta Telecom' &&
-          rawEq !== 'Campo / Engenharia' &&
-          rawEq !== 'Campo / Execução' &&
-          rawEq !== 'Coordenação / ADM' &&
-          !rawEq.startsWith('Coordenação') &&
-          rawEq !== 'Equipe de Teste'
-        ) {
-          const c = getCanonicalDuplaName(rawEq) || rawEq;
-          if (c) set.add(c);
-        } else if (u.name && u.name.trim()) {
-          set.add(u.name.trim());
-        }
-      });
-    };
-    addFromUserList(assignableUsersList);
-    addFromUserList(ericssonUsers);
+    // Add exclusively Nokia registered users
+    assignableUsersList.forEach((u) => {
+      if (isOwnerAdmUser(u.email, u.situacao) || normalizeUserRole(u.role) === 'ADM') return;
+      const roleNorm = normalizeUserRole(u.role, u.email);
+      if (roleNorm.includes('Coordenador')) return;
+      const rawEq = (u.equipe || '').trim();
+      if (
+        rawEq &&
+        rawEq !== 'Ameta Telecom' &&
+        rawEq !== 'Campo / Engenharia' &&
+        rawEq !== 'Campo / Execução' &&
+        rawEq !== 'Coordenação / ADM' &&
+        !rawEq.startsWith('Coordenação') &&
+        rawEq !== 'Equipe de Teste'
+      ) {
+        const c = getCanonicalDuplaName(rawEq) || rawEq;
+        if (c) set.add(c);
+      } else if (u.name && u.name.trim()) {
+        set.add(u.name.trim());
+      }
+    });
+    return Array.from(set).sort((a, b) => a.localeCompare(b, 'pt-BR'));
+  }, [customDuplas, serverDuplaEmailsMap, assignableUsersList]);
 
-    return Array.from(set);
-  }, [customDuplas, serverDuplaEmailsMap, assignableUsersList, ericssonUsers]);
+  // ERICSSON ONLY Duplas / Equipes Executantes (Completely isolated from Nokia)
+  const ericssonEquipesDuplas = useMemo<string[]>(() => {
+    const set = new Set<string>();
+    // 1. Custom Ericsson duplas
+    customDuplasEricsson.forEach((d) => {
+      const c = getCanonicalDuplaName(d) || d.trim();
+      if (c) set.add(c);
+    });
+    // 2. Server map for Ericsson
+    Object.keys(serverEricssonDuplaEmailsMap || {}).forEach((d) => {
+      const c = getCanonicalDuplaName(d) || d.trim();
+      if (c) set.add(c);
+    });
+    // 3. From Ericsson spreadsheet rows (ericssonRows)
+    ericssonRows.forEach((r) => {
+      const eq = (r.equipe || r.fields?.['EQUIPE'] || '').trim();
+      if (eq && eq !== '—' && eq !== '-' && eq.toLowerCase() !== 'cancelado') {
+        const c = getCanonicalDuplaName(eq) || eq;
+        set.add(c);
+      }
+    });
+    // 4. From Ericsson Engineering rows (ericssonEngineeringRows)
+    ericssonEngineeringRows.forEach((r) => {
+      const eq = (r.fields?.['EQUIPE'] || r.fields?.['Equipe'] || '').trim();
+      if (eq && eq !== '—' && eq !== '-') {
+        const c = getCanonicalDuplaName(eq) || eq;
+        set.add(c);
+      }
+    });
+    // 5. From Ericsson registered users ONLY
+    ericssonUsers.forEach((u) => {
+      if (isOwnerAdmUser(u.email, u.situacao) || normalizeUserRole(u.role) === 'ADM') return;
+      const roleNorm = normalizeUserRole(u.role, u.email);
+      if (roleNorm.includes('Coordenador')) return;
+      const rawEq = (u.equipe || '').trim();
+      if (
+        rawEq &&
+        rawEq !== 'Ameta Telecom' &&
+        rawEq !== 'Campo / Engenharia' &&
+        rawEq !== 'Campo / Execução' &&
+        rawEq !== 'Coordenação / ADM' &&
+        !rawEq.startsWith('Coordenação') &&
+        rawEq !== 'Equipe de Teste'
+      ) {
+        const c = getCanonicalDuplaName(rawEq) || rawEq;
+        if (c) set.add(c);
+      } else if (u.name && u.name.trim()) {
+        set.add(u.name.trim());
+      }
+    });
+    return Array.from(set).sort((a, b) => a.localeCompare(b, 'pt-BR'));
+  }, [customDuplasEricsson, serverEricssonDuplaEmailsMap, ericssonRows, ericssonEngineeringRows, ericssonUsers]);
+
+  // Active vendor duplas list
+  const equipesDuplas = useMemo<string[]>(() => {
+    return activeVendor === 'ERICSSON' ? ericssonEquipesDuplas : nokiaEquipesDuplas;
+  }, [activeVendor, ericssonEquipesDuplas, nokiaEquipesDuplas]);
 
   const saveCustomDuplas = (nextList: string[]) => {
-    setCustomDuplas(nextList);
-    try {
-      localStorage.setItem(STORAGE_DUPLAS_KEY, JSON.stringify(nextList));
-    } catch {
-      // ignore storage error
+    if (activeVendor === 'ERICSSON') {
+      saveCustomDuplasEricsson(nextList);
+    } else {
+      setCustomDuplas(nextList);
+      try {
+        localStorage.setItem(STORAGE_DUPLAS_KEY, JSON.stringify(nextList));
+      } catch {
+        // ignore storage error
+      }
     }
   };
 
   const handleAddDupla = () => {
     const clean = newDuplaInput.trim();
     if (!clean) return;
-    if (customDuplas.some((d) => d.toLowerCase() === clean.toLowerCase())) {
-      showToast(`A dupla/equipe "${clean}" já está cadastrada.`);
+    if (equipesDuplas.some((d) => d.toLowerCase() === clean.toLowerCase())) {
+      showToast(`A equipe "${clean}" já está cadastrada.`);
       return;
     }
-    const next = [clean, ...customDuplas];
-    saveCustomDuplas(next);
-    setNewDuplaInput('');
-    showToast(`Dupla "${clean}" adicionada em Equipe Executante.`);
+    if (activeVendor === 'ERICSSON') {
+      const next = [clean, ...customDuplasEricsson];
+      saveCustomDuplasEricsson(next);
+      setNewDuplaInput('');
+      showToast(`Equipe "${clean}" adicionada para a Ericsson!`);
+    } else {
+      const next = [clean, ...customDuplas];
+      saveCustomDuplas(next);
+      setNewDuplaInput('');
+      showToast(`Dupla "${clean}" adicionada para a Nokia!`);
+    }
   };
 
   const handleSaveEditDupla = async (oldName: string) => {
@@ -728,9 +861,15 @@ export default function App() {
       setEditingDuplaTarget(null);
       return;
     }
-    const nextList = customDuplas.map((d) => (d === oldName ? clean : d));
-    if (!nextList.includes(clean)) nextList.unshift(clean);
-    saveCustomDuplas(nextList);
+    if (activeVendor === 'ERICSSON') {
+      const nextList = customDuplasEricsson.map((d) => (d === oldName ? clean : d));
+      if (!nextList.includes(clean)) nextList.unshift(clean);
+      saveCustomDuplasEricsson(nextList);
+    } else {
+      const nextList = customDuplas.map((d) => (d === oldName ? clean : d));
+      if (!nextList.includes(clean)) nextList.unshift(clean);
+      saveCustomDuplas(nextList);
+    }
     setEditingDuplaTarget(null);
 
     try {
@@ -746,22 +885,509 @@ export default function App() {
       if (res.ok) {
         const data = await res.json();
         if (Array.isArray(data.sites)) setSites(data.sites);
+        if (Array.isArray(data.ericssonRows)) setEricssonRows(data.ericssonRows);
       }
     } catch {
       // ignore offline error
     }
-    showToast(`Dupla atualizada de "${oldName}" para "${clean}".`);
+    showToast(`Equipe atualizada de "${oldName}" para "${clean}".`);
   };
 
   const handleDeleteDupla = async (targetName: string) => {
     const canonTarget = getCanonicalDuplaName(targetName) || targetName;
-    const next = customDuplas.filter((d) => {
-      const canonD = getCanonicalDuplaName(d) || d;
-      return d !== targetName && canonD.toLowerCase() !== canonTarget.toLowerCase();
-    });
-    saveCustomDuplas(next);
+    if (activeVendor === 'ERICSSON') {
+      const next = customDuplasEricsson.filter((d) => {
+        const canonD = getCanonicalDuplaName(d) || d;
+        return d !== targetName && canonD.toLowerCase() !== canonTarget.toLowerCase();
+      });
+      saveCustomDuplasEricsson(next);
+    } else {
+      const next = customDuplas.filter((d) => {
+        const canonD = getCanonicalDuplaName(d) || d;
+        return d !== targetName && canonD.toLowerCase() !== canonTarget.toLowerCase();
+      });
+      saveCustomDuplas(next);
+    }
     await handleBulkAssignSitesResponsible('', '', targetName);
-    showToast(`Dupla "${targetName}" removida e sites desvinculados.`);
+    showToast(`Equipe "${targetName}" removida.`);
+  };
+
+  // Custom added executores for Ericsson
+  const [customExecutoresEricsson, setCustomExecutoresEricsson] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem('ameta_ericsson_custom_executores_v1');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  const saveCustomExecutoresEricsson = (nextList: string[]) => {
+    setCustomExecutoresEricsson(nextList);
+    try {
+      localStorage.setItem('ameta_ericsson_custom_executores_v1', JSON.stringify(nextList));
+    } catch {}
+  };
+
+  // NOKIA ONLY Executores list
+  const listaExecutoresNokia = useMemo<string[]>(() => {
+    const set = new Set<string>();
+    users.forEach((u) => {
+      if (u.role === 'Executor') {
+        const name = (u.name || '').trim();
+        if (name) set.add(name);
+      }
+    });
+    tssrRows.forEach((r) => {
+      const ex = (r.fields?.['Executor'] || '').trim();
+      if (ex && ex !== '—' && ex !== '-') set.add(ex);
+    });
+    customExecutores.forEach((ex) => {
+      const clean = (ex || '').trim();
+      if (clean) set.add(clean);
+    });
+    return Array.from(set).sort((a, b) => a.localeCompare(b, 'pt-BR'));
+  }, [users, tssrRows, customExecutores]);
+
+  // ERICSSON ONLY Executores list (Completely isolated from Nokia)
+  const listaExecutoresEricsson = useMemo<string[]>(() => {
+    const set = new Set<string>();
+    ericssonUsers.forEach((u) => {
+      if (u.role === 'Executor') {
+        const name = (u.name || '').trim();
+        if (name) set.add(name);
+      }
+    });
+    DEFAULT_ERICSSON_COLABORADORES.forEach((c) => {
+      if (c.nome) set.add(c.nome.trim());
+    });
+    ericssonEngineeringRows.forEach((r) => {
+      const ex = (r.executor || r.fields?.['EXECUTOR'] || '').trim();
+      if (ex && ex !== '—' && ex !== '-') set.add(ex);
+    });
+    customExecutoresEricsson.forEach((ex) => {
+      const clean = (ex || '').trim();
+      if (clean) set.add(clean);
+    });
+    return Array.from(set).sort((a, b) => a.localeCompare(b, 'pt-BR'));
+  }, [ericssonUsers, ericssonEngineeringRows, customExecutoresEricsson]);
+
+  // Active vendor Executores list
+  const listaExecutores = useMemo<string[]>(() => {
+    return activeVendor === 'ERICSSON' ? listaExecutoresEricsson : listaExecutoresNokia;
+  }, [activeVendor, listaExecutoresEricsson, listaExecutoresNokia]);
+
+  const saveCustomExecutores = (nextList: string[]) => {
+    if (activeVendor === 'ERICSSON') {
+      saveCustomExecutoresEricsson(nextList);
+    } else {
+      setCustomExecutores(nextList);
+      try {
+        localStorage.setItem(STORAGE_EXECUTORES_KEY, JSON.stringify(nextList));
+      } catch {
+        // ignore
+      }
+    }
+  };
+
+  const handleAddExecutor = (name: string) => {
+    const clean = name.trim();
+    if (!clean) return;
+    if (listaExecutoresNokia.some((e) => e.toLowerCase() === clean.toLowerCase())) {
+      showToast(`Executor "${clean}" já está na lista da Nokia.`);
+      return;
+    }
+    const next = [clean, ...customExecutores];
+    setCustomExecutores(next);
+    try {
+      localStorage.setItem(STORAGE_EXECUTORES_KEY, JSON.stringify(next));
+    } catch {}
+    showToast(`Executor "${clean}" adicionado para a Engenharia TIM!`);
+  };
+
+  const handleAddEricssonExecutor = (name: string) => {
+    const clean = name.trim();
+    if (!clean) return;
+    if (listaExecutoresEricsson.some((e) => e.toLowerCase() === clean.toLowerCase())) {
+      showToast(`Executor "${clean}" já está na lista da Ericsson.`);
+      return;
+    }
+    const next = [clean, ...customExecutoresEricsson];
+    saveCustomExecutoresEricsson(next);
+    showToast(`Executor "${clean}" adicionado para a Engenharia Ericsson!`);
+  };
+
+  const handleRenameEricssonExecutor = async (oldName: string, newName: string) => {
+    const clean = newName.trim();
+    if (!clean || clean === oldName) return;
+    const nextList = customExecutoresEricsson.map((e) => (e === oldName ? clean : e));
+    if (!nextList.includes(clean)) nextList.unshift(clean);
+    saveCustomExecutoresEricsson(nextList);
+
+    setEricssonEngineeringRows((prev) =>
+      prev.map((r) => {
+        if (
+          (r.executor || '').trim().toLowerCase() === oldName.trim().toLowerCase() ||
+          (r.fields?.['EXECUTOR'] || '').trim().toLowerCase() === oldName.trim().toLowerCase()
+        ) {
+          return {
+            ...r,
+            executor: clean,
+            fields: {
+              ...(r.fields || {}),
+              EXECUTOR: clean,
+            },
+            updatedAt: new Date().toISOString(),
+          };
+        }
+        return r;
+      })
+    );
+    showToast(`Executor Ericsson renomeado para "${clean}".`);
+  };
+
+  const handleDeleteEricssonExecutor = (name: string) => {
+    const next = customExecutoresEricsson.filter(
+      (e) => e.toLowerCase() !== name.toLowerCase()
+    );
+    saveCustomExecutoresEricsson(next);
+    showToast(`Executor "${name}" removido da lista da Ericsson.`);
+  };
+
+  const handleAssignEricssonRowsToExecutor = async (
+    rowIds: string[],
+    executorName: string,
+    demandDate?: string
+  ) => {
+    const targetDate = demandDate || new Date().toLocaleDateString('pt-BR');
+    const idSet = new Set(rowIds.map((id) => String(id).trim().toUpperCase()));
+
+    setEricssonEngineeringRows((prev) =>
+      prev.map((r) => {
+        if (
+          idSet.has(r.id.toUpperCase()) ||
+          idSet.has((r.intervencaoClaro || '').toUpperCase()) ||
+          idSet.has((r.siteIdA || '').toUpperCase())
+        ) {
+          return {
+            ...r,
+            executor: executorName,
+            fields: {
+              ...(r.fields || {}),
+              EXECUTOR: executorName,
+              'Data Demanda': targetDate,
+            },
+            updatedAt: new Date().toISOString(),
+          };
+        }
+        return r;
+      })
+    );
+
+    try {
+      const res = await fetch('/api/ericsson/engenharia/rows/bulk-assign', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          rowIds,
+          executorName,
+          demandDate: targetDate,
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data.rows)) setEricssonEngineeringRows(data.rows);
+        showToast(
+          `${rowIds.length} demanda(s) da Engenharia Ericsson atribuídas para "${executorName}"!`
+        );
+      }
+    } catch {
+      showToast(`Demandas atribuídas para "${executorName}".`);
+    }
+  };
+
+  const handleUnassignEricssonRowsFromExecutor = async (
+    rowIds: string[],
+    executorName: string
+  ) => {
+    const idSet = new Set(rowIds.map((id) => String(id).trim().toUpperCase()));
+    setEricssonEngineeringRows((prev) =>
+      prev.map((r) => {
+        if (
+          idSet.has(r.id.toUpperCase()) ||
+          idSet.has((r.intervencaoClaro || '').toUpperCase()) ||
+          idSet.has((r.siteIdA || '').toUpperCase())
+        ) {
+          const nextFields = { ...(r.fields || {}) };
+          delete nextFields.EXECUTOR;
+          delete nextFields['Data Demanda'];
+          return {
+            ...r,
+            executor: '',
+            fields: nextFields,
+            updatedAt: new Date().toISOString(),
+          };
+        }
+        return r;
+      })
+    );
+
+    try {
+      const res = await fetch('/api/ericsson/engenharia/rows/bulk-unassign', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          rowIds,
+          executorName,
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data.rows)) setEricssonEngineeringRows(data.rows);
+        showToast(`Demanda(s) desvinculadas de "${executorName}" na Engenharia Ericsson.`);
+      }
+    } catch {}
+  };
+
+  const handleClearEricssonExecutorRows = async (executorName: string) => {
+    setEricssonEngineeringRows((prev) =>
+      prev.map((r) => {
+        if (
+          (r.executor || '').trim().toLowerCase() === executorName.trim().toLowerCase() ||
+          (r.fields?.['EXECUTOR'] || '').trim().toLowerCase() === executorName.trim().toLowerCase()
+        ) {
+          const nextFields = { ...(r.fields || {}) };
+          delete nextFields.EXECUTOR;
+          delete nextFields['Data Demanda'];
+          return {
+            ...r,
+            executor: '',
+            fields: nextFields,
+            updatedAt: new Date().toISOString(),
+          };
+        }
+        return r;
+      })
+    );
+
+    try {
+      const res = await fetch('/api/ericsson/engenharia/rows/clear-executor', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ executorName }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data.rows)) setEricssonEngineeringRows(data.rows);
+        showToast(`Todas as demandas de "${executorName}" desvinculadas na Engenharia Ericsson.`);
+      }
+    } catch {}
+  };
+
+  const handleLinkEmailsToEricssonExecutor = async (
+    executorName: string,
+    emails: string[]
+  ) => {
+    try {
+      const res = await fetch('/api/ericsson/executores/link-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ executorName, emails }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.ericssonExecutorEmailsMap) {
+          setServerEricssonExecutorEmailsMap(data.ericssonExecutorEmailsMap);
+        }
+        showToast(`E-mails vinculados ao executor Ericsson "${executorName}".`);
+      }
+    } catch {
+      showToast('Erro ao vincular e-mails ao executor Ericsson.');
+    }
+  };
+
+  const handleRenameExecutor = async (oldName: string, newName: string) => {
+    const clean = newName.trim();
+    if (!clean || clean === oldName) return;
+    const nextList = customExecutores.map((e) => (e === oldName ? clean : e));
+    if (!nextList.includes(clean)) nextList.unshift(clean);
+    saveCustomExecutores(nextList);
+
+    setTssrRows((prev) =>
+      prev.map((r) => {
+        if ((r.fields?.['Executor'] || '').trim().toLowerCase() === oldName.trim().toLowerCase()) {
+          return {
+            ...r,
+            fields: {
+              ...(r.fields || {}),
+              Executor: clean,
+            },
+            updatedAt: new Date().toISOString(),
+          };
+        }
+        return r;
+      })
+    );
+
+    try {
+      const res = await fetch('/api/engineering/assign-executor', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          renameFrom: oldName,
+          renameTo: clean,
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data.tssrRows)) setTssrRows(data.tssrRows);
+      }
+    } catch {}
+    showToast(`Executor renomeado de "${oldName}" para "${clean}".`);
+  };
+
+  const handleDeleteExecutor = (name: string) => {
+    const next = customExecutores.filter(
+      (e) => e.toLowerCase() !== name.toLowerCase()
+    );
+    saveCustomExecutores(next);
+    showToast(`Executor "${name}" removido da lista.`);
+  };
+
+  const handleAssignRowsToExecutor = async (
+    rowIds: string[],
+    executorName: string,
+    demandDate?: string
+  ) => {
+    const targetDate = demandDate || new Date().toLocaleDateString('pt-BR');
+    const tokenSet = new Set(rowIds.map((id) => String(id).trim().toUpperCase()));
+
+    setTssrRows((prev) =>
+      prev.map((r) => {
+        if (tokenSet.has(r.id.toUpperCase()) || tokenSet.has(r.siteId.toUpperCase())) {
+          return {
+            ...r,
+            fields: {
+              ...(r.fields || {}),
+              Executor: executorName,
+              'Data de demanda': targetDate,
+            },
+            updatedAt: new Date().toISOString(),
+          };
+        }
+        return r;
+      })
+    );
+
+    try {
+      const res = await fetch('/api/engineering/assign-executor', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          rowIds,
+          executorName,
+          demandDate: targetDate,
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data.tssrRows)) setTssrRows(data.tssrRows);
+        showToast(
+          `${data.updatedCount || rowIds.length} site(s) da Engenharia demandados para o Executor "${executorName}"!`
+        );
+      }
+    } catch {
+      showToast(`Sites demandados para "${executorName}".`);
+    }
+  };
+
+  const handleUnassignRowsFromExecutor = async (
+    rowIds: string[],
+    executorName: string
+  ) => {
+    const tokenSet = new Set(rowIds.map((id) => String(id).trim().toUpperCase()));
+    setTssrRows((prev) =>
+      prev.map((r) => {
+        if (tokenSet.has(r.id.toUpperCase()) || tokenSet.has(r.siteId.toUpperCase())) {
+          return {
+            ...r,
+            fields: {
+              ...(r.fields || {}),
+              Executor: '',
+              'Data de demanda': '',
+            },
+            updatedAt: new Date().toISOString(),
+          };
+        }
+        return r;
+      })
+    );
+
+    try {
+      const res = await fetch('/api/engineering/assign-executor', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          unassignRowIds: rowIds,
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data.tssrRows)) setTssrRows(data.tssrRows);
+        showToast(`Site(s) desvinculados do Executor "${executorName}".`);
+      }
+    } catch {}
+  };
+
+  const handleClearAllExecutorRows = async (executorName: string) => {
+    setTssrRows((prev) =>
+      prev.map((r) => {
+        if ((r.fields?.['Executor'] || '').trim().toLowerCase() === executorName.trim().toLowerCase()) {
+          return {
+            ...r,
+            fields: {
+              ...(r.fields || {}),
+              Executor: '',
+              'Data de demanda': '',
+            },
+            updatedAt: new Date().toISOString(),
+          };
+        }
+        return r;
+      })
+    );
+
+    try {
+      const res = await fetch('/api/engineering/assign-executor', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          clearAllForExecutor: executorName,
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data.tssrRows)) setTssrRows(data.tssrRows);
+        showToast(`Todos os sites da Engenharia de "${executorName}" foram desvinculados.`);
+      }
+    } catch {}
+  };
+
+  const handleLinkEmailsToExecutor = async (executorName: string, emails: string[]) => {
+    try {
+      const res = await fetch('/api/admin/executores/link-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ executorName, emails }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.executorEmailsMap) {
+          setServerExecutorEmailsMap(data.executorEmailsMap);
+        }
+        showToast(`E-mails vinculados ao executor "${executorName}".`);
+      }
+    } catch {}
   };
 
   const [initialExpandedUserId, setInitialExpandedUserId] = useState<string | null>(null);
@@ -770,31 +1396,42 @@ export default function App() {
   const isRaFunctionTab =
     activeTopTab !== 'sites' &&
     activeTopTab !== 'engenharia' &&
-    activeTopTab !== 'vistoria';
+    activeTopTab !== 'vistoria' &&
+    !(activeTopTab === 'executores' && canAccessDemandaExecutores);
 
   const resolvedTopTab: WorkspaceTopTab = useMemo(() => {
+    // Demandar Executores aparece somente para os gestores engenharia e para gestor geral (para todo resto é oculta)
+    if (activeTopTab === 'executores') {
+      if (!canAccessDemandaExecutores) {
+        return 'sites';
+      }
+      return 'executores';
+    }
     if (isRaFunctionTab && (!isRealAdmin || simulatedTargetUser)) {
       return isEngCoordinator ? 'engenharia' : 'sites';
     }
-    // Coordenador Engenharia sees ONLY Engenharia and Vistoria
+    // Coordenador Engenharia default is 'engenharia' if 'sites' is requested
     if (isEngCoordinator && activeTopTab === 'sites') {
       return 'engenharia';
     }
-    // Executor and Vistoriador see ONLY Sites (demanded to them) and Vistoria
-    if (
-      activeTopTab === 'engenharia' &&
-      (effectiveRole === 'Vistoriador' || effectiveRole === 'Executor')
-    ) {
+    // Executor sees ONLY Meus Sites Demandados and Pasta TSSR
+    if (effectiveRole === 'Executor') {
+      if (activeTopTab === 'vistoria') return 'vistoria';
+      return 'sites';
+    }
+    if (activeTopTab === 'engenharia' && effectiveRole === 'Vistoriador') {
       return 'vistoria';
     }
     return activeTopTab;
   }, [
     isRealAdmin,
+    canAccessDemandaExecutores,
     simulatedTargetUser,
     activeTopTab,
     isRaFunctionTab,
     effectiveRole,
     isEngCoordinator,
+    activeVendor,
   ]);
 
   // Vendor-specific sheets and sites
@@ -1279,6 +1916,27 @@ export default function App() {
         'EQUIPE EXECUTANTE',
         'SI Executed',
         'STATUS',
+        'Acesso',
+        'Data',
+        'Comentários do Acesso',
+      ];
+    }
+    if (effectiveRole === 'Executor') {
+      return [
+        'Oc Site Pre',
+        'END ID',
+        'SITE ID',
+        'REG.',
+        'UF',
+        'MUNICÍPIO',
+        'PROJETO',
+        'ID. DETENTORA',
+        'STATUS',
+        'Prioridade',
+        'Plan entrega',
+        'Acesso',
+        'Data',
+        'Comentários do Acesso',
       ];
     }
     if (functionFilter === 'CANCELADOS') {
@@ -2933,7 +3591,7 @@ export default function App() {
                 <FolderOpen className="w-3.5 h-3.5 text-blue-600 shrink-0" />
                 <span>
                   {effectiveRole === 'Executor'
-                    ? 'Subir TSSR'
+                    ? 'Pastas TSSR'
                     : effectiveRole === 'Coordenador Engenharia'
                     ? 'Vistoria & TSSR'
                     : 'Vistoria'}
@@ -2969,6 +3627,33 @@ export default function App() {
                 </button>
               )}
 
+              {canAccessDemandaExecutores && (
+                <button
+                  type="button"
+                  onClick={() => setActiveTopTab('executores')}
+                  className={`px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${
+                    resolvedTopTab === 'executores'
+                      ? 'bg-amber-500 text-slate-950 font-black shadow-2xs'
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                  }`}
+                  title="Demandar sites da Engenharia para Executores"
+                >
+                  <HardHat
+                    className={`w-3.5 h-3.5 shrink-0 ${
+                      resolvedTopTab === 'executores' ? 'text-slate-950' : 'text-amber-600'
+                    }`}
+                  />
+                  <span>Demandar Executores</span>
+                  <span
+                    className={`font-mono text-[11px] tabular-nums font-bold ${
+                      resolvedTopTab === 'executores' ? 'text-slate-950' : 'text-slate-500'
+                    }`}
+                  >
+                    ({listaExecutores.length})
+                  </span>
+                </button>
+              )}
+
               {isRealAdmin &&
                 resolvedTopTab !== 'sites' &&
                 resolvedTopTab !== 'engenharia' &&
@@ -2977,6 +3662,7 @@ export default function App() {
                   <span className="px-2.5 py-1.5 rounded-lg bg-slate-900 text-white font-semibold flex items-center gap-2 text-xs shadow-2xs">
                     <span>
                       {resolvedTopTab === 'duplas' && 'Aba: Duplas & Demanda'}
+                      {resolvedTopTab === 'executores' && 'Aba: Demandar Executores (Engenharia)'}
                       {resolvedTopTab === 'perfis' && 'Aba: Perfis & Acessos'}
                       {resolvedTopTab === 'novo_site' && 'Aba: + Novo Site'}
                       {resolvedTopTab === 'importar' && 'Aba: Importar / OneDrive'}
@@ -3125,6 +3811,29 @@ export default function App() {
                         <span className="text-[10px] font-mono text-slate-400">{equipesDuplas.length}</span>
                       </button>
 
+                      {canAccessDemandaExecutores && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsRaMenuOpen(false);
+                            setActiveTopTab('executores');
+                          }}
+                          className={`w-full px-3.5 py-2.5 sm:py-1.5 text-left flex items-center justify-between hover:bg-slate-50 cursor-pointer ${
+                            resolvedTopTab === 'executores'
+                              ? 'bg-amber-50/90 text-amber-950 font-black'
+                              : 'text-slate-700'
+                          }`}
+                        >
+                          <span className="flex items-center gap-2">
+                            <HardHat className="w-4 h-4 text-amber-600" />
+                            <span>Demanda Executores (Engenharia)</span>
+                          </span>
+                          <span className="text-[10px] font-mono text-slate-400 font-bold">
+                            {listaExecutores.length}
+                          </span>
+                        </button>
+                      )}
+
                       <button
                         type="button"
                         onClick={() => {
@@ -3171,6 +3880,23 @@ export default function App() {
                       >
                         <CloudDownload className="w-4 h-4 text-blue-600" />
                         <span>Importar / OneDrive</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsRaMenuOpen(false);
+                          setIsAppGoogleDriveOpen(true);
+                        }}
+                        className="w-full px-3.5 py-2.5 sm:py-1.5 text-left flex items-center gap-2 hover:bg-slate-50 cursor-pointer text-slate-700"
+                      >
+                        <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none">
+                          <path d="M4.5 19.5L8.5 12.5H19.5L15.5 19.5H4.5Z" fill="#4285F4" />
+                          <path d="M15.5 19.5L19.5 12.5L15.5 5.5H7.5L3.5 12.5L15.5 19.5Z" fill="#0F9D58" fillOpacity="0.85" />
+                          <path d="M8.5 12.5L12.5 5.5H19.5L15.5 12.5H8.5Z" fill="#FFBB00" />
+                          <path d="M4.5 19.5L8.5 12.5L12.5 5.5L8.5 5.5L0.5 19.5H4.5Z" fill="#EA4335" />
+                        </svg>
+                        <span>Google Drive (Oficial)</span>
                       </button>
 
                       <button
@@ -3518,7 +4244,7 @@ export default function App() {
                 />
                 <span className="text-xs font-extrabold truncate">
                   {effectiveRole === 'Executor'
-                    ? 'Subir TSSR'
+                    ? 'Pastas TSSR'
                     : effectiveRole === 'Coordenador Engenharia'
                     ? 'Vistoria & TSSR'
                     : 'Subir Vistoria'}
@@ -3561,6 +4287,36 @@ export default function App() {
                   }`}
                 >
                   {equipesDuplas.length}
+                </span>
+              </button>
+            )}
+
+            {canAccessDemandaExecutores && (
+              <button
+                type="button"
+                onClick={() => setActiveTopTab('executores')}
+                className={`p-2.5 rounded-xl border-2 text-left flex items-center justify-between gap-2 transition-all cursor-pointer ${
+                  resolvedTopTab === 'executores'
+                    ? 'bg-amber-500 border-amber-500 text-slate-950 font-black shadow-sm'
+                    : 'bg-amber-50/80 border-amber-300 text-slate-900 hover:border-slate-900'
+                }`}
+              >
+                <div className="flex items-center gap-2 min-w-0">
+                  <HardHat
+                    className={`w-4 h-4 shrink-0 ${
+                      resolvedTopTab === 'executores' ? 'text-slate-950' : 'text-amber-700'
+                    }`}
+                  />
+                  <span className="text-xs font-extrabold truncate">Demanda Executores</span>
+                </div>
+                <span
+                  className={`px-1.5 py-0.5 rounded-md font-mono text-[11px] font-bold shrink-0 ${
+                    resolvedTopTab === 'executores'
+                      ? 'bg-slate-950 text-white'
+                      : 'bg-amber-200/70 text-amber-950'
+                  }`}
+                >
+                  {listaExecutores.length}
                 </span>
               </button>
             )}
@@ -3649,9 +4405,12 @@ export default function App() {
           <div className="flex flex-wrap items-center gap-2">
             <Eye className="w-3.5 h-3.5 text-slate-300 shrink-0" />
             <span>
-              <strong>Modo de visualização ({simulatedTargetUser.name})</strong> — Exibindo apenas a demanda vinculada a esta dupla/usuário:{' '}
-              <strong className="underline">{rawControleGeralPool.length} Site(s)</strong> e{' '}
-              <strong className="underline">{vendorEngineeringFilesCount} Documento(s)</strong>.
+              <strong>Modo de visualização ({simulatedTargetUser.name})</strong> —{' '}
+              {isEngineeringCoordinatorRole(simulatedTargetUser.role)
+                ? `Coordenação de Engenharia (${activeVendor}): Planilha Controle de Engenharia, Demandar Executores e Pastas TSSR.`
+                : effectiveRole === 'Executor'
+                ? `Executor: Meus Sites Demandados (${rawControleGeralPool.length}) e Pasta TSSR (${vendorEngineeringFilesCount} arquivo(s)).`
+                : `Exibindo apenas a demanda vinculada a esta dupla/usuário: ${rawControleGeralPool.length} Site(s) e ${vendorEngineeringFilesCount} Documento(s).`}
             </span>
           </div>
           <div className="flex items-center gap-2">
@@ -3665,7 +4424,7 @@ export default function App() {
                     : 'bg-slate-800 hover:bg-slate-700 text-slate-200'
                 }`}
               >
-                Sites ({rawControleGeralPool.length})
+                {effectiveRole === 'Executor' ? 'Meus Sites' : 'Sites'} ({rawControleGeralPool.length})
               </button>
             )}
             {canSeeEngenhariaTab && (
@@ -3681,6 +4440,19 @@ export default function App() {
                 Engenharia ({activeVendor === 'ERICSSON' ? ericssonRows.length : tssrRows.length})
               </button>
             )}
+            {canAccessDemandaExecutores && (
+              <button
+                type="button"
+                onClick={() => setActiveTopTab('executores')}
+                className={`px-2.5 py-1 rounded text-[11px] font-semibold cursor-pointer ${
+                  resolvedTopTab === 'executores'
+                    ? 'bg-amber-500 text-slate-950 font-bold'
+                    : 'bg-slate-800 hover:bg-slate-700 text-slate-200'
+                }`}
+              >
+                Demandar Executores ({listaExecutores.length})
+              </button>
+            )}
             <button
               type="button"
               onClick={() => setActiveTopTab('vistoria')}
@@ -3690,7 +4462,7 @@ export default function App() {
                   : 'bg-slate-800 hover:bg-slate-700 text-slate-200'
               }`}
             >
-              Pasta Vistoria ({vendorEngineeringFilesCount})
+              {effectiveRole === 'Executor' ? 'Pasta TSSR' : 'Pasta Vistoria'} ({vendorEngineeringFilesCount})
             </button>
             <button
               type="button"
@@ -3752,21 +4524,17 @@ export default function App() {
             )}
 
             {resolvedTopTab === 'engenharia' && canSeeEngenhariaTab && (
-              <EricssonEngenhariaTab
+              <EricssonEngineeringTab
                 user={activeTargetUser || user}
                 effectiveRole={effectiveRole}
-                rows={ericssonRows}
-                sheetMeta={ericssonSheetMeta || null}
-                onUpdated={(nextRows, nextMeta, toastMsg, nextFiles) => {
-                  setEricssonRows(nextRows);
-                  if (nextMeta) setEricssonSheetMeta(nextMeta);
-                  if (Array.isArray(nextFiles)) setEricssonFiles(nextFiles);
-                  if (toastMsg) showToast(toastMsg);
-                }}
-                onOpenFileInVistoriaFolder={(folderId, fileId, fileName) => {
-                  setEricssonVistoriaFocus({ folderId, fileId, fileName });
+                activeVendor={activeVendor}
+                onNavigateToVistoria={(siteId) => {
+                  if (siteId) {
+                    setEricssonVistoriaFocus({ fileName: siteId });
+                  }
                   setActiveTopTab('vistoria');
                 }}
+                showToast={showToast}
               />
             )}
 
@@ -4935,11 +5703,12 @@ export default function App() {
             tssrRows={tssrRows}
             preselectedSiteId={vistoriaPreselectedSiteId}
             onClearPreselectedSiteId={() => setVistoriaPreselectedSiteId(null)}
-            onFoldersAndFilesUpdated={(nextFolders, nextFiles, toastMsg, nextTssrRows, nextTssrSheets) => {
+            onFoldersAndFilesUpdated={(nextFolders, nextFiles, toastMsg, nextTssrRows, nextTssrSheets, nextSites) => {
               setEngineeringFolders(nextFolders);
               setEngineeringFiles(nextFiles);
               if (Array.isArray(nextTssrRows)) setTssrRows(nextTssrRows);
               if (Array.isArray(nextTssrSheets)) setTssrSheets(nextTssrSheets);
+              if (Array.isArray(nextSites)) setSites(nextSites);
               if (toastMsg) showToast(toastMsg);
             }}
             onSelectSiteId={(id) => setSelectedSiteId(id)}
@@ -4966,15 +5735,14 @@ export default function App() {
                   {(
                     [
                       { id: 'duplas', label: 'Duplas & Demanda' },
-                      { id: 'perfis', label: 'Perfis & Acessos' },
-                      ...(activeVendor === 'NOKIA'
-                        ? [
-                            { id: 'novo_site' as const, label: '+ Novo Site' },
-                            { id: 'importar' as const, label: 'Importar / OneDrive' },
-                            { id: 'colar' as const, label: 'Colar Ctrl+V' },
-                            { id: 'exportar' as const, label: 'Exportar Planilha' },
-                          ]
+                      ...(canAccessDemandaExecutores
+                        ? [{ id: 'executores' as const, label: 'Demanda Executores' }]
                         : []),
+                      { id: 'perfis', label: 'Perfis & Acessos' },
+                      { id: 'novo_site' as const, label: '+ Novo Site' },
+                      { id: 'importar' as const, label: 'Importar / OneDrive' },
+                      { id: 'colar' as const, label: 'Colar Ctrl+V' },
+                      { id: 'exportar' as const, label: 'Exportar Planilha' },
                       ...(isOwnerAdm
                         ? ([{ id: 'simular' as const, label: 'Ver como (Simular)' }] as const)
                         : []),
@@ -5213,6 +5981,55 @@ export default function App() {
                       : undefined
                   }
                   onOpenSiteDrawer={(id) => setSelectedSiteId(id)}
+                />
+              )}
+
+              {/* ABA EXECUTORES & DEMANDA */}
+              {resolvedTopTab === 'executores' && (
+                <ExecutoresInteractiveView
+                  activeVendor={activeVendor}
+                  tssrRows={tssrRows}
+                  ericssonRows={ericssonRows.map((r) => ({
+                    ...r,
+                    vendor: 'ERICSSON',
+                    siteId: r.siteIdA || r.siteIdB || '',
+                    fields: r.fields,
+                    vistoriaStatus: r.siteAVistoriaStatus || 'NAO_DISPONIVEL',
+                    vistoriaFileId: r.siteAVistoriaFileId,
+                    vistoriaFileName: r.siteAVistoriaFileName,
+                    vistoriaFileUrl: r.siteAVistoriaFileUrl,
+                    vistoriaDownloadUrl: r.siteAVistoriaDownloadUrl,
+                    vistoriaDeliveredAt: r.siteAVistoriaDeliveredAt,
+                    vistoriaUploadedBy: r.siteAVistoriaUploadedBy,
+                    vistoriaUploadedByEmail: r.siteAVistoriaUploadedByEmail,
+                    updatedAt: r.updatedAt,
+                    rowKey: r.rowKey,
+                    tabName: 'Ericsson',
+                    ocSitePre: '',
+                    enderecoId: '',
+                  }))}
+                  users={users}
+                  ericssonUsers={ericssonUsers}
+                  serverExecutorEmailsMap={activeVendor === 'ERICSSON' ? serverEricssonExecutorEmailsMap : serverExecutorEmailsMap}
+                  executoresList={listaExecutores}
+                  onAddExecutor={activeVendor === 'ERICSSON' ? handleAddEricssonExecutor : handleAddExecutor}
+                  onRenameExecutor={activeVendor === 'ERICSSON' ? handleRenameEricssonExecutor : handleRenameExecutor}
+                  onDeleteExecutor={activeVendor === 'ERICSSON' ? handleDeleteEricssonExecutor : handleDeleteExecutor}
+                  onAssignRowsToExecutor={activeVendor === 'ERICSSON' ? handleAssignEricssonRowsToExecutor : handleAssignRowsToExecutor}
+                  onUnassignRowsFromExecutor={activeVendor === 'ERICSSON' ? handleUnassignEricssonRowsFromExecutor : handleUnassignRowsFromExecutor}
+                  onClearExecutorRows={activeVendor === 'ERICSSON' ? handleClearEricssonExecutorRows : handleClearAllExecutorRows}
+                  onLinkEmailsToExecutor={activeVendor === 'ERICSSON' ? handleLinkEmailsToEricssonExecutor : handleLinkEmailsToExecutor}
+                  onSimulateExecutorView={
+                    isRealAdmin
+                      ? (targetUser) => {
+                          setSimulatedTargetUser(targetUser);
+                          setActiveTopTab('sites');
+                          showToast(
+                            `Visualizando ${activeVendor} como Executor "${targetUser.name}" (${targetUser.email})`
+                          );
+                        }
+                      : undefined
+                  }
                 />
               )}
 
@@ -5670,6 +6487,21 @@ export default function App() {
         }}
       />
 
+      {/* Google Drive Integration Modal */}
+      <GoogleDriveModal
+        isOpen={isAppGoogleDriveOpen}
+        onClose={() => setIsAppGoogleDriveOpen(false)}
+        onImportTssr={(rows, sheets, toastMsg) => {
+          setTssrRows(rows);
+          if (Array.isArray(sheets)) setTssrSheets(sheets);
+          if (toastMsg) showToast(toastMsg);
+          setActiveTopTab('engenharia');
+          setIsAppGoogleDriveOpen(false);
+        }}
+        currentTssrRows={tssrRows}
+        currentVendor={activeVendor}
+      />
+
       {/* Mobile Bottom Quick Navigation Bar */}
       <nav className="sm:hidden fixed bottom-0 inset-x-0 z-30 bg-white/95 backdrop-blur-md border-t border-slate-200 px-1.5 py-1.5 flex items-center justify-around shadow-lg">
         {canSeeSitesTab && (
@@ -5683,7 +6515,9 @@ export default function App() {
             }`}
           >
             <FolderKanban className="w-4 h-4" />
-            <span className="truncate max-w-[72px]">Sites</span>
+            <span className="truncate max-w-[72px]">
+              {effectiveRole === 'Executor' ? 'Meus Sites' : 'Sites'}
+            </span>
           </button>
         )}
 
@@ -5702,6 +6536,21 @@ export default function App() {
           </button>
         )}
 
+        {canAccessDemandaExecutores && (
+          <button
+            type="button"
+            onClick={() => setActiveTopTab('executores')}
+            className={`flex-1 py-1 px-1 rounded-lg flex flex-col items-center justify-center gap-0.5 text-[10px] font-bold transition-colors cursor-pointer ${
+              resolvedTopTab === 'executores'
+                ? 'text-amber-800 bg-amber-500/20 font-black'
+                : 'text-slate-500 hover:text-slate-900'
+            }`}
+          >
+            <HardHat className="w-4 h-4 text-amber-600" />
+            <span className="truncate max-w-[72px]">Executores</span>
+          </button>
+        )}
+
         <button
           type="button"
           onClick={() => setActiveTopTab('vistoria')}
@@ -5714,7 +6563,7 @@ export default function App() {
           <FolderOpen className="w-4 h-4" />
           <span className="truncate max-w-[80px]">
             {effectiveRole === 'Executor'
-              ? 'Subir TSSR'
+              ? 'Pasta TSSR'
               : effectiveRole === 'Coordenador Engenharia'
               ? 'Vistoria/TSSR'
               : 'Vistoria'}
@@ -5733,6 +6582,21 @@ export default function App() {
           >
             <Users className="w-4 h-4" />
             <span className="truncate max-w-[72px]">Duplas</span>
+          </button>
+        )}
+
+        {isRealAdmin && !simulatedTargetUser && activeVendor === 'NOKIA' && (
+          <button
+            type="button"
+            onClick={() => setActiveTopTab('executores')}
+            className={`flex-1 py-1 px-1 rounded-lg flex flex-col items-center justify-center gap-0.5 text-[10px] font-bold transition-colors cursor-pointer ${
+              resolvedTopTab === 'executores'
+                ? 'text-slate-950 bg-amber-400 font-black'
+                : 'text-slate-500 hover:text-slate-900'
+            }`}
+          >
+            <HardHat className="w-4 h-4" />
+            <span className="truncate max-w-[72px]">Executores</span>
           </button>
         )}
 

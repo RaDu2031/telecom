@@ -62,7 +62,7 @@ interface DuplasInteractiveViewProps {
     siteIdsToClear: string[],
     targetVendor: VendorType
   ) => Promise<void>;
-  onLinkEmailsToDupla: (duplaName: string, emails: string[]) => Promise<void>;
+  onLinkEmailsToDupla: (duplaName: string, emails: string[], targetVendor?: VendorType) => Promise<void>;
   onSimulateDuplaView?: (targetUser: AmetaUser, targetVendor: VendorType) => void;
   onOpenSiteDrawer: (siteId: string) => void;
 }
@@ -143,23 +143,18 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = ({
   const [editingDupla, setEditingDupla] = useState<string | null>(null);
   const [editingDuplaValue, setEditingDuplaValue] = useState<string>('');
 
-  // Combined unique registered profiles across TIM/Nokia and Ericsson
+  // Vendor-isolated registered profiles (only Nokia users on Nokia, only Ericsson users on Ericsson)
   const allRegisteredUsers = useMemo<AmetaUser[]>(() => {
+    const list = activeVendor === 'ERICSSON' ? (ericssonUsers || []) : (users || []);
     const byEmail = new Map<string, AmetaUser>();
-    users.forEach((u) => {
+    list.forEach((u) => {
       const em = (u.email || '').trim().toLowerCase();
       if (em) byEmail.set(em, u);
-    });
-    ericssonUsers.forEach((u) => {
-      const em = (u.email || '').trim().toLowerCase();
-      if (em && !byEmail.has(em)) {
-        byEmail.set(em, u);
-      }
     });
     return Array.from(byEmail.values()).sort((a, b) =>
       a.name.localeCompare(b.name, 'pt-BR')
     );
-  }, [users, ericssonUsers]);
+  }, [users, ericssonUsers, activeVendor]);
 
   // Local + server persisted map of Dupla -> linked profile emails
   const [duplaEmailsMap, setDuplaEmailsMap] = useState<Record<string, string[]>>(() => {
@@ -293,7 +288,7 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = ({
     }
     setIsLinkingEmail(true);
     try {
-      await onLinkEmailsToDupla(duplaName, cleanEmails);
+      await onLinkEmailsToDupla(duplaName, cleanEmails, activeVendor);
     } finally {
       setIsLinkingEmail(false);
     }

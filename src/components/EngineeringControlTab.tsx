@@ -42,6 +42,8 @@ import {
   TSSR_TIM_NOKIA_ORIGINAL_COLUMNS,
   TSSR_SYSTEM_COLUMNS,
   TSSR_ALL_COLUMNS,
+  DEFAULT_ONEDRIVE_TSSR_URL,
+  DEFAULT_ERICSSON_ENG_ONEDRIVE_URL,
 } from '../types/telecom';
 import { cloudFetch } from '../lib/firebaseCloud';
 
@@ -52,11 +54,18 @@ import {
   exportTssrRowsToXlsx,
   exportTssrRowsToCsv,
 } from '../utils/tssrSpreadsheetUtils';
+import {
+  EngineeringInteractiveChart,
+  EngineeringChartCategory,
+  getEngenhariaCategory,
+} from './EngineeringInteractiveChart';
+import { GoogleDriveModal } from './GoogleDriveModal';
 import { EngineeringVistoriasTab } from './EngineeringVistoriasTab';
 
 interface EngineeringControlTabProps {
   user: AmetaUser;
   effectiveRole: UserRole;
+  spreadsheetUrl?: string;
   simulatedTargetUser?: AmetaUser | null;
   onToggleSimulateUser?: (targetUser: AmetaUser | null) => void;
   users?: AmetaUser[];
@@ -79,9 +88,6 @@ interface EngineeringControlTabProps {
   onNavigateToVistoria?: (preselectedSiteId?: string) => void;
 }
 
-const DEFAULT_ONEDRIVE_TSSR_URL =
-  'https://onedrive.live.com/:x:/g/personal/d82e752e01e5afdd/IQDgA-L4WLPYSbYY7rdSiedCAY39Y72Mn2s6Vn9Ijm0Tq-k?rtime=i_gLDa-r3kg&redeem=aHR0cHM6Ly8xZHJ2Lm1zL3gvYy9kODJlNzUyZTAxZTVhZmRkL0lRRGdBLUw0V0xQWVNiWVk3cmRTaWVkQ0FZMzlZNzJNbjJzNlZuOUlqbTBUcS1rP2U9WEV0d0F4';
-
 // Columns shown in "Resumo" mode (grouped by section) + the 4 system columns
 const RESUMO_ORIGINAL_COLUMNS: string[] = [
   'Oc Site Pre',
@@ -101,9 +107,28 @@ const RESUMO_ORIGINAL_COLUMNS: string[] = [
   'Status Financeiro',
 ];
 
+// Columns shown exclusively for Executor:
+// oc site pre, endereco id, site id, reg, uf, cidade, projeto, detentora, status engenharia, demanda recebida, tipo de doc, prioridade, pan entrega
+const EXECUTOR_ORIGINAL_COLUMNS: string[] = [
+  'Oc Site Pre',
+  'Enderecoid',
+  'Site Id',
+  'Reg',
+  'UF',
+  'Cidade',
+  'PROJETO',
+  'DETENTORA',
+  'STATUS Engenharia',
+  'DEMANDA RECEBIDA',
+  'TIPO DE DOC',
+  'Prioridade Homero',
+  'Plan entrega',
+];
+
 export const EngineeringControlTab: React.FC<EngineeringControlTabProps> = ({
   user,
   effectiveRole,
+  spreadsheetUrl,
   simulatedTargetUser = null,
   onToggleSimulateUser,
   users = [],
@@ -123,7 +148,13 @@ export const EngineeringControlTab: React.FC<EngineeringControlTabProps> = ({
   const isCoordenadorGeral = effectiveRole === 'Coordenador Geral';
   const isCoordenadorEngenharia = effectiveRole === 'Coordenador Engenharia';
   const isAdmin = isAdmRole || isCoordenadorGeral || isCoordenadorEngenharia;
+  const isGestorEngenharia = isCoordenadorEngenharia || isCoordenadorGeral || isAdmRole || isAdmin;
   const isExecutor = effectiveRole === 'Executor';
+  
+  const engineeringUrl = spreadsheetUrl || (activeVendor === 'ERICSSON' 
+    ? DEFAULT_ERICSSON_ENG_ONEDRIVE_URL 
+    : DEFAULT_ONEDRIVE_TSSR_URL);
+    
   const canUploadTssr =
     isExecutor ||
     isCoordenadorEngenharia ||
@@ -201,7 +232,8 @@ export const EngineeringControlTab: React.FC<EngineeringControlTabProps> = ({
   // Smart Search & Filter states
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [isAddFilterOpen, setIsAddFilterOpen] = useState<boolean>(false);
-  const [vistoriaStatusFilter, setVistoriaStatusFilter] = useState<'ALL' | 'Entregue' | 'Pendente'>('ALL');
+  const [vistoriaStatusFilter, setVistoriaStatusFilter] = useState<'ALL' | 'Entregue' | 'NAO_DISPONIVEL'>('ALL');
+  const [categoryFilter, setCategoryFilter] = useState<EngineeringChartCategory>('ALL');
   const [engStatusFilter, setEngStatusFilter] = useState<string>('ALL');
   const [ufFilter, setUfFilter] = useState<string>('ALL');
   const [regFilter, setRegFilter] = useState<string>('ALL');
@@ -221,9 +253,10 @@ export const EngineeringControlTab: React.FC<EngineeringControlTabProps> = ({
   // Excel Online / Upload TSSR Modal state
   const [isImportModalOpen, setIsImportModalOpen] = useState<boolean>(false);
   const [importTabMode, setImportTabMode] = useState<'file' | 'onedrive'>('file');
-  const [oneDriveUrl, setOneDriveUrl] = useState<string>(DEFAULT_ONEDRIVE_TSSR_URL);
+  const [oneDriveUrl, setOneDriveUrl] = useState<string>(engineeringUrl);
   const [importingTssr, setImportingTssr] = useState<boolean>(false);
   const [importError, setImportError] = useState<string | null>(null);
+  const [isGoogleDriveOpen, setIsGoogleDriveOpen] = useState<boolean>(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   // New Row Modal state
@@ -245,6 +278,66 @@ export const EngineeringControlTab: React.FC<EngineeringControlTabProps> = ({
   const [drawerDraftFields, setDrawerDraftFields] = useState<Record<string, string>>({});
   const [savingDrawer, setSavingDrawer] = useState<boolean>(false);
 
+  // Vistoria File Deletion state (Gestor da Engenharia pode apagar, executor apenas os seus)
+  const [vistoriaToDelete, setVistoriaToDelete] = useState<TssrRow | null>(null);
+  const [deletingVistoria, setDeletingVistoria] = useState<boolean>(false);
+
+  const canDeleteRowVistoria = (row: TssrRow): boolean => {
+    if (isGestorEngenharia) return true;
+    if (isExecutor) {
+      const myName = (user.name || '').trim().toLowerCase();
+      const myEmail = (user.email || '').trim().toLowerCase();
+      const rowExec = (row.fields?.['Executor'] || '').trim().toLowerCase();
+      const rowUploader = (row.vistoriaUploadedBy || '').trim().toLowerCase();
+      const rowEmail = (row.vistoriaUploadedByEmail || '').trim().toLowerCase();
+      return Boolean(
+        (rowExec && rowExec === myName) ||
+          (rowUploader && rowUploader === myName) ||
+          (rowEmail && rowEmail === myEmail)
+      );
+    }
+    return false;
+  };
+
+  const handleConfirmDeleteVistoria = async () => {
+    if (!vistoriaToDelete || !vistoriaToDelete.vistoriaFileId) return;
+    setDeletingVistoria(true);
+    try {
+      const q = new URLSearchParams({
+        actorEmail: user.email || '',
+        actorName: user.name || '',
+        actorRole: effectiveRole,
+      });
+      const res = await fetch(
+        `/api/engineering/files/${encodeURIComponent(vistoriaToDelete.vistoriaFileId)}?${q.toString()}`,
+        {
+          method: 'DELETE',
+        }
+      );
+      if (res.ok) {
+        const data = await res.json();
+        onTssrUpdated(
+          data.tssrRows || tssrRows,
+          data.tssrSheets || tssrSheets,
+          `Arquivo de vistoria do site ${vistoriaToDelete.siteId} apagado com sucesso!`
+        );
+        if (selectedRowId === vistoriaToDelete.id) {
+          const updatedSelected = (data.tssrRows || tssrRows).find(
+            (r: TssrRow) => r.id === vistoriaToDelete.id
+          );
+          if (updatedSelected) {
+            setSelectedRowId(updatedSelected.id);
+          }
+        }
+        setVistoriaToDelete(null);
+      }
+    } catch {
+      // ignore
+    } finally {
+      setDeletingVistoria(false);
+    }
+  };
+
   // Escape key exits Fullscreen
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -265,16 +358,32 @@ export const EngineeringControlTab: React.FC<EngineeringControlTabProps> = ({
     return tssrSheets.find((m) => m.tabName === activeSubTab) || tssrSheets[0];
   }, [tssrSheets, activeSubTab]);
 
-  // Automatic status counters at the top of the tab: Total, Entregues, Pendentes
+  // Automatic status counters: STATUS Engenharia (A Fazer, Aguardando Aprovação, Concluídos, Cancelados)
+  const engStats = useMemo(() => {
+    let aFazer = 0;
+    let aguardando = 0;
+    let concluidos = 0;
+    let cancelados = 0;
+    tabRows.forEach((r) => {
+      const cat = getEngenhariaCategory(r);
+      if (cat === 'CANCELADO') cancelados++;
+      else if (cat === 'AGUARDANDO') aguardando++;
+      else if (cat === 'FEITO') concluidos++;
+      else aFazer++;
+    });
+    return { aFazer, aguardando, concluidos, cancelados };
+  }, [tabRows]);
+
   const totalCount = tabRows.length;
   const entreguesCount = useMemo(
     () => tabRows.filter((r) => r.vistoriaStatus === 'Entregue').length,
     [tabRows]
   );
-  const pendentesCount = useMemo(
+  const naoDisponivelCount = useMemo(
     () => tabRows.filter((r) => r.vistoriaStatus !== 'Entregue').length,
     [tabRows]
   );
+  const pendentesCount = naoDisponivelCount;
 
   // Filter options extracted dynamically from the TSSR rows
   const filterOptions = useMemo(() => {
@@ -320,6 +429,7 @@ export const EngineeringControlTab: React.FC<EngineeringControlTabProps> = ({
   }, [searchTerm]);
 
   const hasActiveFilter =
+    categoryFilter !== 'ALL' ||
     vistoriaStatusFilter !== 'ALL' ||
     engStatusFilter !== 'ALL' ||
     ufFilter !== 'ALL' ||
@@ -331,6 +441,7 @@ export const EngineeringControlTab: React.FC<EngineeringControlTabProps> = ({
 
   const clearAllFilters = () => {
     setSearchTerm('');
+    setCategoryFilter('ALL');
     setVistoriaStatusFilter('ALL');
     setEngStatusFilter('ALL');
     setUfFilter('ALL');
@@ -343,8 +454,15 @@ export const EngineeringControlTab: React.FC<EngineeringControlTabProps> = ({
 
   // Filtered rows
   const filteredRows = useMemo(() => {
-    return tabRows.filter((row) => {
-      const statusVist = row.vistoriaStatus === 'Entregue' ? 'Entregue' : 'Pendente';
+    const list = tabRows.filter((row) => {
+      if (categoryFilter !== 'ALL') {
+        const cat = getEngenhariaCategory(row);
+        if (categoryFilter === 'A_FAZER' && cat !== 'A_FAZER') return false;
+        if (categoryFilter === 'AGUARDANDO' && cat !== 'AGUARDANDO') return false;
+        if (categoryFilter === 'FEITOS' && cat !== 'FEITO') return false;
+        if (categoryFilter === 'CANCELADOS' && cat !== 'CANCELADO') return false;
+      }
+      const statusVist = row.vistoriaStatus === 'Entregue' ? 'Entregue' : 'NAO_DISPONIVEL';
       if (vistoriaStatusFilter !== 'ALL' && statusVist !== vistoriaStatusFilter) {
         return false;
       }
@@ -417,8 +535,17 @@ export const EngineeringControlTab: React.FC<EngineeringControlTabProps> = ({
 
       return true;
     });
+
+    return [...list].sort((a, b) => {
+      const order = { A_FAZER: 0, AGUARDANDO: 1, FEITO: 2, CANCELADO: 3 };
+      const ordA = order[getEngenhariaCategory(a)];
+      const ordB = order[getEngenhariaCategory(b)];
+      if (ordA !== ordB) return ordA - ordB;
+      return a.siteId.localeCompare(b.siteId);
+    });
   }, [
     tabRows,
+    categoryFilter,
     vistoriaStatusFilter,
     engStatusFilter,
     ufFilter,
@@ -669,8 +796,8 @@ export const EngineeringControlTab: React.FC<EngineeringControlTabProps> = ({
     }
   };
 
-  // Render automatic Vistoria Status Badge (Red = Pendente, Green = Entregue)
-  const renderVistoriaStatusBadge = (status: 'Pendente' | 'Entregue') => {
+  // Render automatic Vistoria Status Badge (Green = Entregue, Slate = Vistoria Não Disponível)
+  const renderVistoriaStatusBadge = (status?: string | null) => {
     if (status === 'Entregue') {
       return (
         <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 whitespace-nowrap">
@@ -680,9 +807,12 @@ export const EngineeringControlTab: React.FC<EngineeringControlTabProps> = ({
       );
     }
     return (
-      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-red-50 text-red-700 border border-red-200 whitespace-nowrap">
-        <span className="w-1.5 h-1.5 rounded-full bg-red-600" />
-        <span>Pendente</span>
+      <span
+        className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-slate-100 text-slate-700 border border-slate-300 whitespace-nowrap"
+        title="Vistoria ainda não disponível / não enviada"
+      >
+        <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
+        <span>Vistoria Não Disponível</span>
       </span>
     );
   };
@@ -692,9 +822,16 @@ export const EngineeringControlTab: React.FC<EngineeringControlTabProps> = ({
     const val = (rawStatus || '').trim();
     if (!val) return <span className="text-slate-400">—</span>;
     const lower = val.toLowerCase();
-    if (lower.includes('aguardando aprovação') || lower.includes('aprovado')) {
+    if (lower.includes('aguardando')) {
       return (
-        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200 whitespace-nowrap">
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-bold bg-blue-50 text-blue-800 border border-blue-200 whitespace-nowrap">
+          {val}
+        </span>
+      );
+    }
+    if (lower.includes('aprovado') || lower.includes('conclu') || lower.includes('entregue')) {
+      return (
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200 whitespace-nowrap">
           {val}
         </span>
       );
@@ -761,6 +898,20 @@ export const EngineeringControlTab: React.FC<EngineeringControlTabProps> = ({
             <Download className="w-3 h-3 shrink-0" />
             <span>Baixar</span>
           </a>
+          {canDeleteRowVistoria(row) && (
+            <button
+              type="button"
+              onClick={() => setVistoriaToDelete(row)}
+              className="p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors cursor-pointer"
+              title={
+                isGestorEngenharia
+                  ? 'Apagar arquivo de vistoria (Gestor da Engenharia)'
+                  : 'Apagar seu arquivo de vistoria'
+              }
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+            </button>
+          )}
         </div>
       );
     }
@@ -792,9 +943,14 @@ export const EngineeringControlTab: React.FC<EngineeringControlTabProps> = ({
       ? 'py-1.5 px-2.5 text-[11px]'
       : 'py-1 px-2 text-[11px]';
 
-  // Columns to display depending on Resumo vs Planilha mode
-  const activeOriginalColumns =
-    viewMode === 'grid' ? TSSR_TIM_NOKIA_ORIGINAL_COLUMNS : RESUMO_ORIGINAL_COLUMNS;
+  // Columns to display depending on Executor role or Resumo vs Planilha mode
+  const activeOriginalColumns = isExecutor
+    ? EXECUTOR_ORIGINAL_COLUMNS
+    : viewMode === 'grid'
+    ? TSSR_TIM_NOKIA_ORIGINAL_COLUMNS
+    : RESUMO_ORIGINAL_COLUMNS;
+
+  const activeSystemColumns = isExecutor ? [] : TSSR_SYSTEM_COLUMNS;
 
   // Group rows by section when in "Resumo" mode (Entregues vs Pendentes)
   const groupedSections = useMemo(() => {
@@ -812,11 +968,11 @@ export const EngineeringControlTab: React.FC<EngineeringControlTabProps> = ({
         rows: entregues,
       });
     }
-    if (pendentes.length > 0 || vistoriaStatusFilter === 'Pendente') {
+    if (pendentes.length > 0 || vistoriaStatusFilter === 'NAO_DISPONIVEL') {
       sections.push({
-        id: 'PENDENTES',
-        title: `Vistorias Pendentes (${pendentes.length})`,
-        badgeClass: 'bg-red-50 text-red-800 border-red-200',
+        id: 'NAO_DISPONIVEL',
+        title: `Vistoria Não Disponível (${pendentes.length})`,
+        badgeClass: 'bg-slate-100 text-slate-800 border-slate-300',
         rows: pendentes,
       });
     }
@@ -1043,26 +1199,32 @@ export const EngineeringControlTab: React.FC<EngineeringControlTabProps> = ({
           1. TOP HEADER & COUNTERS BAR (MESMO ESTILO DOS CONTADORES DA TELA DE SITES)
          ===================================================================== */}
       <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-2xs space-y-3.5">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-[#223585]/10 border border-[#223585]/20 flex items-center justify-center text-[#223585] shrink-0">
-              <FileSpreadsheet className="w-5 h-5" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-[#1E8E8D]">
-                  Controle de Engenharia · {activeVendor}
-                </span>
-                <span className="text-slate-300">•</span>
-                <h1 className="text-sm font-bold text-slate-900">
-                  Planilha Controle de Engenharia
-                </h1>
+        <div
+          className={`flex flex-wrap items-center ${
+            isCoordenadorEngenharia ? 'justify-end' : 'justify-between'
+          } gap-3`}
+        >
+          {!isCoordenadorEngenharia && (
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-[#223585]/10 border border-[#223585]/20 flex items-center justify-center text-[#223585] shrink-0">
+                <FileSpreadsheet className="w-5 h-5" />
               </div>
-              <p className="text-xs text-slate-500">
-                Aba <strong>{activeSubTab}</strong> — alimentada pela planilha TSSR online e pelos arquivos enviados na área de Vistoria.
-              </p>
+              <div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-[#1E8E8D]">
+                    Controle de Engenharia · {activeVendor}
+                  </span>
+                  <span className="text-slate-300">•</span>
+                  <h1 className="text-sm font-bold text-slate-900">
+                    Planilha Controle de Engenharia
+                  </h1>
+                </div>
+                <p className="text-xs text-slate-500">
+                  Aba <strong>{activeSubTab}</strong> — alimentada pela planilha TSSR online e pelos arquivos enviados na área de Vistoria.
+                </p>
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Right Action Buttons */}
           <div className="flex flex-wrap items-center gap-2">
@@ -1114,6 +1276,22 @@ export const EngineeringControlTab: React.FC<EngineeringControlTabProps> = ({
               <span>Carregar Planilha TSSR (.XLSX / OneDrive)</span>
             </button>
 
+            {/* Google Drive Button */}
+            <button
+              type="button"
+              onClick={() => setIsGoogleDriveOpen(true)}
+              className="px-3.5 py-1.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-xs font-semibold rounded-lg transition-all flex items-center gap-1.5 shadow-2xs cursor-pointer"
+              title="Conectar ao Google Drive para importar ou exportar planilhas"
+            >
+              <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none">
+                <path d="M4.5 19.5L8.5 12.5H19.5L15.5 19.5H4.5Z" fill="#4285F4" />
+                <path d="M15.5 19.5L19.5 12.5L15.5 5.5H7.5L3.5 12.5L15.5 19.5Z" fill="#0F9D58" fillOpacity="0.85" />
+                <path d="M8.5 12.5L12.5 5.5H19.5L15.5 12.5H8.5Z" fill="#FFBB00" />
+                <path d="M4.5 19.5L8.5 12.5L12.5 5.5L8.5 5.5L0.5 19.5H4.5Z" fill="#EA4335" />
+              </svg>
+              <span>Google Drive</span>
+            </button>
+
             <button
               type="button"
               onClick={() =>
@@ -1159,16 +1337,20 @@ export const EngineeringControlTab: React.FC<EngineeringControlTabProps> = ({
             )}
           </div>
 
-          {/* Top Counters: Total, Entregues (Verde), Pendentes (Vermelho) — Clickable Filters */}
-          <div className="flex flex-wrap items-center gap-2">
+          {/* Top Counters: STATUS Engenharia (A Fazer, Aguardando Aprovação, Concluídos, Cancelados) + Vistorias */}
+          <div className="flex flex-wrap items-center gap-1.5">
             <button
               type="button"
-              onClick={() => setVistoriaStatusFilter('ALL')}
-              className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold border transition-all flex items-center gap-2 cursor-pointer ${
-                vistoriaStatusFilter === 'ALL'
+              onClick={() => {
+                setCategoryFilter('ALL');
+                setVistoriaStatusFilter('ALL');
+              }}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all flex items-center gap-2 cursor-pointer ${
+                categoryFilter === 'ALL' && vistoriaStatusFilter === 'ALL'
                   ? 'bg-slate-900 border-slate-900 text-white shadow-2xs'
                   : 'bg-slate-50 hover:bg-slate-100 border-slate-200 text-slate-700'
               }`}
+              title="Mostrar todos os sites da planilha da engenharia"
             >
               <span>Total de Sites</span>
               <span className="font-mono font-bold text-xs tabular-nums px-1.5 py-0.5 rounded bg-white/15">
@@ -1176,152 +1358,172 @@ export const EngineeringControlTab: React.FC<EngineeringControlTabProps> = ({
               </span>
             </button>
 
+            {/* 1º A Fazer / Pendentes de Engenharia (Âmbar) */}
+            <button
+              type="button"
+              onClick={() =>
+                setCategoryFilter((prev) => (prev === 'A_FAZER' ? 'ALL' : 'A_FAZER'))
+              }
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all flex items-center gap-1.5 cursor-pointer ${
+                categoryFilter === 'A_FAZER'
+                  ? 'bg-amber-500 border-amber-500 text-slate-950 shadow-2xs'
+                  : 'bg-amber-50 hover:bg-amber-100/80 border-amber-300 text-amber-900'
+              }`}
+              title="Filtrar sites com STATUS Engenharia pendente (A Fazer)"
+            >
+              <span
+                className={`w-2 h-2 rounded-full ${
+                  categoryFilter === 'A_FAZER' ? 'bg-slate-950' : 'bg-amber-500'
+                }`}
+              />
+              <span>1º A Fazer (Pendentes)</span>
+              <span
+                className={`font-mono font-bold text-xs tabular-nums px-1.5 py-0.5 rounded ${
+                  categoryFilter === 'A_FAZER'
+                    ? 'bg-amber-600 text-slate-950'
+                    : 'bg-white text-amber-900 border border-amber-200'
+                }`}
+              >
+                {engStats.aFazer}
+              </span>
+            </button>
+
+            {/* Aguardando Aprovação (Azul) */}
+            <button
+              type="button"
+              onClick={() =>
+                setCategoryFilter((prev) => (prev === 'AGUARDANDO' ? 'ALL' : 'AGUARDANDO'))
+              }
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all flex items-center gap-1.5 cursor-pointer ${
+                categoryFilter === 'AGUARDANDO'
+                  ? 'bg-blue-600 border-blue-600 text-white shadow-2xs'
+                  : 'bg-blue-50 hover:bg-blue-100/80 border-blue-200 text-blue-900'
+              }`}
+              title="Filtrar sites com TSSR Aguardando Aprovação"
+            >
+              <span
+                className={`w-2 h-2 rounded-full ${
+                  categoryFilter === 'AGUARDANDO' ? 'bg-white' : 'bg-blue-600'
+                }`}
+              />
+              <span>Aguardando Aprovação</span>
+              <span
+                className={`font-mono font-bold text-xs tabular-nums px-1.5 py-0.5 rounded ${
+                  categoryFilter === 'AGUARDANDO'
+                    ? 'bg-blue-700 text-white'
+                    : 'bg-white text-blue-800 border border-blue-200'
+                }`}
+              >
+                {engStats.aguardando}
+              </span>
+            </button>
+
+            {/* 2º Concluídos / Aprovados (Verde) */}
+            <button
+              type="button"
+              onClick={() =>
+                setCategoryFilter((prev) => (prev === 'FEITOS' ? 'ALL' : 'FEITOS'))
+              }
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all flex items-center gap-1.5 cursor-pointer ${
+                categoryFilter === 'FEITOS'
+                  ? 'bg-emerald-600 border-emerald-600 text-white shadow-2xs'
+                  : 'bg-emerald-50 hover:bg-emerald-100/80 border-emerald-200 text-emerald-800'
+              }`}
+              title="Filtrar sites aprovados / concluídos"
+            >
+              <span
+                className={`w-2 h-2 rounded-full ${
+                  categoryFilter === 'FEITOS' ? 'bg-white' : 'bg-emerald-600'
+                }`}
+              />
+              <span>2º Aprovados / Feitos</span>
+              <span
+                className={`font-mono font-bold text-xs tabular-nums px-1.5 py-0.5 rounded ${
+                  categoryFilter === 'FEITOS'
+                    ? 'bg-emerald-700 text-white'
+                    : 'bg-white text-emerald-800 border border-emerald-200'
+                }`}
+              >
+                {engStats.concluidos}
+              </span>
+            </button>
+
+            {/* Cancelados (Cinza) */}
+            {engStats.cancelados > 0 && (
+              <button
+                type="button"
+                onClick={() =>
+                  setCategoryFilter((prev) => (prev === 'CANCELADOS' ? 'ALL' : 'CANCELADOS'))
+                }
+                className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold border transition-all flex items-center gap-1.5 cursor-pointer ${
+                  categoryFilter === 'CANCELADOS'
+                    ? 'bg-slate-700 border-slate-700 text-white shadow-2xs'
+                    : 'bg-slate-100 hover:bg-slate-200/80 border-slate-200 text-slate-700'
+                }`}
+                title="Filtrar sites cancelados"
+              >
+                <span>Cancelados</span>
+                <span className="font-mono text-xs tabular-nums">{engStats.cancelados}</span>
+              </button>
+            )}
+
+            {/* Separator */}
+            <div className="h-5 w-px bg-slate-200 mx-0.5" />
+
+            {/* Vistorias Entregues */}
             <button
               type="button"
               onClick={() =>
                 setVistoriaStatusFilter((prev) => (prev === 'Entregue' ? 'ALL' : 'Entregue'))
               }
-              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold border transition-all flex items-center gap-2 cursor-pointer ${
+              className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold border transition-all flex items-center gap-1.5 cursor-pointer ${
                 vistoriaStatusFilter === 'Entregue'
-                  ? 'bg-emerald-600 border-emerald-600 text-white shadow-2xs'
-                  : 'bg-emerald-50 hover:bg-emerald-100/80 border-emerald-200 text-emerald-800'
+                  ? 'bg-emerald-700 border-emerald-700 text-white shadow-2xs'
+                  : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-700'
               }`}
+              title="Vistorias com arquivo entregue"
             >
-              <span
-                className={`w-2 h-2 rounded-full ${
-                  vistoriaStatusFilter === 'Entregue' ? 'bg-white' : 'bg-emerald-600'
-                }`}
-              />
-              <span>Entregues</span>
-              <span
-                className={`font-mono font-bold text-xs tabular-nums px-1.5 py-0.5 rounded ${
-                  vistoriaStatusFilter === 'Entregue'
-                    ? 'bg-emerald-700 text-white'
-                    : 'bg-white text-emerald-800 border border-emerald-200'
-                }`}
-              >
-                {entreguesCount}
-              </span>
+              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+              <span>Vistoria Entregue</span>
+              <span className="font-mono font-bold text-xs tabular-nums">{entreguesCount}</span>
             </button>
 
+            {/* Vistoria Não Disponível */}
             <button
               type="button"
               onClick={() =>
-                setVistoriaStatusFilter((prev) => (prev === 'Pendente' ? 'ALL' : 'Pendente'))
+                setVistoriaStatusFilter((prev) => (prev === 'NAO_DISPONIVEL' ? 'ALL' : 'NAO_DISPONIVEL'))
               }
-              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold border transition-all flex items-center gap-2 cursor-pointer ${
-                vistoriaStatusFilter === 'Pendente'
-                  ? 'bg-red-600 border-red-600 text-white shadow-2xs'
-                  : 'bg-red-50 hover:bg-red-100/80 border-red-200 text-red-800'
+              className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold border transition-all flex items-center gap-1.5 cursor-pointer ${
+                vistoriaStatusFilter === 'NAO_DISPONIVEL'
+                  ? 'bg-slate-800 border-slate-800 text-white shadow-2xs'
+                  : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-700'
               }`}
+              title="Vistorias sem arquivo carregado"
             >
-              <span
-                className={`w-2 h-2 rounded-full ${
-                  vistoriaStatusFilter === 'Pendente' ? 'bg-white' : 'bg-red-600'
-                }`}
-              />
-              <span>Pendentes</span>
-              <span
-                className={`font-mono font-bold text-xs tabular-nums px-1.5 py-0.5 rounded ${
-                  vistoriaStatusFilter === 'Pendente'
-                    ? 'bg-red-700 text-white'
-                    : 'bg-white text-red-800 border border-red-200'
-                }`}
-              >
-                {pendentesCount}
-              </span>
+              <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
+              <span>Vistoria Não Disponível</span>
+              <span className="font-mono font-bold text-xs tabular-nums">{naoDisponivelCount}</span>
             </button>
           </div>
         </div>
-
-        {/* Collapsible Charts Panel (Aba de Gráficos) */}
-        {showCharts && (
-          <div className="pt-3 border-t border-slate-200 grid grid-cols-1 md:grid-cols-3 gap-3">
-            {/* Card 1: Progresso de Entregas da Vistoria */}
-            <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
-              <div className="flex items-center justify-between text-xs font-bold text-slate-800">
-                <span>Status da Vistoria (Automático)</span>
-                <span className="font-mono text-emerald-700">
-                  {totalCount > 0 ? Math.round((entreguesCount / totalCount) * 100) : 0}% Entregue
-                </span>
-              </div>
-              <div className="w-full h-3 bg-red-100 rounded-full overflow-hidden flex">
-                <div
-                  className="bg-emerald-500 h-full transition-all"
-                  style={{
-                    width: `${totalCount > 0 ? (entreguesCount / totalCount) * 100 : 0}%`,
-                  }}
-                />
-              </div>
-              <div className="flex items-center justify-between text-[11px] text-slate-600">
-                <span className="flex items-center gap-1 font-semibold text-emerald-700">
-                  <span className="w-2 h-2 rounded-full bg-emerald-500" />
-                  Entregues: {entreguesCount}
-                </span>
-                <span className="flex items-center gap-1 font-semibold text-red-700">
-                  <span className="w-2 h-2 rounded-full bg-red-500" />
-                  Pendentes: {pendentesCount}
-                </span>
-              </div>
-            </div>
-
-            {/* Card 2: Top STATUS Engenharia */}
-            <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-1.5">
-              <div className="text-xs font-bold text-slate-800">Por STATUS Engenharia</div>
-              <div className="space-y-1 max-h-28 overflow-y-auto pr-1">
-                {filterOptions.engStatuses.map((st) => {
-                  const cnt = tabRows.filter(
-                    (r) => (r.fields?.['STATUS Engenharia'] || '').trim() === st
-                  ).length;
-                  return (
-                    <button
-                      key={st}
-                      type="button"
-                      onClick={() =>
-                        setEngStatusFilter((prev) => (prev === st ? 'ALL' : st))
-                      }
-                      className={`w-full px-2 py-1 rounded text-[11px] flex items-center justify-between cursor-pointer ${
-                        engStatusFilter === st
-                          ? 'bg-blue-600 text-white font-bold'
-                          : 'hover:bg-slate-200/70 text-slate-700'
-                      }`}
-                    >
-                      <span className="truncate">{st}</span>
-                      <span className="font-mono font-bold ml-2">{cnt}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Card 3: Distribuição por UF */}
-            <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-1.5">
-              <div className="text-xs font-bold text-slate-800">Distribuição por UF</div>
-              <div className="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto">
-                {filterOptions.ufs.map((uf) => {
-                  const cnt = tabRows.filter(
-                    (r) => (r.fields?.['UF'] || '').trim().toUpperCase() === uf
-                  ).length;
-                  return (
-                    <button
-                      key={uf}
-                      type="button"
-                      onClick={() => setUfFilter((prev) => (prev === uf ? 'ALL' : uf))}
-                      className={`px-2 py-1 rounded-md text-[11px] font-mono font-bold border cursor-pointer ${
-                        ufFilter === uf
-                          ? 'bg-[#223585] border-[#223585] text-white'
-                          : 'bg-white hover:bg-slate-100 border-slate-200 text-slate-700'
-                      }`}
-                    >
-                      {uf}: {cnt}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
-        )}
       </div>
+
+      {/* =====================================================================
+          1.5. INTERACTIVE CHART DA ENGENHARIA (MESMO SISTEMA COM DADOS DOS EXECUTORES)
+          ("quero esse mesmo sistema na engenharia porem apenas com informaçoes dos executores")
+         ===================================================================== */}
+      <EngineeringInteractiveChart
+        rows={tabRows}
+        activeExecutorFilter={executorFilter}
+        onSelectExecutorFilter={(ex) => setExecutorFilter(ex)}
+        activeUfFilter={ufFilter}
+        onSelectUfFilter={(uf) => setUfFilter(uf)}
+        activeEngStatusFilter={engStatusFilter}
+        onSelectEngStatusFilter={(st) => setEngStatusFilter(st)}
+        activeCategoryFilter={categoryFilter}
+        onSelectCategoryFilter={(cat) => setCategoryFilter(cat)}
+      />
 
       {/* =====================================================================
           2. MAIN SPREADSHEET CONTAINER (MESMO PADRÃO DA PASTA CONTROLE GERAL)
@@ -1351,11 +1553,17 @@ export const EngineeringControlTab: React.FC<EngineeringControlTabProps> = ({
                 <span className="px-2 py-0.5 bg-[#F3F4F6] border border-slate-200 rounded-md text-xs font-mono text-slate-700 font-semibold tabular-nums">
                   {filteredRows.length} registro{filteredRows.length !== 1 ? 's' : ''}
                 </span>
-                <span className="px-2 py-0.5 bg-emerald-50 border border-emerald-200 rounded-md text-xs font-mono text-emerald-700 font-semibold tabular-nums">
-                  {entreguesCount} entregue{entreguesCount !== 1 ? 's' : ''}
+                <span className="px-2 py-0.5 bg-amber-50 border border-amber-300 rounded-md text-xs font-mono text-amber-900 font-bold tabular-nums" title="STATUS Engenharia: 1º A Fazer">
+                  {engStats.aFazer} a fazer
                 </span>
-                <span className="px-2 py-0.5 bg-red-50 border border-red-200 rounded-md text-xs font-mono text-red-700 font-semibold tabular-nums">
-                  {pendentesCount} pendente{pendentesCount !== 1 ? 's' : ''}
+                <span className="px-2 py-0.5 bg-blue-50 border border-blue-200 rounded-md text-xs font-mono text-blue-900 font-bold tabular-nums" title="STATUS Engenharia: Aguardando Aprovação">
+                  {engStats.aguardando} aguardando
+                </span>
+                <span className="px-2 py-0.5 bg-emerald-50 border border-emerald-200 rounded-md text-xs font-mono text-emerald-800 font-bold tabular-nums" title="STATUS Engenharia: Concluídos / Aprovados">
+                  {engStats.concluidos} aprovados
+                </span>
+                <span className="px-2 py-0.5 bg-slate-100 border border-slate-300 rounded-md text-xs font-mono text-slate-700 font-semibold tabular-nums" title="Vistorias com arquivo entregue">
+                  {entreguesCount} vistorias
                 </span>
                 {isFullscreen && (
                   <span className="px-2 py-0.5 bg-blue-600 text-white rounded-md text-[11px] font-bold">
@@ -1554,15 +1762,15 @@ export const EngineeringControlTab: React.FC<EngineeringControlTabProps> = ({
                               value={vistoriaStatusFilter}
                               onChange={(e) => {
                                 setVistoriaStatusFilter(
-                                  e.target.value as 'ALL' | 'Entregue' | 'Pendente'
+                                  e.target.value as 'ALL' | 'Entregue' | 'NAO_DISPONIVEL'
                                 );
                                 setIsAddFilterOpen(false);
                               }}
                               className="w-full px-2.5 py-1.5 bg-[#F3F4F6] border border-slate-200 rounded-lg text-xs text-slate-800"
                             >
                               <option value="ALL">Todos ({totalCount})</option>
-                              <option value="Entregue">Entregue ({entreguesCount})</option>
-                              <option value="Pendente">Pendente ({pendentesCount})</option>
+                              <option value="Entregue">Vistoria Entregue ({entreguesCount})</option>
+                              <option value="NAO_DISPONIVEL">Vistoria Não Disponível ({naoDisponivelCount})</option>
                             </select>
                           </div>
 
@@ -1724,10 +1932,33 @@ export const EngineeringControlTab: React.FC<EngineeringControlTabProps> = ({
                     Filtros ativos:
                   </span>
 
+                  {categoryFilter !== 'ALL' && (
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-amber-50 border border-amber-300 text-amber-900 text-xs shadow-2xs font-semibold">
+                      <span className="text-amber-600">STATUS Engenharia:</span>
+                      <span>
+                        {categoryFilter === 'A_FAZER' && '1º Pendentes (A Fazer)'}
+                        {categoryFilter === 'AGUARDANDO' && 'Aguardando Aprovação'}
+                        {categoryFilter === 'FEITOS' && '2º Aprovados / Feitos'}
+                        {categoryFilter === 'CANCELADOS' && 'Cancelados'}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setCategoryFilter('ALL')}
+                        className="text-amber-700 hover:text-amber-950 cursor-pointer"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </span>
+                  )}
+
                   {vistoriaStatusFilter !== 'ALL' && (
                     <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-white border border-slate-200 text-slate-700 text-xs shadow-2xs">
                       <span className="text-slate-400">Status da vistoria:</span>
-                      <span className="font-semibold">{vistoriaStatusFilter}</span>
+                      <span className="font-semibold">
+                        {vistoriaStatusFilter === 'Entregue'
+                          ? 'Vistoria Entregue'
+                          : 'Vistoria Não Disponível'}
+                      </span>
                       <button
                         type="button"
                         onClick={() => setVistoriaStatusFilter('ALL')}
@@ -1908,8 +2139,8 @@ export const EngineeringControlTab: React.FC<EngineeringControlTabProps> = ({
                       );
                     })}
 
-                    {/* 4 System Columns (Identified as [SISTEMA]) */}
-                    {TSSR_SYSTEM_COLUMNS.map((sysCol) => {
+                    {/* System Columns (Identified as [SISTEMA]) */}
+                    {activeSystemColumns.map((sysCol) => {
                       const hasColFilter = Boolean(columnValueFilters[sysCol]?.length);
                       return (
                         <th
@@ -1954,7 +2185,7 @@ export const EngineeringControlTab: React.FC<EngineeringControlTabProps> = ({
                       {viewMode === 'fluid' && (
                         <tr className="bg-slate-50/90 border-y border-slate-200">
                           <td
-                            colSpan={activeOriginalColumns.length + TSSR_SYSTEM_COLUMNS.length}
+                            colSpan={activeOriginalColumns.length + activeSystemColumns.length}
                             className="px-4 py-1.5 text-xs font-bold text-slate-700"
                           >
                             {section.title}
@@ -2005,49 +2236,54 @@ export const EngineeringControlTab: React.FC<EngineeringControlTabProps> = ({
                             );
                           })}
 
-                          {/* System Col 1: Status da vistoria (automático) */}
-                          <td
-                            className={`${densityPad} bg-slate-50/50 group-hover:bg-blue-50/40 border-r border-slate-100`}
-                          >
-                            {renderVistoriaStatusBadge(
-                              row.vistoriaStatus === 'Entregue' ? 'Entregue' : 'Pendente'
-                            )}
-                          </td>
+                          {/* 4 System Columns (hidden for Executor as Executor only visualizes specified columns) */}
+                          {!isExecutor && (
+                            <>
+                              {/* System Col 1: Status da vistoria (automático) */}
+                              <td
+                                className={`${densityPad} bg-slate-50/50 group-hover:bg-blue-50/40 border-r border-slate-100`}
+                              >
+                                {renderVistoriaStatusBadge(
+                                  row.vistoriaStatus === 'Entregue' ? 'Entregue' : 'NAO_DISPONIVEL'
+                                )}
+                              </td>
 
-                          {/* System Col 2: Arquivo da vistoria (link para abrir/baixar) */}
-                          <td
-                            className={`${densityPad} bg-slate-50/50 group-hover:bg-blue-50/40 border-r border-slate-100`}
-                          >
-                            {renderArquivoVistoriaCell(row)}
-                          </td>
+                              {/* System Col 2: Arquivo da vistoria (link para abrir/baixar) */}
+                              <td
+                                className={`${densityPad} bg-slate-50/50 group-hover:bg-blue-50/40 border-r border-slate-100`}
+                              >
+                                {renderArquivoVistoriaCell(row)}
+                              </td>
 
-                          {/* System Col 3: Data/hora da entrega */}
-                          <td
-                            className={`${densityPad} bg-slate-50/50 group-hover:bg-blue-50/40 font-mono text-slate-700 border-r border-slate-100`}
-                          >
-                            {row.vistoriaDeliveredAt ? (
-                              <span className="inline-flex items-center gap-1 text-emerald-800 font-semibold">
-                                <Calendar className="w-3 h-3 text-emerald-600" />
-                                <span>{row.vistoriaDeliveredAt}</span>
-                              </span>
-                            ) : (
-                              <span className="text-slate-400">—</span>
-                            )}
-                          </td>
+                              {/* System Col 3: Data/hora da entrega */}
+                              <td
+                                className={`${densityPad} bg-slate-50/50 group-hover:bg-blue-50/40 font-mono text-slate-700 border-r border-slate-100`}
+                              >
+                                {row.vistoriaDeliveredAt ? (
+                                  <span className="inline-flex items-center gap-1 text-emerald-800 font-semibold">
+                                    <Calendar className="w-3 h-3 text-emerald-600" />
+                                    <span>{row.vistoriaDeliveredAt}</span>
+                                  </span>
+                                ) : (
+                                  <span className="text-slate-400">—</span>
+                                )}
+                              </td>
 
-                          {/* System Col 4: Vistoriador que enviou */}
-                          <td
-                            className={`${densityPad} bg-slate-50/50 group-hover:bg-blue-50/40 text-slate-800 border-r border-slate-100`}
-                          >
-                            {row.vistoriaUploadedBy ? (
-                              <span className="inline-flex items-center gap-1 font-semibold text-slate-900">
-                                <UserCheck className="w-3 h-3 text-blue-600" />
-                                <span>{row.vistoriaUploadedBy}</span>
-                              </span>
-                            ) : (
-                              <span className="text-slate-400">—</span>
-                            )}
-                          </td>
+                              {/* System Col 4: Vistoriador que enviou */}
+                              <td
+                                className={`${densityPad} bg-slate-50/50 group-hover:bg-blue-50/40 text-slate-800 border-r border-slate-100`}
+                              >
+                                {row.vistoriaUploadedBy ? (
+                                  <span className="inline-flex items-center gap-1 font-semibold text-slate-900">
+                                    <UserCheck className="w-3 h-3 text-blue-600" />
+                                    <span>{row.vistoriaUploadedBy}</span>
+                                  </span>
+                                ) : (
+                                  <span className="text-slate-400">—</span>
+                                )}
+                              </td>
+                            </>
+                          )}
                         </tr>
                       ))}
                     </React.Fragment>
@@ -2056,7 +2292,7 @@ export const EngineeringControlTab: React.FC<EngineeringControlTabProps> = ({
                   {filteredRows.length === 0 && (
                     <tr>
                       <td
-                        colSpan={activeOriginalColumns.length + TSSR_SYSTEM_COLUMNS.length}
+                        colSpan={activeOriginalColumns.length + activeSystemColumns.length}
                         className="py-12 text-center text-xs text-slate-500"
                       >
                         Nenhum site encontrado com os filtros selecionados.
@@ -2537,11 +2773,16 @@ export const EngineeringControlTab: React.FC<EngineeringControlTabProps> = ({
                       <button
                         type="button"
                         onClick={() => {
+                          const sid = selectedRow.siteId;
                           setSelectedRowId(null);
-                          setOpenProjectFolderType('TSSR');
+                          if (onNavigateToVistoria) {
+                            onNavigateToVistoria(sid);
+                          } else {
+                            setOpenProjectFolderType('TSSR');
+                          }
                         }}
                         className="px-2.5 py-1 bg-purple-600 hover:bg-purple-700 text-white rounded-md text-[11px] font-bold flex items-center gap-1.5 cursor-pointer shadow-2xs"
-                        title="Subir TSSR vinculado a este site/projeto"
+                        title="Subir TSSR vinculado a este site/projeto (vai direto para a pasta do executor)"
                       >
                         <Upload className="w-3 h-3" />
                         <span>Subir TSSR</span>
@@ -2597,13 +2838,15 @@ export const EngineeringControlTab: React.FC<EngineeringControlTabProps> = ({
                 </div>
               </div>
 
-              {/* 37 Original Columns */}
+              {/* Original Columns (filtered for Executor) */}
               <div className="space-y-3">
                 <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
-                  Colunas Originais da Planilha TSSR ({TSSR_TIM_NOKIA_ORIGINAL_COLUMNS.length} colunas)
+                  {isExecutor
+                    ? `Colunas da Planilha TSSR (${activeOriginalColumns.length} colunas)`
+                    : `Colunas Originais da Planilha TSSR (${TSSR_TIM_NOKIA_ORIGINAL_COLUMNS.length} colunas)`}
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {TSSR_TIM_NOKIA_ORIGINAL_COLUMNS.map((colName) => (
+                  {activeOriginalColumns.map((colName) => (
                     <div key={colName}>
                       <label className="block text-[11px] font-semibold text-slate-600 mb-1">
                         {colName}
@@ -2644,6 +2887,90 @@ export const EngineeringControlTab: React.FC<EngineeringControlTabProps> = ({
           </div>
         </div>
       )}
+
+      {/* Modal de Confirmação de Exclusão de Arquivo de Vistoria */}
+      {vistoriaToDelete && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-[2px] animate-in fade-in duration-150"
+          onClick={() => !deletingVistoria && setVistoriaToDelete(null)}
+        >
+          <div
+            className="w-full max-w-md bg-white border border-slate-200 rounded-2xl shadow-2xl overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="px-5 py-4 bg-red-50/80 border-b border-red-100 flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-red-100 text-red-600 flex items-center justify-center">
+                  <Trash2 className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-red-950">
+                    Apagar Arquivo de Vistoria
+                  </h3>
+                  <p className="text-[11px] text-red-700">
+                    Site: {vistoriaToDelete.siteId} · {vistoriaToDelete.vistoriaFileName}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                disabled={deletingVistoria}
+                onClick={() => setVistoriaToDelete(null)}
+                className="p-1 text-slate-400 hover:text-slate-700 rounded-lg cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="p-5 space-y-4">
+              <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-1 text-xs">
+                <div className="font-semibold text-slate-800">
+                  Arquivo: {vistoriaToDelete.vistoriaFileName}
+                </div>
+                <div className="text-[11px] text-slate-500">
+                  Enviado por: {vistoriaToDelete.vistoriaUploadedBy || '—'} · Em: {vistoriaToDelete.vistoriaDeliveredAt || '—'}
+                </div>
+              </div>
+
+              <p className="text-xs text-slate-600">
+                Tem certeza que deseja apagar o arquivo de vistoria deste site? O status da vistoria voltará para <strong>"Vistoria Não Disponível"</strong> e o arquivo será removido do repositório.
+              </p>
+
+              <div className="pt-2 flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  disabled={deletingVistoria}
+                  onClick={() => setVistoriaToDelete(null)}
+                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  disabled={deletingVistoria}
+                  onClick={handleConfirmDeleteVistoria}
+                  className="px-4 py-2 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white text-xs font-bold rounded-lg cursor-pointer flex items-center gap-1.5 shadow-sm"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>{deletingVistoria ? 'Apagando...' : 'Sim, Apagar Arquivo'}</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Google Drive Integration Modal */}
+      <GoogleDriveModal
+        isOpen={isGoogleDriveOpen}
+        onClose={() => setIsGoogleDriveOpen(false)}
+        onImportTssr={(rows, sheets, msg) => {
+          onTssrUpdated(rows, sheets, msg);
+          setIsGoogleDriveOpen(false);
+        }}
+        currentTssrRows={tabRows}
+        currentVendor={activeVendor}
+      />
     </div>
   );
 };

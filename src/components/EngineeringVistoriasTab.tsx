@@ -29,6 +29,7 @@ import {
   Eye,
   Pencil,
   Bell,
+  FolderCheck,
 } from 'lucide-react';
 import {
   EngineeringFolder,
@@ -68,7 +69,8 @@ interface EngineeringVistoriasTabProps {
     nextFiles: EngineeringFile[],
     toastMsg?: string,
     nextTssrRows?: TssrRow[],
-    nextTssrSheets?: TssrSheetMeta[]
+    nextTssrSheets?: TssrSheetMeta[],
+    nextSites?: TelecomSite[]
   ) => void;
   onSelectSiteId: (siteId: string) => void;
   onOpenTssrTab?: () => void;
@@ -130,6 +132,13 @@ export const EngineeringVistoriasTab: React.FC<EngineeringVistoriasTabProps> = (
   const isAdmin =
     (isAdmRole || isCoordenadorGeral || isCoordenadorEngenharia) &&
     !simulatedTargetUser;
+  const isGestorEngenharia =
+    isCoordenadorEngenharia ||
+    isCoordenadorGeral ||
+    isAdmRole ||
+    isAdmin ||
+    effectiveRole === 'Coordenador Engenharia' ||
+    effectiveRole === 'ADM';
   const isVistoriador = currentRole === 'Vistoriador';
   const isExecutor = currentRole === 'Executor';
   const canCreateFolders = !isExecutor && !isVistoriador;
@@ -139,11 +148,18 @@ export const EngineeringVistoriasTab: React.FC<EngineeringVistoriasTabProps> = (
     isCoordenadorGeral ||
     isAdmRole;
   const canUploadVistoria =
-    isVistoriador ||
-    isCoordenadorEngenharia ||
-    isCoordenadorGeral ||
-    isAdmRole;
-  const isTssrProjectsMode = (mode === 'tssr-projects' || isExecutor) && !isVistoriador;
+    !isExecutor &&
+    (isVistoriador ||
+      isCoordenadorEngenharia ||
+      isCoordenadorGeral ||
+      isAdmRole);
+  const isTssrProjectsMode = mode === 'tssr-projects';
+
+  // TSSR TIM Nokia rows for searchable site selector and executor linking
+  const tssrNokiaRows = useMemo(
+    () => tssrRows.filter((r) => r.tabName === 'TSSR TIM Nokia'),
+    [tssrRows]
+  );
 
   // Hidden/collapsible tab state for "Demanda por Responsável" inside Documentos ("em uma aba escondida so abre se eu clicar")
   const [isDocDemandaTabOpen, setIsDocDemandaTabOpen] = useState<boolean>(false);
@@ -178,6 +194,39 @@ export const EngineeringVistoriasTab: React.FC<EngineeringVistoriasTabProps> = (
   );
 
   const vendorFolders = useMemo(() => {
+    // Se for Executor: NÃO vê pasta vistoria, APENAS de TSSR
+    if (isExecutor) {
+      const allowedIds = new Set<string>();
+      for (const f of allVendorFolders) {
+        if (
+          f.name === 'TSSR' ||
+          f.name === 'TSSR Entrada' ||
+          f.id.endsWith('-tssr-final') ||
+          f.id.endsWith('-tssr-entrada')
+        ) {
+          allowedIds.add(f.id);
+        }
+      }
+      let added = true;
+      while (added) {
+        added = false;
+        for (const f of allVendorFolders) {
+          if (
+            f.parentId &&
+            allowedIds.has(f.parentId) &&
+            !allowedIds.has(f.id) &&
+            f.name !== 'Vistorias' &&
+            f.name !== 'Vistorias Executadas' &&
+            !f.id.includes('vistorias-executadas')
+          ) {
+            allowedIds.add(f.id);
+            added = true;
+          }
+        }
+      }
+      return allVendorFolders.filter((f) => allowedIds.has(f.id));
+    }
+
     if (isTssrProjectsMode) {
       // In TSSR Projects mode ("TSSR Entrada" & "TSSR"), show the root container + TSSR Entrada + TSSR and all their subfolders
       const allowedIds = new Set<string>();
@@ -216,7 +265,7 @@ export const EngineeringVistoriasTab: React.FC<EngineeringVistoriasTabProps> = (
       }
     }
     return allVendorFolders.filter((f) => !blockedRootIds.has(f.id));
-  }, [allVendorFolders, isTssrProjectsMode]);
+  }, [allVendorFolders, isTssrProjectsMode, isExecutor]);
 
   const allowedFolderIds = useMemo(
     () => new Set(vendorFolders.map((f) => f.id)),
@@ -279,16 +328,67 @@ export const EngineeringVistoriasTab: React.FC<EngineeringVistoriasTabProps> = (
     docResponsavelFilter,
   ]);
 
-  const rootVistoriasFolder = useMemo(
+  // Helper para localizar a pasta liberada do executor dentro de TSSR / TSSR Entrada
+  const findLiberatedFolderForExecutor = (
+    folders: EngineeringFolder[],
+    vendor: VendorType,
+    execName: string
+  ): EngineeringFolder | undefined => {
+    if (!execName || !execName.trim()) return undefined;
+    const clean = execName.trim().toLowerCase();
+    const tssrParents = folders.filter(
+      (f) =>
+        f.vendor === vendor &&
+        (f.name === 'TSSR' ||
+          f.name === 'TSSR Entrada' ||
+          f.id.endsWith('-tssr-final') ||
+          f.id.endsWith('-tssr-entrada'))
+    );
+    const parentIds = new Set(tssrParents.map((p) => p.id));
+    return folders.find(
+      (f) =>
+        f.vendor === vendor &&
+        (parentIds.has(f.parentId || '') || f.id.includes('tssr-exec')) &&
+        ((f.assignedTo && f.assignedTo.trim().toLowerCase() === clean) ||
+          f.name.trim().toLowerCase() === clean)
+    );
+  };
+
+  const rootTssrFolder = useMemo(
     () =>
+      allVendorFolders.find(
+        (f) =>
+          (f.name === 'TSSR' || f.id.endsWith('-tssr-final')) &&
+          f.vendor === activeVendor
+      ) ||
+      allVendorFolders.find(
+        (f) =>
+          (f.name === 'TSSR Entrada' || f.id.endsWith('-tssr-entrada')) &&
+          f.vendor === activeVendor
+      ) ||
+      null,
+    [allVendorFolders, activeVendor]
+  );
+
+  const rootVistoriasFolder = useMemo(() => {
+    if (isExecutor) {
+      return rootTssrFolder || vendorFolders[0] || null;
+    }
+    return (
       vendorFolders.find((f) => f.parentId === null && f.name === 'Vistorias') ||
       vendorFolders[0] ||
-      null,
-    [vendorFolders]
-  );
+      null
+    );
+  }, [vendorFolders, isExecutor, rootTssrFolder]);
 
   const [currentFolderId, setCurrentFolderId] = useState<string>(() => {
     if (initialFolderId) return initialFolderId;
+    if (isExecutor) {
+      const execName = (activeTargetUser.name || user.name || '').trim();
+      const myLiberated = findLiberatedFolderForExecutor(allVendorFolders, activeVendor, execName);
+      if (myLiberated) return myLiberated.id;
+      if (rootTssrFolder) return rootTssrFolder.id;
+    }
     return rootVistoriasFolder?.id || `folder-${activeVendor.toLowerCase()}-vistorias`;
   });
 
@@ -358,36 +458,56 @@ export const EngineeringVistoriasTab: React.FC<EngineeringVistoriasTabProps> = (
 
   const canModifyFolder = (folder: EngineeringFolder): boolean => {
     if (folder.isSystem) return false;
-    const isMainUnderRoot = folder.parentId === rootVistoriasFolder?.id;
-    if (isMainUnderRoot && !isAdmin) return false;
-    if (isExecutor || isVistoriador) {
-      return isFolderUploadedByCurrentUser(folder);
-    }
-    return true;
+    // O executor NÃO pode apagar pastas ("menos as pastas")
+    if (isExecutor || isVistoriador) return false;
+    // Gestor da Engenharia (Coordenador Engenharia, ADM, Dono, Coordenador Geral) pode gerenciar/apagar pastas
+    if (isGestorEngenharia) return true;
+    return false;
   };
 
-  const isFileUploadedByCurrentUser = (file: EngineeringFile): boolean => {
+  const isFileLinkedToCurrentUser = (file: EngineeringFile): boolean => {
     const myEmail = (activeTargetUser.email || user.email || '').trim().toLowerCase();
     const myName = (activeTargetUser.name || user.name || '').trim().toLowerCase();
     const flEmail = (file.uploadedByEmail || '').trim().toLowerCase();
     const flName = (file.uploadedByName || '').trim().toLowerCase();
+    const flAssigned = (file.assignedTo || '').trim().toLowerCase();
     if (myEmail && flEmail && myEmail === flEmail) return true;
     if (myName && flName && myName === flName) return true;
-    const parentFolder = vendorFolders.find((f) => f.id === file.folderId);
-    if (parentFolder && isFolderUploadedByCurrentUser(parentFolder)) return true;
+    if (myName && flAssigned && myName === flAssigned) return true;
+    if (myName && file.fileName.toLowerCase().includes(myName)) return true;
+    // Também verificar se o arquivo pertence a um site atribuído a este executor na planilha TSSR TIM Nokia
+    if (file.siteId) {
+      const cleanSite = file.siteId.trim().toUpperCase();
+      const matchedRow = tssrNokiaRows.find(
+        (r) => r.siteId && r.siteId.trim().toUpperCase() === cleanSite
+      );
+      const rowExec = (matchedRow?.fields?.['Executor'] || '').trim().toLowerCase();
+      if (myName && rowExec && myName === rowExec) return true;
+    }
     return false;
   };
 
   const canModifyFile = (file: EngineeringFile): boolean => {
+    // Gestor da Engenharia (e ADM) tem a opção de apagar QUALQUER arquivo
+    if (isGestorEngenharia) return true;
+    // O executor pode apagar APENAS os documentos vinculados com o seu nome ("menos as pastas")
     if (isExecutor || isVistoriador) {
-      return isFileUploadedByCurrentUser(file);
+      return isFileLinkedToCurrentUser(file);
     }
-    return true;
+    return false;
   };
 
   // Search filter inside Vistorias
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [uploaderFilter, setUploaderFilter] = useState<string>('ALL');
+
+  // Deletion Confirmation Modal state (safe in-app modal)
+  const [filePendingDelete, setFilePendingDelete] = useState<EngineeringFile | null>(null);
+  const [folderPendingDelete, setFolderPendingDelete] = useState<EngineeringFolder | null>(null);
+  const [deletingItem, setDeletingItem] = useState<boolean>(false);
+
+  // Auto-detected executor state for upload routing
+  const [autoDetectedExecutor, setAutoDetectedExecutor] = useState<string | null>(null);
 
   // Create Folder Modal state
   const [newFolderModalOpen, setNewFolderModalOpen] = useState<boolean>(false);
@@ -398,6 +518,87 @@ export const EngineeringVistoriasTab: React.FC<EngineeringVistoriasTabProps> = (
   const [newFolderAssignedTo, setNewFolderAssignedTo] = useState<string>('');
   const [folderError, setFolderError] = useState<string | null>(null);
   const [creatingFolder, setCreatingFolder] = useState<boolean>(false);
+
+  // Liberar Pasta para Executor dentro de TSSR state
+  const [liberarPastaModalOpen, setLiberarPastaModalOpen] = useState<boolean>(false);
+  const [selectedExecutorForPasta, setSelectedExecutorForPasta] = useState<string>('');
+  const [liberandoPasta, setLiberandoPasta] = useState<boolean>(false);
+  const [liberandoTodasPastas, setLiberandoTodasPastas] = useState<boolean>(false);
+
+  // All available executors list
+  const allAvailableExecutors = useMemo(() => {
+    const set = new Set<string>();
+    users.forEach((u) => {
+      if (normalizeUserRole(u.role) === 'Executor' && u.name) {
+        set.add(u.name.trim());
+      }
+    });
+    tssrNokiaRows.forEach((r) => {
+      const ex = (r.fields?.['Executor'] || '').trim();
+      if (ex) set.add(ex);
+    });
+    sites.forEach((s) => {
+      const ex = (s.customFields?.['Executor'] || s.responsavelCampo || s.equipeParceira || '').trim();
+      if (ex) set.add(ex);
+    });
+    return Array.from(set).sort((a, b) => a.localeCompare(b, 'pt-BR'));
+  }, [users, tssrNokiaRows, sites]);
+
+  const handleLiberarPastaExecutor = async () => {
+    if (!selectedExecutorForPasta.trim()) return;
+    setLiberandoPasta(true);
+    try {
+      const res = await fetch('/api/engineering/liberar-pasta-executor', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          vendor: activeVendor,
+          executorName: selectedExecutorForPasta.trim(),
+          folderType: activeFolder?.name === 'TSSR Entrada' ? 'TSSR Entrada' : 'TSSR',
+          actorName: user.name,
+          actorEmail: user.email,
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        onFoldersAndFilesUpdated(
+          data.engineeringFolders,
+          data.engineeringFiles,
+          `Pasta de TSSR liberada com sucesso para o executor ${selectedExecutorForPasta.trim()}!`
+        );
+        setLiberarPastaModalOpen(false);
+      }
+    } finally {
+      setLiberandoPasta(false);
+    }
+  };
+
+  const handleLiberarTodasPastasExecutores = async () => {
+    setLiberandoTodasPastas(true);
+    try {
+      const res = await fetch('/api/engineering/liberar-todas-pastas-executores', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          vendor: activeVendor,
+          folderType: 'TSSR',
+          actorName: user.name,
+          actorEmail: user.email,
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        onFoldersAndFilesUpdated(
+          data.engineeringFolders,
+          data.engineeringFiles,
+          data.message || 'Pastas de TSSR liberadas para todos os executores!'
+        );
+        setLiberarPastaModalOpen(false);
+      }
+    } finally {
+      setLiberandoTodasPastas(false);
+    }
+  };
 
   // Upload File (.zip / .rar / docs) Modal state with mandatory link to TSSR TIM Nokia site
   const [uploadModalOpen, setUploadModalOpen] = useState<boolean>(false);
@@ -450,12 +651,6 @@ export const EngineeringVistoriasTab: React.FC<EngineeringVistoriasTabProps> = (
   const folderInputRef = useRef<HTMLInputElement | null>(null);
   const replaceFileInputRef = useRef<HTMLInputElement | null>(null);
 
-  // TSSR TIM Nokia rows for searchable site selector
-  const tssrNokiaRows = useMemo(
-    () => tssrRows.filter((r) => r.tabName === 'TSSR TIM Nokia'),
-    [tssrRows]
-  );
-
   // Searchable TSSR sites matching siteSearchQuery
   const matchingTssrRows = useMemo(() => {
     const q = siteSearchQuery.trim().toUpperCase();
@@ -482,7 +677,16 @@ export const EngineeringVistoriasTab: React.FC<EngineeringVistoriasTabProps> = (
     if (preselectedSiteId) {
       const clean = preselectedSiteId.trim().toUpperCase();
       const matchedRow = tssrNokiaRows.find((r) => r.siteId.trim().toUpperCase() === clean);
-      const safeTargetId = uploadableFolders[0]?.id || '';
+      const siteExec = (matchedRow?.fields?.['Executor'] || '').trim();
+      const targetExec = isExecutor
+        ? (activeTargetUser.name || user.name || '').trim()
+        : siteExec;
+      const execFolder = targetExec
+        ? findLiberatedFolderForExecutor(allVendorFolders, activeVendor, targetExec)
+        : undefined;
+      const safeTargetId = execFolder?.id || uploadableFolders[0]?.id || '';
+
+      setAutoDetectedExecutor(targetExec || null);
       setUploadTargetFolderId(safeTargetId);
       setUploadedByName(user.name || '');
       setUploadSiteId(clean);
@@ -494,33 +698,65 @@ export const EngineeringVistoriasTab: React.FC<EngineeringVistoriasTabProps> = (
       setUploadModalOpen(true);
       onClearPreselectedSiteId?.();
     }
-  }, [preselectedSiteId, tssrNokiaRows, uploadableFolders, user.name, onClearPreselectedSiteId]);
+  }, [
+    preselectedSiteId,
+    tssrNokiaRows,
+    uploadableFolders,
+    allVendorFolders,
+    activeVendor,
+    user.name,
+    isExecutor,
+    activeTargetUser.name,
+    onClearPreselectedSiteId,
+  ]);
 
-  // Breadcrumb trail from root "Vistorias" down to activeFolder
+  // Breadcrumb trail from root down to activeFolder
   const breadcrumbs = useMemo(() => {
     const trail: EngineeringFolder[] = [];
     let curr: EngineeringFolder | undefined = activeFolder || undefined;
     const visited = new Set<string>();
     while (curr && !visited.has(curr.id)) {
+      if (isExecutor && (curr.name === 'Vistorias' || curr.id.includes('vistorias'))) {
+        break;
+      }
       visited.add(curr.id);
       trail.unshift(curr);
       curr = curr.parentId ? vendorFolders.find((f) => f.id === curr!.parentId) : undefined;
     }
     return trail;
-  }, [activeFolder, vendorFolders]);
+  }, [activeFolder, vendorFolders, isExecutor]);
 
   // Direct child folders of the current folder
   const childFolders = useMemo(() => {
-    const list = vendorFolders.filter((f) => f.parentId === effectiveFolderId);
+    let list = vendorFolders.filter((f) => f.parentId === effectiveFolderId);
+
+    // If Executor, they ONLY see their liberated folder
+    if (isExecutor) {
+      const myName = (activeTargetUser.name || user.name || '').trim().toLowerCase();
+      list = list.filter((f) => {
+        const assigned = (f.assignedTo || '').trim().toLowerCase();
+        const fName = f.name.trim().toLowerCase();
+        return (assigned && assigned === myName) || fName === myName;
+      });
+    }
+
     if (!searchQuery.trim()) return list;
     const q = searchQuery.trim().toLowerCase();
     return list.filter(
       (f) =>
         f.name.toLowerCase().includes(q) ||
         (f.description || '').toLowerCase().includes(q) ||
+        (f.assignedTo || '').toLowerCase().includes(q) ||
         f.createdByName.toLowerCase().includes(q)
     );
-  }, [vendorFolders, effectiveFolderId, searchQuery]);
+  }, [
+    vendorFolders,
+    effectiveFolderId,
+    isExecutor,
+    activeTargetUser.name,
+    user.name,
+    searchQuery,
+  ]);
 
   // Direct files in the current folder (only inside subfolders, or when searching, or at root/index for Vistoriador to show all files associated with their responsible sites)
   const displayedFiles = useMemo(() => {
@@ -583,11 +819,20 @@ export const EngineeringVistoriasTab: React.FC<EngineeringVistoriasTabProps> = (
     return { directSubfolders, totalFiles };
   };
 
-  // Core main folders inside Vistorias for quick access pills
+  // Core main folders inside Vistorias / TSSR for quick access pills
   const mainVistoriasSubfolders = useMemo(() => {
     if (!rootVistoriasFolder) return [];
+    if (isExecutor) {
+      const myName = (activeTargetUser.name || user.name || '').trim().toLowerCase();
+      return vendorFolders.filter(
+        (f) =>
+          f.parentId === rootVistoriasFolder.id &&
+          ((f.assignedTo && f.assignedTo.toLowerCase() === myName) ||
+            f.name.toLowerCase() === myName)
+      );
+    }
     return vendorFolders.filter((f) => f.parentId === rootVistoriasFolder.id);
-  }, [vendorFolders, rootVistoriasFolder]);
+  }, [vendorFolders, rootVistoriasFolder, isExecutor, activeTargetUser.name, user.name]);
 
   const openCreateFolderModal = (parentId?: string) => {
     if (isExecutor || isVistoriador) return;
@@ -609,12 +854,22 @@ export const EngineeringVistoriasTab: React.FC<EngineeringVistoriasTabProps> = (
     const candidateId = targetFolderId || effectiveFolderId;
     const candidateFolder = vendorFolders.find((f) => f.id === candidateId);
 
-    // Never allow selecting root Vistorias as upload destination
-    const safeTargetId =
+    // If current user is an Executor, auto-route destination directly to their liberated TSSR folder
+    let detectedExec = '';
+    let safeTargetId =
       candidateFolder && candidateFolder.parentId !== null
         ? candidateFolder.id
         : uploadableFolders[0]?.id || '';
 
+    if (isExecutor) {
+      detectedExec = (activeTargetUser.name || user.name || '').trim();
+      const myExecFolder = findLiberatedFolderForExecutor(allVendorFolders, activeVendor, detectedExec);
+      if (myExecFolder) {
+        safeTargetId = myExecFolder.id;
+      }
+    }
+
+    setAutoDetectedExecutor(detectedExec || null);
     setUploadTargetFolderId(safeTargetId);
     setUploadedByName(user.name || '');
     setUploadSiteId('');
@@ -762,12 +1017,6 @@ export const EngineeringVistoriasTab: React.FC<EngineeringVistoriasTabProps> = (
       );
       return;
     }
-    if (isExecutor && !isUploadTargetTssrProject) {
-      setUploadError(
-        'O perfil Executor não tem permissão para subir Vistoria. O Executor pode subir apenas TSSR.'
-      );
-      return;
-    }
 
     const finalSiteId = (uploadSiteId || '').trim().toUpperCase();
     const requireSiteForThisUpload = !isUploadTargetTssrProject;
@@ -846,10 +1095,13 @@ export const EngineeringVistoriasTab: React.FC<EngineeringVistoriasTabProps> = (
           data.engineeringFolders,
           data.engineeringFiles,
           requireSiteForThisUpload
-            ? `Vistoria do site ${finalSiteId} entregue por ${user.name}! Status atualizado para "Entregue" na aba TSSR TIM Nokia.`
+            ? isExecutor
+              ? `Vistoria do site ${finalSiteId} entregue pelo Executor! STATUS Engenharia atualizado para "TSSR Aguardando aprovação".`
+              : `Vistoria do site ${finalSiteId} entregue por ${user.name}! Status atualizado para "Entregue" na aba TSSR TIM Nokia.`
             : `${pendingFiles.length} arquivo(s) carregado(s) com sucesso em "${targetFolderName}" por ${user.name}!`,
           data.tssrRows,
-          data.tssrSheets
+          data.tssrSheets,
+          data.sites
         );
       }
       setCurrentFolderId(data.targetFolderId || uploadTargetFolderId);
@@ -968,10 +1220,15 @@ export const EngineeringVistoriasTab: React.FC<EngineeringVistoriasTabProps> = (
     }
   };
 
-  const handleDeleteFolder = async (folder: EngineeringFolder, e: React.MouseEvent) => {
+  const handleDeleteFolder = (folder: EngineeringFolder, e: React.MouseEvent) => {
     e.stopPropagation();
     if (!canModifyFolder(folder)) return;
+    setFolderPendingDelete(folder);
+  };
 
+  const confirmDeleteFolder = async () => {
+    if (!folderPendingDelete) return;
+    setDeletingItem(true);
     try {
       const q = new URLSearchParams({
         actorEmail: activeTargetUser.email || '',
@@ -979,7 +1236,7 @@ export const EngineeringVistoriasTab: React.FC<EngineeringVistoriasTabProps> = (
         actorRole: currentRole,
       });
       const res = await fetch(
-        `/api/engineering/folders/${encodeURIComponent(folder.id)}?${q.toString()}`,
+        `/api/engineering/folders/${encodeURIComponent(folderPendingDelete.id)}?${q.toString()}`,
         {
           method: 'DELETE',
         }
@@ -989,19 +1246,28 @@ export const EngineeringVistoriasTab: React.FC<EngineeringVistoriasTabProps> = (
         onFoldersAndFilesUpdated(
           data.engineeringFolders,
           data.engineeringFiles,
-          `Pasta "${folder.name}" removida`
+          `Pasta "${folderPendingDelete.name}" removida com sucesso`
         );
-        if (currentFolderId === folder.id && folder.parentId) {
-          setCurrentFolderId(folder.parentId);
+        if (currentFolderId === folderPendingDelete.id && folderPendingDelete.parentId) {
+          setCurrentFolderId(folderPendingDelete.parentId);
         }
+        setFolderPendingDelete(null);
       }
     } catch {
       // ignore error
+    } finally {
+      setDeletingItem(false);
     }
   };
 
-  const handleDeleteFile = async (file: EngineeringFile) => {
+  const handleDeleteFile = (file: EngineeringFile) => {
     if (!canModifyFile(file)) return;
+    setFilePendingDelete(file);
+  };
+
+  const confirmDeleteFile = async () => {
+    if (!filePendingDelete) return;
+    setDeletingItem(true);
     try {
       const q = new URLSearchParams({
         actorEmail: activeTargetUser.email || '',
@@ -1009,7 +1275,7 @@ export const EngineeringVistoriasTab: React.FC<EngineeringVistoriasTabProps> = (
         actorRole: currentRole,
       });
       const res = await fetch(
-        `/api/engineering/files/${encodeURIComponent(file.id)}?${q.toString()}`,
+        `/api/engineering/files/${encodeURIComponent(filePendingDelete.id)}?${q.toString()}`,
         {
           method: 'DELETE',
         }
@@ -1019,12 +1285,15 @@ export const EngineeringVistoriasTab: React.FC<EngineeringVistoriasTabProps> = (
         onFoldersAndFilesUpdated(
           data.engineeringFolders,
           data.engineeringFiles,
-          `Arquivo "${file.fileName}" removido`,
+          `Arquivo "${filePendingDelete.fileName}" removido com sucesso`,
           data.tssrRows
         );
+        setFilePendingDelete(null);
       }
     } catch {
       // ignore error
+    } finally {
+      setDeletingItem(false);
     }
   };
 
@@ -1209,13 +1478,21 @@ export const EngineeringVistoriasTab: React.FC<EngineeringVistoriasTabProps> = (
             <div>
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-xs font-bold uppercase tracking-wider text-blue-600">
-                  {isTssrProjectsMode
+                  {isExecutor
+                    ? `TSSR · ${activeVendor}`
+                    : isTssrProjectsMode
                     ? `Engenharia · Pastas de Projetos · ${activeVendor}`
                     : `Vistoria · ${activeVendor}`}
                 </span>
                 <span className="text-slate-300">•</span>
                 <h1 className="text-base font-bold text-slate-900">
-                  {isTssrProjectsMode
+                  {isExecutor
+                    ? `Repositório de TSSR da Engenharia — ${
+                        activeFolder?.name === 'TSSR' || isAtRootVistorias
+                          ? 'Pastas de TSSR'
+                          : activeFolder?.name
+                      }`
+                    : isTssrProjectsMode
                     ? isAtRootVistorias
                       ? 'Pastas de Projetos TSSR & TSSR de Entrada'
                       : `Pasta ${activeFolder?.name}`
@@ -1225,7 +1502,11 @@ export const EngineeringVistoriasTab: React.FC<EngineeringVistoriasTabProps> = (
                 </h1>
               </div>
               <p className="text-xs text-slate-500 mt-0.5">
-                {isTssrProjectsMode ? (
+                {isExecutor ? (
+                  <>
+                    Acesse sua pasta de TSSR liberada e suba os pacotes e documentos TSSR diretamente para a Engenharia.
+                  </>
+                ) : isTssrProjectsMode ? (
                   <>
                     Carregamento e organização de pacotes de projetos <strong>TSSR Entrada</strong> e{' '}
                     <strong>TSSR</strong> (.ZIP, WinRAR .RAR, planilhas, PDFs, croquis e documentos).
@@ -1276,6 +1557,21 @@ export const EngineeringVistoriasTab: React.FC<EngineeringVistoriasTabProps> = (
               </button>
             )}
 
+            {(isAdmin || isCoordenadorEngenharia) && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedExecutorForPasta('');
+                  setLiberarPastaModalOpen(true);
+                }}
+                className="w-full sm:w-auto justify-center px-3.5 py-2.5 sm:py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg transition-colors flex items-center gap-1.5 shadow-2xs cursor-pointer"
+                title="Criar e liberar uma pasta dedicada para um Executor dentro de TSSR"
+              >
+                <UserCheck className="w-4 h-4 text-emerald-200 shrink-0" />
+                <span>+ Liberar Pasta para Executor</span>
+              </button>
+            )}
+
             {canUploadTssr && (
               <button
                 type="button"
@@ -1284,7 +1580,18 @@ export const EngineeringVistoriasTab: React.FC<EngineeringVistoriasTabProps> = (
                     allVendorFolders.find((f) => f.name === 'TSSR') ||
                     allVendorFolders.find((f) => f.name === 'TSSR Entrada') ||
                     uploadableFolders[0];
-                  openUploadModal(tssrFolder?.id || effectiveFolderId);
+                  let targetFolder = tssrFolder?.id;
+                  if (isExecutor) {
+                    const myName = (activeTargetUser.name || user.name || '').trim().toLowerCase();
+                    const myFolder = allVendorFolders.find(
+                      (f) =>
+                        (f.parentId === tssrFolder?.id || f.parentId?.includes('tssr')) &&
+                        ((f.assignedTo && f.assignedTo.toLowerCase() === myName) ||
+                          f.name.toLowerCase() === myName)
+                    );
+                    if (myFolder) targetFolder = myFolder.id;
+                  }
+                  openUploadModal(targetFolder || effectiveFolderId);
                   setUploadNotes(
                     isExecutor
                       ? '[TSSR] Enviado pelo Executor para Coordenação de Engenharia'
@@ -1329,7 +1636,13 @@ export const EngineeringVistoriasTab: React.FC<EngineeringVistoriasTabProps> = (
                 }`}
               >
                 <Folder className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />
-                <span>{isTssrProjectsMode ? 'Todas as Pastas TSSR' : 'Pasta Vistorias'}</span>
+                <span>
+                  {isExecutor
+                    ? 'Pasta TSSR'
+                    : isTssrProjectsMode
+                    ? 'Todas as Pastas TSSR'
+                    : 'Pasta Vistorias'}
+                </span>
               </button>
             )}
 
@@ -1643,7 +1956,7 @@ export const EngineeringVistoriasTab: React.FC<EngineeringVistoriasTabProps> = (
             )}
 
             <span className="text-slate-400 font-medium">
-              {isTssrProjectsMode ? 'Engenharia' : 'Pasta Vistoria'}
+              {isExecutor || isTssrProjectsMode ? 'Engenharia · TSSR' : 'Pasta Vistoria'}
             </span>
             {breadcrumbs.map((crumb, idx) => {
               const isLast = idx === breadcrumbs.length - 1;
@@ -1691,7 +2004,9 @@ export const EngineeringVistoriasTab: React.FC<EngineeringVistoriasTabProps> = (
           >
             <div className="px-5 py-2 bg-slate-100/70 text-[11px] font-bold uppercase tracking-wider text-slate-500 flex items-center justify-between">
               <span>
-                {isAtRootVistorias
+                {isExecutor
+                  ? `Pastas de TSSR (${activeFolder?.name || 'TSSR'})`
+                  : isAtRootVistorias
                   ? 'Pastas Principais em Vistorias'
                   : `Pastas em ${activeFolder?.name}`}
               </span>
@@ -1737,15 +2052,16 @@ export const EngineeringVistoriasTab: React.FC<EngineeringVistoriasTabProps> = (
                               Pasta Principal
                             </span>
                           )}
-                          {(isExecutor || isVistoriador) && isOwnSub && (
-                            <span className="px-2 py-0.5 text-[10px] font-bold uppercase bg-emerald-50 text-emerald-700 rounded border border-emerald-200">
-                              Sua pasta (Pode modificar/excluir)
+                          {sub.assignedTo && (
+                            <span className="px-2 py-0.5 text-[10px] font-bold bg-emerald-50 text-emerald-800 rounded border border-emerald-300 inline-flex items-center gap-1">
+                              <UserCheck className="w-3 h-3 text-emerald-600" />
+                              <span>Liberada para: {sub.assignedTo}</span>
                             </span>
                           )}
-                          {(isExecutor || isVistoriador) && !isOwnSub && (
-                            <span className="px-2 py-0.5 text-[10px] font-semibold bg-slate-100 text-slate-500 rounded border border-slate-200 inline-flex items-center gap-1">
+                          {isExecutor && (
+                            <span className="px-2 py-0.5 text-[10px] font-semibold bg-slate-100 text-slate-600 rounded border border-slate-200 inline-flex items-center gap-1" title="O executor não pode excluir pastas do sistema">
                               <Lock className="w-2.5 h-2.5" />
-                              <span>Somente Leitura (Não pode excluir)</span>
+                              <span>Pasta Fixa</span>
                             </span>
                           )}
                         </div>
@@ -2242,23 +2558,57 @@ export const EngineeringVistoriasTab: React.FC<EngineeringVistoriasTabProps> = (
                 </div>
               )}
 
+              {/* Auto-detected Executor Banner for TSSR uploads */}
+              {autoDetectedExecutor && (
+                <div className="p-3 bg-emerald-50 border border-emerald-300 rounded-xl text-xs text-emerald-950 flex items-center justify-between shadow-2xs">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                    <div>
+                      <div className="font-bold text-emerald-900">
+                        Vínculo Automático TSSR: Executor {autoDetectedExecutor}
+                      </div>
+                      <div className="text-[11px] text-emerald-700">
+                        O arquivo subirá direto para a pasta destinada deste executor dentro de TSSR.
+                      </div>
+                    </div>
+                  </div>
+                  <span className="px-2 py-0.5 rounded bg-emerald-200 text-emerald-900 text-[10px] font-bold uppercase tracking-wider">
+                    Direto para Pasta
+                  </span>
+                </div>
+              )}
+
               {/* Destination Folder Selector (excludes outer Vistorias root) */}
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  {isTssrProjectsMode
-                    ? 'Pasta de Destino (TSSR Entrada, TSSR ou Subpastas) *'
-                    : 'Pasta de Destino (Vistorias Executadas / Subpastas de Vistoria) *'}
+                <label className="block text-xs font-semibold text-slate-700 mb-1 flex items-center justify-between">
+                  <span>
+                    {isTssrProjectsMode
+                      ? 'Pasta de Destino (TSSR Entrada, TSSR ou Subpastas) *'
+                      : 'Pasta de Destino (Vistorias Executadas / Subpastas de Vistoria) *'}
+                  </span>
+                  {isExecutor && (
+                    <span className="text-[10px] text-emerald-700 font-bold bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
+                      Sua Pasta Liberada
+                    </span>
+                  )}
                 </label>
                 <select
                   value={uploadTargetFolderId}
                   onChange={(e) => setUploadTargetFolderId(e.target.value)}
                   className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-900 focus:outline-none focus:border-blue-600 font-medium"
                 >
-                  {uploadableFolders.map((f) => (
-                    <option key={f.id} value={f.id}>
-                      {getFolderPathLabel(f.id)}
-                    </option>
-                  ))}
+                  {uploadableFolders.map((f) => {
+                    const isExecLiberated =
+                      (f.id.includes('tssr-exec') ||
+                        f.parentId?.endsWith('-tssr-final') ||
+                        f.parentId?.endsWith('-tssr-entrada')) &&
+                      f.assignedTo;
+                    return (
+                      <option key={f.id} value={f.id}>
+                        {isExecLiberated ? `📁 [Executor: ${f.assignedTo}] ${getFolderPathLabel(f.id)}` : getFolderPathLabel(f.id)}
+                      </option>
+                    );
+                  })}
                 </select>
               </div>
 
@@ -2340,6 +2690,22 @@ export const EngineeringVistoriasTab: React.FC<EngineeringVistoriasTabProps> = (
                           setUploadTssrRowId(exact.id);
                           setUploadOcSitePre(exact.ocSitePre || '');
                           setCreateNewTssrRow(false);
+
+                          const siteExec = (exact.fields?.['Executor'] || '').trim();
+                          const targetExec = isExecutor
+                            ? (activeTargetUser.name || user.name || '').trim()
+                            : siteExec;
+                          if (targetExec) {
+                            setAutoDetectedExecutor(targetExec);
+                            const execFolder = findLiberatedFolderForExecutor(
+                              allVendorFolders,
+                              activeVendor,
+                              targetExec
+                            );
+                            if (execFolder) {
+                              setUploadTargetFolderId(execFolder.id);
+                            }
+                          }
                         } else {
                           setUploadSiteId(val.trim());
                           setUploadTssrRowId('');
@@ -2382,6 +2748,22 @@ export const EngineeringVistoriasTab: React.FC<EngineeringVistoriasTabProps> = (
                               setUploadOcSitePre(r.ocSitePre || '');
                               setCreateNewTssrRow(false);
                               setSiteDropdownOpen(false);
+
+                              const siteExec = (r.fields?.['Executor'] || '').trim();
+                              const targetExec = isExecutor
+                                ? (activeTargetUser.name || user.name || '').trim()
+                                : siteExec;
+                              if (targetExec) {
+                                setAutoDetectedExecutor(targetExec);
+                                const execFolder = findLiberatedFolderForExecutor(
+                                  allVendorFolders,
+                                  activeVendor,
+                                  targetExec
+                                );
+                                if (execFolder) {
+                                  setUploadTargetFolderId(execFolder.id);
+                                }
+                              }
                             }}
                             className={`w-full px-3 py-2 text-left text-xs flex items-center justify-between gap-2 cursor-pointer ${
                               isSelected ? 'bg-blue-50 font-bold text-blue-900' : 'hover:bg-slate-50'
@@ -2845,6 +3227,315 @@ export const EngineeringVistoriasTab: React.FC<EngineeringVistoriasTabProps> = (
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+      {/* =====================================================================
+          MODAL 5: CONFIRMAÇÃO DE EXCLUSÃO DE ARQUIVO
+         ===================================================================== */}
+      {filePendingDelete && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-[2px] animate-in fade-in duration-150"
+          onClick={() => !deletingItem && setFilePendingDelete(null)}
+        >
+          <div
+            className="w-full max-w-md bg-white border border-slate-200 rounded-2xl shadow-2xl overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="px-5 py-4 bg-red-50/80 border-b border-red-100 flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-red-100 text-red-600 flex items-center justify-center">
+                  <Trash2 className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-red-950">
+                    Apagar Arquivo do Sistema
+                  </h3>
+                  <p className="text-[11px] text-red-700">
+                    {isGestorEngenharia
+                      ? 'Opção de exclusão para Gestor da Engenharia'
+                      : 'Exclusão permitida para documento vinculado ao seu nome'}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                disabled={deletingItem}
+                onClick={() => setFilePendingDelete(null)}
+                className="p-1 text-slate-400 hover:text-slate-700 rounded-lg cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="p-5 space-y-4">
+              <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-1.5">
+                <div className="text-xs font-bold text-slate-900 truncate">
+                  {filePendingDelete.fileName}
+                </div>
+                <div className="text-[11px] text-slate-500 flex flex-wrap gap-x-3 gap-y-1">
+                  <span>Enviado por: {filePendingDelete.uploadedByName}</span>
+                  {filePendingDelete.siteId && <span>Site: {filePendingDelete.siteId}</span>}
+                  {filePendingDelete.assignedTo && <span>Atribuído: {filePendingDelete.assignedTo}</span>}
+                </div>
+              </div>
+
+              <p className="text-xs text-slate-600">
+                Tem certeza que deseja apagar este arquivo permanentemente? Se houver sites vinculados a esta vistoria/TSSR, o status será atualizado automaticamente.
+              </p>
+
+              <div className="pt-2 flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  disabled={deletingItem}
+                  onClick={() => setFilePendingDelete(null)}
+                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  disabled={deletingItem}
+                  onClick={confirmDeleteFile}
+                  className="px-4 py-2 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white text-xs font-bold rounded-lg cursor-pointer flex items-center gap-1.5 shadow-sm"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>{deletingItem ? 'Apagando...' : 'Sim, Apagar Arquivo'}</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* =====================================================================
+          MODAL 6: CONFIRMAÇÃO DE EXCLUSÃO DE PASTA (APENAS GESTOR)
+         ===================================================================== */}
+      {folderPendingDelete && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-[2px] animate-in fade-in duration-150"
+          onClick={() => !deletingItem && setFolderPendingDelete(null)}
+        >
+          <div
+            className="w-full max-w-md bg-white border border-slate-200 rounded-2xl shadow-2xl overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="px-5 py-4 bg-red-50/80 border-b border-red-100 flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-red-100 text-red-600 flex items-center justify-center">
+                  <Trash2 className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-red-950">
+                    Apagar Pasta e Conteúdo
+                  </h3>
+                  <p className="text-[11px] text-red-700">
+                    Apenas Gestor da Engenharia pode apagar pastas
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                disabled={deletingItem}
+                onClick={() => setFolderPendingDelete(null)}
+                className="p-1 text-slate-400 hover:text-slate-700 rounded-lg cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="p-5 space-y-4">
+              <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-1">
+                <div className="text-xs font-bold text-slate-900">
+                  📁 {folderPendingDelete.name}
+                </div>
+                {folderPendingDelete.assignedTo && (
+                  <div className="text-[11px] text-slate-500">
+                    Liberada para: {folderPendingDelete.assignedTo}
+                  </div>
+                )}
+              </div>
+
+              <p className="text-xs text-slate-600">
+                Tem certeza que deseja apagar a pasta <strong>"{folderPendingDelete.name}"</strong>? Todos os arquivos contidos nela também serão excluídos do sistema.
+              </p>
+
+              <div className="pt-2 flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  disabled={deletingItem}
+                  onClick={() => setFolderPendingDelete(null)}
+                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  disabled={deletingItem}
+                  onClick={confirmDeleteFolder}
+                  className="px-4 py-2 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white text-xs font-bold rounded-lg cursor-pointer flex items-center gap-1.5 shadow-sm"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>{deletingItem ? 'Apagando...' : 'Sim, Apagar Pasta'}</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* =====================================================================
+          MODAL 7: LIBERAR PASTA PARA EXECUTOR DENTRO DE TSSR (GESTOR)
+         ===================================================================== */}
+      {liberarPastaModalOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-[2px] animate-in fade-in duration-150"
+          onClick={() => !liberandoPasta && !liberandoTodasPastas && setLiberarPastaModalOpen(false)}
+        >
+          <div
+            className="w-full max-w-lg bg-white border border-slate-200 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="px-6 py-4 bg-gradient-to-r from-emerald-700 to-teal-800 text-white flex items-center justify-between shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center">
+                  <UserCheck className="w-5 h-5 text-emerald-200" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold">
+                    Liberar Pasta de TSSR para Executor
+                  </h3>
+                  <p className="text-[11px] text-emerald-100">
+                    O executor terá sua pasta dentro de TSSR e o sistema enviará direto para ela
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setLiberarPastaModalOpen(false)}
+                className="p-1 text-emerald-200 hover:text-white rounded-lg cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-5 overflow-y-auto">
+              <div className="p-3.5 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-950 space-y-1">
+                <div className="font-bold">Regra de Vínculo Automático:</div>
+                <div className="text-[11px] text-emerald-800">
+                  Cada executor terá sua pasta liberada na raiz de TSSR. Ao subir um TSSR (seja pelo executor ou vinculado a um site), o sistema entende o vínculo e salva diretamente na pasta destinada.
+                </div>
+              </div>
+
+              {/* Botão de Liberar para Todos com 1 clique */}
+              <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between gap-3">
+                <div>
+                  <div className="text-xs font-bold text-slate-900">
+                    Liberar Pastas para TODOS os Executores
+                  </div>
+                  <div className="text-[11px] text-slate-500">
+                    Cria e libera automaticamente a pasta de cada um dos {allAvailableExecutors.length} executores cadastrados.
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  disabled={liberandoTodasPastas}
+                  onClick={handleLiberarTodasPastasExecutores}
+                  className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-xs font-bold rounded-lg shrink-0 cursor-pointer shadow-sm flex items-center gap-1.5"
+                >
+                  <FolderCheck className="w-3.5 h-3.5" />
+                  <span>{liberandoTodasPastas ? 'Liberando...' : 'Liberar para Todos'}</span>
+                </button>
+              </div>
+
+              {/* Liberar para um executor específico */}
+              <div className="space-y-3 pt-1">
+                <label className="block text-xs font-bold text-slate-800">
+                  Ou selecione um executor específico:
+                </label>
+                <div className="flex gap-2">
+                  <select
+                    value={selectedExecutorForPasta}
+                    onChange={(e) => setSelectedExecutorForPasta(e.target.value)}
+                    className="flex-1 px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-900 focus:outline-none focus:border-emerald-600"
+                  >
+                    <option value="">— Selecione um Executor —</option>
+                    {allAvailableExecutors.map((ex) => (
+                      <option key={ex} value={ex}>
+                        {ex}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    disabled={!selectedExecutorForPasta || liberandoPasta}
+                    onClick={handleLiberarPastaExecutor}
+                    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-xs font-bold rounded-lg cursor-pointer shrink-0 shadow-sm"
+                  >
+                    {liberandoPasta ? 'Liberando...' : 'Liberar Pasta'}
+                  </button>
+                </div>
+              </div>
+
+              {/* Lista dos executores e status da pasta */}
+              <div className="space-y-2 pt-2 border-t border-slate-200">
+                <div className="text-xs font-bold text-slate-700">
+                  Status das Pastas TSSR dos Executores ({allAvailableExecutors.length}):
+                </div>
+                <div className="space-y-1.5 max-h-52 overflow-y-auto">
+                  {allAvailableExecutors.map((ex) => {
+                    const liberatedFolder = findLiberatedFolderForExecutor(
+                      allVendorFolders,
+                      activeVendor,
+                      ex
+                    );
+                    const isLiberated = Boolean(liberatedFolder);
+                    return (
+                      <div
+                        key={ex}
+                        className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg flex items-center justify-between text-xs"
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className="font-semibold text-slate-800">{ex}</span>
+                          {liberatedFolder && (
+                            <span className="text-[10px] text-slate-500 font-mono">
+                              (TSSR / {liberatedFolder.name})
+                            </span>
+                          )}
+                        </div>
+                        {isLiberated ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">
+                            <CheckCircle2 className="w-3 h-3" />
+                            <span>Pasta Liberada</span>
+                          </span>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedExecutorForPasta(ex);
+                              handleLiberarPastaExecutor();
+                            }}
+                            className="px-2 py-0.5 rounded bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 text-[10px] font-bold cursor-pointer transition-colors"
+                          >
+                            + Liberar Agora
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="pt-2 flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => setLiberarPastaModalOpen(false)}
+                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg cursor-pointer"
+                >
+                  Fechar
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

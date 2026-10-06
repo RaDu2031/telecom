@@ -67,7 +67,8 @@ const ASSIGNABLE_ROLES: Array<{
   {
     role: 'Executor',
     label: 'Executor',
-    description: 'Vê APENAS os sites demandados para ele e Vistoria (envia Vistoria e sobe TSSR).',
+    description:
+      'Vê sites demandados, Vistoria e Engenharia TSSR (sobe Vistoria e TSSR com vínculo de site e aprovação automática).',
     badgeColor: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40',
   },
   {
@@ -648,7 +649,7 @@ export const OwnerPermissionsModal: React.FC<OwnerPermissionsModalProps> = ({
                 >
                   <option value="Coordenador Geral">Coordenador Geral (Todas Planilhas)</option>
                   <option value="Coordenador Engenharia">Coordenador Engenharia (Engenharia + Vistoria + Subir TSSR)</option>
-                  <option value="Executor">Executor (Sites Demandados + Vistoria/TSSR)</option>
+                  <option value="Executor">Executor (Sites + Engenharia TSSR + Vistoria/TSSR)</option>
                   <option value="Vistoriador">Vistoriador (Sites Demandados + Vistoria)</option>
                 </select>
               </div>

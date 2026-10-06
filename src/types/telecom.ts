@@ -1,5 +1,8 @@
 export type VendorType = 'NOKIA' | 'ERICSSON';
 
+export const DEFAULT_ONEDRIVE_TSSR_URL = 'https://onedrive.live.com/:x:/g/personal/d82e752e01e5afdd/IQDgA-L4WLPYSbYY7rdSiedCAY39Y72Mn2s6Vn9Ijm0Tq-k?rtime=i_gLDa-r3kg&redeem=aHR0cHM6Ly8xZHJ2Lm1zL3gvYy9kODJlNzUyZTAxZTVhZmRkL0lRRGdBLUw0V0xQWVNiWVk3cmRTaWVkQ0FZMzlZNzJNbjJzNlZuOUlqbTBUcS1rP2U9WEV0d0F4';
+export const DEFAULT_ERICSSON_ENG_ONEDRIVE_URL = 'https://onedrive.live.com/:x:/g/personal/d82e752e01e5afdd/IQCOlAu1cXsYS4GTeMznod4DAcUTBaeVfylro6lYCHY4BQY?rtime=lKiFN4Uj30g&redeem=aHR0cHM6Ly8xZHJ2Lm1zL3gvYy9kODJlNzUyZTAxZTVhZmRkL0lRQ09sQXUxY1hzWVM0R1RlTXpub2Q0REFjVVRCYWVWZnlscm82bFlDSFk0QlFZP2U9TzJIbnRI';
+
 export type SiteStatus =
   | 'Vistoria - Finalizada'
   | 'Vistoria - A Executar'
@@ -853,6 +856,28 @@ export interface EricssonRow {
   losDeliveredAt?: string;
   losUploadedBy?: string;
   losUploadedByEmail?: string;
+  // System columns for SMART (preserved across spreadsheet reloads)
+  smartStatus?: EricssonVistoriaStatus;
+  smartLinkedSiteId?: string;
+  smartFileId?: string;
+  smartFolderId?: string;
+  smartFileName?: string;
+  smartFileUrl?: string;
+  smartDownloadUrl?: string;
+  smartDeliveredAt?: string;
+  smartUploadedBy?: string;
+  smartUploadedByEmail?: string;
+  // System columns for SDC (preserved across spreadsheet reloads)
+  sdcStatus?: EricssonVistoriaStatus;
+  sdcLinkedSiteId?: string;
+  sdcFileId?: string;
+  sdcFolderId?: string;
+  sdcFileName?: string;
+  sdcFileUrl?: string;
+  sdcDownloadUrl?: string;
+  sdcDeliveredAt?: string;
+  sdcUploadedBy?: string;
+  sdcUploadedByEmail?: string;
   responsaveisUids?: string[];
   responsaveisEmails?: string[];
   isManualRow?: boolean;
@@ -887,9 +912,186 @@ export interface SyncEventPayload {
     | 'FILE_DELETED'
     | 'TSSR_UPDATED'
     | 'ERICSSON_UPDATED'
+    | 'ERICSSON_ENGENHARIA_UPDATED'
     | 'USER_DOCUMENT_UPDATED';
   timestamp: string;
   actorEmail?: string;
   vendor?: VendorType;
   summary?: string;
 }
+
+// ============================================================================
+// ERICSSON ENGENHARIA — PLANILHA DOCUMENTAÇÃO & PLANEJAMENTO (51 COLUNAS EXATAS)
+// ============================================================================
+export const ERICSSON_SITE_LIST_COLUMNS: string[] = [
+  'ASP',
+  'Intervencao Claro',
+  'TIPO SITE',
+  'Regional',
+  'Tipo doc',
+  'Status',
+  'Comentário STATUS',
+  'Demanda',
+  'Planejado',
+  'REPLAN',
+  'DATA REPLAN',
+  'MOTIVO REPLAN',
+  'Entregue',
+  'EXECUTOR',
+  'SLA DOC',
+  'Week Produção',
+  'Entregue Week',
+  'Entregue Week Ameta',
+  'MOS',
+  'Prioridade | Engineering Target',
+  'Double Check',
+  'DOC APROVADO\r\nWR/QRF/PPI',
+  'VERIFICAÇÃO DOC\r\nQRF/PPI',
+  'WR REVISAR',
+  'EXECUTOR WR',
+  'MOTIVO',
+  'OFENSOR',
+  'WR REV. PLAN',
+  'WR ENTREGUE',
+  'SLA WR',
+  'QRF REVISAR',
+  'EXECUTOR QRF',
+  'MOTIVO DE REVISÃO DO QRF',
+  'QRF - nº reprovações',
+  'QRF REV. PLAN',
+  'QRF ENTREGUE',
+  'SLA QRF',
+  'PPI REVISAR',
+  'EXECUTOR PPI',
+  'MOTIVO DE REVISÃO DO PPI',
+  'OFENSOR  DOC',
+  'PPI - nº reprovações',
+  'PPI REV. PLAN',
+  'PPI ENTREGUE',
+  'SLA PPI',
+  'Faturamento',
+  'Fat. Adicional',
+  'Comentários',
+  'Antecipação WR',
+  'Demandado WR',
+  'Finalizado WR',
+];
+
+export type EricssonDocGroup = 'WR' | 'QRF' | 'PPI' | 'BOQ' | 'SMART' | 'SDC';
+export type EricssonDocStatusCategory = 'Finalizado' | 'Em produção' | 'Pendente' | 'Dúvida';
+
+export interface EricssonEngineeringRow {
+  id: string;
+  rowKey: string;
+  intervencaoClaro: string;
+  siteIdA: string;
+  siteIdB: string;
+  statusA: string;
+  statusB: string;
+  tipoDoc: string;
+  status: string;
+  regional: string;
+  tipoSite: string;
+  executor: string;
+  fields: Record<string, string>;
+  siteAVistoriaStatus?: EricssonVistoriaStatus;
+  siteBVistoriaStatus?: EricssonVistoriaStatus;
+  attachedFileId?: string;
+  attachedFileName?: string;
+  attachedFileUrl?: string;
+  attachedUploadedBy?: string;
+  attachedUploadedAt?: string;
+  updatedAt: string;
+}
+
+export interface EricssonDocItemStats {
+  total: number;
+  finalizado: number;
+  emProducao: number;
+  pendente: number;
+  duvida: number;
+  outros: number;
+}
+
+export interface EricssonConsolidatedStats {
+  totalRows: number;
+  wr: EricssonDocItemStats;
+  qrf: EricssonDocItemStats;
+  ppi: EricssonDocItemStats;
+  boq: EricssonDocItemStats;
+  smart: EricssonDocItemStats;
+  sdc: EricssonDocItemStats;
+  outrosDocs: number;
+}
+
+export interface EricssonColaborador {
+  nome: string;
+  atividade: string;
+  capacidade: string;
+  observacoes?: string;
+}
+
+export const DEFAULT_ERICSSON_COLABORADORES: EricssonColaborador[] = [
+  {
+    nome: 'Rafael de Souza Caldeira (Alex Magalhães)',
+    atividade: 'PPI',
+    capacidade: '4',
+    observacoes: '',
+  },
+  {
+    nome: 'Felipe França Pimentel',
+    atividade: 'PPI',
+    capacidade: '2',
+    observacoes: '',
+  },
+  {
+    nome: 'Fernando Minoru Sakamoto',
+    atividade: 'PPI',
+    capacidade: '2',
+    observacoes: '',
+  },
+  {
+    nome: 'Fulvio Franca Pimentel',
+    atividade: 'PPI',
+    capacidade: '1',
+    observacoes: '',
+  },
+  {
+    nome: 'Samuel Soares/ Marcus Vinicius (Thiago)',
+    atividade: 'PPI',
+    capacidade: '1',
+    observacoes: '',
+  },
+  {
+    nome: 'Wagner Luis Fernandes dos Santos',
+    atividade: 'PPI',
+    capacidade: '3',
+    observacoes: '',
+  },
+  {
+    nome: 'Roberto dos Santos',
+    atividade: 'QRF',
+    capacidade: '5',
+    observacoes: '',
+  },
+  {
+    nome: 'Gisele Trespach Vieira',
+    atividade: 'QRF',
+    capacidade: '5',
+    observacoes: '',
+  },
+  {
+    nome: 'Fernando Sale de Souza',
+    atividade: 'PPI/ QRF',
+    capacidade: '2/6',
+    observacoes: '',
+  },
+  {
+    nome: 'Alexandre Leandro - Verificador QRF',
+    atividade: 'QRF',
+    capacidade: '20',
+    observacoes: '',
+  },
+];
+
+

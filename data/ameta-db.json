@@ -118,7 +118,98 @@
       "emailVerified": true,
       "verifiedAt": "2026-10-02T22:47:35.592Z",
       "createdAt": "2026-10-02T22:47:35.592Z",
-      "passwordHash": "6f73323705c94d35dd1abd5dcdda5218ecf1f528ef5961651818bbda627c274e"
+      "passwordHash": "6f73323705c94d35dd1abd5dcdda5218ecf1f528ef5961651818bbda627c274e",
+      "documents": [
+        {
+          "type": "NR10",
+          "label": "NR 10",
+          "fileName": "",
+          "fileSize": 0,
+          "uploadedAt": "",
+          "uploadedBy": "",
+          "storageFileName": "",
+          "expiresAt": "",
+          "notes": ""
+        },
+        {
+          "type": "NR35",
+          "label": "NR 35",
+          "fileName": "",
+          "fileSize": 0,
+          "uploadedAt": "",
+          "uploadedBy": "",
+          "storageFileName": "",
+          "expiresAt": "",
+          "notes": ""
+        },
+        {
+          "type": "ASO",
+          "label": "ASO",
+          "fileName": "",
+          "fileSize": 0,
+          "uploadedAt": "",
+          "uploadedBy": "",
+          "storageFileName": "",
+          "expiresAt": "",
+          "notes": ""
+        },
+        {
+          "type": "PCMSO",
+          "label": "PCMSO",
+          "fileName": "",
+          "fileSize": 0,
+          "uploadedAt": "",
+          "uploadedBy": "",
+          "storageFileName": "",
+          "expiresAt": "",
+          "notes": ""
+        },
+        {
+          "type": "PGR",
+          "label": "PGR",
+          "fileName": "",
+          "fileSize": 0,
+          "uploadedAt": "",
+          "uploadedBy": "",
+          "storageFileName": "",
+          "expiresAt": "",
+          "notes": ""
+        },
+        {
+          "type": "PRIMEIROS_SOCORROS",
+          "label": "Primeiros Socorros",
+          "fileName": "",
+          "fileSize": 0,
+          "uploadedAt": "",
+          "uploadedBy": "",
+          "storageFileName": "",
+          "expiresAt": "",
+          "notes": ""
+        },
+        {
+          "type": "CONTRATO_TRABALHO",
+          "label": "Contrato de Trabalho",
+          "fileName": "",
+          "fileSize": 0,
+          "uploadedAt": "",
+          "uploadedBy": "",
+          "storageFileName": "",
+          "expiresAt": "",
+          "notes": ""
+        },
+        {
+          "type": "RG",
+          "label": "RG",
+          "fileName": "",
+          "fileSize": 0,
+          "uploadedAt": "",
+          "uploadedBy": "",
+          "storageFileName": "",
+          "expiresAt": "",
+          "notes": ""
+        }
+      ],
+      "statusRecurso": "VALIDADO"
     }
   ],
   "sites": [
@@ -65078,7 +65169,7 @@
       "sourceFileName": "Ericsson_Operacao_RAN.xlsx"
     }
   ],
-  "lastUpdated": "2026-10-02T22:47:35.592Z",
+  "lastUpdated": "2026-10-03T08:58:57.227Z",
   "engineeringFolders": [
     {
       "id": "folder-nokia-vistorias",
@@ -65250,7 +65341,7 @@
         "PROJETO": "Swap - G3",
         "DETENTORA": "TIM",
         "DEMANDA RECEBIDA": "09/03/2026",
-        "STATUS Engenharia": "TSSR Aguardando aprovação",
+        "STATUS Engenharia": "Aguardando aprovação",
         "TIPO DE DOC": "Vistoria Ameta",
         "Prioridade Homero": "GSD - W14",
         "Executor": "Frederico Leonez",
@@ -65279,9 +65370,16 @@
         "Apoio": "",
         "Check": ""
       },
-      "vistoriaStatus": "Pendente",
+      "vistoriaStatus": "Entregue",
       "createdAt": "2026-10-01T09:52:58.629Z",
-      "updatedAt": "2026-10-01T09:52:58.629Z"
+      "updatedAt": "2026-10-03T08:58:57.219Z",
+      "vistoriaFileId": "file-1791017937226-0-ygu0",
+      "vistoriaFileName": "teste_vistoria_executor.zip",
+      "vistoriaFileUrl": "/api/engineering/files/file-1791017937226-0-ygu0/view",
+      "vistoriaDownloadUrl": "/api/engineering/files/file-1791017937226-0-ygu0/download",
+      "vistoriaDeliveredAt": "03/10/2026, 05:58",
+      "vistoriaUploadedBy": "Executor Teste",
+      "vistoriaUploadedByEmail": "executor.teste@ametaservicos.com.br"
     },
     {
       "id": "tssr-nokia-2",
@@ -222966,6 +223064,40 @@
     }
   ],
   "notifications": [
+    {
+      "type": "ARQUIVO_ASSOCIADO_SITE_VISTORIADOR",
+      "vendor": "NOKIA",
+      "title": "Arquivo Associado ao Site SN-OI65J2",
+      "message": "Há um arquivo (\"teste_vistoria_executor.zip\") associado ao site SN-OI65J2 pelo qual você é responsável (Vistorias Executadas).",
+      "siteId": "SN-OI65J2",
+      "fileName": "teste_vistoria_executor.zip",
+      "actorName": "Executor Teste",
+      "actorEmail": "executor.teste@ametaservicos.com.br",
+      "targetRoles": [
+        "Vistoriador"
+      ],
+      "id": "notif-1791017937227-xjfb",
+      "readByEmails": [],
+      "createdAt": "2026-10-03T08:58:57.227Z"
+    },
+    {
+      "type": "VISTORIA_OK_PASTA",
+      "vendor": "NOKIA",
+      "title": "Vistoria na Pasta — Status OK (SN-OI65J2)",
+      "message": "A vistoria do site SN-OI65J2 (\"teste_vistoria_executor.zip\") foi entregue na pasta \"Vistorias Executadas\" por Executor Teste e mudou o status para OK (Entregue).",
+      "siteId": "SN-OI65J2",
+      "fileName": "teste_vistoria_executor.zip",
+      "actorName": "Executor Teste",
+      "actorEmail": "executor.teste@ametaservicos.com.br",
+      "targetRoles": [
+        "Coordenador Engenharia",
+        "Coordenador Geral",
+        "ADM"
+      ],
+      "id": "notif-1791017937227-vvlh",
+      "readByEmails": [],
+      "createdAt": "2026-10-03T08:58:57.227Z"
+    },
     {
       "type": "PERMISSAO_LIBERADA_ADM",
       "vendor": "NOKIA",
