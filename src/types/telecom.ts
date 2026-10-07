@@ -573,6 +573,7 @@ export interface EngineeringFolder {
   createdByUid?: string;
   createdByName: string;
   createdByEmail: string;
+  createdByRole?: string;
   createdAt: string;
   isSystem?: boolean; // True for Vistorias, Vistorias Executadas, TSSR Entrada, TSSR
 }
@@ -1106,6 +1107,9 @@ export interface EricssonEngineeringRow {
   attachedUploadedBy?: string;
   attachedUploadedAt?: string;
   attachedFiles?: EricssonAttachedFile[];
+  vistoriaFileId?: string;
+  vistoriaFileName?: string;
+  vistoriaFileUrl?: string;
   history?: EricssonAuditLogEntry[];
   reprovacoes?: EricssonReprovacaoRecord[];
   updatedAt: string;

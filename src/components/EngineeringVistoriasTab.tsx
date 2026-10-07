@@ -47,6 +47,7 @@ import {
   doesFileMatchUserResponsibleSites,
   doesSiteMatchResponsible,
 } from '../utils/spreadsheetUtils';
+import { dataService } from '../services/dataService';
 import { cloudFetch } from '../lib/firebaseCloud';
 
 const fetch = cloudFetch;
@@ -166,22 +167,15 @@ export const EngineeringVistoriasTab: React.FC<EngineeringVistoriasTabProps> = (
   const [docResponsavelFilter, setDocResponsavelFilter] = useState<string>('ALL');
 
   const assignableUsers = useMemo(() => {
-    const nonAdm = users.filter((u) => normalizeUserRole(u.role) !== 'ADM');
-    if (nonAdm.some((u) => u.name.toLowerCase().includes('teste'))) {
-      return nonAdm;
-    }
-    return [
-      {
-        id: 'usr-teste-1',
-        name: 'Usuário Teste',
-        email: 'teste@ametaservicos.com.br',
-        role: 'Executor' as UserRole,
-        emailVerified: true,
-        createdAt: '',
-      },
-      ...nonAdm,
-    ];
-  }, [users]);
+    // Na pasta de Vistoria, listar estritamente Vistoriadores liberados da plataforma ativa (Executor NÃO pode aparecer na lista do Vistoriador)
+    return users.filter((u) => {
+      const role = normalizeUserRole(u.role);
+      const isVist = role === 'Vistoriador';
+      const plat = (u.assignedPlatform || u.plataforma || '').toUpperCase();
+      const matchPlat = !plat || plat === 'AMBAS' || plat === 'BOTH' || plat === activeVendor;
+      return isVist && matchPlat;
+    });
+  }, [users, activeVendor]);
 
   const allVendorFolders = useMemo(
     () => folders.filter((f) => f.vendor === activeVendor),
@@ -955,35 +949,31 @@ export const EngineeringVistoriasTab: React.FC<EngineeringVistoriasTabProps> = (
 
     setCreatingFolder(true);
     try {
-      const res = await fetch('/api/engineering/folders', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: newFolderName.trim(),
-          parentId: newFolderParentId || effectiveFolderId,
-          vendor: activeVendor,
-          description: newFolderDescription.trim(),
-          assignedTo: newFolderAssignedTo.trim() || undefined,
-          createdByName: user.name,
-          createdByEmail: user.email,
-          createdByRole: user.role,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setFolderError(data.error || 'Não foi possível criar a pasta.');
-        return;
-      }
-      if (Array.isArray(data.engineeringFolders) && Array.isArray(data.engineeringFiles)) {
-        onFoldersAndFilesUpdated(
-          data.engineeringFolders,
-          data.engineeringFiles,
-          `Pasta "${data.folder.name}" criada com sucesso`
-        );
-      }
+      const folderId = `nokia_folder_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+      const newFolder: EngineeringFolder = {
+        id: folderId,
+        name: newFolderName.trim(),
+        parentId: newFolderParentId || effectiveFolderId,
+        vendor: 'NOKIA',
+        description: newFolderDescription.trim(),
+        assignedTo: newFolderAssignedTo.trim() || undefined,
+        createdByName: user.name,
+        createdByEmail: user.email,
+        createdByRole: user.role,
+        createdAt: new Date().toISOString(),
+      };
+      await dataService.salvarPastaNokia(newFolder);
+      onFoldersAndFilesUpdated(
+        [...allVendorFolders, newFolder],
+        allVendorFiles,
+        `Pasta "${newFolder.name}" criada com sucesso no Firestore (nokia_pastas)`
+      );
       setNewFolderModalOpen(false);
-    } catch {
-      setFolderError('Falha de conexão ao criar pasta.');
+      setNewFolderName('');
+      setNewFolderDescription('');
+    } catch (err: any) {
+      console.error(err);
+      setFolderError(`Falha ao criar pasta no Firestore [nokia_pastas]: ${err?.message || err}`);
     } finally {
       setCreatingFolder(false);
     }
@@ -1230,31 +1220,19 @@ export const EngineeringVistoriasTab: React.FC<EngineeringVistoriasTabProps> = (
     if (!folderPendingDelete) return;
     setDeletingItem(true);
     try {
-      const q = new URLSearchParams({
-        actorEmail: activeTargetUser.email || '',
-        actorName: activeTargetUser.name || '',
-        actorRole: currentRole,
-      });
-      const res = await fetch(
-        `/api/engineering/folders/${encodeURIComponent(folderPendingDelete.id)}?${q.toString()}`,
-        {
-          method: 'DELETE',
-        }
+      await dataService.excluirPastaNokia(folderPendingDelete.id);
+      onFoldersAndFilesUpdated(
+        allVendorFolders.filter((f) => f.id !== folderPendingDelete.id),
+        allVendorFiles,
+        `Pasta "${folderPendingDelete.name}" removida com sucesso do Firestore (nokia_pastas)`
       );
-      if (res.ok) {
-        const data = await res.json();
-        onFoldersAndFilesUpdated(
-          data.engineeringFolders,
-          data.engineeringFiles,
-          `Pasta "${folderPendingDelete.name}" removida com sucesso`
-        );
-        if (currentFolderId === folderPendingDelete.id && folderPendingDelete.parentId) {
-          setCurrentFolderId(folderPendingDelete.parentId);
-        }
-        setFolderPendingDelete(null);
+      if (currentFolderId === folderPendingDelete.id && folderPendingDelete.parentId) {
+        setCurrentFolderId(folderPendingDelete.parentId);
       }
-    } catch {
-      // ignore error
+      setFolderPendingDelete(null);
+    } catch (err: any) {
+      console.error(err);
+      setFolderError(`Falha ao excluir pasta do Firestore [nokia_pastas]: ${err?.message || err}`);
     } finally {
       setDeletingItem(false);
     }

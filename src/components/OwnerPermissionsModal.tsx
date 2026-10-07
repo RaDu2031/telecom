@@ -243,38 +243,17 @@ export const OwnerPermissionsModal: React.FC<OwnerPermissionsModalProps> = ({
       const platForFirestore: 'NOKIA' | 'ERICSSON' | 'AMBAS' =
         params.assignedPlatform === 'BOTH' ? 'AMBAS' : params.assignedPlatform;
 
-      if (dataService.isConfigured()) {
-        await dataService.atualizarPermissaoUsuarioPeloDono({
-          uid: params.uid || params.userId || params.email.trim().toLowerCase(),
-          email: params.email,
-          name: params.name,
-          role: params.role,
-          plataforma: platForFirestore,
-          situacao: nextSituacao,
-          equipe: params.equipe,
-          ownerEmail: ownerUser?.email,
-        });
-      }
-
-      const res = await fetch('/api/owner/permissions/release', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ownerEmail: ownerUser?.email || 'rafael.araujo@ametaservicos.com.br',
-          ...params,
-          situacao: nextSituacao,
-          plataforma: platForFirestore,
-        }),
+      const updatedUser = await dataService.atualizarPermissaoUsuarioPeloDono({
+        uid: params.uid || params.userId || params.email.trim().toLowerCase(),
+        email: params.email,
+        name: params.name,
+        role: params.role,
+        plataforma: platForFirestore,
+        situacao: nextSituacao,
+        equipe: params.equipe,
+        ownerEmail: ownerUser?.email,
       });
-      const data = await res.json();
-      if (!res.ok) {
-        setStatusBanner({
-          type: 'error',
-          text: data.error || 'Erro ao atualizar permissão do usuário.',
-        });
-        setSavingId(null);
-        return;
-      }
+
       const platformLabel =
         params.assignedPlatform === 'NOKIA'
           ? 'TIM / Nokia'
@@ -285,17 +264,19 @@ export const OwnerPermissionsModal: React.FC<OwnerPermissionsModalProps> = ({
         ? `Permissão liberada: ${params.name} agora está ATIVO como ${params.role} (${platformLabel})!`
         : `Acesso bloqueado: ${params.name} foi marcado como BLOQUEADO / AGUARDANDO.`;
       setStatusBanner({ type: 'success', text: msg });
-      onPermissionsUpdated(
-        data.users || nokiaUsers,
-        data.ericssonUsers || ericssonUsers,
-        data.notifications || [],
-        msg,
-        data.duplaEmailsMap
+
+      const nextNokia = nokiaUsers.map((u) =>
+        u.email.toLowerCase() === params.email.toLowerCase() ? { ...u, ...updatedUser } : u
       );
-    } catch {
+      const nextEricsson = ericssonUsers.map((u) =>
+        u.email.toLowerCase() === params.email.toLowerCase() ? { ...u, ...updatedUser } : u
+      );
+      onPermissionsUpdated(nextNokia, nextEricsson, [], msg);
+    } catch (err: any) {
+      console.error('Erro ao atualizar permissao no Firestore [usuarios]:', err);
       setStatusBanner({
         type: 'error',
-        text: 'Erro de conexão ao salvar permissão.',
+        text: `Erro ao salvar permissão no Firestore [usuarios]: ${err?.code || err?.message || err}`,
       });
     } finally {
       setSavingId(null);
@@ -307,33 +288,26 @@ export const OwnerPermissionsModal: React.FC<OwnerPermissionsModalProps> = ({
     setSavingId(targetUser.email.toLowerCase());
     setStatusBanner(null);
     try {
-      if (dataService.isConfigured()) {
-        await dataService.excluirUsuario(targetUser.uid || targetUser.id, targetUser.email);
-      }
-      const res = await fetch(`/api/admin/users/${encodeURIComponent(targetUser.id)}`, {
-        method: 'DELETE',
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setStatusBanner({
-          type: 'error',
-          text: data.error || 'Erro ao excluir usuário.',
-        });
-        return;
-      }
-      const msg = `Usuário ${targetUser.name} (${targetUser.email}) removido com sucesso.`;
+      const uid = targetUser.uid || targetUser.id;
+      await dataService.bloquearUsuario(uid, 'Bloqueado pelo painel do Dono');
+      const msg = `Usuário ${targetUser.name} (${targetUser.email}) foi BLOQUEADO (acesso revogado no Firestore). A conta no Authentication continua existindo e não poderá acessar o sistema sem liberação.`;
       setStatusBanner({ type: 'success', text: msg });
-      const nextNokia = Array.isArray(data.users)
-        ? data.users
-        : nokiaUsers.filter((u) => u.email.toLowerCase() !== targetUser.email.toLowerCase());
-      const nextEricsson = Array.isArray(data.ericssonUsers)
-        ? data.ericssonUsers
-        : ericssonUsers.filter((u) => u.email.toLowerCase() !== targetUser.email.toLowerCase());
+      const nextNokia = nokiaUsers.map((u) =>
+        u.email.toLowerCase() === targetUser.email.toLowerCase()
+          ? { ...u, situacao: 'bloqueado' as const, accessReleased: false }
+          : u
+      );
+      const nextEricsson = ericssonUsers.map((u) =>
+        u.email.toLowerCase() === targetUser.email.toLowerCase()
+          ? { ...u, situacao: 'bloqueado' as const, accessReleased: false }
+          : u
+      );
       onPermissionsUpdated(nextNokia, nextEricsson, notificationsFallback(), msg);
-    } catch {
+    } catch (err: any) {
+      console.error('Erro ao bloquear usuário no Firestore [usuarios]:', err);
       setStatusBanner({
         type: 'error',
-        text: 'Erro de conexão ao excluir usuário.',
+        text: `Erro ao bloquear usuário no Firestore [usuarios]: ${err?.code || err?.message || err}`,
       });
     } finally {
       setSavingId(null);

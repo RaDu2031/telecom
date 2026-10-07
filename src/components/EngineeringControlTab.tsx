@@ -46,9 +46,7 @@ import {
   DEFAULT_ONEDRIVE_TSSR_URL,
   DEFAULT_ERICSSON_ENG_ONEDRIVE_URL,
 } from '../types/telecom';
-import { cloudFetch } from '../lib/firebaseCloud';
-
-const fetch = cloudFetch;
+import { dataService } from '../services/dataService';
 import {
   parseTssrWorkbookBuffer,
   getTssrColumnValue,
@@ -304,36 +302,41 @@ export const EngineeringControlTab: React.FC<EngineeringControlTabProps> = ({
     if (!vistoriaToDelete || !vistoriaToDelete.vistoriaFileId) return;
     setDeletingVistoria(true);
     try {
-      const q = new URLSearchParams({
-        actorEmail: user.email || '',
-        actorName: user.name || '',
-        actorRole: effectiveRole,
+      await dataService.excluirArquivoNokia(vistoriaToDelete.vistoriaFileId);
+      const nextRows = tssrRows.map((r) => {
+        if (r.id === vistoriaToDelete.id) {
+          const nextFields = { ...(r.fields || {}) };
+          delete nextFields['Vistoria'];
+          delete nextFields['Arquivo Vistoria'];
+          return {
+            ...r,
+            fields: nextFields,
+            attachedFileId: undefined,
+            attachedFileName: undefined,
+            attachedFileUrl: undefined,
+            attachedDownloadUrl: undefined,
+            attachedUploadedAt: undefined,
+            attachedUploadedBy: undefined,
+          };
+        }
+        return r;
       });
-      const res = await fetch(
-        `/api/engineering/files/${encodeURIComponent(vistoriaToDelete.vistoriaFileId)}?${q.toString()}`,
-        {
-          method: 'DELETE',
-        }
-      );
-      if (res.ok) {
-        const data = await res.json();
-        onTssrUpdated(
-          data.tssrRows || tssrRows,
-          data.tssrSheets || tssrSheets,
-          `Arquivo de vistoria do site ${vistoriaToDelete.siteId} apagado com sucesso!`
-        );
-        if (selectedRowId === vistoriaToDelete.id) {
-          const updatedSelected = (data.tssrRows || tssrRows).find(
-            (r: TssrRow) => r.id === vistoriaToDelete.id
-          );
-          if (updatedSelected) {
-            setSelectedRowId(updatedSelected.id);
-          }
-        }
-        setVistoriaToDelete(null);
+      const targetRow = nextRows.find((r) => r.id === vistoriaToDelete.id);
+      if (targetRow) {
+        await dataService.salvarTssrNokia(targetRow);
       }
-    } catch {
-      // ignore
+      onTssrUpdated(
+        nextRows,
+        tssrSheets,
+        `Arquivo de vistoria do site ${vistoriaToDelete.siteId} apagado com sucesso!`
+      );
+      if (selectedRowId === vistoriaToDelete.id) {
+        setSelectedRowId(vistoriaToDelete.id);
+      }
+      setVistoriaToDelete(null);
+    } catch (err: any) {
+      console.error('Erro ao excluir anexo de vistoria [nokia_tssr]:', err);
+      alert(`Erro no Firestore ao apagar arquivo: ${err?.code || err?.message || err}`);
     } finally {
       setDeletingVistoria(false);
     }
@@ -608,30 +611,16 @@ export const EngineeringControlTab: React.FC<EngineeringControlTabProps> = ({
         return;
       }
 
-      const res = await fetch('/api/tssr/bulk', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          rows: parsed.rows,
-          vendor: activeVendor,
-          tabName: activeSubTab,
-          sourceFileName: file.name,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setImportError(data.error || 'Erro ao atualizar planilha TSSR.');
-        return;
-      }
-
+      await dataService.importarTssrNokiaEmLote(parsed.rows);
       onTssrUpdated(
-        data.tssrRows,
-        data.tssrSheets,
-        `Planilha TSSR atualizada (${data.updatedCount} atualizadas, ${data.insertedCount} novas — status e arquivos preservados)`
+        parsed.rows,
+        tssrSheets,
+        `Planilha TSSR atualizada no Firestore (${parsed.rows.length} registros gravados em lotes)`
       );
       setIsImportModalOpen(false);
-    } catch {
-      setImportError('Falha ao ler o arquivo Excel (.xlsx).');
+    } catch (err: any) {
+      console.error('Erro ao salvar TSSR no Firestore [nokia_tssr]:', err);
+      setImportError(`Falha ao gravar no Firestore [nokia_tssr]: ${err?.code || err?.message || err}`);
     } finally {
       setImportingTssr(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
@@ -641,57 +630,9 @@ export const EngineeringControlTab: React.FC<EngineeringControlTabProps> = ({
   // Handle OneDrive TSSR sync
   const handleOneDriveSync = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!oneDriveUrl.trim()) {
-      setImportError('Informe o link compartilhado da planilha TSSR no OneDrive.');
-      return;
-    }
-    setImportError(null);
-    setImportingTssr(true);
-
-    try {
-      const parseRes = await fetch('/api/tssr/import-onedrive', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          url: oneDriveUrl.trim(),
-          vendor: activeVendor,
-          tabName: activeSubTab,
-        }),
-      });
-      const parseData = await parseRes.json();
-      if (!parseRes.ok) {
-        setImportError(parseData.error || 'Não foi possível ler a planilha do OneDrive.');
-        return;
-      }
-
-      const bulkRes = await fetch('/api/tssr/bulk', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          rows: parseData.rows,
-          vendor: activeVendor,
-          tabName: activeSubTab,
-          sourceFileName: parseData.fileName || 'CONTROLE TSSR (OneDrive)',
-          liveSyncUrl: oneDriveUrl.trim(),
-        }),
-      });
-      const bulkData = await bulkRes.json();
-      if (!bulkRes.ok) {
-        setImportError(bulkData.error || 'Erro ao salvar dados da planilha TSSR.');
-        return;
-      }
-
-      onTssrUpdated(
-        bulkData.tssrRows,
-        bulkData.tssrSheets,
-        `Planilha TSSR sincronizada via OneDrive (${bulkData.updatedCount} atualizadas, ${bulkData.insertedCount} novas — entregas preservadas)`
-      );
-      setIsImportModalOpen(false);
-    } catch {
-      setImportError('Erro de conexão ao sincronizar planilha TSSR do OneDrive.');
-    } finally {
-      setImportingTssr(false);
-    }
+    setImportError(
+      'Em hospedagem estática (Cloudflare), o OneDrive corporativo bloqueia conexões externas diretas (CORS). Por favor, utilize o botão "Arquivo do Computador (.xlsx)" para carregar sua planilha diretamente.'
+    );
   };
 
   // Handle creating a new row manually
@@ -705,37 +646,35 @@ export const EngineeringControlTab: React.FC<EngineeringControlTabProps> = ({
 
     setCreatingRow(true);
     try {
-      const res = await fetch('/api/tssr/rows', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          vendor: activeVendor,
-          tabName: activeSubTab,
-          siteId: newRowSiteId.trim().toUpperCase(),
-          ocSitePre: newRowOcSitePre.trim(),
-          enderecoId: newRowEnderecoId.trim(),
-          fields: {
-            'Oc Site Pre': newRowOcSitePre.trim(),
-            Enderecoid: newRowEnderecoId.trim(),
-            'Site Id': newRowSiteId.trim().toUpperCase(),
-            Reg: newRowReg.trim().toUpperCase(),
-            UF: newRowUf.trim().toUpperCase(),
-            Cidade: newRowCidade.trim(),
-            PROJETO: newRowProjeto.trim(),
-            'STATUS Engenharia': newRowStatusEng.trim(),
-            Executor: newRowExecutor.trim(),
-          },
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setNewRowError(data.error || 'Erro ao criar nova linha.');
-        return;
-      }
+      const newId = `TSSR_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+      const cleanSite = newRowSiteId.trim().toUpperCase();
+      const newRow: TssrRow = {
+        id: newId,
+        rowKey: `${cleanSite}__${activeSubTab}__${Date.now()}`,
+        vendor: activeVendor,
+        tabName: activeSubTab,
+        siteId: cleanSite,
+        ocSitePre: newRowOcSitePre.trim(),
+        enderecoId: newRowEnderecoId.trim(),
+        vistoriaStatus: 'Pendente',
+        fields: {
+          'Oc Site Pre': newRowOcSitePre.trim(),
+          Enderecoid: newRowEnderecoId.trim(),
+          'Site Id': cleanSite,
+          Reg: newRowReg.trim().toUpperCase(),
+          UF: newRowUf.trim().toUpperCase(),
+          Cidade: newRowCidade.trim(),
+          PROJETO: newRowProjeto.trim(),
+          'STATUS Engenharia': newRowStatusEng.trim(),
+          Executor: newRowExecutor.trim(),
+        },
+        updatedAt: new Date().toISOString(),
+      };
+      await dataService.salvarTssrNokia(newRow);
       onTssrUpdated(
-        data.tssrRows,
-        data.tssrSheets,
-        `Site ${newRowSiteId.trim().toUpperCase()} adicionado na aba ${activeSubTab}`
+        [newRow, ...tssrRows],
+        tssrSheets,
+        `Site ${newRowSiteId.trim().toUpperCase()} adicionado na aba ${activeSubTab} no Firestore`
       );
       setIsNewRowModalOpen(false);
       setNewRowSiteId('');
@@ -746,8 +685,9 @@ export const EngineeringControlTab: React.FC<EngineeringControlTabProps> = ({
       setNewRowReg('');
       setNewRowProjeto('');
       setNewRowExecutor('');
-    } catch {
-      setNewRowError('Erro de conexão ao criar nova linha.');
+    } catch (err: any) {
+      console.error('Erro ao criar linha TSSR no Firestore [nokia_tssr]:', err);
+      setNewRowError(`Erro no Firestore [nokia_tssr]: ${err?.code || err?.message || err}`);
     } finally {
       setCreatingRow(false);
     }
@@ -759,41 +699,41 @@ export const EngineeringControlTab: React.FC<EngineeringControlTabProps> = ({
     if (!selectedRow) return;
     setSavingDrawer(true);
     try {
-      const res = await fetch(`/api/tssr/rows/${encodeURIComponent(selectedRow.id)}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fields: drawerDraftFields }),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        onTssrUpdated(
-          data.tssrRows,
-          undefined,
-          `Dados do site ${selectedRow.siteId} atualizados em ${activeSubTab}`
-        );
-        setSelectedRowId(null);
-      }
+      const updatedRow: TssrRow = {
+        ...selectedRow,
+        fields: drawerDraftFields,
+        updatedAt: new Date().toISOString(),
+      };
+      await dataService.salvarTssrNokia(updatedRow);
+      onTssrUpdated(
+        tssrRows.map((r) => (r.id === selectedRow.id ? updatedRow : r)),
+        undefined,
+        `Dados do site ${selectedRow.siteId} atualizados no Firestore (${activeSubTab})`
+      );
+      setSelectedRowId(null);
+    } catch (err: any) {
+      console.error('Erro ao atualizar TSSR no Firestore [nokia_tssr]:', err);
+      alert(`Erro no Firestore [nokia_tssr]: ${err?.code || err?.message || err}`);
     } finally {
       setSavingDrawer(false);
     }
   };
 
   const handleDeleteRow = async (row: TssrRow) => {
+    if (!window.confirm(`Tem certeza que deseja excluir o registro do site "${row.siteId}" da Engenharia TSSR?`)) {
+      return;
+    }
     try {
-      const res = await fetch(`/api/tssr/rows/${encodeURIComponent(row.id)}`, {
-        method: 'DELETE',
-      });
-      if (res.ok) {
-        const data = await res.json();
-        onTssrUpdated(
-          data.tssrRows,
-          undefined,
-          `Linha do site ${row.siteId} removida de ${activeSubTab}`
-        );
-        if (selectedRowId === row.id) setSelectedRowId(null);
-      }
-    } catch {
-      // ignore
+      await dataService.excluirTssrNokia(row.id);
+      onTssrUpdated(
+        tssrRows.filter((r) => r.id !== row.id),
+        undefined,
+        `Linha do site ${row.siteId} excluída do Firestore`
+      );
+      if (selectedRowId === row.id) setSelectedRowId(null);
+    } catch (err: any) {
+      console.error('Erro ao excluir TSSR no Firestore [nokia_tssr]:', err);
+      alert(`Erro no Firestore [nokia_tssr]: ${err?.code || err?.message || err}`);
     }
   };
 

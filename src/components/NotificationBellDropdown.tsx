@@ -22,9 +22,7 @@ import {
   VendorType,
 } from '../types/telecom';
 import { doesFileMatchUserResponsibleSites } from '../utils/spreadsheetUtils';
-import { cloudFetch } from '../lib/firebaseCloud';
-
-const fetch = cloudFetch;
+import { dataService } from '../services/dataService';
 
 interface NotificationBellDropdownProps {
   notifications: AmetaNotification[];
@@ -196,46 +194,29 @@ export const NotificationBellDropdown: React.FC<NotificationBellDropdownProps> =
     if (!userEmail) return;
     if (markAll) {
       setLocallyReadIds(visibleNotifications.map((n) => n.id));
+      onNotificationsUpdated(visibleNotifications.map((n) => ({ ...n, read: true })));
     } else if (notificationId) {
       setLocallyReadIds((prev) =>
         prev.includes(notificationId) ? prev : [...prev, notificationId]
       );
+      onNotificationsUpdated(
+        visibleNotifications.map((n) => (n.id === notificationId ? { ...n, read: true } : n))
+      );
     }
     try {
-      const res = await fetch('/api/notifications/mark-read', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: userEmail,
-          notificationId,
-          markAll,
-        }),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        if (Array.isArray(data.notifications)) {
-          onNotificationsUpdated(data.notifications);
-        }
-      }
-    } catch {
-      // ignore
+      await dataService.marcarNotificacaoLida(notificationId, markAll, userEmail);
+    } catch (err: any) {
+      console.error('Erro ao marcar notificacao no Firestore [notificacoes]:', err?.code || err);
     }
   };
 
   const handleDeleteNotification = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
+    onNotificationsUpdated(visibleNotifications.filter((n) => n.id !== id));
     try {
-      const res = await fetch(`/api/notifications/${encodeURIComponent(id)}`, {
-        method: 'DELETE',
-      });
-      if (res.ok) {
-        const data = await res.json();
-        if (Array.isArray(data.notifications)) {
-          onNotificationsUpdated(data.notifications);
-        }
-      }
-    } catch {
-      // ignore
+      await dataService.excluirNotificacao(id);
+    } catch (err: any) {
+      console.error('Erro ao excluir notificacao no Firestore [notificacoes]:', err?.code || err);
     }
   };
 

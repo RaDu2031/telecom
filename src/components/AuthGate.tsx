@@ -229,8 +229,10 @@ export const AuthGate: React.FC<AuthGateProps> = ({ onAuthenticated }) => {
       <div className="w-full max-w-md bg-white rounded-3xl shadow-2xl border border-slate-100/80 overflow-hidden flex flex-col">
         {/* Brand Header */}
         <div className="px-8 pt-8 pb-6 bg-gradient-to-br from-blue-900 via-indigo-950 to-slate-900 text-white text-center relative">
-          <div className="w-16 h-16 bg-white/10 rounded-2xl mx-auto flex items-center justify-center mb-3.5 backdrop-blur-md shadow-inner border border-white/20">
-            <AmetaLogo size="md" theme="dark" />
+          <div className="flex items-center justify-center mb-3.5">
+            <div className="px-4 py-2.5 bg-white/10 rounded-2xl backdrop-blur-md shadow-inner border border-white/20 inline-flex items-center justify-center">
+              <AmetaLogo size="md" theme="dark" />
+            </div>
           </div>
           <h1 className="text-xl font-black tracking-tight text-white">Ameta Telecom</h1>
           <p className="text-xs text-blue-200/90 mt-1 font-medium">

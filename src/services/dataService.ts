@@ -12,6 +12,8 @@ import {
   addDoc,
   onSnapshot,
   query,
+  where,
+  writeBatch,
 } from 'firebase/firestore';
 import {
   signInWithEmailAndPassword,
@@ -49,7 +51,12 @@ export const FIRESTORE_COLLECTIONS = {
   ERICSSON_SITES: 'ericsson_sites',
   ERICSSON_PASTAS: 'ericsson_pastas',
   ERICSSON_ARQUIVOS: 'ericsson_arquivos',
+  ERICSSON_ENGENHARIA: 'ericsson_engenharia',
+  ERICSSON_REPROVACOES: 'ericsson_reprovacoes',
   NOTIFICACOES: 'notificacoes',
+  DUPLAS_CONFIG: 'duplas_config',
+  CHAMADOS: 'chamados',
+  APP_META: 'app_meta',
 } as const;
 
 export function sanitizeSiteDocId(rawSiteId: string, sheetName?: string): string {
@@ -232,7 +239,16 @@ export interface IDataService {
     duplaEmailsMap?: Record<string, string[]>
   ): Promise<void>;
   excluirSiteEricsson(rowId: string): Promise<void>;
+  carregarSitesEricsson(): Promise<EricssonRow[]>;
   salvarTssrNokia(row: TssrRow): Promise<void>;
+  excluirTssrNokia(rowId: string): Promise<void>;
+  importarEricssonEngenhariaEmLote(rows: any[]): Promise<{ totalGravados: number }>;
+  carregarEricssonEngenharia(): Promise<any[]>;
+  carregarEricssonReprovacoes(): Promise<any[]>;
+  salvarEricssonEngenhariaRow(row: any): Promise<void>;
+  excluirEricssonEngenhariaRow(rowId: string): Promise<void>;
+  salvarEricssonReprovacao(record: any): Promise<void>;
+  excluirEricssonReprovacao(recordId: string): Promise<void>;
   salvarPastaNokia(folder: EngineeringFolder): Promise<void>;
   excluirPastaNokia(folderId: string): Promise<void>;
   salvarArquivoNokia(
@@ -260,6 +276,40 @@ export interface IDataService {
     customDuplas?: string[];
   }>;
   criarNotificacao(notif: AmetaNotification): Promise<void>;
+  marcarNotificacaoLida(notificationId?: string, markAll?: boolean, userEmail?: string): Promise<void>;
+  excluirNotificacao(id: string): Promise<void>;
+  bloquearUsuario(uid: string, motivo?: string): Promise<void>;
+  atribuirDemandaSites(params: {
+    siteTokens: string[];
+    responsibleName: string;
+    linkedEmails?: string[];
+    vendor: 'NOKIA' | 'ERICSSON';
+    actorEmail?: string;
+    actorName?: string;
+  }): Promise<{ updatedCount: number }>;
+  desvincularDemandaSites(params: {
+    siteTokens: string[];
+    vendor: 'NOKIA' | 'ERICSSON';
+  }): Promise<{ updatedCount: number }>;
+  limparTodosSitesDemanda(params: {
+    responsibleName: string;
+    siteTokens?: string[];
+    vendor: 'NOKIA' | 'ERICSSON';
+  }): Promise<{ updatedCount: number }>;
+  renomearEquipeDupla(params: {
+    oldName: string;
+    newName: string;
+    vendor?: 'NOKIA' | 'ERICSSON';
+  }): Promise<void>;
+  vincularEmailsDupla(params: {
+    duplaName: string;
+    emails: string[];
+  }): Promise<void>;
+  importarDadosIniciais(onProgress?: (msg: string) => void): Promise<{
+    totalSites: number;
+    totalEricsson: number;
+    totalUsers: number;
+  }>;
   registrarNovoUsuarioCorporativo(params: {
     name: string;
     email: string;
@@ -493,14 +543,94 @@ class FirebaseDataService implements IDataService {
     rows: TssrRow[],
     _users?: AmetaUser[]
   ): Promise<{ totalGravados: number; lotesExecutados: number }> {
-    for (const row of rows) {
-      const docId = row.id || `TSSR_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
-      await setDoc(doc(db, FIRESTORE_COLLECTIONS.NOKIA_TSSR, docId), {
-        ...row,
-        id: docId,
-      }, { merge: true });
+    const chunkSize = 400;
+    let totalGravados = 0;
+    let lotes = 0;
+    for (let i = 0; i < rows.length; i += chunkSize) {
+      const chunk = rows.slice(i, i + chunkSize);
+      const batch = writeBatch(db);
+      for (const row of chunk) {
+        const docId = row.id || `TSSR_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+        batch.set(doc(db, FIRESTORE_COLLECTIONS.NOKIA_TSSR, docId), {
+          ...row,
+          id: docId,
+        }, { merge: true });
+      }
+      await batch.commit();
+      totalGravados += chunk.length;
+      lotes++;
     }
-    return { totalGravados: rows.length, lotesExecutados: 1 };
+    return { totalGravados, lotesExecutados: lotes || 1 };
+  }
+
+  async excluirTssrNokia(rowId: string): Promise<void> {
+    await deleteDoc(doc(db, FIRESTORE_COLLECTIONS.NOKIA_TSSR, rowId));
+  }
+
+  async importarEricssonEngenhariaEmLote(
+    rows: any[]
+  ): Promise<{ totalGravados: number }> {
+    const chunkSize = 400;
+    let totalGravados = 0;
+    for (let i = 0; i < rows.length; i += chunkSize) {
+      const chunk = rows.slice(i, i + chunkSize);
+      const batch = writeBatch(db);
+      for (const r of chunk) {
+        const docId = r.id || `eric_eng_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+        batch.set(doc(db, FIRESTORE_COLLECTIONS.ERICSSON_ENGENHARIA, docId), {
+          ...r,
+          id: docId,
+        }, { merge: true });
+      }
+      await batch.commit();
+      totalGravados += chunk.length;
+    }
+    return { totalGravados };
+  }
+
+  async carregarEricssonEngenharia(): Promise<any[]> {
+    try {
+      const snap = await getDocs(collection(db, FIRESTORE_COLLECTIONS.ERICSSON_ENGENHARIA));
+      return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    } catch (err) {
+      console.error('Erro ao carregar ericsson_engenharia:', err);
+      return [];
+    }
+  }
+
+  async carregarEricssonReprovacoes(): Promise<any[]> {
+    try {
+      const snap = await getDocs(collection(db, FIRESTORE_COLLECTIONS.ERICSSON_REPROVACOES));
+      return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    } catch (err) {
+      console.error('Erro ao carregar ericsson_reprovacoes:', err);
+      return [];
+    }
+  }
+
+  async salvarEricssonEngenhariaRow(row: any): Promise<void> {
+    const docId = row.id || `eric_eng_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+    await setDoc(doc(db, FIRESTORE_COLLECTIONS.ERICSSON_ENGENHARIA, docId), {
+      ...row,
+      id: docId,
+    }, { merge: true });
+  }
+
+  async excluirEricssonEngenhariaRow(rowId: string): Promise<void> {
+    await deleteDoc(doc(db, FIRESTORE_COLLECTIONS.ERICSSON_ENGENHARIA, rowId));
+  }
+
+  async salvarEricssonReprovacao(record: any): Promise<void> {
+    const docId = record.id || `rep_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+    await setDoc(doc(db, FIRESTORE_COLLECTIONS.ERICSSON_REPROVACOES, docId), {
+      ...record,
+      id: docId,
+      createdAt: record.createdAt || new Date().toISOString(),
+    }, { merge: true });
+  }
+
+  async excluirEricssonReprovacao(recordId: string): Promise<void> {
+    await deleteDoc(doc(db, FIRESTORE_COLLECTIONS.ERICSSON_REPROVACOES, recordId));
   }
 
   async salvarSiteNokia(
@@ -533,6 +663,16 @@ class FirebaseDataService implements IDataService {
 
   async excluirSiteEricsson(rowId: string): Promise<void> {
     await deleteDoc(doc(db, FIRESTORE_COLLECTIONS.ERICSSON_SITES, rowId));
+  }
+
+  async carregarSitesEricsson(): Promise<EricssonRow[]> {
+    try {
+      const snap = await getDocs(collection(db, FIRESTORE_COLLECTIONS.ERICSSON_SITES));
+      return snap.docs.map((d) => ({ id: d.id, ...d.data() } as EricssonRow));
+    } catch (err) {
+      console.error('Erro ao carregar ericsson_sites:', err);
+      return [];
+    }
   }
 
   async salvarTssrNokia(row: TssrRow): Promise<void> {
@@ -784,6 +924,331 @@ class FirebaseDataService implements IDataService {
       console.error('Perfil user snapshot error:', err);
       onUpdate(null);
     });
+  }
+
+  async marcarNotificacaoLida(notificationId?: string, markAll = false, userEmail?: string): Promise<void> {
+    if (markAll && userEmail) {
+      const q = query(collection(db, FIRESTORE_COLLECTIONS.NOTIFICACOES), where('targetEmail', '==', userEmail.toLowerCase()));
+      const snap = await getDocs(q);
+      const batch = writeBatch(db);
+      snap.docs.forEach((d) => {
+        batch.update(d.ref, { read: true });
+      });
+      await batch.commit();
+    } else if (notificationId) {
+      await updateDoc(doc(db, FIRESTORE_COLLECTIONS.NOTIFICACOES, notificationId), { read: true });
+    }
+  }
+
+  async excluirNotificacao(id: string): Promise<void> {
+    await deleteDoc(doc(db, FIRESTORE_COLLECTIONS.NOTIFICACOES, id));
+  }
+
+  async bloquearUsuario(uid: string, motivo?: string): Promise<void> {
+    await updateDoc(doc(db, FIRESTORE_COLLECTIONS.USUARIOS, uid), {
+      situacao: 'bloqueado',
+      accessReleased: false,
+      bloqueadoEm: new Date().toISOString(),
+      motivoBloqueio: motivo || 'Acesso bloqueado pelo administrador (conta Auth preservada)',
+    });
+  }
+
+  async atribuirDemandaSites(params: {
+    siteTokens: string[];
+    responsibleName: string;
+    linkedEmails?: string[];
+    vendor: 'NOKIA' | 'ERICSSON';
+    actorEmail?: string;
+    actorName?: string;
+  }): Promise<{ updatedCount: number }> {
+    const tokens = new Set(params.siteTokens.map((t) => t.trim().toUpperCase()));
+    const colName = params.vendor === 'ERICSSON' ? FIRESTORE_COLLECTIONS.ERICSSON_SITES : FIRESTORE_COLLECTIONS.NOKIA_SITES;
+    const snap = await getDocs(collection(db, colName));
+    const batch = writeBatch(db);
+    let count = 0;
+
+    for (const d of snap.docs) {
+      const data = d.data();
+      const sId = (data.siteId || data.id || '').toUpperCase();
+      const docId = d.id.toUpperCase();
+      if (tokens.has(sId) || tokens.has(docId)) {
+        if (params.vendor === 'ERICSSON') {
+          batch.update(d.ref, {
+            responsavelDemand: params.responsibleName,
+            equipe: params.responsibleName,
+            'fields.EQUIPE': params.responsibleName,
+            ...(params.linkedEmails && params.linkedEmails.length > 0 ? { 'fields.E-MAIL DUPLA': params.linkedEmails.join(', ') } : {}),
+            updatedAt: new Date().toISOString(),
+          });
+        } else {
+          batch.update(d.ref, {
+            responsavelDemand: params.responsibleName,
+            equipeParceira: params.responsibleName,
+            responsavelCampo: params.responsibleName,
+            'customFields.EQUIPE EXECUTANTE': params.responsibleName,
+            'customFields.Executor': params.responsibleName,
+            'customFields.Responsável': params.responsibleName,
+            ...(params.linkedEmails && params.linkedEmails.length > 0 ? { 'customFields.E-MAIL DUPLA': params.linkedEmails.join(', ') } : {}),
+            updatedAt: new Date().toISOString(),
+          });
+        }
+        count++;
+      }
+    }
+
+    if (count > 0) {
+      await batch.commit();
+
+      const notifRef = doc(collection(db, FIRESTORE_COLLECTIONS.NOTIFICACOES));
+      await setDoc(notifRef, {
+        id: notifRef.id,
+        title: `Nova Demanda: ${count} site(s) ${params.vendor === 'ERICSSON' ? 'Ericsson' : 'TIM/Nokia'}`,
+        message: `${count} site(s) colocados na demanda da equipe "${params.responsibleName}".`,
+        type: 'demanda',
+        read: false,
+        createdAt: new Date().toISOString(),
+        targetRole: 'Executor',
+        targetPlatform: params.vendor,
+        targetResponsible: params.responsibleName,
+        actorEmail: params.actorEmail || '',
+      });
+    }
+
+    return { updatedCount: count };
+  }
+
+  async desvincularDemandaSites(params: {
+    siteTokens: string[];
+    vendor: 'NOKIA' | 'ERICSSON';
+  }): Promise<{ updatedCount: number }> {
+    const tokens = new Set(params.siteTokens.map((t) => t.trim().toUpperCase()));
+    const colName = params.vendor === 'ERICSSON' ? FIRESTORE_COLLECTIONS.ERICSSON_SITES : FIRESTORE_COLLECTIONS.NOKIA_SITES;
+    const snap = await getDocs(collection(db, colName));
+    const batch = writeBatch(db);
+    let count = 0;
+
+    for (const d of snap.docs) {
+      const data = d.data();
+      const sId = (data.siteId || data.id || '').toUpperCase();
+      const docId = d.id.toUpperCase();
+      if (tokens.has(sId) || tokens.has(docId)) {
+        if (params.vendor === 'ERICSSON') {
+          batch.update(d.ref, {
+            responsavelDemand: '',
+            equipe: '',
+            'fields.EQUIPE': '',
+            'fields.E-MAIL DUPLA': '',
+            updatedAt: new Date().toISOString(),
+          });
+        } else {
+          batch.update(d.ref, {
+            responsavelDemand: '',
+            equipeParceira: '',
+            responsavelCampo: '',
+            'customFields.EQUIPE EXECUTANTE': '',
+            'customFields.Executor': '',
+            'customFields.Responsável': '',
+            'customFields.E-MAIL DUPLA': '',
+            updatedAt: new Date().toISOString(),
+          });
+        }
+        count++;
+      }
+    }
+
+    if (count > 0) {
+      await batch.commit();
+    }
+    return { updatedCount: count };
+  }
+
+  async limparTodosSitesDemanda(params: {
+    responsibleName: string;
+    siteTokens?: string[];
+    vendor: 'NOKIA' | 'ERICSSON';
+  }): Promise<{ updatedCount: number }> {
+    const colName = params.vendor === 'ERICSSON' ? FIRESTORE_COLLECTIONS.ERICSSON_SITES : FIRESTORE_COLLECTIONS.NOKIA_SITES;
+    const snap = await getDocs(collection(db, colName));
+    const batch = writeBatch(db);
+    let count = 0;
+    const target = params.responsibleName.trim().toUpperCase();
+
+    for (const d of snap.docs) {
+      const data = d.data();
+      const resp = (data.responsavelDemand || data.equipe || data.equipeParceira || '').trim().toUpperCase();
+      if (resp === target) {
+        if (params.vendor === 'ERICSSON') {
+          batch.update(d.ref, {
+            responsavelDemand: '',
+            equipe: '',
+            'fields.EQUIPE': '',
+            'fields.E-MAIL DUPLA': '',
+            updatedAt: new Date().toISOString(),
+          });
+        } else {
+          batch.update(d.ref, {
+            responsavelDemand: '',
+            equipeParceira: '',
+            responsavelCampo: '',
+            'customFields.EQUIPE EXECUTANTE': '',
+            'customFields.Executor': '',
+            'customFields.Responsável': '',
+            'customFields.E-MAIL DUPLA': '',
+            updatedAt: new Date().toISOString(),
+          });
+        }
+        count++;
+      }
+    }
+
+    if (count > 0) {
+      await batch.commit();
+    }
+    return { updatedCount: count };
+  }
+
+  async renomearEquipeDupla(params: {
+    oldName: string;
+    newName: string;
+    vendor?: 'NOKIA' | 'ERICSSON';
+  }): Promise<void> {
+    const vendors = params.vendor ? [params.vendor] : (['NOKIA', 'ERICSSON'] as const);
+    for (const v of vendors) {
+      const colName = v === 'ERICSSON' ? FIRESTORE_COLLECTIONS.ERICSSON_SITES : FIRESTORE_COLLECTIONS.NOKIA_SITES;
+      const snap = await getDocs(collection(db, colName));
+      const batch = writeBatch(db);
+      let count = 0;
+      for (const d of snap.docs) {
+        const data = d.data();
+        const curResp = (data.responsavelDemand || data.equipe || '').trim();
+        if (curResp === params.oldName.trim()) {
+          if (v === 'ERICSSON') {
+            batch.update(d.ref, {
+              responsavelDemand: params.newName,
+              equipe: params.newName,
+              'fields.EQUIPE': params.newName,
+              updatedAt: new Date().toISOString(),
+            });
+          } else {
+            batch.update(d.ref, {
+              responsavelDemand: params.newName,
+              equipeParceira: params.newName,
+              'customFields.EQUIPE EXECUTANTE': params.newName,
+              updatedAt: new Date().toISOString(),
+            });
+          }
+          count++;
+        }
+      }
+      if (count > 0) {
+        await batch.commit();
+      }
+    }
+  }
+
+  async vincularEmailsDupla(params: {
+    duplaName: string;
+    emails: string[];
+  }): Promise<void> {
+    const cfgRef = doc(db, 'duplas_config', 'main');
+    await setDoc(cfgRef, {
+      duplaEmailsMap: {
+        [params.duplaName]: params.emails,
+      },
+    }, { merge: true });
+  }
+
+  async importarDadosIniciais(onProgress?: (msg: string) => void): Promise<{
+    totalSites: number;
+    totalEricsson: number;
+    totalUsers: number;
+  }> {
+    if (onProgress) onProgress('Baixando dados iniciais de public/initial-db.json...');
+    const res = await window.fetch('/initial-db.json');
+    if (!res.ok) {
+      throw new Error(`Falha ao ler initial-db.json: status ${res.status}`);
+    }
+    const seed = await res.json();
+    let totalSites = 0;
+    let totalEricsson = 0;
+    let totalUsers = 0;
+
+    // 1. Nokia Sites em lotes de até 400
+    if (Array.isArray(seed.sites) && seed.sites.length > 0) {
+      if (onProgress) onProgress(`Gravando ${seed.sites.length} sites Nokia no Firestore em lotes...`);
+      const chunkSize = 400;
+      for (let i = 0; i < seed.sites.length; i += chunkSize) {
+        const chunk = seed.sites.slice(i, i + chunkSize);
+        const batch = writeBatch(db);
+        for (const s of chunk) {
+          const docId = sanitizeSiteDocId(s.siteId || s.id, s.sheetName);
+          batch.set(doc(db, FIRESTORE_COLLECTIONS.NOKIA_SITES, docId), {
+            ...s,
+            id: docId,
+          }, { merge: true });
+        }
+        await batch.commit();
+        totalSites += chunk.length;
+        if (onProgress) onProgress(`Nokia sites: ${totalSites}/${seed.sites.length} gravados...`);
+      }
+    }
+
+    // 2. Ericsson Sites em lotes de até 400
+    if (Array.isArray(seed.ericssonRows) && seed.ericssonRows.length > 0) {
+      if (onProgress) onProgress(`Gravando ${seed.ericssonRows.length} sites Ericsson no Firestore...`);
+      const chunkSize = 400;
+      for (let i = 0; i < seed.ericssonRows.length; i += chunkSize) {
+        const chunk = seed.ericssonRows.slice(i, i + chunkSize);
+        const batch = writeBatch(db);
+        for (const r of chunk) {
+          const docId = sanitizeEricssonDocId(r);
+          batch.set(doc(db, FIRESTORE_COLLECTIONS.ERICSSON_SITES, docId), {
+            ...r,
+            id: docId,
+          }, { merge: true });
+        }
+        await batch.commit();
+        totalEricsson += chunk.length;
+        if (onProgress) onProgress(`Ericsson sites: ${totalEricsson}/${seed.ericssonRows.length} gravados...`);
+      }
+    }
+
+    // 3. Usuários
+    if (Array.isArray(seed.users) && seed.users.length > 0) {
+      if (onProgress) onProgress(`Gravando ${seed.users.length} usuários no Firestore...`);
+      const batch = writeBatch(db);
+      for (const u of seed.users) {
+        const uid = u.uid || u.id;
+        if (uid) {
+          batch.set(doc(db, FIRESTORE_COLLECTIONS.USUARIOS, uid), u, { merge: true });
+          totalUsers++;
+        }
+      }
+      await batch.commit();
+    }
+
+    // 4. Configuração de Duplas
+    if (seed.duplaEmailsMap) {
+      await setDoc(doc(db, 'duplas_config', 'main'), {
+        duplaEmailsMap: seed.duplaEmailsMap,
+      }, { merge: true });
+    }
+
+    // 5. Notificações
+    if (Array.isArray(seed.notifications) && seed.notifications.length > 0) {
+      const batch = writeBatch(db);
+      for (const n of seed.notifications.slice(0, 100)) {
+        const docId = n.id || `notif_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+        batch.set(doc(db, FIRESTORE_COLLECTIONS.NOTIFICACOES, docId), {
+          ...n,
+          id: docId,
+        }, { merge: true });
+      }
+      await batch.commit();
+    }
+
+    if (onProgress) onProgress(`Importação inicial concluída com sucesso! (${totalSites} Nokia, ${totalEricsson} Ericsson, ${totalUsers} Usuários)`);
+    return { totalSites, totalEricsson, totalUsers };
   }
 
   observarColecoesPlataforma(

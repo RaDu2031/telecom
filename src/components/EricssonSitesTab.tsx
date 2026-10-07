@@ -40,9 +40,7 @@ import {
   computeEricssonSiteCounters,
 } from '../utils/ericssonSpreadsheetUtils';
 import { getCanonicalDuplaName, normalizeAccents } from '../utils/spreadsheetUtils';
-import { cloudFetch } from '../lib/firebaseCloud';
-
-const fetch = cloudFetch;
+import { dataService } from '../services/dataService';
 
 export interface EricssonSitesTabProps {
   user: AmetaUser;
@@ -440,52 +438,29 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
     const key = `${row.id}:${side}`;
     setTogglingRowKey(key);
     try {
-      const res = await fetch(
-        `/api/ericsson/rows/${encodeURIComponent(row.id)}/toggle-finalizado`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            side,
-            actorName: user.name,
-            actorEmail: user.email,
-          }),
-        }
-      );
-      const data = await res.json();
-      if (res.ok && Array.isArray(data.ericssonRows)) {
-        const updatedRow = data.row as EricssonRow;
-        if (selectedRow && selectedRow.id === row.id && updatedRow) {
-          setSelectedRow(updatedRow);
-        }
-        const label =
-          side === 'A'
-            ? `Vistoria Site A (${row.siteIdA}) marcada como ${
-                updatedRow?.siteAVistoriaStatus === 'Entregue'
-                  ? 'Entregue (B Dispensado)'
-                  : 'Pendente'
-              }`
-            : side === 'B'
-            ? `Vistoria Site B (${row.siteIdB}) marcada como ${
-                updatedRow?.siteBVistoriaStatus === 'Entregue'
-                  ? 'Entregue (A Dispensado)'
-                  : 'Pendente'
-              }`
-            : side === 'LOS'
-            ? `LOS (${row.siteIdA} ↔ ${row.siteIdB}) marcado como ${
-                updatedRow?.losStatus === 'Entregue' ? 'Entregue' : 'Pendente'
-              }`
-            : side === 'SMART'
-            ? `SMART (${row.siteIdA || row.siteIdB || row.chaves}) marcado como ${
-                updatedRow?.smartStatus === 'Entregue' ? 'Entregue' : 'Pendente'
-              }`
-            : `SDC (${row.siteIdA || row.siteIdB || row.chaves}) marcado como ${
-                updatedRow?.sdcStatus === 'Entregue' ? 'Entregue' : 'Pendente'
-              }`;
-        onUpdated(data.ericssonRows, sheetMeta, `${label}.`);
+      const updatedRow: EricssonRow = { ...row, updatedAt: new Date().toISOString() };
+      if (side === 'A') {
+        updatedRow.siteAVistoriaStatus = row.siteAVistoriaStatus === 'Entregue' ? 'Pendente' : 'Entregue';
+      } else if (side === 'B') {
+        updatedRow.siteBVistoriaStatus = row.siteBVistoriaStatus === 'Entregue' ? 'Pendente' : 'Entregue';
+      } else if (side === 'LOS') {
+        updatedRow.losStatus = row.losStatus === 'Entregue' ? 'Pendente' : 'Entregue';
+      } else if (side === 'SMART') {
+        updatedRow.smartStatus = row.smartStatus === 'Entregue' ? 'Pendente' : 'Entregue';
+      } else if (side === 'SDC') {
+        updatedRow.sdcStatus = row.sdcStatus === 'Entregue' ? 'Pendente' : 'Entregue';
       }
-    } catch {
-      // ignore
+      await dataService.salvarSiteEricsson(updatedRow);
+      if (selectedRow && selectedRow.id === row.id) {
+        setSelectedRow(updatedRow);
+      }
+      onUpdated(
+        rows.map((r) => (r.id === row.id ? updatedRow : r)),
+        sheetMeta,
+        'Status atualizado no Firestore!'
+      );
+    } catch (err: any) {
+      console.error('Erro ao atualizar status no Firestore [ericsson_sites]:', err);
     } finally {
       setTogglingRowKey(null);
     }
@@ -499,63 +474,35 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
   ) => {
     if (e) e.stopPropagation();
     try {
-      const res = await fetch(
-        `/api/ericsson/vistoria/${encodeURIComponent(row.id)}/${encodeURIComponent(side)}`,
-        { method: 'DELETE' }
-      );
-      const data = await res.json();
-      if (res.ok && Array.isArray(data.ericssonRows)) {
-        const updatedRow = data.row as EricssonRow;
-        if (selectedRow && selectedRow.id === row.id && updatedRow) {
-          setSelectedRow(updatedRow);
-        }
-        const sideLabel =
-          side === 'LOS'
-            ? 'LOS'
-            : side === 'SMART'
-            ? 'SMART'
-            : side === 'SDC'
-            ? 'SDC'
-            : `Vistoria ${side}`;
-        onUpdated(
-          data.ericssonRows,
-          sheetMeta,
-          `Arquivo de ${sideLabel} excluído com sucesso!`,
-          data.ericssonFiles
-        );
+      const updatedRow: any = { ...row, updatedAt: new Date().toISOString() };
+      if (side === 'A') {
+        delete updatedRow.siteAFile;
+        delete updatedRow.siteAFileId;
+      } else if (side === 'B') {
+        delete updatedRow.siteBFile;
+        delete updatedRow.siteBFileId;
+      } else if (side === 'LOS') {
+        delete updatedRow.losFile;
+        delete updatedRow.losFileId;
       }
-    } catch {
-      // ignore
+      await dataService.salvarSiteEricsson(updatedRow);
+      if (selectedRow && selectedRow.id === row.id) {
+        setSelectedRow(updatedRow);
+      }
+      onUpdated(
+        rows.map((r) => (r.id === row.id ? updatedRow : r)),
+        sheetMeta,
+        'Arquivo desvinculado no Firestore!'
+      );
+    } catch (err: any) {
+      console.error('Erro ao desvincular anexo no Firestore [ericsson_sites]:', err);
     }
   };
 
   // Sync via OneDrive Excel Online URL
   const handleSyncOneDrive = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSyncError(null);
-    setSyncLoading(true);
-    try {
-      const res = await fetch('/api/ericsson/import-onedrive', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: oneDriveUrl, mode: 'replace' }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setSyncError(data.error || 'Falha ao sincronizar planilha do OneDrive.');
-        return;
-      }
-      onUpdated(
-        data.ericssonRows,
-        data.ericssonSheetMeta,
-        `Planilha Ericsson sincronizada! (${data.preservedVistoriasCount || 0} registro(s) preservado(s))`
-      );
-      setSyncModalOpen(false);
-    } catch {
-      setSyncError('Erro de conexão ao sincronizar planilha do OneDrive.');
-    } finally {
-      setSyncLoading(false);
-    }
+    setSyncError('Para maior confiabilidade em site estático, utilize o botão "Arquivo Excel do Computador" (.xlsx) logo abaixo.');
   };
 
   // Upload new version of .xlsx spreadsheet from computer
@@ -573,30 +520,16 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
         return;
       }
 
-      const res = await fetch('/api/ericsson/import-rows', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          rows: parsed.rows,
-          columns: parsed.columns,
-          tabName: parsed.tabName,
-          sourceFileName: file.name,
-          mode: 'replace',
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setSyncError(data.error || 'Erro ao atualizar planilha Ericsson.');
-        return;
-      }
+      await dataService.importarSitesEricssonEmLote(parsed.rows as any);
       onUpdated(
-        data.ericssonRows,
-        data.ericssonSheetMeta,
-        `Planilha "${file.name}" carregada! (${data.preservedVistoriasCount || 0} registro(s) preservado(s))`
+        parsed.rows as any,
+        sheetMeta,
+        `Planilha "${file.name}" carregada no Firestore! (${parsed.rows.length} registros gravados)`
       );
       setSyncModalOpen(false);
-    } catch {
-      setSyncError('Falha ao ler o arquivo Excel (.xlsx).');
+    } catch (err: any) {
+      console.error('Erro ao ler ou importar planilha Ericsson:', err);
+      setSyncError('Falha ao ler o arquivo Excel (.xlsx) ou gravar no Firestore.');
     } finally {
       setSyncLoading(false);
       if (excelInputRef.current) excelInputRef.current.value = '';
@@ -633,37 +566,56 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
     if (!newSiteIdA.trim() && !newSiteIdB.trim()) return;
     setCreatingRow(true);
     try {
-      const res = await fetch('/api/ericsson/rows', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          chaves: newChaves.trim(),
-          state: newState.trim(),
-          meta: newMeta.trim(),
-          siteIdA: newSiteIdA.trim().toUpperCase(),
-          idDetentoraA: newDetentoraA.trim(),
-          statusA: newStatusA.trim(),
-          cidadeA: newCidadeA.trim(),
-          siteIdB: newSiteIdB.trim().toUpperCase(),
-          idDetentoraB: newDetentoraB.trim(),
-          statusB: newStatusB.trim(),
-          cidadeB: newCidadeB.trim(),
-          equipe: newEquipe.trim(),
-          servico: newServico.trim(),
-        }),
-      });
-      const data = await res.json();
-      if (res.ok && Array.isArray(data.ericssonRows)) {
-        onUpdated(
-          data.ericssonRows,
-          data.ericssonSheetMeta,
-          `Nova linha Ericsson criada (${newSiteIdA.toUpperCase()} ↔ ${newSiteIdB.toUpperCase()})`
-        );
-        setCreateModalOpen(false);
-        setNewChaves('');
-        setNewSiteIdA('');
-        setNewSiteIdB('');
-      }
+      const newId = `eric_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+      const newRow: EricssonRow = {
+        id: newId,
+        rowKey: `${newChaves.trim()}_${newSiteIdA.trim()}_${newSiteIdB.trim()}`,
+        registro: '',
+        siteName: `${newSiteIdA.trim()} / ${newSiteIdB.trim()}`,
+        chaves: newChaves.trim(),
+        state: newState.trim(),
+        meta: newMeta.trim(),
+        siteIdA: newSiteIdA.trim().toUpperCase(),
+        idDetentoraA: newDetentoraA.trim(),
+        statusA: newStatusA.trim(),
+        cidadeA: newCidadeA.trim(),
+        siteIdB: newSiteIdB.trim().toUpperCase(),
+        idDetentoraB: newDetentoraB.trim(),
+        statusB: newStatusB.trim(),
+        cidadeB: newCidadeB.trim(),
+        equipe: newEquipe.trim(),
+        servico: newServico.trim(),
+        siteAVistoriaStatus: 'Pendente',
+        siteBVistoriaStatus: 'Pendente',
+        updatedAt: new Date().toISOString(),
+        fields: {
+          '01.00. Chaves': newChaves.trim(),
+          '00.03.State': newState.trim(),
+          Meta: newMeta.trim(),
+          '01.21.Site ID A': newSiteIdA.trim().toUpperCase(),
+          'ID Detentora A': newDetentoraA.trim(),
+          'Status A': newStatusA.trim(),
+          'CIDADE A': newCidadeA.trim(),
+          '01.21.Site ID B': newSiteIdB.trim().toUpperCase(),
+          'ID Detentora B': newDetentoraB.trim(),
+          'Status B': newStatusB.trim(),
+          'CIDADE B': newCidadeB.trim(),
+          EQUIPE: newEquipe.trim(),
+          Serviço: newServico.trim(),
+        },
+      };
+      await dataService.salvarSiteEricsson(newRow);
+      onUpdated(
+        [newRow, ...rows],
+        sheetMeta,
+        `Nova linha Ericsson criada no Firestore (${newSiteIdA.toUpperCase()} ↔ ${newSiteIdB.toUpperCase()})`
+      );
+      setCreateModalOpen(false);
+      setNewChaves('');
+      setNewSiteIdA('');
+      setNewSiteIdB('');
+    } catch (err: any) {
+      console.error('Erro ao criar linha no Firestore [ericsson_sites]:', err);
     } finally {
       setCreatingRow(false);
     }
@@ -675,46 +627,49 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
     if (!selectedRow) return;
     setSavingEdit(true);
     try {
-      const res = await fetch(`/api/ericsson/rows/${encodeURIComponent(selectedRow.id)}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          fields: editFields,
-          chaves: editFields['01.00. Chaves'],
-          state: editFields['00.03.State'],
-          meta: editFields['Meta'],
-          siteIdA: editFields['01.21.Site ID A'],
-          idDetentoraA: editFields['ID Detentora A'],
-          statusA: editFields['Status A'],
-          cidadeA: editFields['CIDADE A'],
-          siteIdB: editFields['01.21.Site ID B'],
-          idDetentoraB: editFields['ID Detentora B'],
-          statusB: editFields['Status B'],
-          cidadeB: editFields['CIDADE B'],
-          equipe: editFields['EQUIPE'],
-          servico: editFields['Serviço'],
-        }),
-      });
-      const data = await res.json();
-      if (res.ok && Array.isArray(data.ericssonRows)) {
-        onUpdated(data.ericssonRows, sheetMeta, 'Linha da planilha Ericsson atualizada!');
-        setSelectedRow(data.row);
-      }
+      const updatedRow: EricssonRow = {
+        ...selectedRow,
+        fields: editFields,
+        chaves: editFields['01.00. Chaves'] || selectedRow.chaves,
+        state: editFields['00.03.State'] || selectedRow.state,
+        meta: editFields['Meta'] || selectedRow.meta,
+        siteIdA: editFields['01.21.Site ID A'] || selectedRow.siteIdA,
+        idDetentoraA: editFields['ID Detentora A'] || selectedRow.idDetentoraA,
+        statusA: editFields['Status A'] || selectedRow.statusA,
+        cidadeA: editFields['CIDADE A'] || selectedRow.cidadeA,
+        siteIdB: editFields['01.21.Site ID B'] || selectedRow.siteIdB,
+        idDetentoraB: editFields['ID Detentora B'] || selectedRow.idDetentoraB,
+        statusB: editFields['Status B'] || selectedRow.statusB,
+        cidadeB: editFields['CIDADE B'] || selectedRow.cidadeB,
+        equipe: editFields['EQUIPE'] || selectedRow.equipe,
+        servico: editFields['Serviço'] || selectedRow.servico,
+        updatedAt: new Date().toISOString(),
+      };
+      await dataService.salvarSiteEricsson(updatedRow);
+      onUpdated(
+        rows.map((r) => (r.id === updatedRow.id ? updatedRow : r)),
+        sheetMeta,
+        'Linha da planilha Ericsson atualizada no Firestore!'
+      );
+      setSelectedRow(updatedRow);
+    } catch (err: any) {
+      console.error('Erro ao atualizar no Firestore [ericsson_sites]:', err);
     } finally {
       setSavingEdit(false);
     }
   };
 
   const handleDeleteRow = async (row: EricssonRow) => {
-    const res = await fetch(`/api/ericsson/rows/${encodeURIComponent(row.id)}`, {
-      method: 'DELETE',
-    });
-    if (res.ok) {
-      const data = await res.json();
-      if (Array.isArray(data.ericssonRows)) {
-        onUpdated(data.ericssonRows, data.ericssonSheetMeta, 'Linha removida da planilha.');
-        if (selectedRow?.id === row.id) setSelectedRow(null);
-      }
+    try {
+      await dataService.excluirSiteEricsson(row.id);
+      onUpdated(
+        rows.filter((r) => r.id !== row.id),
+        sheetMeta,
+        'Linha removida do Firestore.'
+      );
+      if (selectedRow?.id === row.id) setSelectedRow(null);
+    } catch (err: any) {
+      console.error('Erro ao excluir no Firestore [ericsson_sites]:', err);
     }
   };
 
@@ -727,47 +682,42 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
     }
     setSavingUser(true);
     try {
-      const res = await fetch('/api/ericsson/users', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: newUserName.trim(),
-          email: newUserEmail.trim(),
-          role: newUserRole,
-          equipe: newUserEquipe.trim(),
-          telefone: newUserTelefone.trim(),
-          atividade: newUserAtividade.trim(),
-        }),
+      const newUser = await dataService.registrarNovoUsuarioCorporativo({
+        name: newUserName.trim(),
+        email: newUserEmail.trim(),
+        password: 'ameta' + Math.floor(1000 + Math.random() * 9000),
+        role: newUserRole,
+        equipe: newUserEquipe.trim(),
+        telefone: newUserTelefone.trim(),
+        plataforma: 'ERICSSON',
       });
-      const data = await res.json();
-      if (!res.ok) {
-        setUserFormError(data.error || 'Erro ao cadastrar colaborador Ericsson.');
-        return;
-      }
-      if (Array.isArray(data.ericssonUsers)) {
-        onEricssonUsersUpdated(
-          data.ericssonUsers,
-          `Colaborador "${newUserName.trim()}" cadastrado no sistema Ericsson!`
-        );
-        setNewUserName('');
-        setNewUserEmail('');
-        setNewUserEquipe('');
-        setNewUserTelefone('');
-      }
+      onEricssonUsersUpdated(
+        [...ericssonUsers, newUser],
+        `Colaborador "${newUserName.trim()}" cadastrado no Firestore!`
+      );
+      setNewUserName('');
+      setNewUserEmail('');
+      setNewUserEquipe('');
+      setNewUserTelefone('');
+    } catch (err: any) {
+      console.error('Erro ao cadastrar colaborador no Firestore [usuarios]:', err);
+      setUserFormError(err?.message || 'Erro ao cadastrar colaborador no Firestore.');
     } finally {
       setSavingUser(false);
     }
   };
 
   const handleDeleteEricssonUser = async (u: AmetaUser) => {
-    const res = await fetch(`/api/ericsson/users/${encodeURIComponent(u.id)}`, {
-      method: 'DELETE',
-    });
-    if (res.ok) {
-      const data = await res.json();
-      if (Array.isArray(data.ericssonUsers)) {
-        onEricssonUsersUpdated(data.ericssonUsers, `Colaborador "${u.name}" removido.`);
-      }
+    try {
+      await dataService.bloquearUsuario(u.uid || u.id, 'Bloqueado no módulo Ericsson');
+      onEricssonUsersUpdated(
+        ericssonUsers.map((usr) =>
+          usr.id === u.id ? { ...usr, situacao: 'bloqueado' as const, accessReleased: false } : usr
+        ),
+        `Colaborador "${u.name}" bloqueado no Firestore.`
+      );
+    } catch (err: any) {
+      console.error('Erro ao bloquear colaborador no Firestore [usuarios]:', err);
     }
   };
 
@@ -1494,7 +1444,40 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200">
-                {filteredRows.map((row) => {
+                {filteredRows.length === 0 ? (
+                  <tr>
+                    <td colSpan={14} className="px-6 py-12 text-center text-slate-500">
+                      <div className="max-w-md mx-auto space-y-3">
+                        <div className="w-12 h-12 mx-auto rounded-full bg-slate-100 flex items-center justify-center text-slate-400">
+                          <FileSpreadsheet className="w-6 h-6" />
+                        </div>
+                        <div className="font-bold text-slate-800 text-sm">
+                          {rows.length === 0
+                            ? 'Nenhum site encontrado no Firestore (ericsson_sites)'
+                            : 'Nenhum site corresponde aos filtros selecionados'}
+                        </div>
+                        <p className="text-xs text-slate-500 leading-relaxed">
+                          {rows.length === 0
+                            ? 'A coleção ericsson_sites está vazia no banco ameta-sistema-teste. Utilize o botão abaixo para importar a planilha oficial (.xlsx) ou importe os dados iniciais no Painel de Admin.'
+                            : 'Tente alterar ou limpar os filtros de busca para visualizar os sites cadastrados.'}
+                        </p>
+                        {rows.length === 0 && (
+                          <div className="pt-2">
+                            <button
+                              type="button"
+                              onClick={() => setSyncModalOpen(true)}
+                              className="px-4 py-2 bg-[#1E8E8D] hover:bg-[#177372] text-white font-bold text-xs rounded-lg inline-flex items-center gap-1.5 cursor-pointer shadow-xs"
+                            >
+                              <Upload className="w-4 h-4" />
+                              <span>Importar Planilha Ericsson (.xlsx)</span>
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ) : (
+                  filteredRows.map((row) => {
                   const sA = row.statusA || row.fields?.['Status A'] || '';
                   const sB = row.statusB || row.fields?.['Status B'] || '';
 
@@ -1566,7 +1549,7 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
                       </td>
                     </tr>
                   );
-                })}
+                }))}
               </tbody>
             </table>
           </div>
@@ -1634,7 +1617,43 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200">
-                {filteredRows.map((row) => (
+                {filteredRows.length === 0 ? (
+                  <tr>
+                    <td
+                      colSpan={originalColumns.length + 6}
+                      className="px-6 py-12 text-center text-slate-500"
+                    >
+                      <div className="max-w-md mx-auto space-y-3">
+                        <div className="w-12 h-12 mx-auto rounded-full bg-slate-100 flex items-center justify-center text-slate-400">
+                          <FileSpreadsheet className="w-6 h-6" />
+                        </div>
+                        <div className="font-bold text-slate-800 text-sm">
+                          {rows.length === 0
+                            ? 'Nenhum site encontrado no Firestore (ericsson_sites)'
+                            : 'Nenhum site corresponde aos filtros selecionados'}
+                        </div>
+                        <p className="text-xs text-slate-500 leading-relaxed">
+                          {rows.length === 0
+                            ? 'A coleção ericsson_sites está vazia no banco ameta-sistema-teste. Utilize o botão abaixo para importar a planilha oficial (.xlsx) ou importe os dados iniciais no Painel de Admin.'
+                            : 'Tente alterar ou limpar os filtros de busca para visualizar os sites cadastrados.'}
+                        </p>
+                        {rows.length === 0 && (
+                          <div className="pt-2">
+                            <button
+                              type="button"
+                              onClick={() => setSyncModalOpen(true)}
+                              className="px-4 py-2 bg-[#1E8E8D] hover:bg-[#177372] text-white font-bold text-xs rounded-lg inline-flex items-center gap-1.5 cursor-pointer shadow-xs"
+                            >
+                              <Upload className="w-4 h-4" />
+                              <span>Importar Planilha Ericsson (.xlsx)</span>
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ) : (
+                  filteredRows.map((row) => (
                   <tr
                     key={row.id}
                     onClick={() => {
@@ -1705,7 +1724,7 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
                       {renderVistoriaOrLosCell(row, 'SDC')}
                     </td>
                   </tr>
-                ))}
+                )))}
               </tbody>
             </table>
           </div>

@@ -262,6 +262,7 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
       }
     >
   >({});
+  const [confirmedApprovals, setConfirmedApprovals] = useState<Record<string, boolean>>({});
 
   const getPendingDraft = (u: AmetaUser) => {
     const key = u.email.toLowerCase();
@@ -287,6 +288,11 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
   };
 
   const handleApprovePendingUser = async (target: AmetaUser) => {
+    const userKey = (target.id || target.email).toLowerCase();
+    if (!confirmedApprovals[userKey]) {
+      setError(`Obrigatório confirmar a Função e a Plataforma antes de liberar o acesso de ${target.name}.`);
+      return;
+    }
     const draft = getPendingDraft(target);
     const resolvedEquipe =
       draft.equipe.trim() ||
@@ -751,19 +757,56 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
     }
   };
 
+  const [importingInitial, setImportingInitial] = useState(false);
+  const [initialDataStatus, setInitialDataStatus] = useState<string | null>(null);
+  const [initialImportSuccessNotice, setInitialImportSuccessNotice] = useState<string | null>(null);
+
+  const handleImportInitialData = async () => {
+    const ok = window.confirm(
+      'Deseja importar a base inicial completa (Sites Nokia, Sites Ericsson, Usuários, Configurações de Duplas e Notificações) de public/initial-db.json para o Firestore em lotes?\n\nEssa rotina não apagará nem sobrescreverá dados já existentes.'
+    );
+    if (!ok) return;
+    setImportingInitial(true);
+    setInitialDataStatus('Iniciando importação...');
+    try {
+      const res = await dataService.importarDadosIniciais((msg) => {
+        setInitialDataStatus(msg);
+      });
+      const successNotice = `Importação concluída com sucesso! • ${res.totalSites} Sites Nokia gravados • ${res.totalEricsson} Sites Ericsson gravados • ${res.totalUsers} Usuários gravados. ⚠️ IMPORTANTE: A base já está salva no Firestore. Você já pode remover o arquivo "public/initial-db.json" do repositório para economizar espaço e manter a segurança.`;
+      setInitialImportSuccessNotice(successNotice);
+      alert(
+        `Importação concluída com sucesso!\n• ${res.totalSites} Sites Nokia gravados\n• ${res.totalEricsson} Sites Ericsson gravados\n• ${res.totalUsers} Usuários gravados\n\n⚠️ IMPORTANTE: A base já está salva no Firestore. Você já pode remover o arquivo "public/initial-db.json" do repositório para economizar espaço e manter a segurança.`
+      );
+    } catch (err: any) {
+      console.error('Erro na importação inicial:', err);
+      setError(`Falha ao importar dados iniciais no Firestore: ${err?.code || err?.message || err}`);
+    } finally {
+      setImportingInitial(false);
+      setInitialDataStatus(null);
+    }
+  };
+
   const handleDeleteResource = async (u: AmetaUser) => {
     if (isOwnerAdmUser(u.email, u.situacao)) return;
+    const ok = window.confirm(
+      `Deseja bloquear o acesso de ${u.name} (${u.email})?\n\nO status passará para "bloqueado" e o acesso ao sistema será revogado imediatamente no Firestore. A conta no Firebase Authentication continua existindo e não poderá fazer login.`
+    );
+    if (!ok) return;
     try {
-      await deleteDoc(doc(db, 'usuarios', u.uid || u.id));
+      await dataService.bloquearUsuario(u.uid || u.id, 'Bloqueado no painel administrativo');
       if (onUsersUpdated) {
         onUsersUpdated(
-          users.filter((usr) => usr.id !== u.id && usr.uid !== u.uid),
-          `Recurso ${u.name} removido`
+          users.map((usr) =>
+            usr.id === u.id || usr.uid === u.uid
+              ? { ...usr, situacao: 'bloqueado' as const, accessReleased: false }
+              : usr
+          ),
+          `Usuário ${u.name} bloqueado no Firestore (acesso revogado). A conta no Authentication continua existindo.`
         );
       }
     } catch (err: any) {
-      console.error('Erro ao excluir usuário:', err);
-      setError(`Erro ao excluir usuário no Firestore: ${err?.message || err}`);
+      console.error('Erro ao bloquear usuário no Firestore [usuarios]:', err);
+      setError(`Erro ao bloquear usuário no Firestore [usuarios]: ${err?.code || err?.message || err}`);
     }
   };
 
@@ -862,6 +905,21 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
 
           <button
             type="button"
+            onClick={handleImportInitialData}
+            disabled={importingInitial}
+            className="px-3.5 py-2 bg-emerald-700 hover:bg-emerald-800 disabled:opacity-50 text-white text-xs font-semibold rounded-lg flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
+            title="Importar base completa de dados iniciais (Sites Nokia, Ericsson, Usuários e Duplas) para o Firestore"
+          >
+            {importingInitial ? (
+              <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+            ) : (
+              <Download className="w-3.5 h-3.5" />
+            )}
+            <span>{importingInitial ? (initialDataStatus || 'Importando...') : 'Importar Dados Iniciais'}</span>
+          </button>
+
+          <button
+            type="button"
             onClick={() => {
               setError(null);
               resetNewResourceForm();
@@ -875,8 +933,34 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
         </div>
       </div>
 
+      {/* Aviso pós-importação da base inicial */}
+      {initialImportSuccessNotice && (
+        <div className="p-4 rounded-xl bg-amber-50 border-2 border-amber-400 text-amber-950 flex items-start justify-between gap-3 shadow-sm">
+          <div className="flex items-start gap-3">
+            <span className="text-xl">⚠️</span>
+            <div>
+              <h4 className="font-bold text-sm text-amber-900">Importação Inicial Concluída no Firestore</h4>
+              <p className="text-xs text-amber-800 mt-1 leading-relaxed">
+                {initialImportSuccessNotice}
+              </p>
+              <p className="text-xs font-black text-amber-950 mt-1.5">
+                ➡️ Ação recomendada: Você já pode remover o arquivo <code className="bg-amber-100 px-1.5 py-0.5 rounded font-mono border border-amber-300">public/initial-db.json</code> do repositório.
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setInitialImportSuccessNotice(null)}
+            className="p-1.5 text-amber-800 hover:text-amber-950 hover:bg-amber-200/60 rounded-lg cursor-pointer"
+            title="Fechar aviso"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
       {/* Painel de Liberação de Novos Usuários que Solicitam Cadastro */}
-      <div className="bg-amber-50/90 border-2 border-amber-300 rounded-xl p-4 space-y-3 shadow-2xs">
+      <div id="pending-approvals-section" className="bg-amber-50/90 border-2 border-amber-300 rounded-xl p-4 space-y-3 shadow-2xs">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2.5">
             <span className="px-2.5 py-0.5 rounded-full bg-amber-600 text-white font-black text-xs">
@@ -903,32 +987,45 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
             {pendingApprovalUsers.map((u) => {
               const draft = getPendingDraft(u);
               const isBusy = updatingUserId === u.id;
+              const cardId = `pending-user-${(u.id || u.email).toLowerCase()}`;
               return (
                 <div
                   key={u.id}
-                  className="p-3.5 rounded-xl bg-white border border-amber-300 flex flex-col lg:flex-row lg:items-center justify-between gap-3 shadow-2xs"
+                  id={cardId}
+                  className="p-3.5 rounded-xl bg-white border border-amber-300 flex flex-col lg:flex-row lg:items-center justify-between gap-3 shadow-2xs transition-all duration-300"
                 >
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-bold text-sm text-slate-900">{u.name}</span>
                       <span className="px-2 py-0.5 rounded bg-amber-100 border border-amber-300 text-amber-900 text-[10px] font-bold uppercase">
-                        Aguardando Liberação
+                        {u.situacao === 'bloqueado' ? 'Bloqueado (Liberar)' : 'Aguardando Liberação'}
                       </span>
                     </div>
                     <div className="text-xs font-mono text-slate-600 mt-0.5">{u.email}</div>
+                    
+                    {/* Exibição clara do perfil e da plataforma pedidos no cadastro */}
+                    <div className="mt-2 p-2 rounded-lg bg-amber-100/70 border border-amber-300 flex flex-wrap items-center gap-2 text-xs">
+                      <span className="font-bold text-amber-950">📋 Solicitado no cadastro:</span>
+                      <span className="px-2 py-0.5 rounded bg-white text-indigo-700 font-extrabold border border-indigo-200">
+                        Perfil: {u.role || 'Vistoriador'}
+                      </span>
+                      <span className="px-2 py-0.5 rounded bg-white text-slate-800 font-bold border border-slate-200">
+                        Plataforma: {u.plataforma || u.assignedPlatform || 'NOKIA'}
+                      </span>
+                    </div>
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 flex-1 max-w-2xl">
                     <div>
-                      <label className="block text-[10px] uppercase text-slate-500 font-bold mb-0.5">
-                        Função
+                      <label className="block text-[10px] uppercase text-slate-700 font-extrabold mb-0.5">
+                        Função a Liberar *
                       </label>
                       <select
                         value={draft.role}
                         onChange={(e) =>
                           updatePendingDraft(u, { role: e.target.value as UserRole })
                         }
-                        className="w-full px-2.5 py-1.5 rounded-lg bg-slate-50 border border-slate-300 text-xs font-bold text-slate-900"
+                        className="w-full px-2.5 py-1.5 rounded-lg bg-white border-2 border-indigo-300 focus:border-indigo-600 text-xs font-bold text-slate-900"
                       >
                         <option value="Vistoriador">Vistoriador</option>
                         <option value="Executor">Executor</option>
@@ -938,8 +1035,8 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
                     </div>
 
                     <div>
-                      <label className="block text-[10px] uppercase text-slate-500 font-bold mb-0.5">
-                        Plataforma
+                      <label className="block text-[10px] uppercase text-slate-700 font-extrabold mb-0.5">
+                        Plataforma a Liberar *
                       </label>
                       <select
                         value={draft.plataforma}
@@ -948,7 +1045,7 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
                             plataforma: e.target.value as AssignedPlatformScope,
                           })
                         }
-                        className="w-full px-2.5 py-1.5 rounded-lg bg-slate-50 border border-slate-300 text-xs font-bold text-slate-900"
+                        className="w-full px-2.5 py-1.5 rounded-lg bg-white border-2 border-indigo-300 focus:border-indigo-600 text-xs font-bold text-slate-900"
                       >
                         <option value="NOKIA">TIM / Nokia</option>
                         <option value="ERICSSON">Ericsson</option>
@@ -968,14 +1065,38 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
                         className="w-full px-2.5 py-1.5 rounded-lg bg-slate-50 border border-slate-300 text-xs text-slate-900"
                       />
                     </div>
+
+                    <div className="sm:col-span-3 pt-1">
+                      <label className="inline-flex items-center gap-2 text-xs font-bold text-slate-800 cursor-pointer p-1.5 rounded-md hover:bg-amber-100/50">
+                        <input
+                          type="checkbox"
+                          checked={Boolean(confirmedApprovals[(u.id || u.email).toLowerCase()])}
+                          onChange={(e) =>
+                            setConfirmedApprovals((prev) => ({
+                              ...prev,
+                              [(u.id || u.email).toLowerCase()]: e.target.checked,
+                            }))
+                          }
+                          className="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+                        />
+                        <span>
+                          Confirmo perfil <strong>{draft.role}</strong> e plataforma <strong>{draft.plataforma === 'BOTH' ? 'Ambas' : draft.plataforma}</strong> para liberar o acesso
+                        </span>
+                      </label>
+                    </div>
                   </div>
 
                   <div className="flex items-center gap-2 shrink-0">
                     <button
                       type="button"
-                      disabled={isBusy}
+                      disabled={isBusy || !confirmedApprovals[(u.id || u.email).toLowerCase()]}
                       onClick={() => handleApprovePendingUser(u)}
-                      className="px-3.5 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                      className="px-3.5 py-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold text-xs flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                      title={
+                        !confirmedApprovals[(u.id || u.email).toLowerCase()]
+                          ? 'Marque a confirmação obrigatória de Perfil e Plataforma para liberar'
+                          : 'Liberar Acesso do usuário'
+                      }
                     >
                       <CheckCircle2 className="w-4 h-4" />
                       <span>{isBusy ? 'Liberando...' : 'Liberar Acesso'}</span>
@@ -1332,13 +1453,19 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
                                     type="button"
                                     disabled={isUpdating}
                                     onClick={() => {
-                                      const currSit =
-                                        u.situacao ||
-                                        (u.accessReleased === false ? 'aguardando' : 'ativo');
-                                      const nextSit: UserSituacao =
-                                        currSit === 'aguardando' || currSit === 'bloqueado'
-                                          ? 'ativo'
-                                          : 'bloqueado';
+                                      if (u.situacao === 'aguardando' || u.accessReleased === false) {
+                                        const cardId = `pending-user-${(u.id || u.email).toLowerCase()}`;
+                                        const el = document.getElementById(cardId) || document.getElementById('pending-approvals-section');
+                                        if (el) {
+                                          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                          el.classList.add('ring-4', 'ring-amber-400');
+                                          setTimeout(() => el.classList.remove('ring-4', 'ring-amber-400'), 3000);
+                                        }
+                                        setError(`Obrigatório confirmar ou alterar o perfil e a plataforma antes de liberar o acesso de ${u.name}. Utilize o cartão de liberação acima.`);
+                                        return;
+                                      }
+                                      const currSit = u.situacao || 'ativo';
+                                      const nextSit: UserSituacao = currSit === 'bloqueado' ? 'ativo' : 'bloqueado';
                                       handlePlatformAndSituacaoChange(
                                         u,
                                         u.plataforma || u.assignedPlatform || 'NOKIA',
@@ -1354,7 +1481,7 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
                                     }`}
                                     title={
                                       u.situacao === 'aguardando' || u.accessReleased === false
-                                        ? 'Clique para Liberar acesso deste usuário'
+                                        ? 'Clique para ir ao formulário de confirmação de perfil e liberação'
                                         : u.situacao === 'bloqueado'
                                           ? 'Clique para Desbloquear este usuário'
                                           : 'Usuário Ativo — Clique para Bloquear'

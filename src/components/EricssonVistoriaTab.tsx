@@ -49,6 +49,7 @@ import {
   doesEricssonRowMatchResponsible,
   doesFileMatchUserResponsibleSites,
 } from '../utils/spreadsheetUtils';
+import { dataService } from '../services/dataService';
 import {
   rowMatchesEricssonDocGroup,
   normalizeEricssonRealStatus,
@@ -961,32 +962,31 @@ export const EricssonVistoriaTab: React.FC<EricssonVistoriaTabProps> = ({
     }
     setCreatingFolder(true);
     try {
-      const res = await fetch('/api/ericsson/folders', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: newFolderName.trim(),
-          parentId: newFolderParentId || effectiveFolderId || 'folder-ericsson-root',
-          description: newFolderDescription.trim(),
-          createdByName: user.name,
-          createdByEmail: user.email,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setFolderError(data.error || 'Não foi possível criar a pasta.');
-        return;
-      }
+      const folderId = `eric_folder_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+      const newFolder: EngineeringFolder = {
+        id: folderId,
+        name: newFolderName.trim(),
+        parentId: newFolderParentId || effectiveFolderId || 'folder-ericsson-root',
+        vendor: 'ERICSSON',
+        description: newFolderDescription.trim(),
+        createdByName: user.name,
+        createdByEmail: user.email,
+        createdAt: new Date().toISOString(),
+      };
+      await dataService.salvarPastaEricsson(newFolder);
       onUpdated(
         rows,
         sheetMeta,
-        `Pasta "${data.folder.name}" criada com sucesso!`,
-        data.ericssonFolders,
-        data.ericssonFiles
+        `Pasta "${newFolder.name}" criada com sucesso no Firestore (ericsson_pastas)!`,
+        [...folders, newFolder],
+        files
       );
       setNewFolderModalOpen(false);
-    } catch {
-      setFolderError('Falha de conexão ao criar pasta.');
+      setNewFolderName('');
+      setNewFolderDescription('');
+    } catch (err: any) {
+      console.error(err);
+      setFolderError(`Falha ao criar pasta no Firestore [ericsson_pastas]: ${err?.message || err}`);
     } finally {
       setCreatingFolder(false);
     }

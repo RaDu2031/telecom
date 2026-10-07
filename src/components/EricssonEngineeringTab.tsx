@@ -51,6 +51,7 @@ import {
   isEricssonRowReproved,
 } from '../utils/ericssonSpreadsheetUtils';
 import { doesEricssonRowMatchResponsible } from '../utils/spreadsheetUtils';
+import { dataService } from '../services/dataService';
 import { EricssonConsolidatedTopPanel } from './EricssonConsolidatedTopPanel';
 import { EricssonEngineeringDrawer } from './EricssonEngineeringDrawer';
 import {
@@ -145,38 +146,53 @@ export const EricssonEngineeringTab: React.FC<EricssonEngineeringTabProps> = ({
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isUploadingFile, setIsUploadingFile] = useState<boolean>(false);
 
-  // Fetch initial data
+  // Fetch initial data from Firestore
   const loadData = async () => {
     try {
       setIsLoading(true);
-      const [resData, resRep, resInit] = await Promise.all([
-        fetch('/api/ericsson/engenharia/data'),
-        fetch('/api/ericsson/engenharia/reprovacoes'),
-        fetch('/api/initial-data'),
+      const [engRows, repRows] = await Promise.all([
+        dataService.carregarEricssonEngenharia(),
+        dataService.carregarEricssonReprovacoes(),
       ]);
 
-      if (resData.ok) {
-        const data = await resData.json();
-        if (Array.isArray(data.rows)) setRows(data.rows);
-        if (data.meta) setMeta(data.meta);
-        if (Array.isArray(data.columns) && data.columns.length > 0) setColumns(data.columns);
-      }
-
-      if (resRep.ok) {
-        const repData = await resRep.json();
-        if (Array.isArray(repData.reprovacoes)) {
-          setReprovacoes(repData.reprovacoes);
+      if (Array.isArray(engRows) && engRows.length > 0) {
+        setRows(engRows as EricssonEngineeringRow[]);
+      } else {
+        // Fallback: carregar sites da coleção ericsson_sites
+        const sites = await dataService.carregarSitesEricsson();
+        if (Array.isArray(sites) && sites.length > 0) {
+          const mapped: EricssonEngineeringRow[] = sites.map((s, idx) => {
+            const intervencao = (
+              s.fields?.['Intervencao Claro'] ||
+              s.fields?.['Intervenção Claro'] ||
+              `${s.siteIdA || ''}${s.siteIdB ? `-${s.siteIdB}` : ''}`
+            ).trim();
+            return {
+              id: s.id || `eric_eng_${idx}`,
+              rowKey: s.rowKey || `${intervencao}_${idx}`,
+              intervencaoClaro: intervencao,
+              siteIdA: s.siteIdA || '',
+              siteIdB: s.siteIdB || '',
+              statusA: s.statusA || s.siteAVistoriaStatus || 'Pendente',
+              statusB: s.statusB || s.siteBVistoriaStatus || '',
+              tipoDoc: s.fields?.['Tipo doc'] || 'WR',
+              status: s.fields?.['Status'] || s.statusA || '',
+              regional: s.state || s.fields?.['Regional'] || '',
+              tipoSite: s.fields?.['TIPO SITE'] || '',
+              executor: s.equipe || s.fields?.['EXECUTOR'] || '',
+              fields: s.fields || {},
+              updatedAt: s.updatedAt || new Date().toISOString(),
+            };
+          });
+          setRows(mapped);
         }
       }
 
-      if (resInit.ok) {
-        const initData = await resInit.json();
-        if (Array.isArray(initData.ericssonFiles)) {
-          setEricssonFiles(initData.ericssonFiles);
-        }
+      if (Array.isArray(repRows) && repRows.length > 0) {
+        setReprovacoes(repRows as EricssonReprovacaoRecord[]);
       }
     } catch (e) {
-      console.error('Failed to load Ericsson engineering data:', e);
+      console.error('Failed to load Ericsson engineering data from Firestore:', e);
     } finally {
       setIsLoading(false);
     }
@@ -186,23 +202,21 @@ export const EricssonEngineeringTab: React.FC<EricssonEngineeringTabProps> = ({
     loadData();
   }, []);
 
-  // Register Reprovação handler
+  // Register Reprovação handler in Firestore
   const handleRegisterReprovacao = async (record: Omit<EricssonReprovacaoRecord, 'id' | 'createdAt'>) => {
     try {
-      const res = await fetch('/api/ericsson/engenharia/reprovacoes', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(record),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        if (data.reprovacoes) setReprovacoes(data.reprovacoes);
-        showToast(`Reprovação registrada para o site ${record.intervencaoClaro}.`);
-        loadData();
-      }
-    } catch (err) {
-      console.error('Erro ao registrar reprovação:', err);
-      showToast('Erro ao salvar reprovação.');
+      const docId = `rep_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+      const fullRecord: EricssonReprovacaoRecord = {
+        ...record,
+        id: docId,
+        createdAt: new Date().toISOString(),
+      };
+      await dataService.salvarEricssonReprovacao(fullRecord);
+      setReprovacoes((prev) => [fullRecord, ...prev]);
+      showToast(`Reprovação registrada no Firestore para o site ${record.intervencaoClaro}.`);
+    } catch (err: any) {
+      console.error('Erro ao registrar reprovação no Firestore:', err);
+      showToast(`Erro ao salvar reprovação: ${err?.message || err}`);
     }
   };
 
@@ -543,34 +557,15 @@ export const EricssonEngineeringTab: React.FC<EricssonEngineeringTabProps> = ({
   ]);
 
   // Sync OneDrive
-  const handleSyncOneDrive = async (targetUrl: string) => {
-    try {
-      setIsSyncingOneDrive(true);
-      const res = await fetch('/api/ericsson/engenharia/import-onedrive', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: targetUrl }),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setRows(data.rows || []);
-        if (data.meta) setMeta(data.meta);
-        setIsOneDriveModalOpen(false);
-        showToast(
-          `Planilha Ericsson sincronizada com sucesso! (${data.count} linhas carregadas)`
-        );
-      } else {
-        const err = await res.json();
-        showToast(`Erro na sincronização: ${err.error || 'Falha ao acessar o OneDrive'}`);
-      }
-    } catch (e) {
-      showToast('Erro de conexão ao sincronizar com o OneDrive.');
-    } finally {
-      setIsSyncingOneDrive(false);
-    }
+  const handleSyncOneDrive = async (_targetUrl: string) => {
+    setIsSyncingOneDrive(false);
+    setIsOneDriveModalOpen(false);
+    showToast(
+      'Para importar no momento, selecione seu arquivo .xlsx pelo botão "Importar Planilha (.xlsx)". O suporte a proxy OneDrive via Worker Cloudflare está em avaliação.'
+    );
   };
 
-  // Local Excel file upload
+  // Local Excel file upload directly to Firestore in batches
   const handleUploadLocalFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -634,7 +629,7 @@ export const EricssonEngineeringTab: React.FC<EricssonEngineeringTabProps> = ({
         }
 
         parsed.push({
-          id: `eric-eng-up-${r}`,
+          id: `eric_eng_${r}_${Date.now()}`,
           rowKey: `${intervencao}__${fields['Tipo doc'] || ''}__${r}`,
           intervencaoClaro: intervencao,
           siteIdA: siteA || `SITE_${r}`,
@@ -653,29 +648,21 @@ export const EricssonEngineeringTab: React.FC<EricssonEngineeringTabProps> = ({
         });
       }
 
-      // Send to backend
-      const res = await fetch('/api/ericsson/engenharia/import-rows', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          rows: parsed,
-          columns: cols,
-          tabName: sheetName,
-          sourceFileName: file.name,
-        }),
+      // Gravando em lote diretamente no Firestore
+      showToast(`Gravando ${parsed.length} linhas no Firestore (ericsson_engenharia)...`);
+      await dataService.importarEricssonEngenhariaEmLote(parsed);
+      setRows(parsed);
+      setColumns(cols);
+      setMeta({
+        tabName: sheetName,
+        sourceFileName: file.name,
+        lastSyncAt: now,
+        totalRows: parsed.length,
       });
-
-      if (res.ok) {
-        const data = await res.json();
-        setRows(data.rows || parsed);
-        setColumns(cols);
-        showToast(`Planilha importada com sucesso! (${parsed.length} linhas carregadas)`);
-      } else {
-        showToast('Erro ao gravar planilha importada no servidor.');
-      }
-    } catch (err) {
+      showToast(`Planilha importada com sucesso! (${parsed.length} linhas gravadas no Firestore)`);
+    } catch (err: any) {
       console.error(err);
-      showToast('Falha ao processar arquivo .xlsx.');
+      showToast(`Falha ao processar arquivo .xlsx no Firestore: ${err?.message || err}`);
     } finally {
       if (e.target) e.target.value = '';
     }
@@ -742,34 +729,32 @@ export const EricssonEngineeringTab: React.FC<EricssonEngineeringTabProps> = ({
 
     try {
       if (editingRow) {
-        const res = await fetch(`/api/ericsson/engenharia/rows/${editingRow.id}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-        });
-        if (res.ok) {
-          const data = await res.json();
-          setRows((prev) =>
-            prev.map((r) => (r.id === editingRow.id ? data.row : r))
-          );
-          setEditingRow(null);
-          showToast('Linha atualizada com sucesso!');
-        }
+        const updatedRow: EricssonEngineeringRow = {
+          ...editingRow,
+          ...payload,
+          updatedAt: new Date().toISOString(),
+        } as EricssonEngineeringRow;
+        await dataService.salvarEricssonEngenhariaRow(updatedRow);
+        setRows((prev) =>
+          prev.map((r) => (r.id === editingRow.id ? updatedRow : r))
+        );
+        setEditingRow(null);
+        showToast('Linha atualizada com sucesso no Firestore (ericsson_engenharia)!');
       } else {
-        const res = await fetch('/api/ericsson/engenharia/rows', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-        });
-        if (res.ok) {
-          const data = await res.json();
-          setRows((prev) => [data.row, ...prev]);
-          setIsNewRowModalOpen(false);
-          showToast('Nova linha adicionada com sucesso!');
-        }
+        const newId = `eric_eng_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+        const newRow: EricssonEngineeringRow = {
+          id: newId,
+          ...payload,
+          updatedAt: new Date().toISOString(),
+        } as EricssonEngineeringRow;
+        await dataService.salvarEricssonEngenhariaRow(newRow);
+        setRows((prev) => [newRow, ...prev]);
+        setIsNewRowModalOpen(false);
+        showToast('Nova linha adicionada no Firestore (ericsson_engenharia)!');
       }
-    } catch (e) {
-      showToast('Erro ao salvar dados no servidor.');
+    } catch (e: any) {
+      console.error(e);
+      showToast(`Erro ao salvar dados no Firestore: ${e?.message || e}`);
     }
   };
 
@@ -778,15 +763,12 @@ export const EricssonEngineeringTab: React.FC<EricssonEngineeringTabProps> = ({
       return;
     }
     try {
-      const res = await fetch(`/api/ericsson/engenharia/rows/${id}`, {
-        method: 'DELETE',
-      });
-      if (res.ok) {
-        setRows((prev) => prev.filter((r) => r.id !== id));
-        showToast('Linha excluída com sucesso.');
-      }
-    } catch {
-      showToast('Erro ao excluir linha.');
+      await dataService.excluirEricssonEngenhariaRow(id);
+      setRows((prev) => prev.filter((r) => r.id !== id));
+      showToast('Linha excluída com sucesso do Firestore.');
+    } catch (err: any) {
+      console.error(err);
+      showToast(`Erro ao excluir linha: ${err?.message || err}`);
     }
   };
 
@@ -802,35 +784,46 @@ export const EricssonEngineeringTab: React.FC<EricssonEngineeringTabProps> = ({
       const reader = new FileReader();
       reader.onload = async () => {
         const base64Data = reader.result as string;
-        const res = await fetch('/api/ericsson/engenharia/upload-file', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            rowId: attachingFileRow.id,
-            fileName: selectedFile.name,
-            fileDataUrl: base64Data,
-            uploaderName: user.name,
-            uploaderEmail: user.email,
-          }),
-        });
+        const fileId = `file_eric_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+        const engFile: EngineeringFile = {
+          id: fileId,
+          folderId: 'ericsson_root',
+          vendor: 'ERICSSON',
+          fileName: selectedFile.name,
+          fileType: 'other',
+          extension: selectedFile.name.includes('.') ? `.${selectedFile.name.split('.').pop()}` : '',
+          fileSize: selectedFile.size,
+          intervencaoClaro: attachingFileRow.intervencaoClaro,
+          uploadedByName: user.name,
+          uploadedByEmail: user.email,
+          uploadedAt: new Date().toISOString(),
+          dataUrl: base64Data,
+        };
 
-        if (res.ok) {
-          const data = await res.json();
-          setRows((prev) =>
-            prev.map((r) => (r.id === attachingFileRow.id ? data.row : r))
-          );
-          showToast(`Arquivo "${selectedFile.name}" anexado com sucesso!`);
-          setAttachingFileRow(null);
-          setSelectedFile(null);
-        } else {
-          showToast('Erro ao enviar anexo.');
-        }
+        await dataService.salvarArquivoEricsson(engFile);
+
+        const updatedRow: EricssonEngineeringRow = {
+          ...attachingFileRow,
+          vistoriaFileId: fileId,
+          vistoriaFileName: selectedFile.name,
+          vistoriaFileUrl: base64Data,
+          updatedAt: new Date().toISOString(),
+        };
+
+        await dataService.salvarEricssonEngenhariaRow(updatedRow);
+
+        setRows((prev) =>
+          prev.map((r) => (r.id === attachingFileRow.id ? updatedRow : r))
+        );
+        showToast(`Arquivo "${selectedFile.name}" anexado e salvo no Firestore!`);
+        setAttachingFileRow(null);
+        setSelectedFile(null);
         setIsUploadingFile(false);
       };
       reader.readAsDataURL(selectedFile);
-    } catch (e) {
+    } catch (e: any) {
       setIsUploadingFile(false);
-      showToast('Falha no upload do arquivo.');
+      showToast(`Falha no upload do arquivo: ${e?.message || e}`);
     }
   };
 

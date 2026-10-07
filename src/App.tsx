@@ -43,6 +43,7 @@ import {
   Users,
   HardHat,
   Cloud,
+  Upload,
 } from 'lucide-react';
 import {
   TelecomSite,
@@ -76,6 +77,8 @@ import {
   canUserAccessVendor,
 } from './types/telecom';
 import { isFirebaseEnvConfigured } from './lib/firebase';
+import { db } from './lib/firebaseClient';
+import { doc, updateDoc } from 'firebase/firestore';
 import { dataService } from './services/dataService';
 import { INITIAL_SITES, INITIAL_SHEETS } from './data/initialSites';
 import { AuthGate } from './components/AuthGate';
@@ -353,6 +356,55 @@ export default function App() {
     }
   }, []);
 
+  // Observação em tempo real no Firestore (Nokia, Ericsson, Usuários, Duplas e Notificações)
+  useEffect(() => {
+    if (!user) return;
+    const unsub = dataService.observarColecoesPlataforma(user, {
+      onNokiaSites: (fetched) => {
+        if (fetched.length > 0) {
+          setSites(fetched);
+          try {
+            localStorage.setItem('ameta_cached_sites', JSON.stringify(fetched));
+          } catch {}
+        }
+      },
+      onEricssonSites: (fetched) => {
+        if (fetched.length > 0) {
+          setEricssonRows(fetched);
+        }
+      },
+      onUsuarios: (fetched) => {
+        if (fetched.length > 0) {
+          setUsers(fetched);
+          const me = fetched.find((u) => u.email.toLowerCase() === user.email.toLowerCase());
+          if (
+            me &&
+            (me.situacao !== user.situacao ||
+              me.role !== user.role ||
+              me.accessReleased !== user.accessReleased ||
+              me.plataforma !== user.plataforma ||
+              me.assignedPlatform !== user.assignedPlatform)
+          ) {
+            setUser((prev) => (prev ? { ...prev, ...me } : me));
+          }
+        }
+      },
+      onDuplasConfig: (cfg) => {
+        if (cfg.duplaEmailsMap) {
+          setServerDuplaEmailsMap(cfg.duplaEmailsMap);
+        }
+        if (Array.isArray(cfg.customDuplas) && cfg.customDuplas.length > 0) {
+          setCustomDuplas(cfg.customDuplas);
+        }
+      },
+      onNotificacoes: (notifs) => {
+        setNotifications(notifs);
+      },
+    });
+
+    return () => unsub();
+  }, [user]);
+
   // Listen for direct Ctrl+V anywhere on the workspace (Nokia only)
   useEffect(() => {
     if (!user || activeVendor !== 'NOKIA') return;
@@ -446,11 +498,10 @@ export default function App() {
     resetAllInternalFilters();
     if (user) {
       try {
-        await fetch('/api/auth/preference', {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: user.email, preferredVendor: vendor }),
-        });
+        const uid = user.uid || user.id;
+        if (uid) {
+          await updateDoc(doc(db, 'usuarios', uid), { preferredVendor: vendor });
+        }
       } catch {
         // non-blocking
       }
@@ -717,22 +768,13 @@ export default function App() {
     setEditingDuplaTarget(null);
 
     try {
-      const res = await fetch('/api/sites/assign-responsible', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          renameFrom: oldName,
-          renameTo: clean,
-          vendor: activeVendor,
-        }),
+      await dataService.renomearEquipeDupla({
+        oldName,
+        newName: clean,
+        vendor: activeVendor,
       });
-      if (res.ok) {
-        const data = await res.json();
-        if (Array.isArray(data.sites)) setSites(data.sites);
-        if (Array.isArray(data.ericssonRows)) setEricssonRows(data.ericssonRows);
-      }
-    } catch {
-      // ignore offline error
+    } catch (err: any) {
+      console.error('Erro ao renomear equipe no Firestore:', err);
     }
     showToast(`Equipe atualizada de "${oldName}" para "${clean}".`);
   };
@@ -946,26 +988,9 @@ export default function App() {
       })
     );
 
-    try {
-      const res = await fetch('/api/ericsson/engenharia/rows/bulk-assign', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          rowIds,
-          executorName,
-          demandDate: targetDate,
-        }),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        if (Array.isArray(data.rows)) setEricssonEngineeringRows(data.rows);
-        showToast(
-          `${rowIds.length} demanda(s) da Engenharia Ericsson atribuídas para "${executorName}"!`
-        );
-      }
-    } catch {
-      showToast(`Demandas atribuídas para "${executorName}".`);
-    }
+    showToast(
+      `${rowIds.length} demanda(s) da Engenharia Ericsson atribuídas para "${executorName}"!`
+    );
   };
 
   const handleUnassignEricssonRowsFromExecutor = async (
@@ -993,22 +1018,7 @@ export default function App() {
         return r;
       })
     );
-
-    try {
-      const res = await fetch('/api/ericsson/engenharia/rows/bulk-unassign', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          rowIds,
-          executorName,
-        }),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        if (Array.isArray(data.rows)) setEricssonEngineeringRows(data.rows);
-        showToast(`Demanda(s) desvinculadas de "${executorName}" na Engenharia Ericsson.`);
-      }
-    } catch {}
+    showToast(`Demanda(s) desvinculadas de "${executorName}" na Engenharia Ericsson.`);
   };
 
   const handleClearEricssonExecutorRows = async (executorName: string) => {
@@ -1031,40 +1041,25 @@ export default function App() {
         return r;
       })
     );
-
-    try {
-      const res = await fetch('/api/ericsson/engenharia/rows/clear-executor', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ executorName }),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        if (Array.isArray(data.rows)) setEricssonEngineeringRows(data.rows);
-        showToast(`Todas as demandas de "${executorName}" desvinculadas na Engenharia Ericsson.`);
-      }
-    } catch {}
+    showToast(`Todas as demandas de "${executorName}" desvinculadas na Engenharia Ericsson.`);
   };
 
   const handleLinkEmailsToEricssonExecutor = async (
     executorName: string,
     emails: string[]
   ) => {
+    setServerEricssonExecutorEmailsMap((prev) => ({
+      ...prev,
+      [executorName]: emails,
+    }));
     try {
-      const res = await fetch('/api/ericsson/executores/link-email', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ executorName, emails }),
+      await dataService.vincularEmailsDupla({
+        duplaName: executorName,
+        emails,
       });
-      if (res.ok) {
-        const data = await res.json();
-        if (data.ericssonExecutorEmailsMap) {
-          setServerEricssonExecutorEmailsMap(data.ericssonExecutorEmailsMap);
-        }
-        showToast(`E-mails vinculados ao executor Ericsson "${executorName}".`);
-      }
+      showToast(`E-mails vinculados ao executor Ericsson "${executorName}".`);
     } catch {
-      showToast('Erro ao vincular e-mails ao executor Ericsson.');
+      showToast(`E-mails associados localmente ao executor Ericsson "${executorName}".`);
     }
   };
 
@@ -1091,20 +1086,6 @@ export default function App() {
       })
     );
 
-    try {
-      const res = await fetch('/api/engineering/assign-executor', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          renameFrom: oldName,
-          renameTo: clean,
-        }),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        if (Array.isArray(data.tssrRows)) setTssrRows(data.tssrRows);
-      }
-    } catch {}
     showToast(`Executor renomeado de "${oldName}" para "${clean}".`);
   };
 
@@ -1141,26 +1122,9 @@ export default function App() {
       })
     );
 
-    try {
-      const res = await fetch('/api/engineering/assign-executor', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          rowIds,
-          executorName,
-          demandDate: targetDate,
-        }),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        if (Array.isArray(data.tssrRows)) setTssrRows(data.tssrRows);
-        showToast(
-          `${data.updatedCount || rowIds.length} site(s) da Engenharia demandados para o Executor "${executorName}"!`
-        );
-      }
-    } catch {
-      showToast(`Sites demandados para "${executorName}".`);
-    }
+    showToast(
+      `${rowIds.length} site(s) da Engenharia demandados para o Executor "${executorName}"!`
+    );
   };
 
   const handleUnassignRowsFromExecutor = async (
@@ -1184,21 +1148,7 @@ export default function App() {
         return r;
       })
     );
-
-    try {
-      const res = await fetch('/api/engineering/assign-executor', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          unassignRowIds: rowIds,
-        }),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        if (Array.isArray(data.tssrRows)) setTssrRows(data.tssrRows);
-        showToast(`Site(s) desvinculados do Executor "${executorName}".`);
-      }
-    } catch {}
+    showToast(`Site(s) desvinculados do Executor "${executorName}".`);
   };
 
   const handleClearAllExecutorRows = async (executorName: string) => {
@@ -1218,38 +1168,23 @@ export default function App() {
         return r;
       })
     );
-
-    try {
-      const res = await fetch('/api/engineering/assign-executor', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          clearAllForExecutor: executorName,
-        }),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        if (Array.isArray(data.tssrRows)) setTssrRows(data.tssrRows);
-        showToast(`Todos os sites da Engenharia de "${executorName}" foram desvinculados.`);
-      }
-    } catch {}
+    showToast(`Todos os sites da Engenharia de "${executorName}" foram desvinculados.`);
   };
 
   const handleLinkEmailsToExecutor = async (executorName: string, emails: string[]) => {
+    setServerExecutorEmailsMap((prev) => ({
+      ...prev,
+      [executorName]: emails,
+    }));
     try {
-      const res = await fetch('/api/admin/executores/link-email', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ executorName, emails }),
+      await dataService.vincularEmailsDupla({
+        duplaName: executorName,
+        emails,
       });
-      if (res.ok) {
-        const data = await res.json();
-        if (data.executorEmailsMap) {
-          setServerExecutorEmailsMap(data.executorEmailsMap);
-        }
-        showToast(`E-mails vinculados ao executor "${executorName}".`);
-      }
-    } catch {}
+      showToast(`E-mails vinculados ao executor "${executorName}".`);
+    } catch {
+      showToast(`E-mails associados localmente ao executor "${executorName}".`);
+    }
   };
 
   const [initialExpandedUserId, setInitialExpandedUserId] = useState<string | null>(null);
@@ -1920,20 +1855,18 @@ export default function App() {
       )
     );
 
-    const res = await fetch(`/api/sites/${encodeURIComponent(id)}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        updates: safeUpdates,
-        actorEmail: activeTargetUser?.email || user?.email,
-        actorRole: effectiveRole,
-      }),
-    });
-
-    if (res.ok) {
-      const data = await res.json();
-      if (Array.isArray(data.sites)) setSites(data.sites);
-      if (Array.isArray(data.sheets)) setSheets(data.sheets);
+    if (targetSite) {
+      const updatedSite = { ...targetSite, ...safeUpdates, updatedAt: new Date().toISOString() };
+      try {
+        if (targetSite.vendor === 'ERICSSON') {
+          await dataService.salvarSiteEricsson(updatedSite as any);
+        } else {
+          await dataService.salvarSiteNokia(updatedSite);
+        }
+      } catch (err: any) {
+        console.error('Erro ao atualizar site no Firestore [sites]:', err);
+        showToast(`Erro ao salvar no Firestore [sites]: ${err?.code || err?.message || err}`);
+      }
     }
   };
 
@@ -1941,31 +1874,38 @@ export default function App() {
     setSites((prev) => prev.filter((s) => s.id !== id));
     setSelectedSiteId(null);
 
-    const res = await fetch(
-      `/api/sites/${encodeURIComponent(id)}?actorEmail=${encodeURIComponent(user?.email || '')}`,
-      { method: 'DELETE' }
-    );
-    if (res.ok) {
-      const data = await res.json();
-      if (Array.isArray(data.sites)) setSites(data.sites);
+    try {
+      if (activeVendor === 'ERICSSON') {
+        await dataService.excluirSiteEricsson(id);
+      } else {
+        await dataService.excluirSiteNokia(id);
+      }
+      showToast('Site excluído com sucesso do Firestore');
+    } catch (err: any) {
+      console.error('Erro ao excluir site no Firestore [sites]:', err);
+      showToast(`Erro ao excluir no Firestore [sites]: ${err?.code || err?.message || err}`);
     }
   };
 
   const handleCreateSite = async (siteData: Omit<TelecomSite, 'id' | 'updatedAt'>) => {
-    const res = await fetch('/api/sites', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        site: siteData,
-        actorEmail: user?.email,
-      }),
-    });
-    if (res.ok) {
-      const data = await res.json();
-      if (Array.isArray(data.sites)) setSites(data.sites);
-      if (Array.isArray(data.sheets)) setSheets(data.sheets);
+    try {
+      const newId = `site_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+      const newSite: TelecomSite = {
+        ...siteData,
+        id: newId,
+        updatedAt: new Date().toISOString(),
+      };
+      setSites((prev) => [newSite, ...prev]);
+      if (siteData.vendor === 'ERICSSON') {
+        await dataService.salvarSiteEricsson(newSite as any);
+      } else {
+        await dataService.salvarSiteNokia(newSite);
+      }
       setActiveVendor(siteData.vendor);
-      showToast(`Site ${siteData.siteId} adicionado com sucesso`);
+      showToast(`Site ${siteData.siteId} adicionado com sucesso no Firestore`);
+    } catch (err: any) {
+      console.error('Erro ao criar site no Firestore [sites]:', err);
+      showToast(`Erro ao salvar no Firestore [sites]: ${err?.code || err?.message || err}`);
     }
   };
 
@@ -2025,36 +1965,32 @@ export default function App() {
       );
     }
 
-    const res = await fetch('/api/sites/assign-responsible', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        siteTokens: tokens,
-        unassignSiteTokens,
-        responsibleName: targetResponsible,
-        vendor: activeVendor,
-        clearAllForResponsible,
-      }),
-    });
-
-    if (res.ok) {
-      const data = await res.json();
-      if (Array.isArray(data.sites)) {
-        setSites(data.sites);
-      }
-      if (Array.isArray(data.users)) {
-        setUsers(data.users);
-      }
-      setQuickAssignSitesInput('');
+    try {
       if (clearAllForResponsible) {
+        const res = await dataService.limparTodosSitesDemanda({
+          responsibleName: clearAllForResponsible,
+          siteTokens: unassignSiteTokens,
+          vendor: activeVendor,
+        });
         showToast(
-          `Demanda de "${clearAllForResponsible}" foi limpa (${data.updatedCount || 0} site(s) removido(s)).`
+          `Demanda de "${clearAllForResponsible}" foi limpa no Firestore (${res.updatedCount} site(s) removido(s)).`
         );
       } else {
+        const res = await dataService.atribuirDemandaSites({
+          siteTokens: tokens,
+          responsibleName: targetResponsible,
+          vendor: activeVendor,
+          actorEmail: user?.email,
+          actorName: user?.name,
+        });
         showToast(
-          `${data.updatedCount || tokens.length} site(s) colocado(s) na demanda de "${targetResponsible}"!`
+          `${res.updatedCount || tokens.length} site(s) colocado(s) na demanda de "${targetResponsible}" no Firestore!`
         );
       }
+      setQuickAssignSitesInput('');
+    } catch (err: any) {
+      console.error('Erro ao atribuir demanda no Firestore:', err);
+      showToast(`Erro no Firestore [sites]: ${err?.code || err?.message || err}`);
     }
   };
 
@@ -2067,24 +2003,33 @@ export default function App() {
     liveSyncUrl?: string;
     columns?: string[];
   }) => {
-    const res = await fetch('/api/sites/bulk', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        ...params,
-        actorEmail: user?.email,
-      }),
-    });
-    if (res.ok) {
-      const data = await res.json();
-      if (Array.isArray(data.sites)) setSites(data.sites);
-      if (Array.isArray(data.sheets)) setSheets(data.sheets);
-      if (Array.isArray(data.users)) setUsers(data.users);
-      setActiveVendor(params.vendor);
-      setActiveSheetName(params.sheetName);
-      showToast(
-        `Planilha "${params.sheetName}" sincronizada (${data.insertedCount} novos, ${data.updatedCount} atualizados)`
-      );
+    try {
+      if (params.vendor === 'NOKIA') {
+        const res = await dataService.importarSitesNokiaEmLote(
+          params.sites as TelecomSite[],
+          users,
+          serverDuplaEmailsMap
+        );
+        setActiveVendor(params.vendor);
+        setActiveSheetName(params.sheetName);
+        showToast(
+          `Planilha "${params.sheetName}" sincronizada no Firestore (${res.totalGravados} sites gravados)`
+        );
+      } else {
+        const res = await dataService.importarSitesEricssonEmLote(
+          params.sites as any,
+          users,
+          serverDuplaEmailsMap
+        );
+        setActiveVendor(params.vendor);
+        setActiveSheetName(params.sheetName);
+        showToast(
+          `Planilha "${params.sheetName}" sincronizada no Firestore (${res.totalGravados} sites Ericsson gravados)`
+        );
+      }
+    } catch (err: any) {
+      console.error('Erro ao importar planilha no Firestore:', err);
+      showToast(`Erro ao gravar no Firestore: ${err?.code || err?.message || err}`);
     }
   };
 
@@ -2117,18 +2062,13 @@ export default function App() {
       setFunctionFilter('TODOS_GERAL');
     }
     try {
-      const res = await fetch('/api/sites/mark-seen', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ vendor: activeVendor }),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        if (Array.isArray(data.sites)) setSites(data.sites);
-        showToast('Sites novos marcados como visualizados');
+      const newSites = sites.filter((s) => s.vendor === activeVendor && s.isNew);
+      for (const s of newSites) {
+        await dataService.salvarSiteNokia({ ...s, isNew: false });
       }
-    } catch {
-      // non-blocking
+      showToast('Sites novos marcados como visualizados no Firestore');
+    } catch (err: any) {
+      console.error('Erro ao marcar novos sites no Firestore:', err);
     }
   };
 
@@ -2440,7 +2380,43 @@ export default function App() {
               </thead>
 
               <tbody className="bg-white">
-                {folderSites.map((site, idx) => (
+                {folderSites.length === 0 ? (
+                  <tr>
+                    <td
+                      colSpan={displayedColumnsWithIndex.length + 1}
+                      className="px-6 py-12 text-center text-slate-500"
+                    >
+                      <div className="max-w-md mx-auto space-y-3">
+                        <div className="w-12 h-12 mx-auto rounded-full bg-slate-100 flex items-center justify-center text-slate-400">
+                          <FileSpreadsheet className="w-6 h-6" />
+                        </div>
+                        <div className="font-bold text-slate-800 text-sm">
+                          {sites.length === 0
+                            ? 'Nenhum site encontrado no Firestore (nokia_sites)'
+                            : 'Nenhum site corresponde aos filtros selecionados'}
+                        </div>
+                        <p className="text-xs text-slate-500 leading-relaxed">
+                          {sites.length === 0
+                            ? 'A coleção nokia_sites está vazia no banco ameta-sistema-teste. Utilize o botão abaixo para importar a planilha oficial (.xlsx) ou importe a base inicial no Painel de Admin.'
+                            : 'Tente alterar ou limpar os filtros de busca para visualizar os sites cadastrados.'}
+                        </p>
+                        {sites.length === 0 && (
+                          <div className="pt-2">
+                            <button
+                              type="button"
+                              onClick={() => setBulkModalOpen(true)}
+                              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-lg inline-flex items-center gap-1.5 cursor-pointer shadow-xs"
+                            >
+                              <Upload className="w-4 h-4" />
+                              <span>Importar Planilha Excel (.xlsx)</span>
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ) : (
+                  folderSites.map((site, idx) => (
                   <tr
                     key={site.id}
                     onClick={() => setSelectedSiteId(site.id)}
@@ -2635,7 +2611,7 @@ export default function App() {
                       );
                     })}
                   </tr>
-                ))}
+                )))}
               </tbody>
             </table>
           </div>
@@ -2750,6 +2726,45 @@ export default function App() {
           </thead>
           <tbody className="bg-white">
             {(() => {
+              if (folderSites.length === 0) {
+                return (
+                  <tr>
+                    <td
+                      colSpan={isVistoriadorView ? 13 : 17}
+                      className="px-6 py-12 text-center text-slate-500"
+                    >
+                      <div className="max-w-md mx-auto space-y-3">
+                        <div className="w-12 h-12 mx-auto rounded-full bg-slate-100 flex items-center justify-center text-slate-400">
+                          <FileSpreadsheet className="w-6 h-6" />
+                        </div>
+                        <div className="font-bold text-slate-800 text-sm">
+                          {sites.length === 0
+                            ? 'Nenhum site encontrado no Firestore (nokia_sites)'
+                            : 'Nenhum site corresponde aos filtros selecionados'}
+                        </div>
+                        <p className="text-xs text-slate-500 leading-relaxed">
+                          {sites.length === 0
+                            ? 'A coleção nokia_sites está vazia no banco ameta-sistema-teste. Utilize o botão abaixo para importar a planilha oficial (.xlsx) ou importe a base inicial no Painel de Admin.'
+                            : 'Tente alterar ou limpar os filtros de busca para visualizar os sites cadastrados.'}
+                        </p>
+                        {sites.length === 0 && (
+                          <div className="pt-2">
+                            <button
+                              type="button"
+                              onClick={() => setBulkModalOpen(true)}
+                              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-lg inline-flex items-center gap-1.5 cursor-pointer shadow-xs"
+                            >
+                              <Upload className="w-4 h-4" />
+                              <span>Importar Planilha Excel (.xlsx)</span>
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              }
+
               const totalFazerInFolder = folderSites.filter(
                 (s) => getSiteExecutionSortBucket(s) === 0
               ).length;
@@ -3285,23 +3300,19 @@ export default function App() {
                 type="button"
                 onClick={async () => {
                   try {
-                    const res = await fetch('/api/state', { cache: 'no-store' });
-                    if (res.ok) {
-                      const st = await res.json();
-                      const match = (st.users || []).find(
-                        (u: AmetaUser) => u.email.toLowerCase() === user.email.toLowerCase()
-                      );
-                      if (match) {
-                        setUser({ ...user, ...match, emailVerified: true });
-                        if (!isUserAguardando(match) && match.situacao !== 'bloqueado') {
-                          showToast('Acesso liberado! Bem-vindo ao sistema Ameta.');
-                        } else {
-                          showToast('Seu cadastro ainda aguarda liberação pelo dono.');
-                        }
+                    const profile = await dataService.obterUsuarioPorUid(user.uid || user.id);
+                    if (profile) {
+                      setUser({ ...user, ...profile, emailVerified: true });
+                      if (!isUserAguardando(profile) && profile.situacao !== 'bloqueado') {
+                        showToast('Acesso liberado! Bem-vindo ao sistema Ameta.');
+                      } else {
+                        showToast('Seu cadastro ainda aguarda liberação pelo administrador.');
                       }
+                    } else {
+                      showToast('Perfil ainda não localizado no Firestore.');
                     }
-                  } catch {
-                    showToast('Não foi possível verificar no momento.');
+                  } catch (err: any) {
+                    showToast(`Erro ao verificar no Firestore [usuarios]: ${err?.code || err?.message || err}`);
                   }
                 }}
                 className="px-4 py-2.5 rounded-xl bg-[#223585] hover:bg-[#192868] text-white font-bold text-xs inline-flex items-center gap-2 cursor-pointer"
@@ -4502,28 +4513,31 @@ export default function App() {
                   showToast(`Documento ${docLabel} (${targetUserName}) removido em tempo real`);
 
                   try {
-                    const res = await fetch(
-                      `/api/admin/users/${encodeURIComponent(targetUserId)}/documents`,
-                      {
-                        method: 'PATCH',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                          docType,
-                          clearFile: true,
-                          expiresAt: '',
-                          statusOverride: '',
-                          uploadedBy: user?.name || 'ADM',
-                        }),
-                      }
-                    );
-                    if (res.ok) {
-                      const data = await res.json();
-                      if (Array.isArray(data.users)) {
-                        setUsers(data.users);
-                      }
+                    const targetUser = users.find((u) => u.id === targetUserId || u.uid === targetUserId);
+                    if (targetUser) {
+                      const nextDocs = ensureUserMandatoryDocuments(targetUser.documents).map((d) =>
+                        d.type === docType
+                          ? {
+                              ...d,
+                              fileName: '',
+                              fileSize: 0,
+                              uploadedAt: '',
+                              uploadedBy: '',
+                              storageFileName: '',
+                              expiresAt: '',
+                              statusOverride: undefined,
+                              notes: '',
+                            }
+                          : d
+                      );
+                      await dataService.salvarDocumentosUsuario({
+                        uidOrId: targetUserId,
+                        email: targetUser.email,
+                        documents: nextDocs,
+                      });
                     }
-                  } catch {
-                    // ignore network error
+                  } catch (err: any) {
+                    console.error('Erro ao atualizar documentos no Firestore [usuarios]:', err);
                   }
                 }}
               />
@@ -5694,161 +5708,86 @@ export default function App() {
                     if (!nextList.includes(clean)) nextList.unshift(clean);
                     saveCustomDuplas(nextList);
                     try {
-                      const res = await fetch('/api/sites/assign-responsible', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                          renameFrom: oldName,
-                          renameTo: clean,
-                        }),
+                      await dataService.renomearEquipeDupla({
+                        oldName,
+                        newName: clean,
+                        vendor: activeVendor,
                       });
-                      if (res.ok) {
-                        const data = await res.json();
-                        if (Array.isArray(data.sites)) setSites(data.sites);
-                        if (Array.isArray(data.ericssonRows)) setEricssonRows(data.ericssonRows);
-                        if (Array.isArray(data.users)) setUsers(data.users);
-                        if (Array.isArray(data.ericssonUsers)) setEricssonUsers(data.ericssonUsers);
-                      }
-                    } catch {
-                      // ignore offline error
+                    } catch (err: any) {
+                      console.error('Erro ao renomear equipe no Firestore:', err);
                     }
                     showToast(`Dupla renomeada de "${oldName}" para "${clean}".`);
                   }}
                   onDeleteDupla={(name) => handleDeleteDupla(name)}
                   onAssignSitesToDupla={async (siteIds, duplaName, linkedEmails, targetVendor) => {
-                    const res = await fetch('/api/sites/assign-responsible', {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({
+                    try {
+                      const res = await dataService.atribuirDemandaSites({
                         siteTokens: siteIds,
                         responsibleName: duplaName,
                         linkedEmails,
                         vendor: targetVendor,
-                      }),
-                    });
-                    if (res.ok) {
-                      const data = await res.json();
-                      if (Array.isArray(data.sites)) setSites(data.sites);
-                      if (Array.isArray(data.ericssonRows)) setEricssonRows(data.ericssonRows);
-                      if (Array.isArray(data.users)) setUsers(data.users);
-                      if (Array.isArray(data.ericssonUsers)) setEricssonUsers(data.ericssonUsers);
-                      if (Array.isArray(data.notifications)) setNotifications(data.notifications);
+                        actorEmail: user?.email,
+                        actorName: user?.name,
+                      });
                       showToast(
-                        `${data.updatedCount || siteIds.length} site(s) ${
+                        `${res.updatedCount || siteIds.length} site(s) ${
                           targetVendor === 'ERICSSON' ? 'Ericsson' : 'TIM/Nokia'
                         } enviados para a dupla "${duplaName}"!`
                       );
+                    } catch (err: any) {
+                      console.error('Erro ao atribuir demanda no Firestore:', err);
+                      showToast(`Erro no Firestore [sites]: ${err?.code || err?.message || err}`);
                     }
                   }}
                   onUnassignSitesFromDupla={async (siteIds, duplaName, targetVendor) => {
-                    const tokenSet = new Set(
-                      siteIds.map((t) => String(t || '').trim().toUpperCase()).filter(Boolean)
-                    );
-                    if (targetVendor === 'ERICSSON') {
-                      setEricssonRows((prev) =>
-                        prev.map((r) => {
-                          if (!tokenSet.has(r.id.toUpperCase())) return r;
-                          return {
-                            ...r,
-                            equipe: '',
-                            fields: {
-                              ...(r.fields || {}),
-                              EQUIPE: '',
-                              'E-MAIL DUPLA': '',
-                            },
-                          };
-                        })
-                      );
-                    } else {
-                      setSites((prev) =>
-                        prev.map((s) => {
-                          if (s.vendor !== targetVendor) return s;
-                          if (
-                            !tokenSet.has(s.id.toUpperCase()) &&
-                            !tokenSet.has(s.siteId.trim().toUpperCase())
-                          ) {
-                            return s;
-                          }
-                          return {
-                            ...s,
-                            equipeParceira: '',
-                            responsavelCampo: '',
-                            customFields: {
-                              ...(s.customFields || {}),
-                              'EQUIPE EXECUTANTE': '',
-                              Executor: '',
-                              Responsável: '',
-                              'E-MAIL DUPLA': '',
-                            },
-                          };
-                        })
-                      );
-                    }
-                    const res = await fetch('/api/sites/assign-responsible', {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({
-                        unassignSiteTokens: siteIds,
+                    try {
+                      await dataService.desvincularDemandaSites({
+                        siteTokens: siteIds,
                         vendor: targetVendor,
-                      }),
-                    });
-                    if (res.ok) {
-                      const data = await res.json();
-                      if (Array.isArray(data.sites)) setSites(data.sites);
-                      if (Array.isArray(data.ericssonRows)) setEricssonRows(data.ericssonRows);
+                      });
                       showToast(
                         `Site ${
                           targetVendor === 'ERICSSON' ? 'Ericsson' : 'TIM/Nokia'
                         } removido da demanda de "${duplaName}".`
                       );
+                    } catch (err: any) {
+                      console.error('Erro ao desvincular demanda no Firestore:', err);
+                      showToast(`Erro no Firestore [sites]: ${err?.code || err?.message || err}`);
                     }
                   }}
                   onClearDuplaSites={async (duplaName, siteIdsToClear, targetVendor) => {
-                    const res = await fetch('/api/sites/assign-responsible', {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({
-                        clearAllForResponsible: duplaName,
-                        unassignSiteTokens: siteIdsToClear,
+                    try {
+                      await dataService.limparTodosSitesDemanda({
+                        responsibleName: duplaName,
+                        siteTokens: siteIdsToClear,
                         vendor: targetVendor,
-                      }),
-                    });
-                    if (res.ok) {
-                      const data = await res.json();
-                      if (Array.isArray(data.sites)) setSites(data.sites);
-                      if (Array.isArray(data.ericssonRows)) setEricssonRows(data.ericssonRows);
+                      });
                       showToast(
                         `Todos os sites ${
                           targetVendor === 'ERICSSON' ? 'Ericsson' : 'TIM/Nokia'
                         } de "${duplaName}" foram desvinculados.`
                       );
+                    } catch (err: any) {
+                      console.error('Erro ao limpar demanda no Firestore:', err);
+                      showToast(`Erro no Firestore [sites]: ${err?.code || err?.message || err}`);
                     }
                   }}
                   onLinkEmailsToDupla={async (duplaName, emails) => {
                     try {
-                      const res = await fetch('/api/admin/duplas/link-email', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                          duplaName,
-                          emails,
-                        }),
+                      await dataService.vincularEmailsDupla({
+                        duplaName,
+                        emails,
                       });
-                      if (res.ok) {
-                        const data = await res.json();
-                        if (Array.isArray(data.users)) setUsers(data.users);
-                        if (Array.isArray(data.ericssonUsers)) setEricssonUsers(data.ericssonUsers);
-                        if (data.duplaEmailsMap && typeof data.duplaEmailsMap === 'object') {
-                          setServerDuplaEmailsMap(data.duplaEmailsMap);
-                        }
-                        if (Array.isArray(data.sites)) setSites(data.sites);
-                        if (Array.isArray(data.ericssonRows)) setEricssonRows(data.ericssonRows);
-                        showToast(
-                          `E-mail(s) de perfil vinculado(s) à dupla "${duplaName}" com sucesso!`
-                        );
-                      }
-                    } catch {
-                      // ignore offline error
+                      setServerDuplaEmailsMap((prev) => ({
+                        ...prev,
+                        [duplaName]: emails,
+                      }));
+                      showToast(
+                        `E-mail(s) vinculados à dupla "${duplaName}" com sucesso no Firestore!`
+                      );
+                    } catch (err: any) {
+                      console.error('Erro ao vincular e-mails no Firestore:', err);
+                      showToast(`Erro no Firestore [duplas_config]: ${err?.code || err?.message || err}`);
                     }
                   }}
                   onSimulateDuplaView={
