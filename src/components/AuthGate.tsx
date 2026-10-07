@@ -17,6 +17,7 @@ import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   sendPasswordResetEmail,
+  deleteUser,
 } from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 
@@ -71,6 +72,7 @@ export const AuthGate: React.FC<AuthGateProps> = ({ onAuthenticated }) => {
       if (userDocSnap.exists()) {
         userData = userDocSnap.data();
       } else {
+        const isOwner = cleanEmail === 'rafael.araujo@ametaservicos.com.br';
         userData = {
           id: userCredential.user.uid,
           uid: userCredential.user.uid,
@@ -78,13 +80,14 @@ export const AuthGate: React.FC<AuthGateProps> = ({ onAuthenticated }) => {
           email: cleanEmail,
           tipo: isOwner ? 'admin' : 'usuario',
           role: isOwner ? 'ADM' : 'Vistoriador',
-          equipe: 'Coordenação / ADM',
           situacao: isOwner ? 'dono' : 'aguardando',
           plataforma: isOwner ? 'AMBAS' : initialVendorChoice,
           assignedPlatform: isOwner ? 'BOTH' : initialVendorChoice,
           accessReleased: isOwner,
           documents: [],
           emailVerified: true,
+          equipe: '',
+          telefone: '',
           createdAt: new Date().toISOString(),
         };
         await setDoc(userDocRef, userData);
@@ -137,8 +140,10 @@ export const AuthGate: React.FC<AuthGateProps> = ({ onAuthenticated }) => {
     }
 
     setLoading(true);
+    let createdUser: any = null;
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, cleanEmail, password);
+      createdUser = userCredential.user;
       const isOwner = cleanEmail === 'rafael.araujo@ametaservicos.com.br';
       const userData = {
         id: userCredential.user.uid,
@@ -147,17 +152,31 @@ export const AuthGate: React.FC<AuthGateProps> = ({ onAuthenticated }) => {
         email: cleanEmail,
         tipo: (isOwner ? 'admin' : 'usuario') as 'admin' | 'usuario',
         role: isOwner ? ('ADM' as const) : requestedRole,
-        equipe: requestedEquipe.trim() || name.trim(),
-        telefone: '',
+        situacao: isOwner ? ('dono' as const) : ('aguardando' as const),
         plataforma: initialVendorChoice === 'ERICSSON' ? ('ERICSSON' as const) : ('NOKIA' as const),
         assignedPlatform: initialVendorChoice === 'ERICSSON' ? ('ERICSSON' as const) : ('NOKIA' as const),
-        situacao: isOwner ? ('dono' as const) : ('aguardando' as const),
         accessReleased: isOwner,
         documents: [],
         emailVerified: true,
+        equipe: requestedEquipe.trim(),
+        telefone: '',
         createdAt: new Date().toISOString(),
       };
-      await setDoc(doc(db, 'usuarios', userCredential.user.uid), userData);
+
+      try {
+        await setDoc(doc(db, 'usuarios', userCredential.user.uid), userData);
+      } catch (dbErr: any) {
+        if (createdUser) {
+          try {
+            await deleteUser(createdUser);
+          } catch (delErr) {
+            console.error('Falha ao excluir usuário do Auth após erro no Firestore:', delErr);
+          }
+        }
+        const errCode = dbErr?.code || 'firestore/error';
+        const errMsg = dbErr?.message || String(dbErr);
+        throw new Error(`[Erro ao gravar perfil em usuarios/${userCredential.user.uid}] Código: ${errCode}. Detalhe: ${errMsg}`);
+      }
 
       const finalUser: AmetaUser = {
         ...userData,

@@ -16,6 +16,7 @@ import {
 import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
+  deleteUser,
 } from 'firebase/auth';
 
 import {
@@ -321,6 +322,50 @@ export interface IDataService {
   ): Unsubscribe;
 }
 
+export function buildAmetaUserProfile(params: {
+  uid: string;
+  email: string;
+  name?: string;
+  role?: UserRole;
+  equipe?: string;
+  telefone?: string;
+  plataforma?: AssignedPlatformScope;
+}): AmetaUser {
+  const cleanEmail = params.email.trim().toLowerCase();
+  const isOwner = isOwnerAdmUser(cleanEmail);
+  const safeRole: UserRole = isOwner
+    ? 'ADM'
+    : (params.role && params.role !== 'ADM')
+    ? params.role
+    : 'Vistoriador';
+
+  const assignedScope: AssignedPlatformScope = isOwner
+    ? 'BOTH'
+    : params.plataforma || 'NOKIA';
+  const legacyPlat: 'NOKIA' | 'ERICSSON' | 'AMBAS' =
+    assignedScope === 'BOTH' ? 'AMBAS' : assignedScope;
+
+  return {
+    id: params.uid,
+    uid: params.uid,
+    name: isOwner
+      ? 'Rafael Araújo'
+      : (params.name || cleanEmail.split('@')[0]).trim() || 'Usuário',
+    email: cleanEmail,
+    tipo: isOwner ? 'admin' : 'usuario',
+    role: safeRole,
+    situacao: isOwner ? 'dono' : 'aguardando',
+    plataforma: legacyPlat,
+    assignedPlatform: assignedScope,
+    accessReleased: isOwner ? true : false,
+    documents: ensureUserMandatoryDocuments(),
+    emailVerified: true,
+    equipe: (params.equipe || '').trim(),
+    telefone: (params.telefone || '').trim(),
+    createdAt: new Date().toISOString(),
+  };
+}
+
 class FirebaseDataService implements IDataService {
   isConfigured(): boolean {
     return true; // 100% Firebase Cloud Firestore & Auth
@@ -357,20 +402,11 @@ class FirebaseDataService implements IDataService {
       return { id: params.uid, uid: params.uid, ...existing };
     }
 
-    const newUser: AmetaUser = {
-      id: params.uid,
+    const newUser = buildAmetaUserProfile({
       uid: params.uid,
-      name: isOwner ? 'Rafael Araújo' : params.name || cleanEmail.split('@')[0],
       email: cleanEmail,
-      role: isOwner ? 'ADM' : 'Vistoriador',
-      situacao: isOwner ? 'dono' : 'aguardando',
-      plataforma: isOwner ? 'AMBAS' : 'NOKIA',
-      assignedPlatform: isOwner ? 'BOTH' : 'NOKIA',
-      accessReleased: isOwner,
-      documents: ensureUserMandatoryDocuments(),
-      emailVerified: true,
-      createdAt: new Date().toISOString(),
-    };
+      name: params.name,
+    });
 
     await setDoc(userRef, newUser);
     return newUser;
@@ -614,27 +650,33 @@ class FirebaseDataService implements IDataService {
     const cred = await createUserWithEmailAndPassword(auth, params.email, params.password);
     const uid = cred.user.uid;
     const cleanEmail = params.email.trim().toLowerCase();
-    const isOwner = isOwnerAdmUser(cleanEmail);
 
-    const newUser: AmetaUser = {
-      id: uid,
+    const newUser = buildAmetaUserProfile({
       uid,
-      name: isOwner ? 'Rafael Araújo' : params.name || cleanEmail.split('@')[0],
       email: cleanEmail,
-      tipo: isOwner ? 'admin' : 'usuario',
-      role: isOwner ? 'ADM' : params.role || 'Vistoriador',
-      situacao: isOwner ? 'dono' : 'aguardando',
-      plataforma: isOwner ? 'AMBAS' : params.plataforma === 'BOTH' ? 'AMBAS' : 'NOKIA',
-      assignedPlatform: isOwner ? 'BOTH' : params.plataforma || 'NOKIA',
-      accessReleased: isOwner,
-      documents: ensureUserMandatoryDocuments(),
-      emailVerified: true,
-      equipe: params.equipe || '',
-      telefone: params.telefone || '',
-      createdAt: new Date().toISOString(),
-    };
+      name: params.name,
+      role: params.role,
+      equipe: params.equipe,
+      telefone: params.telefone,
+      plataforma: params.plataforma,
+    });
 
-    await setDoc(doc(db, FIRESTORE_COLLECTIONS.USUARIOS, uid), newUser);
+    try {
+      await setDoc(doc(db, FIRESTORE_COLLECTIONS.USUARIOS, uid), newUser);
+    } catch (dbError: any) {
+      let authDeleteStatus = 'Conta recém-criada no Authentication foi excluída com sucesso.';
+      try {
+        await deleteUser(cred.user);
+      } catch (delErr: any) {
+        authDeleteStatus = `Falha ao excluir conta no Authentication: ${delErr?.code || delErr?.message || delErr}`;
+      }
+      const code = dbError?.code || 'firestore/error';
+      const msg = dbError?.message || String(dbError);
+      throw new Error(
+        `[Erro ao gravar perfil em usuarios/${uid}] Etapa: gravação do documento inicial do usuário no Firestore (setDoc). Código: ${code}. Detalhe: ${msg}. Ação compensatória: ${authDeleteStatus}`
+      );
+    }
+
     return newUser;
   }
 
