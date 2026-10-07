@@ -1,12 +1,12 @@
 {
-  "projectId": "able-bit-jsmzh",
-  "appId": "1:347087224551:web:c69e9cc22826abbc7a2c42",
-  "apiKey": "AIzaSyAadEDCnE-OiyWuzNrAYIiuG8m7_MlMZ38",
-  "authDomain": "able-bit-jsmzh.firebaseapp.com",
-  "firestoreDatabaseId": "ai-studio-remixametateleco-222112df-4438-46d7-9a91-a9d648240417",
-  "storageBucket": "able-bit-jsmzh.firebasestorage.app",
-  "messagingSenderId": "347087224551",
+  "projectId": "ameta-sistema-teste",
+  "appId": "<appId>",
+  "apiKey": "AIzaSyC5a0ijspUcwhaLypvkLY3xu7Vm9i0soWA",
+  "authDomain": "ameta-sistema-teste.firebaseapp.com",
+  "firestoreDatabaseId": "(default)",
+  "storageBucket": "<storageBucket>",
+  "messagingSenderId": "400347798343",
   "measurementId": "",
-  "oAuthClientId": "347087224551-95gfp0r7ourbl6fb5po9sqbsa08d4p5l.apps.googleusercontent.com",
+  "oAuthClientId": "",
   "recaptchaSiteKey": ""
 }

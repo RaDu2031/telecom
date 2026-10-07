@@ -4,20 +4,20 @@ import { getFirestore } from 'firebase/firestore';
 import defaultConfig from '../../firebase-applet-config.json';
 
 export const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || (defaultConfig as any).apiKey || '',
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || (defaultConfig as any).authDomain || '',
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || (defaultConfig as any).projectId || '',
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || (defaultConfig as any).storageBucket || '',
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || (defaultConfig as any).messagingSenderId || '',
-  appId: import.meta.env.VITE_FIREBASE_APP_ID || (defaultConfig as any).appId || '',
-  firestoreDatabaseId: import.meta.env.VITE_FIREBASE_FIRESTORE_DATABASE_ID || (defaultConfig as any).firestoreDatabaseId || '',
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || (defaultConfig as any).apiKey || 'AIzaSyC5a0ijspUcwhaLypvkLY3xu7Vm9i0soWA',
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || (defaultConfig as any).authDomain || 'ameta-sistema-teste.firebaseapp.com',
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || (defaultConfig as any).projectId || 'ameta-sistema-teste',
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || (defaultConfig as any).storageBucket || '<storageBucket>',
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || (defaultConfig as any).messagingSenderId || '400347798343',
+  appId: import.meta.env.VITE_FIREBASE_APP_ID || (defaultConfig as any).appId || '<appId>',
+  firestoreDatabaseId: import.meta.env.VITE_FIREBASE_FIRESTORE_DATABASE_ID || (defaultConfig as any).firestoreDatabaseId || '(default)',
 };
 
 export const isFirebaseEnvConfigured = Boolean(firebaseConfig.apiKey && firebaseConfig.projectId);
 
 export const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
 export const auth = getAuth(app);
-export const db = firebaseConfig.firestoreDatabaseId
+export const db = (firebaseConfig.firestoreDatabaseId && firebaseConfig.firestoreDatabaseId !== '(default)')
   ? getFirestore(app, firebaseConfig.firestoreDatabaseId)
   : getFirestore(app);
 

@@ -8,11 +8,19 @@ import {
   KeyRound,
   Send,
   User,
+  ShieldCheck,
+  RefreshCw,
+  ChevronLeft,
 } from 'lucide-react';
 import { AmetaUser, VendorType } from '../types/telecom';
 import { AmetaLogo } from './AmetaLogo';
-import { auth, db, ALLOWED_EMAIL_DOMAIN, isAllowedCorporateEmail } from '../lib/firebase';
-import { signInWithEmailAndPassword, createUserWithEmailAndPassword, sendEmailVerification } from 'firebase/auth';
+import { auth, db, firebaseConfig, ALLOWED_EMAIL_DOMAIN, isAllowedCorporateEmail } from '../lib/firebase';
+import {
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  sendEmailVerification,
+  sendPasswordResetEmail,
+} from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 
 interface AuthGateProps {
@@ -59,6 +67,8 @@ export const AuthGate: React.FC<AuthGateProps> = ({ onAuthenticated }) => {
     try {
       const userCredential = await signInWithEmailAndPassword(auth, cleanEmail, password);
       const isOwner = cleanEmail === 'rafael.araujo@ametaservicos.com.br';
+
+      // Check email verification for non-owners
       if (!userCredential.user.emailVerified && !isOwner) {
         setNeedsEmailVerification(true);
         setError(null);
@@ -73,14 +83,19 @@ export const AuthGate: React.FC<AuthGateProps> = ({ onAuthenticated }) => {
       if (userDocSnap.exists()) {
         userData = userDocSnap.data();
       } else {
-        const isOwner = cleanEmail === 'rafael.araujo@ametaservicos.com.br';
         userData = {
           id: userCredential.user.uid,
+          uid: userCredential.user.uid,
           name: cleanEmail.split('@')[0],
           email: cleanEmail,
           tipo: isOwner ? 'admin' : 'usuario',
           role: isOwner ? 'ADM' : 'Vistoriador',
           equipe: 'Coordenação / ADM',
+          situacao: isOwner ? 'dono' : 'aguardando',
+          plataforma: isOwner ? 'AMBAS' : initialVendorChoice,
+          assignedPlatform: isOwner ? 'BOTH' : initialVendorChoice,
+          accessReleased: isOwner,
+          emailVerified: userCredential.user.emailVerified,
           createdAt: new Date().toISOString(),
         };
         await setDoc(userDocRef, userData);
@@ -88,15 +103,16 @@ export const AuthGate: React.FC<AuthGateProps> = ({ onAuthenticated }) => {
 
       const loggedUser: AmetaUser = {
         id: userData.id || userCredential.user.uid,
+        uid: userData.uid || userCredential.user.uid,
         name: userData.name || cleanEmail.split('@')[0],
         email: cleanEmail,
         role: userData.role || 'Vistoriador',
-        situacao: (userData.situacao || 'ativo') as any,
+        situacao: (userData.situacao || (isOwner ? 'dono' : 'aguardando')) as any,
         plataforma: (userData.plataforma || 'NOKIA') as any,
         assignedPlatform: (userData.assignedPlatform || 'NOKIA') as any,
-        accessReleased: true,
-        tipo: (userData.tipo || 'usuario') as any,
-        emailVerified: true,
+        accessReleased: isOwner || userData.accessReleased === true || userData.situacao === 'ativo',
+        tipo: (userData.tipo || (isOwner ? 'admin' : 'usuario')) as any,
+        emailVerified: userCredential.user.emailVerified || isOwner,
         createdAt: userData.createdAt || new Date().toISOString(),
       };
 
@@ -134,37 +150,47 @@ export const AuthGate: React.FC<AuthGateProps> = ({ onAuthenticated }) => {
     setLoading(true);
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, cleanEmail, password);
+      try {
+        await sendEmailVerification(userCredential.user);
+      } catch (err) {
+        console.warn('Erro ao disparar e-mail de verificação:', err);
+      }
+
       const isOwner = cleanEmail === 'rafael.araujo@ametaservicos.com.br';
       const userData = {
         id: userCredential.user.uid,
+        uid: userCredential.user.uid,
         name: name.trim(),
         email: cleanEmail,
-        tipo: isOwner ? 'admin' : 'usuario',
-        role: isOwner ? 'ADM' : requestedRole,
+        tipo: (isOwner ? 'admin' : 'usuario') as 'admin' | 'usuario',
+        role: isOwner ? ('ADM' as const) : requestedRole,
         equipe: requestedEquipe.trim() || name.trim(),
-        plataforma: initialVendorChoice === 'ERICSSON' ? 'ERICSSON' : 'NOKIA',
-        assignedPlatform: initialVendorChoice === 'ERICSSON' ? 'ERICSSON' : 'NOKIA',
-        situacao: isOwner ? 'dono' : 'ativo',
-        accessReleased: true,
+        telefone: '',
+        plataforma: initialVendorChoice === 'ERICSSON' ? ('ERICSSON' as const) : ('NOKIA' as const),
+        assignedPlatform: initialVendorChoice === 'ERICSSON' ? ('ERICSSON' as const) : ('NOKIA' as const),
+        situacao: isOwner ? ('dono' as const) : ('aguardando' as const),
+        accessReleased: isOwner,
+        documents: [],
+        emailVerified: false,
         createdAt: new Date().toISOString(),
       };
       await setDoc(doc(db, 'usuarios', userCredential.user.uid), userData);
 
-      const finalUser: AmetaUser = {
-        id: userCredential.user.uid,
-        name: name.trim(),
-        email: cleanEmail,
-        role: userData.role,
-        situacao: userData.situacao as any,
-        plataforma: userData.plataforma as any,
-        assignedPlatform: userData.assignedPlatform as any,
-        accessReleased: true,
-        tipo: userData.tipo as any,
-        emailVerified: true,
-        createdAt: userData.createdAt,
-      };
-
-      onAuthenticated(finalUser, initialVendorChoice);
+      if (isOwner) {
+        const finalOwner: AmetaUser = {
+          ...userData,
+          role: 'ADM',
+          situacao: 'dono',
+          plataforma: 'AMBAS',
+          assignedPlatform: 'BOTH',
+          accessReleased: true,
+          emailVerified: true,
+        };
+        onAuthenticated(finalOwner, initialVendorChoice);
+      } else {
+        setNeedsEmailVerification(true);
+        setInfoMessage('Cadastro realizado com sucesso! Enviamos um link de confirmação para seu e-mail.');
+      }
     } catch (err: any) {
       setError(err?.message || 'Não foi possível concluir o cadastro.');
     } finally {
@@ -176,12 +202,12 @@ export const AuthGate: React.FC<AuthGateProps> = ({ onAuthenticated }) => {
     setError(null);
     setInfoMessage(null);
     if (!auth.currentUser) {
-      setError('Faça login novamente para reenviar o e-mail de verificação.');
+      setError('Faça login com seu e-mail e senha para reenviar o link de verificação.');
       return;
     }
     try {
       await sendEmailVerification(auth.currentUser);
-      setInfoMessage('E-mail de verificação reenviado com sucesso! Verifique sua caixa de entrada.');
+      setInfoMessage('E-mail de verificação reenviado com sucesso! Verifique sua caixa de entrada e spam.');
     } catch (err: any) {
       setError(err?.message || 'Erro ao reenviar e-mail de verificação.');
     }
@@ -191,7 +217,8 @@ export const AuthGate: React.FC<AuthGateProps> = ({ onAuthenticated }) => {
     setError(null);
     setInfoMessage(null);
     if (!auth.currentUser) {
-      setError('Faça login primeiro.');
+      setNeedsEmailVerification(false);
+      setMode('login');
       return;
     }
     setLoading(true);
@@ -199,13 +226,35 @@ export const AuthGate: React.FC<AuthGateProps> = ({ onAuthenticated }) => {
       await auth.currentUser.reload();
       await auth.currentUser.getIdToken(true);
       if (auth.currentUser.emailVerified) {
-        setInfoMessage('E-mail verificado com sucesso! Você já pode entrar.');
+        setInfoMessage('E-mail verificado com sucesso! Carregando seu acesso...');
         setNeedsEmailVerification(false);
+
+        const cleanEmail = (auth.currentUser.email || '').trim().toLowerCase();
+        const userDocRef = doc(db, 'usuarios', auth.currentUser.uid);
+        const userDocSnap = await getDoc(userDocRef);
+        const userData = userDocSnap.exists() ? userDocSnap.data() : {};
+
+        const loggedUser: AmetaUser = {
+          id: auth.currentUser.uid,
+          uid: auth.currentUser.uid,
+          name: userData.name || cleanEmail.split('@')[0],
+          email: cleanEmail,
+          role: userData.role || 'Vistoriador',
+          situacao: (userData.situacao || 'aguardando') as any,
+          plataforma: (userData.plataforma || 'NOKIA') as any,
+          assignedPlatform: (userData.assignedPlatform || 'NOKIA') as any,
+          accessReleased: userData.accessReleased === true || userData.situacao === 'ativo',
+          tipo: (userData.tipo || 'usuario') as any,
+          emailVerified: true,
+          createdAt: userData.createdAt || new Date().toISOString(),
+        };
+
+        onAuthenticated(loggedUser, initialVendorChoice);
       } else {
-        setError('O e-mail ainda não foi verificado. Clique no link enviado para sua caixa de entrada.');
+        setError('O e-mail ainda não foi confirmado. Abra o link que enviamos para sua caixa de entrada.');
       }
     } catch (err: any) {
-      setError(err?.message || 'Erro ao verificar status do e-mail.');
+      setError(err?.message || 'Erro ao verificar confirmação.');
     } finally {
       setLoading(false);
     }
@@ -226,118 +275,137 @@ export const AuthGate: React.FC<AuthGateProps> = ({ onAuthenticated }) => {
 
     setLoading(true);
     try {
+      await sendPasswordResetEmail(auth, cleanEmail);
       setInfoMessage(
-        `Instruções de redefinição de senha enviadas para ${cleanEmail}.`
+        `Instruções de redefinição de senha enviadas com sucesso para ${cleanEmail}.`
       );
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erro ao solicitar redefinição.');
+    } catch (err: any) {
+      setError(err?.message || 'Erro ao solicitar redefinição de senha.');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 flex items-center justify-center p-4">
-      <div className="w-full max-w-md bg-white rounded-3xl shadow-2xl border border-slate-100 overflow-hidden flex flex-col">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 flex items-center justify-center p-4 sm:p-6">
+      <div className="w-full max-w-md bg-white rounded-3xl shadow-2xl border border-slate-100/80 overflow-hidden flex flex-col">
         {/* Brand Header */}
-        <div className="px-8 pt-8 pb-6 bg-gradient-to-br from-blue-900 to-indigo-950 text-white text-center relative">
-          <div className="w-16 h-16 bg-white/10 rounded-2xl mx-auto flex items-center justify-center mb-4 backdrop-blur-md shadow-inner border border-white/20">
+        <div className="px-8 pt-8 pb-6 bg-gradient-to-br from-blue-900 via-indigo-950 to-slate-900 text-white text-center relative">
+          <div className="w-16 h-16 bg-white/10 rounded-2xl mx-auto flex items-center justify-center mb-3.5 backdrop-blur-md shadow-inner border border-white/20">
             <AmetaLogo size="md" theme="dark" />
           </div>
-          <h1 className="text-xl font-bold tracking-tight">Ameta Telecom</h1>
-          <p className="text-xs text-blue-200 mt-1">
-            Plataforma Integrada de Gestão de Sites Nokia & Ericsson
+          <h1 className="text-xl font-black tracking-tight text-white">Ameta Telecom</h1>
+          <p className="text-xs text-blue-200/90 mt-1 font-medium">
+            Gestão Integrada de Sites & Vistorias Nokia e Ericsson
           </p>
+        </div>
 
-          <div className="absolute top-4 right-4 flex items-center gap-1 bg-emerald-500/20 border border-emerald-400/30 text-emerald-300 px-2.5 py-1 rounded-full text-[10px] font-semibold">
-            <CheckCircle2 className="w-3 h-3" /> Firebase 100% Client-Side
+        {/* Mode Selector Tabs (Hidden when in email verification state) */}
+        {!needsEmailVerification && (
+          <div className="grid grid-cols-2 bg-slate-100 p-1.5 mx-6 mt-6 rounded-2xl text-xs font-semibold">
+            <button
+              type="button"
+              onClick={() => {
+                setMode('login');
+                setError(null);
+                setInfoMessage(null);
+              }}
+              className={`py-2.5 rounded-xl transition-all cursor-pointer ${
+                mode === 'login'
+                  ? 'bg-white text-blue-950 shadow-sm font-bold'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              Entrar
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setMode('register');
+                setError(null);
+                setInfoMessage(null);
+              }}
+              className={`py-2.5 rounded-xl transition-all cursor-pointer ${
+                mode === 'register'
+                  ? 'bg-white text-blue-950 shadow-sm font-bold'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              Cadastrar-se
+            </button>
           </div>
-        </div>
+        )}
 
-        {/* Mode Selector Tabs */}
-        <div className="grid grid-cols-2 bg-slate-100 p-1.5 mx-6 mt-6 rounded-2xl text-xs font-semibold">
-          <button
-            type="button"
-            onClick={() => { setMode('login'); setError(null); setInfoMessage(null); }}
-            className={`py-2.5 rounded-xl transition-all cursor-pointer ${
-              mode === 'login'
-                ? 'bg-white text-blue-950 shadow-sm font-bold'
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            Entrar
-          </button>
-          <button
-            type="button"
-            onClick={() => { setMode('register'); setError(null); setInfoMessage(null); }}
-            className={`py-2.5 rounded-xl transition-all cursor-pointer ${
-              mode === 'register'
-                ? 'bg-white text-blue-950 shadow-sm font-bold'
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            Cadastrar-se
-          </button>
-        </div>
-
-        {/* Notifications / Errors */}
+        {/* Notifications / Feedback */}
         {error && (
-          <div className="mx-6 mt-4 p-3.5 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-center gap-2.5">
-            <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />
-            <span className="flex-1 leading-relaxed">{error}</span>
+          <div className="mx-6 mt-4 p-3.5 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-start gap-2.5 leading-relaxed">
+            <AlertCircle className="w-4 h-4 shrink-0 text-rose-600 mt-0.5" />
+            <span className="flex-1 font-medium">{error}</span>
           </div>
         )}
 
         {infoMessage && (
-          <div className="mx-6 mt-4 p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs flex items-center gap-2.5">
-            <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600" />
-            <span className="flex-1 leading-relaxed font-semibold">{infoMessage}</span>
+          <div className="mx-6 mt-4 p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs flex items-start gap-2.5 leading-relaxed">
+            <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600 mt-0.5" />
+            <span className="flex-1 font-medium">{infoMessage}</span>
           </div>
         )}
 
         {/* Form Body */}
-        <div className="p-8 pt-6">
+        <div className="p-6 sm:p-8 pt-5">
           {needsEmailVerification ? (
-            <div className="space-y-4 text-center py-4">
-              <div className="w-12 h-12 bg-amber-100 rounded-full flex items-center justify-center mx-auto text-amber-600 mb-2">
-                <Mail className="w-6 h-6" />
+            /* Email Verification Screen */
+            <div className="space-y-4 text-center py-2">
+              <div className="w-14 h-14 bg-amber-100 rounded-2xl flex items-center justify-center mx-auto text-amber-600 shadow-inner">
+                <Mail className="w-7 h-7" />
               </div>
-              <h3 className="text-sm font-bold text-slate-900">Verifique seu e-mail para continuar</h3>
-              <p className="text-xs text-slate-600 leading-relaxed">
-                Enviamos um link de confirmação para o seu e-mail. Por favor, clique no link e depois retorne aqui.
-              </p>
-              <div className="space-y-2 pt-2">
+              <div>
+                <h3 className="text-base font-bold text-slate-900">Verifique seu e-mail para continuar</h3>
+                <p className="text-xs text-slate-600 mt-1.5 leading-relaxed">
+                  Enviamos um link de confirmação para o seu e-mail corporativo. Por favor, clique no link recebido para validar sua conta.
+                </p>
+              </div>
+
+              <div className="space-y-2.5 pt-3">
                 <button
                   type="button"
                   onClick={handleCheckVerification}
                   disabled={loading}
-                  className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow transition-all cursor-pointer disabled:opacity-50"
+                  className="w-full py-3 bg-gradient-to-r from-blue-700 to-indigo-800 hover:from-blue-800 hover:to-indigo-900 text-white font-bold text-xs rounded-xl shadow-lg shadow-blue-500/20 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
                 >
-                  {loading ? 'Verificando...' : 'Já verifiquei meu e-mail'}
+                  <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+                  <span>{loading ? 'Verificando...' : 'Já verifiquei meu e-mail'}</span>
                 </button>
+
                 <button
                   type="button"
                   onClick={handleResendVerification}
+                  disabled={loading}
                   className="w-full py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition-all cursor-pointer"
                 >
                   Reenviar e-mail de verificação
                 </button>
+
                 <button
                   type="button"
-                  onClick={() => setNeedsEmailVerification(false)}
-                  className="text-xs text-slate-500 hover:text-slate-800 pt-2 cursor-pointer block mx-auto"
+                  onClick={() => {
+                    setNeedsEmailVerification(false);
+                    setMode('login');
+                    setError(null);
+                    setInfoMessage(null);
+                  }}
+                  className="text-xs text-slate-500 hover:text-slate-800 font-semibold pt-1 cursor-pointer block mx-auto"
                 >
-                  Voltar ao Login
+                  Voltar para tela de Login
                 </button>
               </div>
             </div>
-          ) : (
-            <>
-              {mode === 'login' && (
+          ) : mode === 'login' ? (
+            /* Login Form */
             <form onSubmit={handleLogin} className="space-y-4">
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  E-mail Corporativo (@{ALLOWED_EMAIL_DOMAIN})
+                <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                  E-mail Corporativo
                 </label>
                 <div className="relative">
                   <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
@@ -353,7 +421,7 @@ export const AuthGate: React.FC<AuthGateProps> = ({ onAuthenticated }) => {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
+                <label className="block text-xs font-bold text-slate-700 mb-1.5">
                   Senha
                 </label>
                 <div className="relative">
@@ -370,7 +438,7 @@ export const AuthGate: React.FC<AuthGateProps> = ({ onAuthenticated }) => {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
+                <label className="block text-xs font-bold text-slate-700 mb-1.5">
                   Plataforma Inicial
                 </label>
                 <div className="grid grid-cols-2 gap-2">
@@ -410,26 +478,34 @@ export const AuthGate: React.FC<AuthGateProps> = ({ onAuthenticated }) => {
                 </button>
               </div>
 
-              <div className="flex items-center justify-between pt-2 px-1">
+              {/* Utility Links */}
+              <div className="pt-3 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-2 text-center">
                 <button
                   type="button"
-                  onClick={() => { setMode('reset'); setError(null); }}
+                  onClick={() => {
+                    setMode('reset');
+                    setError(null);
+                    setInfoMessage(null);
+                  }}
                   className="text-xs text-blue-600 hover:text-blue-800 font-semibold cursor-pointer"
                 >
                   Esqueceu a senha?
                 </button>
                 <button
                   type="button"
-                  onClick={handleResendVerification}
-                  className="text-xs text-indigo-600 hover:text-indigo-800 font-semibold cursor-pointer"
+                  onClick={() => {
+                    setNeedsEmailVerification(true);
+                    setError(null);
+                    setInfoMessage(null);
+                  }}
+                  className="text-xs text-slate-500 hover:text-slate-800 font-medium cursor-pointer"
                 >
-                  Reenviar e-mail de verificação
+                  Reenviar verificação
                 </button>
               </div>
             </form>
-          )}
-
-          {mode === 'register' && (
+          ) : mode === 'register' ? (
+            /* Register Form */
             <form onSubmit={handleRegister} className="space-y-3.5">
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">
@@ -442,8 +518,8 @@ export const AuthGate: React.FC<AuthGateProps> = ({ onAuthenticated }) => {
                     required
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    placeholder="Seu Nome"
-                    className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-blue-600 focus:bg-white transition-all font-medium"
+                    placeholder="Seu Nome Completo"
+                    className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-blue-600 focus:bg-white transition-all font-medium"
                   />
                 </div>
               </div>
@@ -460,7 +536,7 @@ export const AuthGate: React.FC<AuthGateProps> = ({ onAuthenticated }) => {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder={`nome@${ALLOWED_EMAIL_DOMAIN}`}
-                    className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-blue-600 focus:bg-white transition-all font-medium"
+                    className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-blue-600 focus:bg-white transition-all font-medium"
                   />
                 </div>
               </div>
@@ -477,7 +553,7 @@ export const AuthGate: React.FC<AuthGateProps> = ({ onAuthenticated }) => {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="••••••••"
-                    className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-blue-600 focus:bg-white transition-all font-medium"
+                    className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-blue-600 focus:bg-white transition-all font-medium"
                   />
                 </div>
               </div>
@@ -490,7 +566,7 @@ export const AuthGate: React.FC<AuthGateProps> = ({ onAuthenticated }) => {
                   <select
                     value={requestedRole}
                     onChange={(e) => setRequestedRole(e.target.value as AmetaUser['role'])}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-blue-600 focus:bg-white transition-all font-medium cursor-pointer"
+                    className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-blue-600 focus:bg-white transition-all font-medium cursor-pointer"
                   >
                     <option value="Vistoriador">Vistoriador</option>
                     <option value="Executor">Executor</option>
@@ -507,7 +583,7 @@ export const AuthGate: React.FC<AuthGateProps> = ({ onAuthenticated }) => {
                     value={requestedEquipe}
                     onChange={(e) => setRequestedEquipe(e.target.value)}
                     placeholder="Ex: Equipe Alpha"
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-blue-600 focus:bg-white transition-all font-medium"
+                    className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-blue-600 focus:bg-white transition-all font-medium"
                   />
                 </div>
               </div>
@@ -548,17 +624,23 @@ export const AuthGate: React.FC<AuthGateProps> = ({ onAuthenticated }) => {
                   disabled={loading}
                   className="w-full py-3 bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 text-white font-bold text-xs rounded-xl shadow-lg shadow-emerald-500/25 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
                 >
-                  <span>{loading ? 'Cadastrando...' : 'Solicitar Cadastro'}</span>
                   <Send className="w-4 h-4" />
+                  <span>{loading ? 'Cadastrando...' : 'Solicitar Cadastro'}</span>
                 </button>
               </div>
             </form>
-          )}
-
-          {mode === 'reset' && (
+          ) : (
+            /* Reset Password Form */
             <form onSubmit={handlePasswordReset} className="space-y-4">
+              <div className="text-center pb-1">
+                <h3 className="text-sm font-bold text-slate-900">Recuperação de Senha</h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Informe seu e-mail corporativo para receber as instruções
+                </p>
+              </div>
+
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
+                <label className="block text-xs font-bold text-slate-700 mb-1.5">
                   E-mail Corporativo (@{ALLOWED_EMAIL_DOMAIN})
                 </label>
                 <div className="relative">
@@ -574,30 +656,38 @@ export const AuthGate: React.FC<AuthGateProps> = ({ onAuthenticated }) => {
                 </div>
               </div>
 
-              <div className="pt-2">
+              <div className="pt-2 space-y-2">
                 <button
                   type="submit"
                   disabled={loading}
                   className="w-full py-3 bg-gradient-to-r from-blue-700 to-indigo-800 hover:from-blue-800 hover:to-indigo-900 text-white font-bold text-xs rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
                 >
                   <KeyRound className="w-4 h-4" />
-                  <span>{loading ? 'Enviando...' : 'Recuperar Senha'}</span>
+                  <span>{loading ? 'Enviando...' : 'Enviar Link de Redefinição'}</span>
                 </button>
-              </div>
 
-              <div className="text-center pt-2">
                 <button
                   type="button"
-                  onClick={() => setMode('login')}
-                  className="text-xs text-slate-600 hover:text-slate-900 font-semibold cursor-pointer"
+                  onClick={() => {
+                    setMode('login');
+                    setError(null);
+                    setInfoMessage(null);
+                  }}
+                  className="w-full py-2.5 text-xs text-slate-600 hover:text-slate-900 font-semibold cursor-pointer flex items-center justify-center gap-1"
                 >
-                  Voltar ao Login
+                  <ChevronLeft className="w-4 h-4" />
+                  <span>Voltar para o Login</span>
                 </button>
               </div>
             </form>
           )}
-            </>
-          )}
+        </div>
+
+        {/* Footer Project ID Info */}
+        <div className="py-2.5 px-6 bg-slate-50 border-t border-slate-100 text-center">
+          <span className="text-[11px] font-mono text-slate-400">
+            Projeto: <strong className="font-semibold text-slate-600">{firebaseConfig.projectId}</strong>
+          </span>
         </div>
       </div>
     </div>
