@@ -19,6 +19,7 @@ import {
   ChevronDown,
   ChevronUp,
   UserCheck,
+  RefreshCw,
 } from 'lucide-react';
 import {
   AmetaUser,
@@ -36,14 +37,13 @@ import {
   evaluateUserOverallDocumentStatus,
 } from '../types/telecom';
 import { dataService } from '../services/dataService';
-import { cloudFetch } from '../lib/firebaseCloud';
-
-const fetch = cloudFetch;
+import { db, firebaseConfig } from '../lib/firebaseClient';
+import { collection, onSnapshot, doc, setDoc, deleteDoc, updateDoc } from 'firebase/firestore';
 
 interface AdminAccessPanelProps {
   currentUser: AmetaUser;
-  users: AmetaUser[];
-  onUsersUpdated: (nextUsers: AmetaUser[], toastMsg?: string) => void;
+  users?: AmetaUser[];
+  onUsersUpdated?: (nextUsers: AmetaUser[], toastMsg?: string) => void;
   onTestUserView?: (targetUser: AmetaUser) => void;
   initialExpandedUserId?: string | null;
 }
@@ -93,11 +93,55 @@ function readFileAsBase64(file: File): Promise<string> {
 
 export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
   currentUser,
-  users,
+  users: initialUsers = [],
   onUsersUpdated,
   onTestUserView,
   initialExpandedUserId,
 }) => {
+  const [firestoreUsers, setFirestoreUsers] = useState<AmetaUser[] | null>(null);
+  const [firestoreError, setFirestoreError] = useState<{ code: string; message: string } | null>(null);
+  const [isLoadingUsers, setIsLoadingUsers] = useState(true);
+
+  // Leitura direta e em tempo real da coleção "usuarios" no Firestore sem nenhum filtro de plataforma ou role
+  useEffect(() => {
+    setIsLoadingUsers(true);
+    setFirestoreError(null);
+
+    const usuariosCol = collection(db, 'usuarios');
+    const unsubscribe = onSnapshot(
+      usuariosCol,
+      (snapshot) => {
+        const loaded: AmetaUser[] = snapshot.docs.map((docSnap) => {
+          const data = docSnap.data();
+          return {
+            id: docSnap.id,
+            uid: docSnap.id,
+            ...data,
+          } as AmetaUser;
+        });
+        setFirestoreUsers(loaded);
+        setIsLoadingUsers(false);
+        if (onUsersUpdated) {
+          onUsersUpdated(loaded);
+        }
+      },
+      (err: any) => {
+        console.error('Erro no onSnapshot da coleção usuarios:', err);
+        setFirestoreError({
+          code: err?.code || 'permission-denied',
+          message: err?.message || 'Falha ao ler coleção usuarios no Firestore.',
+        });
+        setIsLoadingUsers(false);
+      }
+    );
+
+    return () => unsubscribe();
+  }, []);
+
+  const users = useMemo(() => {
+    return firestoreUsers !== null ? firestoreUsers : initialUsers;
+  }, [firestoreUsers, initialUsers]);
+
   const [searchQuery, setSearchQuery] = useState('');
   const [roleFilter, setRoleFilter] = useState<'ALL' | UserRole>('ALL');
   const [statusFilter, setStatusFilter] = useState<
@@ -248,22 +292,6 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
       draft.equipe.trim() ||
       (draft.role.includes('Coordenador') ? `Coordenação ${draft.plataforma}` : target.name);
     setUpdatingUserId(target.id);
-    onUsersUpdated(
-      users.map((u) =>
-        u.id === target.id || u.email.toLowerCase() === target.email.toLowerCase()
-          ? {
-              ...u,
-              role: draft.role,
-              plataforma: draft.plataforma,
-              assignedPlatform: draft.plataforma,
-              equipe: resolvedEquipe,
-              situacao: 'ativo',
-              accessReleased: true,
-            }
-          : u
-      ),
-      `Acesso de ${target.name} liberado como ${draft.role} (Dupla/Equipe: ${resolvedEquipe})!`
-    );
     try {
       await dataService.atualizarPermissoesUsuario(target.uid || target.id, {
         email: target.email,
@@ -273,29 +301,27 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
         plataforma: draft.plataforma,
         equipe: resolvedEquipe,
       });
-      const res = await fetch('/api/owner/permissions/release', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ownerEmail: 'rafael.araujo@ametaservicos.com.br',
-          userId: target.uid || target.id,
-          uid: target.uid || target.id,
-          email: target.email,
-          name: target.name,
-          role: draft.role,
-          plataforma: draft.plataforma,
-          assignedPlatform: draft.plataforma,
-          situacao: 'ativo',
-          accessReleased: true,
-          equipe: resolvedEquipe,
-        }),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        if (Array.isArray(data.users)) {
-          onUsersUpdated(data.users);
-        }
+      if (onUsersUpdated) {
+        onUsersUpdated(
+          users.map((u) =>
+            u.id === target.id || (u.email && target.email && u.email.toLowerCase() === target.email.toLowerCase())
+              ? {
+                  ...u,
+                  role: draft.role,
+                  plataforma: draft.plataforma,
+                  assignedPlatform: draft.plataforma,
+                  equipe: resolvedEquipe,
+                  situacao: 'ativo',
+                  accessReleased: true,
+                }
+              : u
+          ),
+          `Acesso de ${target.name} liberado como ${draft.role} (Plataforma: ${draft.plataforma} · Dupla/Equipe: ${resolvedEquipe})!`
+        );
       }
+    } catch (err: any) {
+      console.error('Erro ao aprovar usuário:', err);
+      setError(`Erro ao liberar acesso no Firestore: ${err?.message || err}`);
     } finally {
       setUpdatingUserId(null);
     }
@@ -340,16 +366,31 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
     };
   }, [users.length, usersWithDocEval]);
 
+  // Sort users so that pending ('aguardando' or accessReleased === false) are at the TOP
+  const sortedUsersWithDocEval = useMemo(() => {
+    return [...usersWithDocEval].sort((a, b) => {
+      const aPending = a.user.situacao === 'aguardando' || a.user.accessReleased === false;
+      const bPending = b.user.situacao === 'aguardando' || b.user.accessReleased === false;
+      if (aPending && !bPending) return -1;
+      if (!aPending && bPending) return 1;
+      const aDono = isOwnerAdmUser(a.user.email, a.user.situacao);
+      const bDono = isOwnerAdmUser(b.user.email, b.user.situacao);
+      if (aDono && !bDono) return -1;
+      if (!aDono && bDono) return 1;
+      return (a.user.name || '').localeCompare(b.user.name || '', 'pt-BR');
+    });
+  }, [usersWithDocEval]);
+
   const filteredResources = useMemo(() => {
-    return usersWithDocEval.filter(({ user: u, docSummary }) => {
+    return sortedUsersWithDocEval.filter(({ user: u, docSummary }) => {
       const r = normalizeUserRole(u.role);
       if (roleFilter !== 'ALL' && r !== roleFilter) return false;
       if (statusFilter !== 'ALL' && docSummary.overallStatus !== statusFilter) return false;
       if (equipeFilter !== 'ALL' && (u.equipe || '') !== equipeFilter) return false;
       if (searchQuery.trim()) {
         const q = searchQuery.trim().toLowerCase();
-        const matchName = u.name.toLowerCase().includes(q);
-        const matchEmail = u.email.toLowerCase().includes(q);
+        const matchName = (u.name || '').toLowerCase().includes(q);
+        const matchEmail = (u.email || '').toLowerCase().includes(q);
         const matchEquipe = (u.equipe || '').toLowerCase().includes(q);
         const matchTel = (u.telefone || '').toLowerCase().includes(q);
         const matchCpf = (u.cpf || '').toLowerCase().includes(q);
@@ -357,24 +398,11 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
       }
       return true;
     });
-  }, [usersWithDocEval, roleFilter, statusFilter, equipeFilter, searchQuery]);
+  }, [sortedUsersWithDocEval, roleFilter, statusFilter, equipeFilter, searchQuery]);
 
   const handleRoleChange = async (userId: string, role: UserRole, resourceName: string) => {
     setUpdatingUserId(userId);
     const target = users.find((u) => u.id === userId);
-    onUsersUpdated(
-      users.map((u) =>
-        u.id === userId
-          ? {
-              ...u,
-              role,
-              situacao: u.situacao === 'dono' ? 'dono' : 'ativo',
-              accessReleased: true,
-            }
-          : u
-      ),
-      `Perfil de ${resourceName} alterado para ${role}`
-    );
     try {
       if (target) {
         await dataService.atualizarPermissoesUsuario(target.uid || target.id, {
@@ -385,18 +413,25 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
           plataforma: target.plataforma || target.assignedPlatform || 'NOKIA',
           equipe: target.equipe,
         });
-      }
-      const res = await fetch(`/api/admin/users/${encodeURIComponent(userId)}/role`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ role }),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        if (Array.isArray(data.users)) {
-          onUsersUpdated(data.users);
+        if (onUsersUpdated) {
+          onUsersUpdated(
+            users.map((u) =>
+              u.id === userId
+                ? {
+                    ...u,
+                    role,
+                    situacao: u.situacao === 'dono' ? 'dono' : 'ativo',
+                    accessReleased: true,
+                  }
+                : u
+            ),
+            `Perfil de ${resourceName} alterado para ${role}`
+          );
         }
       }
+    } catch (err: any) {
+      console.error('Erro ao alterar perfil:', err);
+      setError(`Erro ao atualizar perfil no Firestore: ${err?.message || err}`);
     } finally {
       setUpdatingUserId(null);
     }
@@ -409,20 +444,6 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
   ) => {
     setUpdatingUserId(target.id);
     const nextReleased = nextSituacao === 'ativo' || nextSituacao === 'dono';
-    onUsersUpdated(
-      users.map((u) =>
-        u.id === target.id
-          ? {
-              ...u,
-              plataforma: nextPlatform,
-              assignedPlatform: nextPlatform,
-              situacao: nextSituacao,
-              accessReleased: nextReleased,
-            }
-          : u
-      ),
-      `Permissão de ${target.name} atualizada (${nextPlatform} · ${nextSituacao.toUpperCase()})`
-    );
     try {
       await dataService.atualizarPermissoesUsuario(target.uid || target.id, {
         email: target.email,
@@ -432,22 +453,25 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
         plataforma: nextPlatform,
         equipe: target.equipe,
       });
-      await fetch('/api/owner/permissions/release', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userId: target.uid || target.id,
-          uid: target.uid || target.id,
-          email: target.email,
-          name: target.name,
-          role: normalizeUserRole(target.role, target.email),
-          plataforma: nextPlatform,
-          assignedPlatform: nextPlatform,
-          situacao: nextSituacao,
-          accessReleased: nextReleased,
-          equipe: target.equipe || '',
-        }),
-      });
+      if (onUsersUpdated) {
+        onUsersUpdated(
+          users.map((u) =>
+            u.id === target.id
+              ? {
+                  ...u,
+                  plataforma: nextPlatform,
+                  assignedPlatform: nextPlatform,
+                  situacao: nextSituacao,
+                  accessReleased: nextReleased,
+                }
+              : u
+          ),
+          `Permissão de ${target.name} atualizada (${nextPlatform} · ${nextSituacao.toUpperCase()})`
+        );
+      }
+    } catch (err: any) {
+      console.error('Erro ao atualizar permissão:', err);
+      setError(`Erro ao atualizar permissão no Firestore: ${err?.message || err}`);
     } finally {
       setUpdatingUserId(null);
     }
@@ -458,43 +482,37 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
     nextDispensado: boolean
   ) => {
     setUpdatingUserId(user.id);
-    const optimisticUsers = users.map((u) => {
-      if (u.id !== user.id) return u;
-      const cleanedDocs = ensureUserMandatoryDocuments(u.documents).map((d) =>
-        nextDispensado && (d.statusOverride === 'VENCIDO' || d.statusOverride === 'A_VENCER')
-          ? { ...d, statusOverride: undefined }
-          : d
-      );
-      const nextUser: AmetaUser = {
-        ...u,
-        dispensadoDocumentos: nextDispensado,
-        documents: cleanedDocs,
-        statusRecurso: nextDispensado ? 'DISPENSADO' : 'VALIDADO',
-      };
-      nextUser.statusRecurso = evaluateUserOverallDocumentStatus(nextUser).overallStatus;
-      return nextUser;
-    });
-    onUsersUpdated(
-      optimisticUsers,
-      nextDispensado
-        ? `${user.name} marcado como Dispensado de Documentos`
-        : `Exigência de documentos reativada para ${user.name}`
+    const cleanedDocs = ensureUserMandatoryDocuments(user.documents).map((d) =>
+      nextDispensado && (d.statusOverride === 'VENCIDO' || d.statusOverride === 'A_VENCER')
+        ? { ...d, statusOverride: undefined }
+        : d
     );
+    const nextUser: AmetaUser = {
+      ...user,
+      dispensadoDocumentos: nextDispensado,
+      documents: cleanedDocs,
+      statusRecurso: nextDispensado ? 'DISPENSADO' : 'VALIDADO',
+    };
+    nextUser.statusRecurso = evaluateUserOverallDocumentStatus(nextUser).overallStatus;
     try {
-      const res = await fetch(`/api/admin/users/${encodeURIComponent(user.id)}/status`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          dispensadoDocumentos: nextDispensado,
-          statusRecurso: nextDispensado ? 'DISPENSADO' : 'VALIDADO',
-        }),
+      await dataService.salvarDocumentosUsuario({
+        uidOrId: user.uid || user.id,
+        email: user.email,
+        documents: cleanedDocs,
+        dispensadoDocumentos: nextDispensado,
+        statusRecurso: nextUser.statusRecurso,
       });
-      if (res.ok) {
-        const data = await res.json();
-        if (Array.isArray(data.users)) {
-          onUsersUpdated(data.users);
-        }
+      if (onUsersUpdated) {
+        onUsersUpdated(
+          users.map((u) => (u.id === user.id ? nextUser : u)),
+          nextDispensado
+            ? `${user.name} marcado como Dispensado de Documentos`
+            : `Exigência de documentos reativada para ${user.name}`
+        );
       }
+    } catch (err: any) {
+      console.error('Erro ao alternar dispensa:', err);
+      setError(`Erro ao salvar no Firestore: ${err?.message || err}`);
     } finally {
       setUpdatingUserId(null);
     }
@@ -507,53 +525,56 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
   ) => {
     setUpdatingUserId(userId);
     const isNextDispensado = statusRecurso === 'DISPENSADO';
-    const optimisticUsers = users.map((u) => {
-      if (u.id !== userId) return u;
-      const cleanedDocs = ensureUserMandatoryDocuments(u.documents).map((d) => {
-        if (statusRecurso === 'VALIDADO' || isNextDispensado) {
-          const nextOverride =
-            d.statusOverride === 'VENCIDO' || d.statusOverride === 'A_VENCER'
-              ? undefined
-              : d.statusOverride;
-          let nextExpires = d.expiresAt || '';
-          if (statusRecurso === 'VALIDADO' && nextExpires) {
-            const evalCheck = evaluateDocumentExpiration(
-              { ...d, statusOverride: nextOverride },
-              false
-            );
-            if (evalCheck.status === 'VENCIDO' || evalCheck.status === 'A_VENCER') {
-              nextExpires = '';
-            }
+    const target = users.find((u) => u.id === userId);
+    if (!target) {
+      setUpdatingUserId(null);
+      return;
+    }
+    const cleanedDocs = ensureUserMandatoryDocuments(target.documents).map((d) => {
+      if (statusRecurso === 'VALIDADO' || isNextDispensado) {
+        const nextOverride =
+          d.statusOverride === 'VENCIDO' || d.statusOverride === 'A_VENCER'
+            ? undefined
+            : d.statusOverride;
+        let nextExpires = d.expiresAt || '';
+        if (statusRecurso === 'VALIDADO' && nextExpires) {
+          const evalCheck = evaluateDocumentExpiration(
+            { ...d, statusOverride: nextOverride },
+            false
+          );
+          if (evalCheck.status === 'VENCIDO' || evalCheck.status === 'A_VENCER') {
+            nextExpires = '';
           }
-          return { ...d, statusOverride: nextOverride, expiresAt: nextExpires };
         }
-        return d;
-      });
-      const nextUser: AmetaUser = {
-        ...u,
-        dispensadoDocumentos: isNextDispensado,
-        documents: cleanedDocs,
-        statusRecurso,
-      };
-      nextUser.statusRecurso = evaluateUserOverallDocumentStatus(nextUser).overallStatus;
-      return nextUser;
-    });
-    onUsersUpdated(optimisticUsers, `Status de ${resourceName} alterado para ${statusRecurso}`);
-    try {
-      const res = await fetch(`/api/admin/users/${encodeURIComponent(userId)}/status`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          statusRecurso,
-          dispensadoDocumentos: isNextDispensado,
-        }),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        if (Array.isArray(data.users)) {
-          onUsersUpdated(data.users);
-        }
+        return { ...d, statusOverride: nextOverride, expiresAt: nextExpires };
       }
+      return d;
+    });
+    const nextUser: AmetaUser = {
+      ...target,
+      dispensadoDocumentos: isNextDispensado,
+      documents: cleanedDocs,
+      statusRecurso,
+    };
+    nextUser.statusRecurso = evaluateUserOverallDocumentStatus(nextUser).overallStatus;
+
+    try {
+      await dataService.salvarDocumentosUsuario({
+        uidOrId: target.uid || target.id,
+        email: target.email,
+        documents: cleanedDocs,
+        dispensadoDocumentos: isNextDispensado,
+        statusRecurso,
+      });
+      if (onUsersUpdated) {
+        onUsersUpdated(
+          users.map((u) => (u.id === userId ? nextUser : u)),
+          `Status de ${resourceName} alterado para ${statusRecurso}`
+        );
+      }
+    } catch (err: any) {
+      console.error('Erro ao atualizar status:', err);
+      setError(`Erro ao atualizar status no Firestore: ${err?.message || err}`);
     } finally {
       setUpdatingUserId(null);
     }
@@ -575,81 +596,75 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
     const key = `${userId}-${docType}`;
     setUploadingKey(key);
 
-    // Immediate optimistic update in UI so removing or updating an expired document reflects in 0ms
-    if (!payload.fileBase64 && !payload.reExtractFromStoredFile) {
-      const optimisticUsers = users.map((u) => {
-        if (u.id !== userId) return u;
-        const nextDocs = ensureUserMandatoryDocuments(u.documents).map((d) => {
-          if (d.type !== docType) return d;
-          const copy = { ...d };
-          if (payload.clearFile) {
-            copy.fileName = '';
-            copy.fileSize = 0;
-            copy.uploadedAt = '';
-            copy.uploadedBy = '';
-            copy.storageFileName = '';
-            copy.expiresAt = '';
-            copy.statusOverride = undefined;
-            copy.notes = '';
-          }
-          if (typeof payload.expiresAt === 'string') {
-            copy.expiresAt = payload.expiresAt.trim();
-            if (payload.statusOverride === undefined && copy.statusOverride !== 'DISPENSADO') {
-              copy.statusOverride = undefined;
-            }
-          }
-          if (payload.statusOverride !== undefined) {
-            copy.statusOverride = payload.statusOverride ? payload.statusOverride : undefined;
-            if (
-              payload.statusOverride !== 'VENCIDO' &&
-              typeof payload.expiresAt !== 'string' &&
-              copy.expiresAt
-            ) {
-              const evalCheck = evaluateDocumentExpiration(
-                { ...copy, statusOverride: undefined },
-                false
-              );
-              if (evalCheck.status === 'VENCIDO') {
-                copy.expiresAt = '';
-              }
-            }
-          }
-          return copy;
-        });
-        const nextUser: AmetaUser = {
-          ...u,
-          documents: nextDocs,
-        };
-        nextUser.statusRecurso = evaluateUserOverallDocumentStatus(nextUser).overallStatus;
-        return nextUser;
-      });
-      onUsersUpdated(optimisticUsers, toastMessage);
+    const targetUser = users.find((u) => u.id === userId);
+    if (!targetUser) {
+      setUploadingKey(null);
+      return;
     }
 
-    try {
-      const res = await fetch(`/api/admin/users/${encodeURIComponent(userId)}/documents`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          docType,
-          ...payload,
-          uploadedBy: currentUser.name,
-        }),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        if (Array.isArray(data.users)) {
-          const autoMsg =
-            data.autoExtracted?.expiresAt
-              ? `📎 ${docType}: Data de vencimento preenchida automaticamente (${formatDateBr(
-                  data.autoExtracted.expiresAt
-                )})`
-              : payload.fileBase64 || payload.reExtractFromStoredFile
-              ? toastMessage
-              : undefined;
-          onUsersUpdated(data.users, autoMsg);
+    const nextDocs = ensureUserMandatoryDocuments(targetUser.documents).map((d) => {
+      if (d.type !== docType) return d;
+      const copy = { ...d };
+      if (payload.clearFile) {
+        copy.fileName = '';
+        copy.fileSize = 0;
+        copy.uploadedAt = '';
+        copy.uploadedBy = '';
+        copy.storageFileName = '';
+        copy.expiresAt = '';
+        copy.statusOverride = undefined;
+        copy.notes = '';
+      }
+      if (payload.fileName) {
+        copy.fileName = payload.fileName;
+        copy.uploadedAt = new Date().toISOString();
+        copy.uploadedBy = currentUser.name || currentUser.email;
+      }
+      if (typeof payload.expiresAt === 'string') {
+        copy.expiresAt = payload.expiresAt.trim();
+        if (payload.statusOverride === undefined && copy.statusOverride !== 'DISPENSADO') {
+          copy.statusOverride = undefined;
         }
       }
+      if (payload.statusOverride !== undefined) {
+        copy.statusOverride = payload.statusOverride ? payload.statusOverride : undefined;
+        if (
+          payload.statusOverride !== 'VENCIDO' &&
+          typeof payload.expiresAt !== 'string' &&
+          copy.expiresAt
+        ) {
+          const evalCheck = evaluateDocumentExpiration(
+            { ...copy, statusOverride: undefined },
+            false
+          );
+          if (evalCheck.status === 'VENCIDO') {
+            copy.expiresAt = '';
+          }
+        }
+      }
+      return copy;
+    });
+
+    const nextUser: AmetaUser = {
+      ...targetUser,
+      documents: nextDocs,
+    };
+    nextUser.statusRecurso = evaluateUserOverallDocumentStatus(nextUser).overallStatus;
+
+    try {
+      await updateDoc(doc(db, 'usuarios', targetUser.uid || targetUser.id), {
+        documents: nextDocs,
+        statusRecurso: nextUser.statusRecurso,
+      });
+      if (onUsersUpdated && toastMessage) {
+        onUsersUpdated(
+          users.map((u) => (u.id === userId ? nextUser : u)),
+          toastMessage
+        );
+      }
+    } catch (err: any) {
+      console.error('Erro ao atualizar documento:', err);
+      setError(`Erro ao atualizar documento no Firestore: ${err?.message || err}`);
     } finally {
       setUploadingKey(null);
     }
@@ -688,41 +703,49 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
           label: meta.label,
           expiresAt: entry?.expiresAt || '',
           fileName: entry?.fileName || '',
-          fileBase64: entry?.fileBase64 || '',
+          fileSize: 0,
+          uploadedAt: entry?.fileName ? new Date().toISOString() : '',
+          uploadedBy: entry?.fileName ? currentUser.name : '',
+          storageFileName: '',
+          notes: '',
           statusOverride: entry?.dispensado ? 'DISPENSADO' : undefined,
         };
       });
 
-      const res = await fetch('/api/admin/users', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: name.trim(),
-          email: email.trim(),
-          telefone: telefone.trim(),
-          cpf: cpf.trim(),
-          rg: rg.trim(),
-          equipe: equipe.trim() || 'Campo',
-          atividade: atividade.trim() || 'ACESSO | TX',
-          password,
-          role: newRole,
-          dispensadoDocumentos: newDispensado,
-          statusRecurso: newDispensado ? 'DISPENSADO' : 'VALIDADO',
-          documents: documentsPayload,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setError(data.error || 'Erro ao cadastrar recurso.');
-        return;
-      }
-      if (Array.isArray(data.users)) {
-        onUsersUpdated(data.users, `Perfil ${name.trim()} cadastrado com sucesso`);
+      const uid = `USR_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+      const cleanEmail = email.trim().toLowerCase();
+      const newUser: AmetaUser = {
+        id: uid,
+        uid: uid,
+        name: name.trim(),
+        email: cleanEmail,
+        telefone: telefone.trim(),
+        cpf: cpf.trim(),
+        rg: rg.trim(),
+        equipe: equipe.trim() || 'Campo',
+        atividade: atividade.trim() || 'ACESSO | TX',
+        role: newRole,
+        tipo: 'usuario',
+        situacao: 'ativo',
+        plataforma: 'NOKIA',
+        assignedPlatform: 'NOKIA',
+        accessReleased: true,
+        dispensadoDocumentos: newDispensado,
+        statusRecurso: newDispensado ? 'DISPENSADO' : 'VALIDADO',
+        documents: documentsPayload as UserMandatoryDocument[],
+        emailVerified: true,
+        createdAt: new Date().toISOString(),
+      };
+
+      await setDoc(doc(db, 'usuarios', uid), newUser);
+      if (onUsersUpdated) {
+        onUsersUpdated([...users, newUser], `Perfil ${name.trim()} cadastrado com sucesso`);
       }
       resetNewResourceForm();
       setAddModalOpen(false);
-    } catch {
-      setError('Falha de conexão com o servidor.');
+    } catch (err: any) {
+      console.error('Erro ao criar recurso:', err);
+      setError(`Falha ao cadastrar recurso no Firestore: ${err?.message || err}`);
     } finally {
       setSaving(false);
     }
@@ -731,25 +754,40 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
   const handleDeleteResource = async (u: AmetaUser) => {
     if (isOwnerAdmUser(u.email, u.situacao)) return;
     try {
-      if (dataService.isConfigured()) {
-        await dataService.excluirUsuario(u.uid || u.id, u.email);
+      await deleteDoc(doc(db, 'usuarios', u.uid || u.id));
+      if (onUsersUpdated) {
+        onUsersUpdated(
+          users.filter((usr) => usr.id !== u.id && usr.uid !== u.uid),
+          `Recurso ${u.name} removido`
+        );
       }
-      const res = await fetch(`/api/admin/users/${encodeURIComponent(u.id)}`, {
-        method: 'DELETE',
-      });
-      if (res.ok) {
-        const data = await res.json();
-        if (Array.isArray(data.users)) {
-          onUsersUpdated(data.users, `Recurso ${u.name} removido`);
-        }
-      }
-    } catch {
-      // ignore error
+    } catch (err: any) {
+      console.error('Erro ao excluir usuário:', err);
+      setError(`Erro ao excluir usuário no Firestore: ${err?.message || err}`);
     }
   };
 
   return (
     <div className="w-full space-y-4">
+      {/* Firestore Connection / Error Banner */}
+      {firestoreError && (
+        <div className="bg-red-50 border-2 border-red-400 rounded-xl p-4 text-red-900 shadow-sm space-y-1.5">
+          <div className="flex items-center gap-2 font-bold text-sm">
+            <AlertTriangle className="w-5 h-5 text-red-600 shrink-0" />
+            <span>Erro na leitura em tempo real da coleção "usuarios" no Firestore</span>
+          </div>
+          <div className="text-xs font-mono">
+            Código do erro: <strong className="text-red-700">{firestoreError.code}</strong>
+          </div>
+          <div className="text-xs text-red-800">{firestoreError.message}</div>
+          <div className="text-xs text-slate-600 font-mono pt-1 border-t border-red-200 flex items-center gap-2">
+            <span>Projeto Firebase em uso: <strong className="text-slate-800">{firebaseConfig.projectId}</strong></span>
+            <span>·</span>
+            <span>Banco: <strong>{firebaseConfig.firestoreDatabaseId || '(default)'}</strong></span>
+          </div>
+        </div>
+      )}
+
       {/* Minimalist Top Bar */}
       <div className="bg-white border border-slate-200 rounded-xl p-4 sm:p-5 flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-3.5 min-w-0">
@@ -1717,8 +1755,18 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
 
               {filteredResources.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="py-8 text-center text-slate-500">
-                    Nenhum recurso encontrado para o filtro selecionado.
+                  <td colSpan={7} className="py-12 text-center text-slate-500">
+                    <div className="flex flex-col items-center justify-center gap-2">
+                      <Users className="w-10 h-10 text-slate-300" />
+                      <div className="text-sm font-bold text-slate-800">
+                        {users.length === 0
+                          ? '0 usuários cadastrados na coleção "usuarios"'
+                          : 'Nenhum recurso encontrado para os filtros selecionados'}
+                      </div>
+                      <div className="text-xs text-slate-500 font-mono">
+                        Projeto Firebase: <strong className="text-slate-700">{firebaseConfig.projectId}</strong> (Banco: {firebaseConfig.firestoreDatabaseId || '(default)'})
+                      </div>
+                    </div>
                   </td>
                 </tr>
               )}
@@ -1964,11 +2012,7 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
                                 <label className="w-full py-1 px-2 bg-slate-900 hover:bg-slate-800 text-white rounded text-[11px] font-semibold flex items-center justify-center gap-1 cursor-pointer">
                                   <Upload className="w-3 h-3 shrink-0" />
                                   <span className="truncate">
-                                    {uploadingKey === `new-${meta.type}`
-                                      ? 'Lendo data...'
-                                      : docState?.fileName
-                                      ? docState.fileName
-                                      : 'Upload (Auto-venc.)'}
+                                    {docState?.fileName ? docState.fileName : 'Upload Arquivo'}
                                   </span>
                                   <input
                                     type="file"
@@ -1977,39 +2021,12 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
                                       const file = e.target.files?.[0];
                                       if (!file) return;
                                       const b64 = await readFileAsBase64(file);
-                                      setUploadingKey(`new-${meta.type}`);
-                                      let detectedExpiresAt = docState?.expiresAt || '';
-                                      try {
-                                        const res = await fetch(
-                                          '/api/admin/documents/extract-expiration',
-                                          {
-                                            method: 'POST',
-                                            headers: { 'Content-Type': 'application/json' },
-                                            body: JSON.stringify({
-                                              docType: meta.type,
-                                              fileName: file.name,
-                                              fileBase64: b64,
-                                            }),
-                                          }
-                                        );
-                                        if (res.ok) {
-                                          const extData = await res.json();
-                                          if (extData.expiresAt) {
-                                            detectedExpiresAt = extData.expiresAt;
-                                          }
-                                        }
-                                      } catch {
-                                        // fallback handled on save
-                                      } finally {
-                                        setUploadingKey(null);
-                                      }
                                       setNewProfileDocs((prev) => ({
                                         ...prev,
                                         [meta.type]: {
                                           ...prev[meta.type],
                                           fileName: file.name,
                                           fileBase64: b64,
-                                          expiresAt: detectedExpiresAt,
                                         },
                                       }));
                                       e.target.value = '';
