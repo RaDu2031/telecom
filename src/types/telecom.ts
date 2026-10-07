@@ -451,6 +451,7 @@ export interface AmetaUser {
   name: string;
   email: string;
   role: UserRole;
+  tipo?: 'admin' | 'usuario';
   situacao?: UserSituacao; // 'dono' | 'aguardando' | 'ativo' | 'bloqueado'
   plataforma?: AssignedPlatformScope;
   assignedPlatform?: AssignedPlatformScope; // 'NOKIA' (TIM/Nokia), 'ERICSSON', or 'BOTH'

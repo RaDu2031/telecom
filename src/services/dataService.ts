@@ -1,5 +1,23 @@
-// Pure REST Data Service for Ameta Telecom
-// Decoupled from Firebase and Netlify, communicating directly with Express backend (server.ts)
+// Firebase Data Service for Ameta Telecom (100% Client-Side Firestore & Auth)
+
+import { db, auth } from '../lib/firebaseClient';
+import {
+  collection,
+  doc,
+  getDoc,
+  setDoc,
+  updateDoc,
+  deleteDoc,
+  getDocs,
+  addDoc,
+  onSnapshot,
+  query,
+} from 'firebase/firestore';
+import {
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  sendEmailVerification,
+} from 'firebase/auth';
 
 import {
   AmetaUser,
@@ -33,32 +51,6 @@ export const FIRESTORE_COLLECTIONS = {
   ERICSSON_ARQUIVOS: 'ericsson_arquivos',
   NOTIFICACOES: 'notificacoes',
 } as const;
-
-export const MAX_FIRESTORE_BATCH_SIZE = 500;
-
-export function stripUndefined<T>(val: T): T {
-  if (val === null || val === undefined) {
-    return undefined as unknown as T;
-  }
-  if (Array.isArray(val)) {
-    return val
-      .map((item) => stripUndefined(item))
-      .filter((item) => item !== undefined) as unknown as T;
-  }
-  if (typeof val === 'object') {
-    const result: Record<string, any> = {};
-    for (const [k, v] of Object.entries(val as Record<string, any>)) {
-      if (v !== undefined) {
-        const cleaned = stripUndefined(v);
-        if (cleaned !== undefined) {
-          result[k] = cleaned;
-        }
-      }
-    }
-    return result as T;
-  }
-  return val;
-}
 
 export function sanitizeSiteDocId(rawSiteId: string, sheetName?: string): string {
   const cleanSite = (rawSiteId || '')
@@ -330,9 +322,9 @@ export interface IDataService {
   ): Unsubscribe;
 }
 
-class RestDataService implements IDataService {
+class FirebaseDataService implements IDataService {
   isConfigured(): boolean {
-    return false; // Direct REST API mode (self-hosted Express server)
+    return true; // 100% Firebase Cloud Firestore & Auth
   }
 
   async garantirUsuarioAoAutenticar(params: {
@@ -343,7 +335,30 @@ class RestDataService implements IDataService {
   }): Promise<AmetaUser> {
     const cleanEmail = params.email.trim().toLowerCase();
     const isOwner = isOwnerAdmUser(cleanEmail);
-    return {
+    const userRef = doc(db, FIRESTORE_COLLECTIONS.USUARIOS, params.uid);
+    const snap = await getDoc(userRef);
+
+    if (snap.exists()) {
+      const existing = snap.data() as AmetaUser;
+      if (isOwner && existing.situacao !== 'dono') {
+        const updated: AmetaUser = {
+          ...existing,
+          name: 'Rafael Araújo',
+          email: 'rafael.araujo@ametaservicos.com.br',
+          role: 'ADM',
+          situacao: 'dono',
+          plataforma: 'AMBAS',
+          assignedPlatform: 'BOTH',
+          accessReleased: true,
+          emailVerified: true,
+        };
+        await setDoc(userRef, updated, { merge: true });
+        return updated;
+      }
+      return { id: params.uid, uid: params.uid, ...existing };
+    }
+
+    const newUser: AmetaUser = {
       id: params.uid,
       uid: params.uid,
       name: isOwner ? 'Rafael Araújo' : params.name || cleanEmail.split('@')[0],
@@ -357,15 +372,18 @@ class RestDataService implements IDataService {
       emailVerified: true,
       createdAt: new Date().toISOString(),
     };
+
+    await setDoc(userRef, newUser);
+    return newUser;
   }
 
   async obterUsuarioPorUid(uid: string): Promise<AmetaUser | null> {
     try {
-      const res = await fetch('/api/admin/users');
-      if (!res.ok) return null;
-      const data = await res.json();
-      const list: AmetaUser[] = Array.isArray(data.users) ? data.users : [];
-      return list.find((u) => u.id === uid || u.uid === uid) || null;
+      const snap = await getDoc(doc(db, FIRESTORE_COLLECTIONS.USUARIOS, uid));
+      if (snap.exists()) {
+        return { id: snap.id, uid: snap.id, ...snap.data() } as AmetaUser;
+      }
+      return null;
     } catch {
       return null;
     }
@@ -373,10 +391,8 @@ class RestDataService implements IDataService {
 
   async listarTodosUsuarios(): Promise<AmetaUser[]> {
     try {
-      const res = await fetch('/api/admin/users');
-      if (!res.ok) return [];
-      const data = await res.json();
-      return Array.isArray(data.users) ? data.users : [];
+      const snap = await getDocs(collection(db, FIRESTORE_COLLECTIONS.USUARIOS));
+      return snap.docs.map((d) => ({ id: d.id, uid: d.id, ...d.data() } as AmetaUser));
     } catch {
       return [];
     }
@@ -392,16 +408,20 @@ class RestDataService implements IDataService {
     equipe?: string;
     ownerEmail?: string;
   }): Promise<AmetaUser> {
-    const res = await fetch('/api/owner/permissions/release', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        ...params,
-        accessReleased: params.situacao === 'ativo' || params.situacao === 'dono',
-      }),
-    });
-    const data = await res.json();
-    return data.user || params;
+    const userRef = doc(db, FIRESTORE_COLLECTIONS.USUARIOS, params.uid);
+    const snap = await getDoc(userRef);
+    const existing = snap.exists() ? (snap.data() as AmetaUser) : {};
+    const accessReleased = params.situacao === 'ativo' || params.situacao === 'dono';
+
+    const payload = {
+      ...existing,
+      ...params,
+      accessReleased,
+      assignedPlatform: params.plataforma === 'AMBAS' ? 'BOTH' : params.plataforma,
+    };
+
+    await setDoc(userRef, payload, { merge: true });
+    return { id: params.uid, uid: params.uid, ...payload } as AmetaUser;
   }
 
   async importarSitesNokiaEmLote(
@@ -409,15 +429,12 @@ class RestDataService implements IDataService {
     _users?: AmetaUser[],
     _duplaEmailsMap?: Record<string, string[]>
   ): Promise<{ totalGravados: number; lotesExecutados: number }> {
-    try {
-      const res = await fetch('/api/sites/batch', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sites }),
-      });
-      if (res.ok) return { totalGravados: sites.length, lotesExecutados: 1 };
-    } catch {
-      // ignore
+    for (const site of sites) {
+      const docId = sanitizeSiteDocId(site.siteId || site.id, site.sheetName);
+      await setDoc(doc(db, FIRESTORE_COLLECTIONS.NOKIA_SITES, docId), {
+        ...site,
+        id: docId,
+      }, { merge: true });
     }
     return { totalGravados: sites.length, lotesExecutados: 1 };
   }
@@ -427,15 +444,12 @@ class RestDataService implements IDataService {
     _users?: AmetaUser[],
     _duplaEmailsMap?: Record<string, string[]>
   ): Promise<{ totalGravados: number; lotesExecutados: number }> {
-    try {
-      const res = await fetch('/api/ericsson/sites/batch', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ rows }),
-      });
-      if (res.ok) return { totalGravados: rows.length, lotesExecutados: 1 };
-    } catch {
-      // ignore
+    for (const row of rows) {
+      const docId = sanitizeEricssonDocId(row);
+      await setDoc(doc(db, FIRESTORE_COLLECTIONS.ERICSSON_SITES, docId), {
+        ...row,
+        id: docId,
+      }, { merge: true });
     }
     return { totalGravados: rows.length, lotesExecutados: 1 };
   }
@@ -444,6 +458,13 @@ class RestDataService implements IDataService {
     rows: TssrRow[],
     _users?: AmetaUser[]
   ): Promise<{ totalGravados: number; lotesExecutados: number }> {
+    for (const row of rows) {
+      const docId = row.id || `TSSR_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+      await setDoc(doc(db, FIRESTORE_COLLECTIONS.NOKIA_TSSR, docId), {
+        ...row,
+        id: docId,
+      }, { merge: true });
+    }
     return { totalGravados: rows.length, lotesExecutados: 1 };
   }
 
@@ -452,17 +473,15 @@ class RestDataService implements IDataService {
     _users?: AmetaUser[],
     _duplaEmailsMap?: Record<string, string[]>
   ): Promise<void> {
-    await fetch('/api/sites', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(site),
-    }).catch(() => {});
+    const docId = sanitizeSiteDocId(site.siteId || site.id, site.sheetName);
+    await setDoc(doc(db, FIRESTORE_COLLECTIONS.NOKIA_SITES, docId), {
+      ...site,
+      id: docId,
+    }, { merge: true });
   }
 
   async excluirSiteNokia(siteId: string): Promise<void> {
-    await fetch(`/api/sites/${encodeURIComponent(siteId)}`, {
-      method: 'DELETE',
-    }).catch(() => {});
+    await deleteDoc(doc(db, FIRESTORE_COLLECTIONS.NOKIA_SITES, siteId));
   }
 
   async salvarSiteEricsson(
@@ -470,33 +489,35 @@ class RestDataService implements IDataService {
     _users?: AmetaUser[],
     _duplaEmailsMap?: Record<string, string[]>
   ): Promise<void> {
-    await fetch('/api/ericsson/sites', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(row),
-    }).catch(() => {});
+    const docId = sanitizeEricssonDocId(row);
+    await setDoc(doc(db, FIRESTORE_COLLECTIONS.ERICSSON_SITES, docId), {
+      ...row,
+      id: docId,
+    }, { merge: true });
   }
 
   async excluirSiteEricsson(rowId: string): Promise<void> {
-    await fetch(`/api/ericsson/sites/${encodeURIComponent(rowId)}`, {
-      method: 'DELETE',
-    }).catch(() => {});
+    await deleteDoc(doc(db, FIRESTORE_COLLECTIONS.ERICSSON_SITES, rowId));
   }
 
-  async salvarTssrNokia(_row: TssrRow): Promise<void> {}
+  async salvarTssrNokia(row: TssrRow): Promise<void> {
+    const docId = row.id || `TSSR_${Date.now()}`;
+    await setDoc(doc(db, FIRESTORE_COLLECTIONS.NOKIA_TSSR, docId), {
+      ...row,
+      id: docId,
+    }, { merge: true });
+  }
 
   async salvarPastaNokia(folder: EngineeringFolder): Promise<void> {
-    await fetch('/api/engineering/folders', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(folder),
-    }).catch(() => {});
+    const docId = folder.id || `FOLDER_${Date.now()}`;
+    await setDoc(doc(db, FIRESTORE_COLLECTIONS.NOKIA_PASTAS, docId), {
+      ...folder,
+      id: docId,
+    }, { merge: true });
   }
 
   async excluirPastaNokia(folderId: string): Promise<void> {
-    await fetch(`/api/engineering/folders/${encodeURIComponent(folderId)}`, {
-      method: 'DELETE',
-    }).catch(() => {});
+    await deleteDoc(doc(db, FIRESTORE_COLLECTIONS.NOKIA_PASTAS, folderId));
   }
 
   async salvarArquivoNokia(
@@ -505,31 +526,28 @@ class RestDataService implements IDataService {
     _sites?: TelecomSite[],
     _duplaEmailsMap?: Record<string, string[]>
   ): Promise<void> {
-    await fetch('/api/engineering/files', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(file),
-    }).catch(() => {});
+    const docId = file.id || `FILE_${Date.now()}`;
+    await setDoc(doc(db, FIRESTORE_COLLECTIONS.NOKIA_ARQUIVOS, docId), {
+      ...file,
+      id: docId,
+      uploadedAt: file.uploadedAt || new Date().toISOString(),
+    }, { merge: true });
   }
 
   async excluirArquivoNokia(fileId: string): Promise<void> {
-    await fetch(`/api/engineering/files/${encodeURIComponent(fileId)}`, {
-      method: 'DELETE',
-    }).catch(() => {});
+    await deleteDoc(doc(db, FIRESTORE_COLLECTIONS.NOKIA_ARQUIVOS, fileId));
   }
 
   async salvarPastaEricsson(folder: EngineeringFolder): Promise<void> {
-    await fetch('/api/ericsson/folders', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(folder),
-    }).catch(() => {});
+    const docId = folder.id || `FOLDER_ERIC_${Date.now()}`;
+    await setDoc(doc(db, FIRESTORE_COLLECTIONS.ERICSSON_PASTAS, docId), {
+      ...folder,
+      id: docId,
+    }, { merge: true });
   }
 
   async excluirPastaEricsson(folderId: string): Promise<void> {
-    await fetch(`/api/ericsson/folders/${encodeURIComponent(folderId)}`, {
-      method: 'DELETE',
-    }).catch(() => {});
+    await deleteDoc(doc(db, FIRESTORE_COLLECTIONS.ERICSSON_PASTAS, folderId));
   }
 
   async salvarArquivoEricsson(
@@ -538,28 +556,27 @@ class RestDataService implements IDataService {
     _rows?: EricssonRow[],
     _duplaEmailsMap?: Record<string, string[]>
   ): Promise<void> {
-    await fetch('/api/ericsson/files', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(file),
-    }).catch(() => {});
+    const docId = file.id || `FILE_ERIC_${Date.now()}`;
+    await setDoc(doc(db, FIRESTORE_COLLECTIONS.ERICSSON_ARQUIVOS, docId), {
+      ...file,
+      id: docId,
+      uploadedAt: file.uploadedAt || new Date().toISOString(),
+    }, { merge: true });
   }
 
   async excluirArquivoEricsson(fileId: string): Promise<void> {
-    await fetch(`/api/ericsson/files/${encodeURIComponent(fileId)}`, {
-      method: 'DELETE',
-    }).catch(() => {});
+    await deleteDoc(doc(db, FIRESTORE_COLLECTIONS.ERICSSON_ARQUIVOS, fileId));
   }
 
   async salvarMapaDuplas(
     duplaEmailsMap: Record<string, string[]>,
     customDuplas?: string[]
   ): Promise<void> {
-    await fetch('/api/duplas', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ duplaEmailsMap, customDuplas }),
-    }).catch(() => {});
+    await setDoc(doc(db, 'duplas_config', 'main'), {
+      duplaEmailsMap,
+      customDuplas,
+      updatedAt: new Date().toISOString(),
+    }, { merge: true });
   }
 
   async carregarMapaDuplas(): Promise<{
@@ -567,9 +584,9 @@ class RestDataService implements IDataService {
     customDuplas?: string[];
   }> {
     try {
-      const res = await fetch('/api/duplas');
-      if (res.ok) {
-        return await res.json();
+      const snap = await getDoc(doc(db, 'duplas_config', 'main'));
+      if (snap.exists()) {
+        return snap.data() as any;
       }
     } catch {
       // ignore
@@ -578,11 +595,12 @@ class RestDataService implements IDataService {
   }
 
   async criarNotificacao(notif: AmetaNotification): Promise<void> {
-    await fetch('/api/notifications', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(notif),
-    }).catch(() => {});
+    const docId = notif.id || `NOTIF_${Date.now()}`;
+    await setDoc(doc(db, FIRESTORE_COLLECTIONS.NOTIFICACOES, docId), {
+      ...notif,
+      id: docId,
+      createdAt: notif.createdAt || new Date().toISOString(),
+    }, { merge: true });
   }
 
   async registrarNovoUsuarioCorporativo(params: {
@@ -594,32 +612,53 @@ class RestDataService implements IDataService {
     telefone?: string;
     plataforma?: AssignedPlatformScope;
   }): Promise<AmetaUser> {
-    const res = await fetch('/api/auth/register', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(params),
-    });
-    const data = await res.json();
-    if (!res.ok) {
-      throw new Error(data.error || 'Erro ao registrar usuário.');
+    const cred = await createUserWithEmailAndPassword(auth, params.email, params.password);
+    try {
+      await sendEmailVerification(cred.user);
+    } catch (e) {
+      console.warn('Erro ao enviar e-mail de verificação:', e);
     }
-    return data.user;
+    const uid = cred.user.uid;
+    const cleanEmail = params.email.trim().toLowerCase();
+    const isOwner = isOwnerAdmUser(cleanEmail);
+
+    const newUser: AmetaUser = {
+      id: uid,
+      uid,
+      name: isOwner ? 'Rafael Araújo' : params.name || cleanEmail.split('@')[0],
+      email: cleanEmail,
+      tipo: isOwner ? 'admin' : 'usuario',
+      role: isOwner ? 'ADM' : params.role || 'Vistoriador',
+      situacao: isOwner ? 'dono' : 'aguardando',
+      plataforma: isOwner ? 'AMBAS' : params.plataforma === 'BOTH' ? 'AMBAS' : 'NOKIA',
+      assignedPlatform: isOwner ? 'BOTH' : params.plataforma || 'NOKIA',
+      accessReleased: isOwner,
+      documents: ensureUserMandatoryDocuments(),
+      emailVerified: false,
+      equipe: params.equipe || '',
+      telefone: params.telefone || '',
+      createdAt: new Date().toISOString(),
+    };
+
+    await setDoc(doc(db, FIRESTORE_COLLECTIONS.USUARIOS, uid), newUser);
+    return newUser;
   }
 
   async autenticarUsuarioCorporativo(params: {
     email: string;
     password: string;
   }): Promise<AmetaUser | null> {
-    const res = await fetch('/api/auth/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(params),
+    const cred = await signInWithEmailAndPassword(auth, params.email, params.password);
+    const uid = cred.user.uid;
+    const userDoc = await this.obterUsuarioPorUid(uid);
+    if (userDoc) return userDoc;
+
+    return this.garantirUsuarioAoAutenticar({
+      uid,
+      email: params.email,
+      name: params.email.split('@')[0],
+      emailVerified: true,
     });
-    const data = await res.json();
-    if (!res.ok) {
-      throw new Error(data.error || 'Credenciais inválidas.');
-    }
-    return data.user;
   }
 
   async salvarDocumentosUsuario(params: {
@@ -629,11 +668,12 @@ class RestDataService implements IDataService {
     dispensadoDocumentos?: boolean;
     statusRecurso?: string;
   }): Promise<void> {
-    await fetch(`/api/admin/users/${encodeURIComponent(params.uidOrId)}/documents`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(params),
-    }).catch(() => {});
+    const userRef = doc(db, FIRESTORE_COLLECTIONS.USUARIOS, params.uidOrId);
+    await updateDoc(userRef, {
+      documents: params.documents,
+      dispensadoDocumentos: params.dispensadoDocumentos ?? false,
+      statusRecurso: params.statusRecurso || 'analise',
+    });
   }
 
   async garantirDocumentoUsuarioNoCadastro(
@@ -666,38 +706,53 @@ class RestDataService implements IDataService {
       atividade?: string;
     }
   ): Promise<AmetaUser> {
-    const res = await fetch('/api/owner/permissions/release', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        ...payload,
-        userId: uid,
-        accessReleased: payload.situacao === 'ativo' || payload.situacao === 'dono',
-      }),
-    });
-    const data = await res.json();
-    return data.user || { id: uid, uid, ...payload };
+    const userRef = doc(db, FIRESTORE_COLLECTIONS.USUARIOS, uid);
+    const snap = await getDoc(userRef);
+    const existing = snap.exists() ? (snap.data() as AmetaUser) : {};
+    const accessReleased = payload.situacao === 'ativo' || payload.situacao === 'dono';
+
+    const merged = {
+      ...existing,
+      ...payload,
+      accessReleased,
+      assignedPlatform: payload.plataforma,
+    };
+
+    await setDoc(userRef, merged, { merge: true });
+    return { id: uid, uid, ...merged } as AmetaUser;
   }
 
   async excluirUsuario(uidOrId: string, _email?: string): Promise<void> {
-    await fetch(`/api/admin/users/${encodeURIComponent(uidOrId)}`, {
-      method: 'DELETE',
-    }).catch(() => {});
+    await deleteDoc(doc(db, FIRESTORE_COLLECTIONS.USUARIOS, uidOrId));
   }
 
   async limparUsuariosExcetoDono(): Promise<void> {
-    await fetch('/api/admin/users/purge-non-owner', {
-      method: 'POST',
-    }).catch(() => {});
+    const snap = await getDocs(collection(db, FIRESTORE_COLLECTIONS.USUARIOS));
+    for (const d of snap.docs) {
+      const data = d.data() as AmetaUser;
+      if (!isOwnerAdmUser(data.email) && data.situacao !== 'dono') {
+        await deleteDoc(d.ref);
+      }
+    }
   }
 
-  observarPerfilUsuario(_uid: string, _onUpdate: (user: AmetaUser | null) => void): Unsubscribe {
-    return () => {};
+  observarPerfilUsuario(uid: string, onUpdate: (user: AmetaUser | null) => void): Unsubscribe {
+    const userRef = doc(db, FIRESTORE_COLLECTIONS.USUARIOS, uid);
+    return onSnapshot(userRef, (snap) => {
+      if (snap.exists()) {
+        onUpdate({ id: snap.id, uid: snap.id, ...snap.data() } as AmetaUser);
+      } else {
+        onUpdate(null);
+      }
+    }, (err) => {
+      console.error('Perfil user snapshot error:', err);
+      onUpdate(null);
+    });
   }
 
   observarColecoesPlataforma(
     _user: AmetaUser,
-    _callbacks: {
+    callbacks: {
       onNokiaSites?: (sites: TelecomSite[]) => void;
       onNokiaTssr?: (rows: TssrRow[]) => void;
       onNokiaFolders?: (folders: EngineeringFolder[]) => void;
@@ -713,8 +768,96 @@ class RestDataService implements IDataService {
       onNotificacoes?: (notifs: AmetaNotification[]) => void;
     }
   ): Unsubscribe {
-    return () => {};
+    const unsubs: Unsubscribe[] = [];
+
+    if (callbacks.onNokiaSites) {
+      unsubs.push(
+        onSnapshot(collection(db, FIRESTORE_COLLECTIONS.NOKIA_SITES), (snap) => {
+          const list = snap.docs.map((d) => ({ id: d.id, ...d.data() } as TelecomSite));
+          callbacks.onNokiaSites!(list);
+        }, (err) => console.error('Nokia sites snapshot error:', err))
+      );
+    }
+    if (callbacks.onNokiaTssr) {
+      unsubs.push(
+        onSnapshot(collection(db, FIRESTORE_COLLECTIONS.NOKIA_TSSR), (snap) => {
+          const list = snap.docs.map((d) => ({ id: d.id, ...d.data() } as TssrRow));
+          callbacks.onNokiaTssr!(list);
+        }, (err) => console.error('Nokia TSSR snapshot error:', err))
+      );
+    }
+    if (callbacks.onNokiaFolders) {
+      unsubs.push(
+        onSnapshot(collection(db, FIRESTORE_COLLECTIONS.NOKIA_PASTAS), (snap) => {
+          const list = snap.docs.map((d) => ({ id: d.id, ...d.data() } as EngineeringFolder));
+          callbacks.onNokiaFolders!(list);
+        }, (err) => console.error('Nokia folders snapshot error:', err))
+      );
+    }
+    if (callbacks.onNokiaFiles) {
+      unsubs.push(
+        onSnapshot(collection(db, FIRESTORE_COLLECTIONS.NOKIA_ARQUIVOS), (snap) => {
+          const list = snap.docs.map((d) => ({ id: d.id, ...d.data() } as EngineeringFile));
+          callbacks.onNokiaFiles!(list);
+        }, (err) => console.error('Nokia files snapshot error:', err))
+      );
+    }
+    if (callbacks.onEricssonSites) {
+      unsubs.push(
+        onSnapshot(collection(db, FIRESTORE_COLLECTIONS.ERICSSON_SITES), (snap) => {
+          const list = snap.docs.map((d) => ({ id: d.id, ...d.data() } as EricssonRow));
+          callbacks.onEricssonSites!(list);
+        }, (err) => console.error('Ericsson sites snapshot error:', err))
+      );
+    }
+    if (callbacks.onEricssonFolders) {
+      unsubs.push(
+        onSnapshot(collection(db, FIRESTORE_COLLECTIONS.ERICSSON_PASTAS), (snap) => {
+          const list = snap.docs.map((d) => ({ id: d.id, ...d.data() } as EngineeringFolder));
+          callbacks.onEricssonFolders!(list);
+        }, (err) => console.error('Ericsson folders snapshot error:', err))
+      );
+    }
+    if (callbacks.onEricssonFiles) {
+      unsubs.push(
+        onSnapshot(collection(db, FIRESTORE_COLLECTIONS.ERICSSON_ARQUIVOS), (snap) => {
+          const list = snap.docs.map((d) => ({ id: d.id, ...d.data() } as EngineeringFile));
+          callbacks.onEricssonFiles!(list);
+        }, (err) => console.error('Ericsson files snapshot error:', err))
+      );
+    }
+    if (callbacks.onUsuarios) {
+      unsubs.push(
+        onSnapshot(collection(db, FIRESTORE_COLLECTIONS.USUARIOS), (snap) => {
+          const list = snap.docs.map((d) => ({ id: d.id, uid: d.id, ...d.data() } as AmetaUser));
+          callbacks.onUsuarios!(list);
+        }, (err) => console.error('Usuarios snapshot error:', err))
+      );
+    }
+    if (callbacks.onDuplasConfig) {
+      unsubs.push(
+        onSnapshot(doc(db, 'duplas_config', 'main'), (snap) => {
+          if (snap.exists()) {
+            callbacks.onDuplasConfig!(snap.data() as any);
+          } else {
+            callbacks.onDuplasConfig!({});
+          }
+        }, (err) => console.error('Duplas config snapshot error:', err))
+      );
+    }
+    if (callbacks.onNotificacoes) {
+      unsubs.push(
+        onSnapshot(collection(db, FIRESTORE_COLLECTIONS.NOTIFICACOES), (snap) => {
+          const list = snap.docs.map((d) => ({ id: d.id, ...d.data() } as AmetaNotification));
+          callbacks.onNotificacoes!(list);
+        }, (err) => console.error('Notificacoes snapshot error:', err))
+      );
+    }
+
+    return () => {
+      unsubs.forEach((u) => u());
+    };
   }
 }
 
-export const dataService: IDataService = new RestDataService();
+export const dataService: IDataService = new FirebaseDataService();

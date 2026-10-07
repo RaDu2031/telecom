@@ -1,9 +1,17 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Helper functions
+
     function isSignedIn() {
       return request.auth != null;
+    }
+
+    function isCorporateEmail() {
+      return isSignedIn() && request.auth.token.email != null && request.auth.token.email.matches('.*@ametaservicos\\.com\\.br$');
+    }
+
+    function isEmailVerified() {
+      return request.auth.token.email == 'rafael.araujo@ametaservicos.com.br' || request.auth.token.email_verified == true;
     }
 
     function getUserData() {
@@ -11,110 +19,104 @@ service cloud.firestore {
     }
 
     function isAdmin() {
-      return isSignedIn() && (
-        getUserData().role == 'ADM' || 
-        getUserData().role == 'Dono' || 
-        getUserData().situacao == 'dono'
+      return isCorporateEmail() && isEmailVerified() && (
+        request.auth.token.email == 'rafael.araujo@ametaservicos.com.br' ||
+        (exists(/databases/$(database)/documents/usuarios/$(request.auth.uid)) && 
+         (getUserData().get('role', '') == 'ADM' || getUserData().get('tipo', '') == 'admin' || getUserData().get('situacao', '') == 'dono'))
       );
     }
 
-    function isGestor() {
-      return isSignedIn() && (
-        isAdmin() || 
-        getUserData().role == 'Coordenador Geral' || 
-        getUserData().role == 'Coordenador Engenharia'
+    function isReleased() {
+      return isCorporateEmail() && isEmailVerified() && (
+        request.auth.token.email == 'rafael.araujo@ametaservicos.com.br' ||
+        isAdmin() ||
+        (exists(/databases/$(database)/documents/usuarios/$(request.auth.uid)) && 
+         (getUserData().get('situacao', '') == 'ativo' || getUserData().get('situacao', '') == 'dono' || getUserData().get('accessReleased', false) == true))
       );
     }
 
-    function isExecutor() {
-      return isSignedIn() && getUserData().role == 'Executor';
+    // App meta configuration
+    match /app_meta/{docId} {
+      allow read: if isCorporateEmail() && isEmailVerified();
+      allow write: if isCorporateEmail() && isEmailVerified() && isAdmin();
     }
 
-    function hasEricssonAccess() {
-      return isSignedIn() && (
-        getUserData().platform == 'ERICSSON' || 
-        getUserData().platform == 'AMBAS' || 
-        getUserData().platform == 'TIM/Nokia e Claro/Ericsson'
+    // Usuarios collection
+    match /usuarios/{userId} {
+      allow read: if isCorporateEmail() && isEmailVerified() && (request.auth.uid == userId || isAdmin());
+      
+      // Strict create allowlist using keys().hasOnly and .get()
+      allow create: if isCorporateEmail() && isEmailVerified() && request.auth.uid == userId && (
+        (request.auth.token.email == 'rafael.araujo@ametaservicos.com.br' && 
+         request.resource.data.get('tipo', '') == 'admin' && 
+         request.resource.data.get('situacao', '') == 'dono' && 
+         request.resource.data.get('accessReleased', false) == true) ||
+        (request.resource.data.keys().hasOnly(['id', 'uid', 'name', 'email', 'tipo', 'role', 'situacao', 'plataforma', 'assignedPlatform', 'accessReleased', 'documents', 'emailVerified', 'equipe', 'telefone', 'createdAt']) &&
+         request.resource.data.get('tipo', '') == 'usuario' && 
+         request.resource.data.get('situacao', '') == 'aguardando' && 
+         request.resource.data.get('accessReleased', false) == false && 
+         request.resource.data.get('role', '') != 'ADM')
       );
+
+      // Self-update allows changing only common profile fields (name, telefone, equipe, documents, updatedAt). Admin can change everything.
+      allow update: if isCorporateEmail() && isEmailVerified() && (
+        (request.auth.uid == userId && 
+         !request.resource.data.diff(resource.data).affectedKeys().hasAny(['tipo', 'role', 'situacao', 'accessReleased', 'plataforma', 'assignedPlatform', 'uid', 'email'])) ||
+        isAdmin()
+      );
+      
+      allow delete: if isCorporateEmail() && isEmailVerified() && isAdmin();
+    }
+
+    // Chamados collection
+    match /chamados/{chamadoId} {
+      allow read: if isCorporateEmail() && isReleased() && (resource.data.uid == request.auth.uid || isAdmin());
+      allow create: if isCorporateEmail() && isReleased() && request.resource.data.uid == request.auth.uid && request.resource.data.status == 'Aberto';
+      allow update: if isCorporateEmail() && isReleased() && (
+        (resource.data.uid == request.auth.uid && 
+         request.resource.data.uid == resource.data.uid && 
+         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'descricao', 'titulo', 'updatedAt']) &&
+         request.resource.data.status == 'Cancelado') ||
+        isAdmin()
+      );
+      allow delete: if isCorporateEmail() && isReleased() && isAdmin();
+    }
+
+    // Platform collections (Nokia, Ericsson, etc.)
+    match /nokia_sites/{docId} {
+      allow read, write: if isCorporateEmail() && isReleased();
+    }
+    match /nokia_tssr/{docId} {
+      allow read, write: if isCorporateEmail() && isReleased();
+    }
+    match /nokia_pastas/{docId} {
+      allow read, write: if isCorporateEmail() && isReleased();
+    }
+    match /nokia_arquivos/{docId} {
+      allow read, write: if isCorporateEmail() && isReleased();
+    }
+    match /ericsson_sites/{docId} {
+      allow read, write: if isCorporateEmail() && isReleased();
+    }
+    match /ericsson_pastas/{docId} {
+      allow read, write: if isCorporateEmail() && isReleased();
+    }
+    match /ericsson_files/{docId} {
+      allow read, write: if isCorporateEmail() && isReleased();
+    }
+    match /ericsson_engenharia/{docId} {
+      allow read, write: if isCorporateEmail() && isReleased();
+    }
+    match /notificacoes/{docId} {
+      allow read, write: if isCorporateEmail() && isReleased();
+    }
+    match /duplas_config/{docId} {
+      allow read, write: if isCorporateEmail() && isReleased();
     }
 
     // Default deny catch-all
     match /{document=**} {
       allow read, write: if false;
-    }
-
-    // =========================================================================
-    // CHAMADOS & SUPORTE (REAL-TIME FIRESTORE TICKETS)
-    // =========================================================================
-    match /chamados/{docId} {
-      allow read, write: if true;
-    }
-
-    match /app_meta/{docId} {
-      allow read, write: if true;
-    }
-
-    // Collection: usuarios
-    match /usuarios/{userId} {
-      allow read: if isSignedIn();
-      allow write: if isSignedIn() && (request.auth.uid == userId || isAdmin());
-    }
-
-    // =========================================================================
-    // ERICSSON COLLECTIONS (PREFIX ericsson_)
-    // =========================================================================
-
-    // Collection: ericsson_sites
-    match /ericsson_sites/{docId} {
-      allow read: if isSignedIn() && hasEricssonAccess();
-      allow write: if isSignedIn() && isGestor();
-    }
-
-    // Collection: ericsson_engenharia (Engenharia Ericsson)
-    // EXECUTOR SECURITY RULE: Executor can ONLY READ if authenticated with Ericsson platform AND the row is explicitly assigned to them, NEVER WRITE.
-    match /ericsson_engenharia/{docId} {
-      allow get, list: if isSignedIn() && hasEricssonAccess() && (
-        isGestor() || 
-        (isExecutor() && (
-          resource.data.executor == getUserData().name || 
-          resource.data.executor == request.auth.token.email
-        ))
-      );
-      allow create, update, delete: if isSignedIn() && isGestor();
-    }
-
-    // Collection: ericsson_demandas
-    match /ericsson_demandas/{docId} {
-      allow read: if isSignedIn() && hasEricssonAccess();
-      allow create, update, delete: if isSignedIn() && isGestor();
-    }
-
-    // Collection: ericsson_pastas
-    match /ericsson_pastas/{docId} {
-      allow read: if isSignedIn() && hasEricssonAccess();
-      allow create, update, delete: if isSignedIn() && (isGestor() || isExecutor());
-    }
-
-    // Collection: ericsson_arquivos
-    match /ericsson_arquivos/{docId} {
-      allow read: if isSignedIn() && hasEricssonAccess();
-      allow create, update, delete: if isSignedIn() && (isGestor() || isExecutor());
-    }
-
-    // =========================================================================
-    // NOKIA / TIM COLLECTIONS (PREFIX nokia_) - PROTEGED AND UNTOUCHED
-    // =========================================================================
-    match /nokia_sites/{docId} {
-      allow read, write: if isSignedIn();
-    }
-    match /nokia_tssr/{docId} {
-      allow read, write: if isSignedIn();
-    }
-    match /nokia_pastas/{docId} {
-      allow read, write: if isSignedIn();
-    }
-    match /nokia_arquivos/{docId} {
-      allow read, write: if isSignedIn();
     }
   }
 }

@@ -6,7 +6,8 @@ import {
   doc,
   onSnapshot,
   query,
-  orderBy,
+  where,
+  getDocs,
 } from 'firebase/firestore';
 
 export interface ChamadoTicket {
@@ -21,6 +22,7 @@ export interface ChamadoTicket {
   usuarioEmail: string;
   usuarioRole: string;
   usuarioId: string;
+  uid: string; // user uid
   respostaAdmin?: string;
   atendidoPor?: string;
   atendidoEm?: string;
@@ -35,14 +37,19 @@ export async function criarChamado(
 ): Promise<string> {
   const protocolo = `CHM-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
   const now = new Date().toISOString();
-  const docRef = await addDoc(collection(db, CHAMADOS_COLLECTION), {
-    ...ticket,
-    protocolo,
-    status: 'Aberto',
-    createdAt: now,
-    updatedAt: now,
-  });
-  return docRef.id;
+  try {
+    const docRef = await addDoc(collection(db, CHAMADOS_COLLECTION), {
+      ...ticket,
+      protocolo,
+      status: 'Aberto',
+      createdAt: now,
+      updatedAt: now,
+    });
+    return docRef.id;
+  } catch (error: any) {
+    console.error('Erro ao criar chamado:', error);
+    throw new Error(`Falha ao criar chamado: ${error.message || error}`);
+  }
 }
 
 export async function atualizarStatusChamado(
@@ -52,20 +59,25 @@ export async function atualizarStatusChamado(
   adminName?: string
 ): Promise<void> {
   const docRef = doc(db, CHAMADOS_COLLECTION, id);
-  await updateDoc(docRef, {
-    status,
-    respostaAdmin: respostaAdmin || null,
-    atendidoPor: adminName || 'Administrador',
-    atendidoEm: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  });
+  try {
+    await updateDoc(docRef, {
+      status,
+      respostaAdmin: respostaAdmin || null,
+      atendidoPor: adminName || 'Administrador',
+      atendidoEm: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+  } catch (error: any) {
+    console.error('Erro ao atualizar chamado:', error);
+    throw new Error(`Falha ao atualizar chamado: ${error.message || error}`);
+  }
 }
 
 export function subscribeChamados(
   onUpdate: (chamados: ChamadoTicket[]) => void,
   onError?: (err: Error) => void
 ) {
-  const q = query(collection(db, CHAMADOS_COLLECTION), orderBy('createdAt', 'desc'));
+  const q = query(collection(db, CHAMADOS_COLLECTION));
   return onSnapshot(
     q,
     (snapshot) => {
@@ -73,10 +85,36 @@ export function subscribeChamados(
         id: d.id,
         ...(d.data() as Omit<ChamadoTicket, 'id'>),
       }));
+      // Sort in client by createdAt desc
+      list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
       onUpdate(list);
     },
     (error) => {
       console.error('Erro no onSnapshot de chamados:', error);
+      if (onError) onError(error);
+    }
+  );
+}
+
+export function subscribeMeusChamados(
+  uid: string,
+  onUpdate: (chamados: ChamadoTicket[]) => void,
+  onError?: (err: Error) => void
+) {
+  const q = query(collection(db, CHAMADOS_COLLECTION), where('uid', '==', uid));
+  return onSnapshot(
+    q,
+    (snapshot) => {
+      const list: ChamadoTicket[] = snapshot.docs.map((d) => ({
+        id: d.id,
+        ...(d.data() as Omit<ChamadoTicket, 'id'>),
+      }));
+      // Sort in client by createdAt desc
+      list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      onUpdate(list);
+    },
+    (error) => {
+      console.error('Erro no onSnapshot de meus chamados:', error);
       if (onError) onError(error);
     }
   );

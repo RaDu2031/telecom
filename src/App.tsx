@@ -337,180 +337,21 @@ export default function App() {
     }, 4000);
   }, []);
 
-  // Connect to Real-Time SSE stream (/api/stream) + auto-reconnect + fast real-time poll fallback
+  // Local static client-side initialization (no backend server required)
   useEffect(() => {
-    let eventSource: EventSource | null = null;
-    let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
-    let isUnmounted = false;
-
-    const applyIncomingState = (payload: Record<string, unknown>, isStreamEvent = false) => {
-      if (Array.isArray(payload.sites)) {
-        setSites(payload.sites as TelecomSite[]);
+    try {
+      const cachedSites = localStorage.getItem('ameta_cached_sites');
+      if (cachedSites) {
+        setSites(JSON.parse(cachedSites));
+      } else {
+        setSites(INITIAL_SITES);
       }
-      if (Array.isArray(payload.sheets)) {
-        setSheets(payload.sheets as SpreadsheetMeta[]);
-      }
-      if (Array.isArray(payload.engineeringFolders)) {
-        setEngineeringFolders(payload.engineeringFolders as EngineeringFolder[]);
-      }
-      if (Array.isArray(payload.engineeringFiles)) {
-        setEngineeringFiles(payload.engineeringFiles as EngineeringFile[]);
-      }
-      if (Array.isArray(payload.tssrRows)) {
-        setTssrRows(payload.tssrRows as TssrRow[]);
-      }
-      if (Array.isArray(payload.tssrSheets)) {
-        setTssrSheets(payload.tssrSheets as TssrSheetMeta[]);
-      }
-      if (Array.isArray(payload.ericssonRows)) {
-        setEricssonRows(payload.ericssonRows as EricssonRow[]);
-      }
-      if (payload.ericssonSheetMeta) {
-        setEricssonSheetMeta(payload.ericssonSheetMeta as EricssonSheetMeta);
-      }
-      if (Array.isArray(payload.ericssonFolders)) {
-        setEricssonFolders(payload.ericssonFolders as EngineeringFolder[]);
-      }
-      if (Array.isArray(payload.ericssonFiles)) {
-        setEricssonFiles(payload.ericssonFiles as EngineeringFile[]);
-      }
-      if (Array.isArray(payload.ericssonUsers)) {
-        setEricssonUsers(payload.ericssonUsers as AmetaUser[]);
-      }
-      if (Array.isArray(payload.ericsson_engenharia)) {
-        setEricssonEngineeringRows(payload.ericsson_engenharia as EricssonEngineeringRow[]);
-      }
-      if (payload.ericssonExecutorEmailsMap && typeof payload.ericssonExecutorEmailsMap === 'object') {
-        setServerEricssonExecutorEmailsMap(payload.ericssonExecutorEmailsMap as Record<string, string[]>);
-      }
-      if (payload.ericssonDuplaEmailsMap && typeof payload.ericssonDuplaEmailsMap === 'object') {
-        setServerEricssonDuplaEmailsMap(payload.ericssonDuplaEmailsMap as Record<string, string[]>);
-      }
-      if (Array.isArray(payload.notifications)) {
-        setNotifications(payload.notifications as AmetaNotification[]);
-      }
-      if (payload.duplaEmailsMap && typeof payload.duplaEmailsMap === 'object') {
-        setServerDuplaEmailsMap(payload.duplaEmailsMap as Record<string, string[]>);
-      }
-      if (payload.executorEmailsMap && typeof payload.executorEmailsMap === 'object') {
-        setServerExecutorEmailsMap(payload.executorEmailsMap as Record<string, string[]>);
-      }
-      if (Array.isArray(payload.users)) {
-        const nextUsers = payload.users as AmetaUser[];
-        setUsers(nextUsers);
-        setSimulatedTargetUser((prevSim) => {
-          if (!prevSim) return null;
-          return nextUsers.find((u) => u.id === prevSim.id) || prevSim;
-        });
-        setUser((prevUser) => {
-          if (!prevUser) return null;
-          const updatedSelf = nextUsers.find(
-            (u) =>
-              u.id === prevUser.id ||
-              u.email.toLowerCase() === prevUser.email.toLowerCase()
-          );
-          if (updatedSelf) {
-            try {
-              localStorage.setItem(STORAGE_USER_KEY, JSON.stringify(updatedSelf));
-            } catch {
-              // ignore storage errors
-            }
-            return updatedSelf;
-          }
-          return prevUser;
-        });
-      }
-      if (typeof payload.lastUpdated === 'string') {
-        setLastSyncTime(payload.lastUpdated);
-      }
-      if (
-        isStreamEvent &&
-        typeof payload.summary === 'string' &&
-        payload.summary &&
-        payload.type !== 'FULL_STATE'
-      ) {
-        showToast(payload.summary);
-      }
-    };
-
-    const fetchLatestState = async () => {
-      try {
-        const res = await fetch('/api/state', { cache: 'no-store' });
-        if (res.ok && !isUnmounted) {
-          const data = await res.json();
-          applyIncomingState(data, false);
-        }
-      } catch {
-        // Fallback to current state if offline
-      }
-    };
-
-    const connectStream = () => {
-      if (isUnmounted) return;
-      try {
-        eventSource?.close();
-        eventSource = new EventSource('/api/stream');
-        eventSource.onmessage = (event) => {
-          try {
-            const payload = JSON.parse(event.data);
-            applyIncomingState(payload, true);
-          } catch {
-            // ignore malformed SSE packet
-          }
-        };
-        eventSource.onerror = () => {
-          eventSource?.close();
-          if (!isUnmounted) {
-            if (reconnectTimer) clearTimeout(reconnectTimer);
-            reconnectTimer = setTimeout(connectStream, 2000);
-          }
-        };
-      } catch {
-        if (!isUnmounted) {
-          if (reconnectTimer) clearTimeout(reconnectTimer);
-          reconnectTimer = setTimeout(connectStream, 2500);
-        }
-      }
-    };
-
-    fetchLatestState();
-    connectStream();
-
-    // Ensure non-owner seeded users are purged once on startup
-    if (!localStorage.getItem('ameta_api_users_purged_v1')) {
-      localStorage.setItem('ameta_api_users_purged_v1', '1');
-      fetch('/api/admin/users/purge-non-owner', { method: 'POST' })
-        .then((res) => (res.ok ? res.json() : null))
-        .then((data) => {
-          if (data && Array.isArray(data.users)) {
-            setUsers(data.users);
-          }
-          if (data && Array.isArray(data.ericssonUsers)) {
-            setEricssonUsers(data.ericssonUsers);
-          }
-        })
-        .catch(() => {});
+      setSheets(INITIAL_SHEETS);
+    } catch {
+      setSites(INITIAL_SITES);
+      setSheets(INITIAL_SHEETS);
     }
-
-    // Real-time background sync every 2.5s + immediate sync on tab focus/visibility so no change is ever missed
-    const pollInterval = setInterval(fetchLatestState, 2500);
-    const handleFocusOrVisibility = () => {
-      if (document.visibilityState === 'visible') {
-        fetchLatestState();
-      }
-    };
-    window.addEventListener('focus', handleFocusOrVisibility);
-    document.addEventListener('visibilitychange', handleFocusOrVisibility);
-
-    return () => {
-      isUnmounted = true;
-      if (reconnectTimer) clearTimeout(reconnectTimer);
-      clearInterval(pollInterval);
-      window.removeEventListener('focus', handleFocusOrVisibility);
-      document.removeEventListener('visibilitychange', handleFocusOrVisibility);
-      eventSource?.close();
-    };
-  }, [showToast]);
+  }, []);
 
   // Listen for direct Ctrl+V anywhere on the workspace (Nokia only)
   useEffect(() => {
