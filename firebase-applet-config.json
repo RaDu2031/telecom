@@ -1,10 +1,10 @@
 {
   "projectId": "ameta-sistema-teste",
-  "appId": "<appId>",
+  "appId": "1:400347798343:web:50caefe1b5d6119dd50a62",
   "apiKey": "AIzaSyC5a0ijspUcwhaLypvkLY3xu7Vm9i0soWA",
   "authDomain": "ameta-sistema-teste.firebaseapp.com",
   "firestoreDatabaseId": "(default)",
-  "storageBucket": "<storageBucket>",
+  "storageBucket": "ameta-sistema-teste.firebasestorage.app",
   "messagingSenderId": "400347798343",
   "measurementId": "",
   "oAuthClientId": "",

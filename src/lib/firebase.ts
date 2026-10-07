@@ -7,9 +7,9 @@ export const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY || (defaultConfig as any).apiKey || 'AIzaSyC5a0ijspUcwhaLypvkLY3xu7Vm9i0soWA',
   authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || (defaultConfig as any).authDomain || 'ameta-sistema-teste.firebaseapp.com',
   projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || (defaultConfig as any).projectId || 'ameta-sistema-teste',
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || (defaultConfig as any).storageBucket || '<storageBucket>',
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || (defaultConfig as any).storageBucket || 'ameta-sistema-teste.firebasestorage.app',
   messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || (defaultConfig as any).messagingSenderId || '400347798343',
-  appId: import.meta.env.VITE_FIREBASE_APP_ID || (defaultConfig as any).appId || '<appId>',
+  appId: import.meta.env.VITE_FIREBASE_APP_ID || (defaultConfig as any).appId || '1:400347798343:web:50caefe1b5d6119dd50a62',
   firestoreDatabaseId: import.meta.env.VITE_FIREBASE_FIRESTORE_DATABASE_ID || (defaultConfig as any).firestoreDatabaseId || '(default)',
 };
 
