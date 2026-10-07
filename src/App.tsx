@@ -163,7 +163,7 @@ export default function App() {
       const saved = localStorage.getItem(STORAGE_USER_KEY);
       if (saved) {
         const parsed = JSON.parse(saved) as AmetaUser;
-        if (parsed && parsed.emailVerified) {
+        if (parsed && (parsed.email || parsed.uid)) {
           if (isOwnerAdmUser(parsed.email)) {
             const normalizedOwner: AmetaUser = {
               ...parsed,
@@ -3222,7 +3222,7 @@ export default function App() {
   ]);
 
   // Minimalist AuthGate when not logged in (must be after all React hooks)
-  if (!user || !user.emailVerified) {
+  if (!user) {
     return <AuthGate onAuthenticated={handleAuthenticated} />;
   }
 

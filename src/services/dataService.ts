@@ -16,7 +16,6 @@ import {
 import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
-  sendEmailVerification,
 } from 'firebase/auth';
 
 import {
@@ -613,11 +612,6 @@ class FirebaseDataService implements IDataService {
     plataforma?: AssignedPlatformScope;
   }): Promise<AmetaUser> {
     const cred = await createUserWithEmailAndPassword(auth, params.email, params.password);
-    try {
-      await sendEmailVerification(cred.user);
-    } catch (e) {
-      console.warn('Erro ao enviar e-mail de verificação:', e);
-    }
     const uid = cred.user.uid;
     const cleanEmail = params.email.trim().toLowerCase();
     const isOwner = isOwnerAdmUser(cleanEmail);
@@ -634,7 +628,7 @@ class FirebaseDataService implements IDataService {
       assignedPlatform: isOwner ? 'BOTH' : params.plataforma || 'NOKIA',
       accessReleased: isOwner,
       documents: ensureUserMandatoryDocuments(),
-      emailVerified: false,
+      emailVerified: true,
       equipe: params.equipe || '',
       telefone: params.telefone || '',
       createdAt: new Date().toISOString(),

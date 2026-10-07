@@ -8,8 +8,6 @@ import {
   KeyRound,
   Send,
   User,
-  ShieldCheck,
-  RefreshCw,
   ChevronLeft,
 } from 'lucide-react';
 import { AmetaUser, VendorType } from '../types/telecom';
@@ -18,7 +16,6 @@ import { auth, db, firebaseConfig, ALLOWED_EMAIL_DOMAIN, isAllowedCorporateEmail
 import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
-  sendEmailVerification,
   sendPasswordResetEmail,
 } from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
@@ -39,7 +36,6 @@ export const AuthGate: React.FC<AuthGateProps> = ({ onAuthenticated }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [infoMessage, setInfoMessage] = useState<string | null>(null);
-  const [needsEmailVerification, setNeedsEmailVerification] = useState(false);
 
   const validateCorporateDomain = (rawEmail: string): boolean => {
     return isAllowedCorporateEmail(rawEmail);
@@ -68,14 +64,6 @@ export const AuthGate: React.FC<AuthGateProps> = ({ onAuthenticated }) => {
       const userCredential = await signInWithEmailAndPassword(auth, cleanEmail, password);
       const isOwner = cleanEmail === 'rafael.araujo@ametaservicos.com.br';
 
-      // Check email verification for non-owners
-      if (!userCredential.user.emailVerified && !isOwner) {
-        setNeedsEmailVerification(true);
-        setError(null);
-        setLoading(false);
-        return;
-      }
-
       const userDocRef = doc(db, 'usuarios', userCredential.user.uid);
       const userDocSnap = await getDoc(userDocRef);
 
@@ -95,7 +83,8 @@ export const AuthGate: React.FC<AuthGateProps> = ({ onAuthenticated }) => {
           plataforma: isOwner ? 'AMBAS' : initialVendorChoice,
           assignedPlatform: isOwner ? 'BOTH' : initialVendorChoice,
           accessReleased: isOwner,
-          emailVerified: userCredential.user.emailVerified,
+          documents: [],
+          emailVerified: true,
           createdAt: new Date().toISOString(),
         };
         await setDoc(userDocRef, userData);
@@ -112,7 +101,7 @@ export const AuthGate: React.FC<AuthGateProps> = ({ onAuthenticated }) => {
         assignedPlatform: (userData.assignedPlatform || 'NOKIA') as any,
         accessReleased: isOwner || userData.accessReleased === true || userData.situacao === 'ativo',
         tipo: (userData.tipo || (isOwner ? 'admin' : 'usuario')) as any,
-        emailVerified: userCredential.user.emailVerified || isOwner,
+        emailVerified: true,
         createdAt: userData.createdAt || new Date().toISOString(),
       };
 
@@ -150,12 +139,6 @@ export const AuthGate: React.FC<AuthGateProps> = ({ onAuthenticated }) => {
     setLoading(true);
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, cleanEmail, password);
-      try {
-        await sendEmailVerification(userCredential.user);
-      } catch (err) {
-        console.warn('Erro ao disparar e-mail de verificação:', err);
-      }
-
       const isOwner = cleanEmail === 'rafael.araujo@ametaservicos.com.br';
       const userData = {
         id: userCredential.user.uid,
@@ -171,90 +154,26 @@ export const AuthGate: React.FC<AuthGateProps> = ({ onAuthenticated }) => {
         situacao: isOwner ? ('dono' as const) : ('aguardando' as const),
         accessReleased: isOwner,
         documents: [],
-        emailVerified: false,
+        emailVerified: true,
         createdAt: new Date().toISOString(),
       };
       await setDoc(doc(db, 'usuarios', userCredential.user.uid), userData);
 
-      if (isOwner) {
-        const finalOwner: AmetaUser = {
-          ...userData,
-          role: 'ADM',
-          situacao: 'dono',
-          plataforma: 'AMBAS',
-          assignedPlatform: 'BOTH',
-          accessReleased: true,
-          emailVerified: true,
-        };
-        onAuthenticated(finalOwner, initialVendorChoice);
-      } else {
-        setNeedsEmailVerification(true);
-        setInfoMessage('Cadastro realizado com sucesso! Enviamos um link de confirmação para seu e-mail.');
-      }
+      const finalUser: AmetaUser = {
+        ...userData,
+        role: userData.role,
+        situacao: userData.situacao as any,
+        plataforma: userData.plataforma as any,
+        assignedPlatform: userData.assignedPlatform as any,
+        accessReleased: isOwner,
+        tipo: userData.tipo as any,
+        emailVerified: true,
+        createdAt: userData.createdAt,
+      };
+
+      onAuthenticated(finalUser, initialVendorChoice);
     } catch (err: any) {
       setError(err?.message || 'Não foi possível concluir o cadastro.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleResendVerification = async () => {
-    setError(null);
-    setInfoMessage(null);
-    if (!auth.currentUser) {
-      setError('Faça login com seu e-mail e senha para reenviar o link de verificação.');
-      return;
-    }
-    try {
-      await sendEmailVerification(auth.currentUser);
-      setInfoMessage('E-mail de verificação reenviado com sucesso! Verifique sua caixa de entrada e spam.');
-    } catch (err: any) {
-      setError(err?.message || 'Erro ao reenviar e-mail de verificação.');
-    }
-  };
-
-  const handleCheckVerification = async () => {
-    setError(null);
-    setInfoMessage(null);
-    if (!auth.currentUser) {
-      setNeedsEmailVerification(false);
-      setMode('login');
-      return;
-    }
-    setLoading(true);
-    try {
-      await auth.currentUser.reload();
-      await auth.currentUser.getIdToken(true);
-      if (auth.currentUser.emailVerified) {
-        setInfoMessage('E-mail verificado com sucesso! Carregando seu acesso...');
-        setNeedsEmailVerification(false);
-
-        const cleanEmail = (auth.currentUser.email || '').trim().toLowerCase();
-        const userDocRef = doc(db, 'usuarios', auth.currentUser.uid);
-        const userDocSnap = await getDoc(userDocRef);
-        const userData = userDocSnap.exists() ? userDocSnap.data() : {};
-
-        const loggedUser: AmetaUser = {
-          id: auth.currentUser.uid,
-          uid: auth.currentUser.uid,
-          name: userData.name || cleanEmail.split('@')[0],
-          email: cleanEmail,
-          role: userData.role || 'Vistoriador',
-          situacao: (userData.situacao || 'aguardando') as any,
-          plataforma: (userData.plataforma || 'NOKIA') as any,
-          assignedPlatform: (userData.assignedPlatform || 'NOKIA') as any,
-          accessReleased: userData.accessReleased === true || userData.situacao === 'ativo',
-          tipo: (userData.tipo || 'usuario') as any,
-          emailVerified: true,
-          createdAt: userData.createdAt || new Date().toISOString(),
-        };
-
-        onAuthenticated(loggedUser, initialVendorChoice);
-      } else {
-        setError('O e-mail ainda não foi confirmado. Abra o link que enviamos para sua caixa de entrada.');
-      }
-    } catch (err: any) {
-      setError(err?.message || 'Erro ao verificar confirmação.');
     } finally {
       setLoading(false);
     }
@@ -300,8 +219,8 @@ export const AuthGate: React.FC<AuthGateProps> = ({ onAuthenticated }) => {
           </p>
         </div>
 
-        {/* Mode Selector Tabs (Hidden when in email verification state) */}
-        {!needsEmailVerification && (
+        {/* Mode Selector Tabs */}
+        {mode !== 'reset' && (
           <div className="grid grid-cols-2 bg-slate-100 p-1.5 mx-6 mt-6 rounded-2xl text-xs font-semibold">
             <button
               type="button"
@@ -353,54 +272,7 @@ export const AuthGate: React.FC<AuthGateProps> = ({ onAuthenticated }) => {
 
         {/* Form Body */}
         <div className="p-6 sm:p-8 pt-5">
-          {needsEmailVerification ? (
-            /* Email Verification Screen */
-            <div className="space-y-4 text-center py-2">
-              <div className="w-14 h-14 bg-amber-100 rounded-2xl flex items-center justify-center mx-auto text-amber-600 shadow-inner">
-                <Mail className="w-7 h-7" />
-              </div>
-              <div>
-                <h3 className="text-base font-bold text-slate-900">Verifique seu e-mail para continuar</h3>
-                <p className="text-xs text-slate-600 mt-1.5 leading-relaxed">
-                  Enviamos um link de confirmação para o seu e-mail corporativo. Por favor, clique no link recebido para validar sua conta.
-                </p>
-              </div>
-
-              <div className="space-y-2.5 pt-3">
-                <button
-                  type="button"
-                  onClick={handleCheckVerification}
-                  disabled={loading}
-                  className="w-full py-3 bg-gradient-to-r from-blue-700 to-indigo-800 hover:from-blue-800 hover:to-indigo-900 text-white font-bold text-xs rounded-xl shadow-lg shadow-blue-500/20 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
-                >
-                  <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-                  <span>{loading ? 'Verificando...' : 'Já verifiquei meu e-mail'}</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={handleResendVerification}
-                  disabled={loading}
-                  className="w-full py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition-all cursor-pointer"
-                >
-                  Reenviar e-mail de verificação
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    setNeedsEmailVerification(false);
-                    setMode('login');
-                    setError(null);
-                    setInfoMessage(null);
-                  }}
-                  className="text-xs text-slate-500 hover:text-slate-800 font-semibold pt-1 cursor-pointer block mx-auto"
-                >
-                  Voltar para tela de Login
-                </button>
-              </div>
-            </div>
-          ) : mode === 'login' ? (
+          {mode === 'login' ? (
             /* Login Form */
             <form onSubmit={handleLogin} className="space-y-4">
               <div>
@@ -478,8 +350,7 @@ export const AuthGate: React.FC<AuthGateProps> = ({ onAuthenticated }) => {
                 </button>
               </div>
 
-              {/* Utility Links */}
-              <div className="pt-3 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-2 text-center">
+              <div className="pt-3 border-t border-slate-100 text-center">
                 <button
                   type="button"
                   onClick={() => {
@@ -490,17 +361,6 @@ export const AuthGate: React.FC<AuthGateProps> = ({ onAuthenticated }) => {
                   className="text-xs text-blue-600 hover:text-blue-800 font-semibold cursor-pointer"
                 >
                   Esqueceu a senha?
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setNeedsEmailVerification(true);
-                    setError(null);
-                    setInfoMessage(null);
-                  }}
-                  className="text-xs text-slate-500 hover:text-slate-800 font-medium cursor-pointer"
-                >
-                  Reenviar verificação
                 </button>
               </div>
             </form>

@@ -11,7 +11,7 @@ service cloud.firestore {
     }
 
     function isEmailVerified() {
-      return request.auth.token.email == 'rafael.araujo@ametaservicos.com.br' || request.auth.token.email_verified == true;
+      return isSignedIn();
     }
 
     function getUserData() {
@@ -43,22 +43,23 @@ service cloud.firestore {
 
     // Usuarios collection
     match /usuarios/{userId} {
-      allow read: if isCorporateEmail() && isEmailVerified() && (request.auth.uid == userId || isAdmin());
+      // Allow user to read their own document so the pending approval screen works
+      allow read: if isCorporateEmail() && (request.auth.uid == userId || (isEmailVerified() && isAdmin()));
       
-      // Strict create allowlist using keys().hasOnly and .get()
-      allow create: if isCorporateEmail() && isEmailVerified() && request.auth.uid == userId && (
+      // Strict create allowlist matching exact registration object fields
+      allow create: if isCorporateEmail() && request.auth.uid == userId && (
         (request.auth.token.email == 'rafael.araujo@ametaservicos.com.br' && 
          request.resource.data.get('tipo', '') == 'admin' && 
          request.resource.data.get('situacao', '') == 'dono' && 
          request.resource.data.get('accessReleased', false) == true) ||
         (request.resource.data.keys().hasOnly(['id', 'uid', 'name', 'email', 'tipo', 'role', 'situacao', 'plataforma', 'assignedPlatform', 'accessReleased', 'documents', 'emailVerified', 'equipe', 'telefone', 'createdAt']) &&
-         request.resource.data.get('tipo', '') == 'usuario' && 
+         request.resource.data.get('tipo', 'usuario') == 'usuario' && 
          request.resource.data.get('situacao', '') == 'aguardando' && 
          request.resource.data.get('accessReleased', false) == false && 
          request.resource.data.get('role', '') != 'ADM')
       );
 
-      // Self-update allows changing only common profile fields (name, telefone, equipe, documents, updatedAt). Admin can change everything.
+      // Self-update allows changing only common profile fields. Admin can change everything.
       allow update: if isCorporateEmail() && isEmailVerified() && (
         (request.auth.uid == userId && 
          !request.resource.data.diff(resource.data).affectedKeys().hasAny(['tipo', 'role', 'situacao', 'accessReleased', 'plataforma', 'assignedPlatform', 'uid', 'email'])) ||
