@@ -1,5 +1,5 @@
-import { initializeApp, getApps, getApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
+import { initializeApp, getApps, getApp, deleteApp } from 'firebase/app';
+import { getAuth, createUserWithEmailAndPassword, signOut } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import defaultConfig from '../../firebase-applet-config.json';
 
@@ -41,12 +41,67 @@ export enum OperationType {
   WRITE = 'write',
 }
 
+export interface FirestoreErrorInfo {
+  error: string;
+  operationType: OperationType;
+  path: string | null;
+  authInfo: {
+    userId?: string | null;
+    email?: string | null;
+    emailVerified?: boolean | null;
+    isAnonymous?: boolean | null;
+  };
+}
+
 export function handleFirestoreError(
   error: unknown,
   operationType: OperationType,
   path: string | null
 ): never {
-  const msg = error instanceof Error ? error.message : String(error);
-  console.error(`[Firestore Error] ${operationType} on ${path}:`, msg);
-  throw new Error(msg);
+  const errInfo: FirestoreErrorInfo = {
+    error: error instanceof Error ? error.message : String(error),
+    authInfo: {
+      userId: auth.currentUser?.uid,
+      email: auth.currentUser?.email,
+      emailVerified: auth.currentUser?.emailVerified,
+      isAnonymous: auth.currentUser?.isAnonymous,
+    },
+    operationType,
+    path,
+  };
+  console.error('[Firestore Error]', JSON.stringify(errInfo, null, 2));
+  throw new Error(JSON.stringify(errInfo));
+}
+
+export async function createAuthAccountSecondary(email: string, password: string): Promise<{ uid: string }> {
+  const cleanEmail = email.trim().toLowerCase();
+  if (!password || password.length < 8) {
+    throw new Error('A senha inicial deve ter no mínimo 8 caracteres.');
+  }
+
+  const secondaryAppName = 'SecondaryAuthApp';
+  const existingApps = getApps().filter((a) => a.name === secondaryAppName);
+  for (const appItem of existingApps) {
+    try {
+      await deleteApp(appItem);
+    } catch (e) {
+      // ignore error when deleting app
+    }
+  }
+
+  const secondaryApp = initializeApp(firebaseConfig, secondaryAppName);
+  const secondaryAuth = getAuth(secondaryApp);
+
+  try {
+    const userCredential = await createUserWithEmailAndPassword(secondaryAuth, cleanEmail, password);
+    const uid = userCredential.user.uid;
+    await signOut(secondaryAuth);
+    return { uid };
+  } finally {
+    try {
+      await deleteApp(secondaryApp);
+    } catch (e) {
+      // ignore
+    }
+  }
 }

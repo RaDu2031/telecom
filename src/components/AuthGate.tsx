@@ -19,8 +19,12 @@ import {
   createUserWithEmailAndPassword,
   sendPasswordResetEmail,
   updatePassword,
+  signOut,
+  EmailAuthProvider,
+  reauthenticateWithCredential,
 } from 'firebase/auth';
-import { doc, getDoc, updateDoc, setDoc, collection, query, where, getDocs } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, setDoc } from 'firebase/firestore';
+import { handleFirestoreError, OperationType } from '../lib/firebase';
 import {
   validateCpfFormat,
   validatePasswordComplexity,
@@ -80,100 +84,54 @@ export const AuthGate: React.FC<AuthGateProps> = ({ onAuthenticated }) => {
       try {
         userCredential = await signInWithEmailAndPassword(auth, cleanEmail, password);
       } catch (authErr: any) {
-        // Fallback for imported/pre-seeded users who don't have a Firebase Auth account yet
-        let preSeededData: any = null;
-
-        try {
-          const usersCol = collection(db, 'usuarios');
-          const q = query(usersCol, where('email', '==', cleanEmail));
-          const qSnap = await getDocs(q);
-          if (!qSnap.empty) {
-            preSeededData = qSnap.docs[0].data();
-          }
-        } catch (dbErr) {
-          console.warn('Consulta de pré-cadastro em usuarios ignorada:', dbErr);
+        if (
+          authErr?.code === 'auth/invalid-credential' ||
+          authErr?.code === 'auth/user-not-found' ||
+          authErr?.code === 'auth/wrong-password'
+        ) {
+          throw new Error('E-mail ou senha incorretos. Solicite o cadastro ao administrador.');
         }
-
-        if (!preSeededData) {
-          try {
-            const initialRes = await window.fetch('/initial-db.json');
-            if (initialRes.ok) {
-              const initialJson = await initialRes.json();
-              if (Array.isArray(initialJson.users)) {
-                preSeededData = initialJson.users.find(
-                  (u: any) => u.email?.toLowerCase() === cleanEmail
-                );
-              }
-            }
-          } catch (e) {
-            console.error('Erro ao buscar fallback em initial-db.json:', e);
-          }
-        }
-
-        if (preSeededData) {
-          if (password === 'ameta2026' || preSeededData.mustChangePassword) {
-            try {
-              userCredential = await createUserWithEmailAndPassword(auth, cleanEmail, password);
-              const newUid = userCredential.user.uid;
-              await setDoc(
-                doc(db, 'usuarios', newUid),
-                sanitizeFirestoreData({
-                  ...preSeededData,
-                  id: newUid,
-                  uid: newUid,
-                }),
-                { merge: true }
-              );
-            } catch (createErr: any) {
-              if (createErr?.code === 'auth/email-already-in-use') {
-                throw new Error('E-mail ou senha incorretos.');
-              }
-              throw createErr;
-            }
-          } else {
-            throw new Error('E-mail ou senha incorretos.');
-          }
-        } else {
-          if (authErr?.code === 'auth/invalid-credential' || authErr?.code === 'auth/user-not-found' || authErr?.code === 'auth/wrong-password') {
-            throw new Error('E-mail ou senha incorretos. Solicite o cadastro de sua conta ao Administrador.');
-          }
-          throw authErr;
-        }
+        throw authErr;
       }
 
-      const userDocRef = doc(db, 'usuarios', userCredential.user.uid);
-      const userDocSnap = await getDoc(userDocRef);
+      const uid = userCredential.user.uid;
+      const userDocRef = doc(db, 'usuarios', uid);
+      let userDocSnap: any;
 
-      let userData: any;
-      if (userDocSnap.exists()) {
-        userData = userDocSnap.data();
-      } else {
-        const isOwner = cleanEmail === 'rafael.araujo@ametaservicos.com.br';
-        userData = {
-          id: userCredential.user.uid,
-          uid: userCredential.user.uid,
-          name: cleanEmail.split('@')[0],
-          email: cleanEmail,
-          tipo: isOwner ? 'admin' : 'usuario',
-          role: isOwner ? 'ADM' : 'Vistoriador',
-          situacao: isOwner ? 'dono' : 'ativo',
-          plataforma: isOwner ? 'AMBAS' : initialVendorChoice,
-          assignedPlatform: isOwner ? 'BOTH' : initialVendorChoice,
-          accessReleased: true,
-          documents: [],
-          emailVerified: true,
-          equipe: '',
-          telefone: '',
-          createdAt: new Date().toISOString(),
-        };
-        await setDoc(userDocRef, sanitizeFirestoreData(userData));
+      try {
+        userDocSnap = await getDoc(userDocRef);
+      } catch (getErr) {
+        await signOut(auth);
+        handleFirestoreError(getErr, OperationType.GET, `usuarios/${uid}`);
       }
 
-      // Check if user is disabled or blocked
+      // Requirement 2: If the user does not have a document in 'usuarios', show message and signOut. Do NOT create doc.
+      if (!userDocSnap || !userDocSnap.exists()) {
+        await signOut(auth);
+        throw new Error('Seu acesso ainda não foi liberado. Fale com o administrador.');
+      }
+
+      const userData = userDocSnap.data();
+      const isOwner = cleanEmail === 'rafael.araujo@ametaservicos.com.br' || cleanEmail === 'rafael.araujo0797@gmail.com';
+
+      // Check if disabled or blocked
       if (userData.desativado || userData.situacao === 'bloqueado') {
+        await signOut(auth);
         throw new Error(
           'Esta conta foi desativada pelo administrador. Seu histórico e demandas continuam preservados. Entre em contato com o ADM.'
         );
+      }
+
+      // Check if access is released
+      const isReleasedUser =
+        isOwner ||
+        userData.situacao === 'ativo' ||
+        userData.situacao === 'dono' ||
+        userData.accessReleased === true;
+
+      if (!isReleasedUser) {
+        await signOut(auth);
+        throw new Error('Seu acesso ainda não foi liberado. Fale com o administrador.');
       }
 
       // Check lockout status
@@ -181,23 +139,23 @@ export const AuthGate: React.FC<AuthGateProps> = ({ onAuthenticated }) => {
         const lockoutTime = new Date(userData.lockoutUntil).getTime();
         if (lockoutTime > Date.now()) {
           const remainingMinutes = Math.ceil((lockoutTime - Date.now()) / (1000 * 60));
+          await signOut(auth);
           throw new Error(
             `Conta temporariamente bloqueada devido a 5 tentativas falhas. Tente novamente em ${remainingMinutes} minuto(s).`
           );
         }
       }
 
-      const isOwner = cleanEmail === 'rafael.araujo@ametaservicos.com.br';
       const loggedUser: AmetaUser = {
-        id: userData.id || userCredential.user.uid,
-        uid: userData.uid || userCredential.user.uid,
+        id: userData.id || uid,
+        uid: userData.uid || uid,
         name: userData.name || cleanEmail.split('@')[0],
         email: cleanEmail,
         role: userData.role || 'Vistoriador',
         situacao: (userData.situacao || (isOwner ? 'dono' : 'ativo')) as any,
         plataforma: (userData.plataforma || 'NOKIA') as any,
         assignedPlatform: (userData.assignedPlatform || 'NOKIA') as any,
-        accessReleased: isOwner || userData.accessReleased === true || userData.situacao === 'ativo',
+        accessReleased: true,
         tipo: (userData.tipo || (isOwner ? 'admin' : 'usuario')) as any,
         emailVerified: true,
         mustChangePassword: Boolean(userData.mustChangePassword),
@@ -208,20 +166,21 @@ export const AuthGate: React.FC<AuthGateProps> = ({ onAuthenticated }) => {
       // Check if mandatory password change is required on First Access
       if (userData.mustChangePassword) {
         if (userData.batchStatus === 'Pendente de liberação') {
+          await signOut(auth);
           throw new Error(
             'A senha inicial deste lote foi encerrada pelo administrador. Entre em contato com o ADM para redefinir sua senha.'
           );
         }
 
         setPendingFirstAccessUser({
-          uid: userCredential.user.uid,
+          uid,
           email: cleanEmail,
           name: loggedUser.name,
           userData,
           credentialUser: userCredential.user,
         });
         setMode('first_access');
-        setInfoMessage('Primeiro acesso detectado. Para sua segurança, confirme seus dados e crie uma nova senha.');
+        setInfoMessage('Primeiro acesso detectado. Para sua segurança, crie sua nova senha de acesso.');
         return;
       }
 
@@ -243,9 +202,18 @@ export const AuthGate: React.FC<AuthGateProps> = ({ onAuthenticated }) => {
       return;
     }
 
-    const cleanCpf3 = cpf3DigitsInput.replace(/\D/g, '');
-    if (cleanCpf3.length !== 3) {
-      setError('Informe exatamente os 3 primeiros dígitos do seu CPF.');
+    if (pendingUser?.userData?.cpf) {
+      const cleanCpf = pendingUser.userData.cpf.replace(/\D/g, '');
+      if (cleanCpf.length >= 3 && cpf3DigitsInput.length === 3) {
+        if (!cleanCpf.startsWith(cpf3DigitsInput)) {
+          setError('Os 3 primeiros dígitos do CPF não conferem com o cadastro.');
+          return;
+        }
+      }
+    }
+
+    if (newPassword.length < 8) {
+      setError('A nova senha deve ter no mínimo 8 caracteres.');
       return;
     }
 
@@ -256,7 +224,7 @@ export const AuthGate: React.FC<AuthGateProps> = ({ onAuthenticated }) => {
 
     const complexity = validatePasswordComplexity(newPassword);
     if (!complexity.isValid) {
-      setError(complexity.message || 'Senha fora dos padrões de segurança.');
+      setError(complexity.message || 'Senha fora dos padrões de segurança (deve conter letras e números).');
       return;
     }
 
@@ -268,74 +236,44 @@ export const AuthGate: React.FC<AuthGateProps> = ({ onAuthenticated }) => {
     setLoading(true);
     try {
       const userRef = doc(db, 'usuarios', pendingUser.uid);
-      const userSnap = await getDoc(userRef);
-      const currentData = userSnap.data() || pendingUser.userData;
-
-      // Check lockout again
-      if (currentData.lockoutUntil) {
-        const lockoutTime = new Date(currentData.lockoutUntil).getTime();
-        if (lockoutTime > Date.now()) {
-          const remainingMinutes = Math.ceil((lockoutTime - Date.now()) / (1000 * 60));
-          throw new Error(
-            `Conta temporariamente bloqueada após 5 tentativas falhas. Tente novamente em ${remainingMinutes} minuto(s).`
-          );
-        }
+      let userSnap;
+      try {
+        userSnap = await getDoc(userRef);
+      } catch (getErr) {
+        handleFirestoreError(getErr, OperationType.GET, `usuarios/${pendingUser.uid}`);
       }
+      const currentData = userSnap?.data() || pendingUser.userData;
 
-      // Verify CPF 3 digits
-      const expectedCpf = currentData.cpf || '';
-      const expectedCpf3 = currentData.cpf3Digits || validateCpfFormat(expectedCpf).first3Digits;
-
-      if (expectedCpf3 && cleanCpf3 !== expectedCpf3) {
-        const failedAttempts = (currentData.failedAttempts || 0) + 1;
-        let updatePayload: any = { failedAttempts };
-
-        if (failedAttempts >= 5) {
-          const lockoutUntil = new Date(Date.now() + 15 * 60 * 1000).toISOString();
-          updatePayload.lockoutUntil = lockoutUntil;
-
-          await dataService.registrarAuditLog({
-            action: 'ACCOUNT_LOCKOUT',
-            actorEmail: pendingUser.email,
-            targetEmail: pendingUser.email,
-            targetName: pendingUser.name,
-            details: 'Conta bloqueada por 15 minutos após 5 tentativas incorretas na conferência de CPF.',
-          });
-        } else {
-          await dataService.registrarAuditLog({
-            action: 'FAILED_ATTEMPT',
-            actorEmail: pendingUser.email,
-            targetEmail: pendingUser.email,
-            targetName: pendingUser.name,
-            details: `Tentativa incorreta de CPF no primeiro acesso (${failedAttempts}/5).`,
-          });
-        }
-
-        await updateDoc(userRef, sanitizeFirestoreData(updatePayload));
-
-        if (failedAttempts >= 5) {
-          throw new Error('Número máximo de 5 tentativas excedido. A conta foi bloqueada por 15 minutos.');
-        } else {
-          throw new Error(`Conferência de CPF incorreta (${failedAttempts}/5 tentativas). Tente novamente.`);
-        }
-      }
-
-      // Update password in Firebase Auth
+      // Update password in Firebase Auth with auto re-authentication
       if (auth.currentUser) {
-        await updatePassword(auth.currentUser, newPassword);
+        try {
+          await updatePassword(auth.currentUser, newPassword);
+        } catch (pwErr: any) {
+          if (pwErr?.code === 'auth/requires-recent-login') {
+            const credential = EmailAuthProvider.credential(pendingUser.email, password);
+            await reauthenticateWithCredential(auth.currentUser, credential);
+            await updatePassword(auth.currentUser, newPassword);
+          } else {
+            throw pwErr;
+          }
+        }
       }
 
       // Update user document in Firestore
-      await updateDoc(
-        userRef,
-        sanitizeFirestoreData({
-          mustChangePassword: false,
-          batchStatus: 'Concluído',
-          failedAttempts: 0,
-          lockoutUntil: null,
-          updatedAt: new Date().toISOString(),
-        })
-      );
+      try {
+        await updateDoc(
+          userRef,
+          sanitizeFirestoreData({
+            mustChangePassword: false,
+            batchStatus: 'Concluído',
+            failedAttempts: 0,
+            lockoutUntil: null,
+            updatedAt: new Date().toISOString(),
+          })
+        );
+      } catch (updErr) {
+        handleFirestoreError(updErr, OperationType.UPDATE, `usuarios/${pendingUser.uid}`);
+      }
 
       // Audit Log
       await dataService.registrarAuditLog({
@@ -537,23 +475,24 @@ export const AuthGate: React.FC<AuthGateProps> = ({ onAuthenticated }) => {
                 </div>
               </div>
 
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  3 Primeiros Dígitos do CPF (Conferência de Identidade)
-                </label>
-                <div className="relative">
-                  <ShieldAlert className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
-                  <input
-                    type="text"
-                    required
-                    maxLength={3}
-                    value={cpf3DigitsInput}
-                    onChange={(e) => setCpf3DigitsInput(e.target.value.replace(/\D/g, ''))}
-                    placeholder="Ex: 123"
-                    className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-bold text-slate-900 focus:outline-none focus:border-blue-600 focus:bg-white transition-all"
-                  />
+              {pendingUser?.userData?.cpf ? (
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    3 Primeiros Dígitos do CPF (Conferência de Identidade)
+                  </label>
+                  <div className="relative">
+                    <ShieldAlert className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
+                    <input
+                      type="text"
+                      maxLength={3}
+                      value={cpf3DigitsInput}
+                      onChange={(e) => setCpf3DigitsInput(e.target.value.replace(/\D/g, ''))}
+                      placeholder="Ex: 123"
+                      className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-bold text-slate-900 focus:outline-none focus:border-blue-600 focus:bg-white transition-all"
+                    />
+                  </div>
                 </div>
-              </div>
+              ) : null}
 
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">

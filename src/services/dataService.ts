@@ -1,6 +1,6 @@
 // Firebase Data Service for Ameta Telecom (100% Client-Side Firestore & Auth)
 
-import { db, auth } from '../lib/firebaseClient';
+import { db, auth, handleFirestoreError, OperationType } from '../lib/firebase';
 import {
   collection,
   doc,
@@ -546,8 +546,8 @@ class FirebaseDataService implements IDataService {
         return { id: snap.id, uid: snap.id, ...snap.data() } as AmetaUser;
       }
       return null;
-    } catch {
-      return null;
+    } catch (err) {
+      handleFirestoreError(err, OperationType.GET, `${FIRESTORE_COLLECTIONS.USUARIOS}/${uid}`);
     }
   }
 
@@ -555,8 +555,8 @@ class FirebaseDataService implements IDataService {
     try {
       const snap = await getDocs(collection(db, FIRESTORE_COLLECTIONS.USUARIOS));
       return snap.docs.map((d) => ({ id: d.id, uid: d.id, ...d.data() } as AmetaUser));
-    } catch {
-      return [];
+    } catch (err) {
+      handleFirestoreError(err, OperationType.LIST, FIRESTORE_COLLECTIONS.USUARIOS);
     }
   }
 

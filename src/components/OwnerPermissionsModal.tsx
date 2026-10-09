@@ -24,6 +24,7 @@ import {
   isUserDono,
 } from '../types/telecom';
 import { dataService } from '../services/dataService';
+import { createAuthAccountSecondary } from '../lib/firebase';
 import { cloudFetch } from '../lib/firebaseCloud';
 
 const fetch = cloudFetch;
@@ -277,8 +278,31 @@ export const OwnerPermissionsModal: React.FC<OwnerPermissionsModalProps> = ({
       const platForFirestore: 'NOKIA' | 'ERICSSON' | 'AMBAS' =
         params.assignedPlatform === 'BOTH' ? 'AMBAS' : params.assignedPlatform;
 
+      let resolvedUid = params.uid || params.userId;
+      if (params.accessReleased) {
+        const passwordToUse = params.password || formPassword || 'ameta2026';
+        if (passwordToUse.length >= 8) {
+          try {
+            const authRes = await createAuthAccountSecondary(params.email, passwordToUse);
+            resolvedUid = authRes.uid;
+          } catch (authErr: any) {
+            if (authErr?.code === 'auth/email-already-in-use') {
+              // User already exists in Authentication, proceed normally
+            } else {
+              console.error('[Owner Release Auth Error]', params.email, authErr);
+              setStatusBanner({
+                type: 'error',
+                text: `Erro ao criar conta no Authentication para ${params.email}: ${authErr?.code || authErr?.message || authErr}`,
+              });
+              setSavingId(null);
+              return;
+            }
+          }
+        }
+      }
+
       const updatedUser = await dataService.atualizarPermissaoUsuarioPeloDono({
-        uid: params.uid || params.userId || params.email.trim().toLowerCase(),
+        uid: resolvedUid || params.email.trim().toLowerCase(),
         email: params.email,
         name: params.name,
         role: params.role,

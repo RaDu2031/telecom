@@ -79,21 +79,11 @@ service cloud.firestore {
 
     // Usuarios collection
     match /usuarios/{userId} {
-      // User reads their own document; released users can view directory to resolve teams/responsibles; allow unauthenticated lookup during login
-      allow read: if request.auth == null || (isCorporateEmail() && (request.auth.uid == userId || isReleased()));
+      // User reads their own document; released users can view directory to resolve teams/responsibles
+      allow read: if isCorporateEmail() && (request.auth.uid == userId || isReleased());
       
-      // Strict create allowlist: user creates pending account; admin can create directly for any user
-      allow create: if isCorporateEmail() && (
-        (request.auth.uid == userId &&
-         request.resource.data.get('uid', '') == userId &&
-         request.resource.data.get('email', '').lower() == request.auth.token.email.lower() &&
-         request.resource.data.keys().hasOnly(['id', 'uid', 'name', 'email', 'tipo', 'role', 'situacao', 'plataforma', 'assignedPlatform', 'accessReleased', 'documents', 'emailVerified', 'equipe', 'telefone', 'createdAt']) &&
-         request.resource.data.get('tipo', 'usuario') == 'usuario' && 
-         request.resource.data.get('situacao', '') == 'aguardando' && 
-         request.resource.data.get('accessReleased', false) == false && 
-         request.resource.data.get('role', '') != 'ADM') ||
-        (isEmailVerified() && isAdmin())
-      );
+      // ONLY Admin can create user documents in Firestore
+      allow create: if isCorporateEmail() && isEmailVerified() && isAdmin();
 
       // Self-update allows changing profile documents/notes. Admin can modify roles, platforms and access.
       allow update: if isCorporateEmail() && isEmailVerified() && (

@@ -42,7 +42,7 @@ import {
   DEFAULT_DOC_DURATIONS,
   addMonthsToIsoDate,
 } from '../utils/documentOcrUtils';
-import { db, firebaseConfig } from '../lib/firebaseClient';
+import { db, firebaseConfig, handleFirestoreError, OperationType, createAuthAccountSecondary } from '../lib/firebase';
 import { collection, onSnapshot, doc, setDoc, deleteDoc, updateDoc } from 'firebase/firestore';
 
 interface AdminAccessPanelProps {
@@ -172,6 +172,9 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
           message: err?.message || 'Falha ao ler coleção usuarios no Firestore.',
         });
         setIsLoadingUsers(false);
+        try {
+          handleFirestoreError(err, OperationType.LIST, 'usuarios');
+        } catch {}
       }
     );
 
@@ -740,11 +743,130 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
     setNewProfileDocs(cleanDocs);
   };
 
+  // Auth creation state
+  const [bulkAuthModalOpen, setBulkAuthModalOpen] = useState(false);
+  const [singleAuthUser, setSingleAuthUser] = useState<AmetaUser | null>(null);
+  const [authDefaultPassword, setAuthDefaultPassword] = useState('ameta2026');
+  const [authProcessing, setAuthProcessing] = useState(false);
+  const [authReport, setAuthReport] = useState<{
+    total: number;
+    created: number;
+    alreadyExisted: number;
+    errors: number;
+    details: Array<{ email: string; name: string; status: 'created' | 'already_exists' | 'error'; message: string }>;
+  } | null>(null);
+
+  const handleRunAuthCreation = async (targetUsers: AmetaUser[], initialPassword: string) => {
+    if (!initialPassword || initialPassword.length < 8) {
+      setError('A senha inicial deve ter no mínimo 8 caracteres.');
+      return;
+    }
+    setAuthProcessing(true);
+    setError(null);
+
+    const report = {
+      total: targetUsers.length,
+      created: 0,
+      alreadyExisted: 0,
+      errors: 0,
+      details: [] as Array<{ email: string; name: string; status: 'created' | 'already_exists' | 'error'; message: string }>,
+    };
+
+    for (const u of targetUsers) {
+      const cleanEmail = (u.email || '').trim().toLowerCase();
+      if (!cleanEmail) continue;
+
+      try {
+        const { uid: newUid } = await createAuthAccountSecondary(cleanEmail, initialPassword);
+
+        const oldDocId = u.uid || u.id || cleanEmail;
+        const updatedUserPayload: AmetaUser = {
+          ...u,
+          id: newUid,
+          uid: newUid,
+          email: cleanEmail,
+          situacao: 'ativo',
+          accessReleased: true,
+          mustChangePassword: true,
+          emailVerified: true,
+          updatedAt: new Date().toISOString(),
+        };
+
+        await setDoc(doc(db, 'usuarios', newUid), sanitizeFirestoreData(updatedUserPayload));
+
+        if (oldDocId && oldDocId !== newUid) {
+          try {
+            await deleteDoc(doc(db, 'usuarios', oldDocId));
+          } catch (delErr) {
+            console.warn(`[Move User Doc Warning] Nao foi possivel remover doc antigo usuarios/${oldDocId}:`, delErr);
+          }
+        }
+
+        report.created++;
+        report.details.push({
+          email: cleanEmail,
+          name: u.name || cleanEmail,
+          status: 'created',
+          message: `Conta criada no Authentication. Documento movido para usuarios/${newUid}`,
+        });
+      } catch (authErr: any) {
+        if (authErr?.code === 'auth/email-already-in-use') {
+          report.alreadyExisted++;
+          report.details.push({
+            email: cleanEmail,
+            name: u.name || cleanEmail,
+            status: 'already_exists',
+            message: 'E-mail ja cadastrado no Authentication (nao alterado).',
+          });
+        } else {
+          console.error('[Auth Batch Creation Error]', cleanEmail, authErr);
+          report.errors++;
+          report.details.push({
+            email: cleanEmail,
+            name: u.name || cleanEmail,
+            status: 'error',
+            message: `Erro ao criar: ${authErr?.code || authErr?.message || authErr}`,
+          });
+        }
+      }
+    }
+
+    setAuthProcessing(false);
+    setBulkAuthModalOpen(false);
+    setSingleAuthUser(null);
+    setAuthReport(report);
+  };
+
   const handleCreateResource = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setSaving(true);
     try {
+      const cleanEmail = email.trim().toLowerCase();
+
+      if (!password || password.length < 8) {
+        setError('A senha inicial deve ter no mínimo 8 caracteres.');
+        setSaving(false);
+        return;
+      }
+
+      // Step 1: Create user account in Firebase Authentication via secondary app
+      let authResult;
+      try {
+        authResult = await createAuthAccountSecondary(cleanEmail, password);
+      } catch (authErr: any) {
+        console.error('[Create Resource Auth Error]', cleanEmail, authErr);
+        if (authErr?.code === 'auth/email-already-in-use') {
+          setError(`O e-mail "${cleanEmail}" já está cadastrado no Firebase Authentication. Nenhuma alteração foi realizada.`);
+        } else {
+          setError(`Falha ao criar conta no Authentication para ${cleanEmail} (código: ${authErr?.code || authErr?.message || authErr}).`);
+        }
+        setSaving(false);
+        return;
+      }
+
+      const uid = authResult.uid;
+
       const documentsPayload = MANDATORY_USER_DOCUMENTS.map((meta) => {
         const entry = newProfileDocs[meta.type];
         return {
@@ -761,8 +883,6 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
         };
       });
 
-      const uid = `USR_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
-      const cleanEmail = email.trim().toLowerCase();
       const newUser: AmetaUser = {
         id: uid,
         uid: uid,
@@ -779,6 +899,7 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
         plataforma: 'NOKIA',
         assignedPlatform: 'NOKIA',
         accessReleased: true,
+        mustChangePassword: true,
         dispensadoDocumentos: newDispensado,
         statusRecurso: newDispensado ? 'DISPENSADO' : 'VALIDADO',
         documents: documentsPayload as UserMandatoryDocument[],
@@ -788,7 +909,7 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
 
       await setDoc(doc(db, 'usuarios', uid), sanitizeFirestoreData(newUser));
       if (onUsersUpdated) {
-        onUsersUpdated([...users, newUser], `Perfil ${name.trim()} cadastrado com sucesso`);
+        onUsersUpdated([...users, newUser], `Perfil ${name.trim()} cadastrado com sucesso no Authentication e Firestore`);
       }
       resetNewResourceForm();
       setAddModalOpen(false);
@@ -832,24 +953,21 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
   const handleDeleteResource = async (u: AmetaUser) => {
     if (isOwnerAdmUser(u.email, u.situacao)) return;
     const ok = window.confirm(
-      `Deseja bloquear o acesso de ${u.name} (${u.email})?\n\nO status passará para "bloqueado" e o acesso ao sistema será revogado imediatamente no Firestore. A conta no Firebase Authentication continua existindo e não poderá fazer login.`
+      `Deseja EXCLUIR permanentemente o usuário ${u.name} (${u.email})?\n\n- Pressione OK para EXCLUIR o documento do usuário do Firestore.\n- Se quiser apenas bloquear o acesso, altere o status para Bloqueado.`
     );
     if (!ok) return;
+    const targetId = u.uid || u.id;
     try {
-      await dataService.bloquearUsuario(u.uid || u.id, 'Bloqueado no painel administrativo');
+      await dataService.excluirUsuario(targetId, u.email);
       if (onUsersUpdated) {
         onUsersUpdated(
-          users.map((usr) =>
-            usr.id === u.id || usr.uid === u.uid
-              ? { ...usr, situacao: 'bloqueado' as const, accessReleased: false }
-              : usr
-          ),
-          `Usuário ${u.name} bloqueado no Firestore (acesso revogado). A conta no Authentication continua existindo.`
+          users.filter((usr) => usr.id !== targetId && usr.uid !== targetId),
+          `Usuário ${u.name} excluído com sucesso do Firestore.`
         );
       }
     } catch (err: any) {
-      console.error('Erro ao bloquear usuário no Firestore [usuarios]:', err);
-      setError(`Erro ao bloquear usuário no Firestore [usuarios]: ${err?.code || err?.message || err}`);
+      console.error('Erro ao excluir usuário no Firestore [usuarios]:', err);
+      setError(`Erro ao excluir usuário no Firestore [usuarios]: ${err?.code || err?.message || err}`);
     }
   };
 
@@ -972,6 +1090,20 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
           >
             <Plus className="w-3.5 h-3.5" />
             <span>Cadastrar Recurso</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              setError(null);
+              setAuthDefaultPassword('ameta2026');
+              setBulkAuthModalOpen(true);
+            }}
+            className="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-lg flex items-center gap-1.5 cursor-pointer whitespace-nowrap shadow-2xs"
+            title="Criar contas de acesso no Firebase Authentication para colaboradores pendentes ou cadastrados no Firestore"
+          >
+            <ShieldCheck className="w-3.5 h-3.5" />
+            <span>Criar Acesso de Todos os Pendentes</span>
           </button>
         </div>
       </div>
@@ -1474,6 +1606,20 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
                             <div className="inline-flex items-center gap-1.5 flex-nowrap">
                               {isUserDono(currentUser) && (
                                 <>
+                                  <button
+                                    type="button"
+                                    disabled={isUpdating}
+                                    onClick={() => {
+                                      setError(null);
+                                      setAuthDefaultPassword('ameta2026');
+                                      setSingleAuthUser(u);
+                                    }}
+                                    className="px-2 py-1 rounded-lg text-[11px] font-bold border border-indigo-300 bg-indigo-50 hover:bg-indigo-100 text-indigo-900 transition-colors cursor-pointer whitespace-nowrap"
+                                    title="Criar conta de acesso no Firebase Authentication para este colaborador"
+                                  >
+                                    Criar Acesso
+                                  </button>
+
                                   <select
                                     value={u.plataforma || u.assignedPlatform || 'NOKIA'}
                                     disabled={isUpdating}
@@ -2248,6 +2394,246 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+      {/* Modal: Criar Acesso de Todos os Pendentes (Lote Auth) */}
+      {bulkAuthModalOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-[2px]"
+          onClick={() => setBulkAuthModalOpen(false)}
+        >
+          <div
+            className="w-full max-w-lg bg-white border border-slate-200 rounded-2xl shadow-2xl overflow-hidden flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="px-5 py-4 border-b border-slate-200 flex items-center justify-between bg-indigo-900 text-white">
+              <div className="flex items-center gap-2">
+                <ShieldCheck className="w-5 h-5 text-indigo-300" />
+                <h3 className="text-sm font-bold">Criar Acesso no Firebase Authentication em Lote</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setBulkAuthModalOpen(false)}
+                className="p-1 text-indigo-200 hover:text-white rounded-lg cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="p-5 space-y-4">
+              <p className="text-xs text-slate-600 leading-relaxed">
+                Esta rotina criará a conta no <strong>Firebase Authentication</strong> para todos os colaboradores/usuários cadastrados no Firestore que ainda não possuem login ou possuem ID desalinhado. O documento no Firestore será movido para <code className="bg-slate-100 px-1 py-0.5 rounded text-indigo-900 font-mono">usuarios/&#123;uid&#125;</code> com o ID correto do Authentication.
+              </p>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Senha Inicial para as Novas Contas (Mínimo 8 caracteres) *
+                </label>
+                <input
+                  type="text"
+                  required
+                  minLength={8}
+                  value={authDefaultPassword}
+                  onChange={(e) => setAuthDefaultPassword(e.target.value)}
+                  placeholder="Ex: ameta2026"
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-mono font-bold text-slate-900 focus:outline-none focus:border-indigo-600"
+                />
+              </div>
+
+              <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setBulkAuthModalOpen(false)}
+                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-lg cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  disabled={authProcessing || authDefaultPassword.length < 8}
+                  onClick={() => handleRunAuthCreation(users, authDefaultPassword)}
+                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-xs font-bold rounded-lg flex items-center gap-2 cursor-pointer shadow-2xs"
+                >
+                  {authProcessing ? (
+                    <>
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                      <span>Criando Acessos...</span>
+                    </>
+                  ) : (
+                    <span>Iniciar Criacao de Acessos</span>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Criar Acesso Individual */}
+      {singleAuthUser && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-[2px]"
+          onClick={() => setSingleAuthUser(null)}
+        >
+          <div
+            className="w-full max-w-md bg-white border border-slate-200 rounded-2xl shadow-2xl overflow-hidden flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="px-5 py-4 border-b border-slate-200 flex items-center justify-between bg-slate-900 text-white">
+              <div className="flex items-center gap-2">
+                <UserCheck className="w-5 h-5 text-emerald-400" />
+                <h3 className="text-sm font-bold">Criar Acesso Authentication</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSingleAuthUser(null)}
+                className="p-1 text-slate-400 hover:text-white rounded-lg cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="p-5 space-y-4">
+              <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs space-y-1">
+                <div>Colaborador: <strong className="text-slate-900">{singleAuthUser.name}</strong></div>
+                <div>E-mail: <strong className="text-slate-900 font-mono">{singleAuthUser.email}</strong></div>
+                <div>Função: <span className="font-semibold text-indigo-700">{singleAuthUser.role}</span></div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Senha Inicial de Acesso (Mínimo 8 caracteres) *
+                </label>
+                <input
+                  type="text"
+                  required
+                  minLength={8}
+                  value={authDefaultPassword}
+                  onChange={(e) => setAuthDefaultPassword(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-mono font-bold text-slate-900 focus:outline-none focus:border-indigo-600"
+                />
+              </div>
+
+              <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setSingleAuthUser(null)}
+                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-lg cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  disabled={authProcessing || authDefaultPassword.length < 8}
+                  onClick={() => handleRunAuthCreation([singleAuthUser], authDefaultPassword)}
+                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-xs font-bold rounded-lg flex items-center gap-2 cursor-pointer shadow-2xs"
+                >
+                  {authProcessing ? (
+                    <>
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                      <span>Criando...</span>
+                    </>
+                  ) : (
+                    <span>Criar Acesso</span>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Relatorio Final de Criacao de Acessos */}
+      {authReport && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-[2px]"
+          onClick={() => setAuthReport(null)}
+        >
+          <div
+            className="w-full max-w-2xl bg-white border border-slate-200 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="px-5 py-4 border-b border-slate-200 flex items-center justify-between bg-slate-900 text-white">
+              <div className="flex items-center gap-2">
+                <ShieldCheck className="w-5 h-5 text-emerald-400" />
+                <h3 className="text-sm font-bold">Relatório Final de Criação de Acessos</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setAuthReport(null)}
+                className="p-1 text-slate-400 hover:text-white rounded-lg cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="p-5 space-y-4 overflow-y-auto">
+              <div className="grid grid-cols-3 gap-3 text-center">
+                <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl">
+                  <div className="text-lg font-black text-emerald-700">{authReport.created}</div>
+                  <div className="text-[11px] font-bold text-emerald-800">Criados no Auth</div>
+                </div>
+                <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl">
+                  <div className="text-lg font-black text-blue-700">{authReport.alreadyExisted}</div>
+                  <div className="text-[11px] font-bold text-blue-800">Já Existiam</div>
+                </div>
+                <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl">
+                  <div className="text-lg font-black text-rose-700">{authReport.errors}</div>
+                  <div className="text-[11px] font-bold text-rose-800">Erros</div>
+                </div>
+              </div>
+
+              <div className="border border-slate-200 rounded-xl overflow-hidden">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-slate-100 border-b border-slate-200 text-slate-700 font-bold">
+                    <tr>
+                      <th className="py-2 px-3">E-mail / Nome</th>
+                      <th className="py-2 px-3">Status</th>
+                      <th className="py-2 px-3">Detalhes</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {authReport.details.map((d, idx) => (
+                      <tr key={idx} className="hover:bg-slate-50">
+                        <td className="py-2 px-3">
+                          <div className="font-bold text-slate-900">{d.name}</div>
+                          <div className="font-mono text-[11px] text-slate-500">{d.email}</div>
+                        </td>
+                        <td className="py-2 px-3 whitespace-nowrap">
+                          {d.status === 'created' && (
+                            <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-bold text-[10px]">
+                              Criado
+                            </span>
+                          )}
+                          {d.status === 'already_exists' && (
+                            <span className="px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 font-bold text-[10px]">
+                              Já Existia
+                            </span>
+                          )}
+                          {d.status === 'error' && (
+                            <span className="px-2 py-0.5 rounded-full bg-rose-100 text-rose-800 font-bold text-[10px]">
+                              Erro
+                            </span>
+                          )}
+                        </td>
+                        <td className="py-2 px-3 text-slate-600 text-[11px]">{d.message}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div className="p-4 border-t border-slate-200 bg-slate-50 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setAuthReport(null)}
+                className="px-4 py-2 bg-slate-900 text-white font-bold text-xs rounded-lg cursor-pointer hover:bg-slate-800"
+              >
+                Fechar Relatório
+              </button>
+            </div>
           </div>
         </div>
       )}
