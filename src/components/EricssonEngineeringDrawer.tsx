@@ -192,11 +192,11 @@ export const EricssonEngineeringDrawer: React.FC<EricssonEngineeringDrawerProps>
     const fields = row.fields || {};
     const keys = Object.keys(fields);
     const orderedKeys = Array.from(new Set([...ERICSSON_SITE_LIST_COLUMNS, ...keys])).filter(
-      (k) => fields[k] !== undefined
+      (k) => fields[k] !== undefined || fields[k.replace(/\r?\n/g, ' ')] !== undefined
     );
     return orderedKeys.map((k) => ({
-      key: k,
-      value: fields[k],
+      key: k.replace(/\r?\n/g, ' '),
+      value: fields[k] ?? fields[k.replace(/\r?\n/g, ' ')] ?? '',
     }));
   }, [row]);
 

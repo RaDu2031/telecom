@@ -39,7 +39,7 @@ import {
   parseEricssonWorkbookBuffer,
   computeEricssonSiteCounters,
 } from '../utils/ericssonSpreadsheetUtils';
-import { getCanonicalDuplaName, normalizeAccents } from '../utils/spreadsheetUtils';
+import { getCanonicalDuplaName, normalizeAccents, doesEricssonRowMatchResponsible } from '../utils/spreadsheetUtils';
 import { dataService } from '../services/dataService';
 
 export interface EricssonSitesTabProps {
@@ -110,14 +110,17 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
   >('ALL');
   const [togglingRowKey, setTogglingRowKey] = useState<string | null>(null);
 
-  // Sync / Excel Online Modal
+  // Sync / Excel Modal
   const [syncModalOpen, setSyncModalOpen] = useState<boolean>(false);
-  const [oneDriveUrl, setOneDriveUrl] = useState<string>(
-    sheetMeta?.liveSyncUrl ||
-      'https://onedrive.live.com/:x:/g/personal/d82e752e01e5afdd/IQBkdW7amR5BQLwUz3WVNtySAWRS0ZetSRS24kMBQIjwE4E?rtime=bHml02143kg&redeem=aHR0cHM6Ly8xZHJ2Lm1zL3gvYy9kODJlNzUyZTAxZTVhZmRkL0lRQmtkVzdhbVI1QlFMd1V6M1dWTnR5U0FXUlMwWmV0U1JTMjRrTUJRSWp3RTRFP2U9cjhQT3B5'
-  );
   const [syncLoading, setSyncLoading] = useState<boolean>(false);
   const [syncError, setSyncError] = useState<string | null>(null);
+  const [importSummary, setImportSummary] = useState<{
+    totalAnalisados: number;
+    novas: number;
+    jaExistiam: number;
+    totalGravados: number;
+    lotesExecutados: number;
+  } | null>(null);
   const excelInputRef = useRef<HTMLInputElement | null>(null);
 
   // Create Row Modal
@@ -179,29 +182,8 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
     ) {
       return rows;
     }
-    const uEquipe = (user.equipe || '').trim();
-    const uName = (user.name || '').trim();
-    const uEmail = (user.email || '').trim().toLowerCase();
-    const canonUserEq = normalizeAccents(getCanonicalDuplaName(uEquipe) || uEquipe);
-    const canonUserName = normalizeAccents(getCanonicalDuplaName(uName) || uName);
-
-    return rows.filter((r) => {
-      const rEq = (r.equipe || r.fields?.['EQUIPE'] || '').trim();
-      const rowEmails = (r.fields?.['E-MAIL DUPLA'] || '').toLowerCase();
-      if (uEmail && rowEmails && rowEmails.includes(uEmail)) {
-        return true;
-      }
-      if (!rEq) return false;
-      const canonRowEq = normalizeAccents(getCanonicalDuplaName(rEq) || rEq);
-      if (canonUserEq && canonRowEq && (canonRowEq === canonUserEq || canonRowEq.includes(canonUserEq) || canonUserEq.includes(canonRowEq))) {
-        return true;
-      }
-      if (canonUserName && canonRowEq && (canonRowEq === canonUserName || canonRowEq.includes(canonUserName))) {
-        return true;
-      }
-      return false;
-    });
-  }, [rows, hasFullAccess, effectiveRole, user.equipe, user.name, user.email]);
+    return rows.filter((r) => doesEricssonRowMatchResponsible(r, user));
+  }, [rows, hasFullAccess, effectiveRole, user]);
 
   const distinctStates = useMemo(() => {
     const set = new Set<string>();
@@ -499,18 +481,13 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
     }
   };
 
-  // Sync via OneDrive Excel Online URL
-  const handleSyncOneDrive = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setSyncError('Para maior confiabilidade em site estático, utilize o botão "Arquivo Excel do Computador" (.xlsx) logo abaixo.');
-  };
-
-  // Upload new version of .xlsx spreadsheet from computer
+  // Upload new version of .xlsx spreadsheet from computer (append-only protection)
   const handleUploadLocalExcel = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     setSyncError(null);
     setSyncLoading(true);
+    setImportSummary(null);
     try {
       const arrayBuffer = await file.arrayBuffer();
       const parsed = parseEricssonWorkbookBuffer(arrayBuffer);
@@ -520,16 +497,23 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
         return;
       }
 
-      await dataService.importarSitesEricssonEmLote(parsed.rows as any);
-      onUpdated(
-        parsed.rows as any,
-        sheetMeta,
-        `Planilha "${file.name}" carregada no Firestore! (${parsed.rows.length} registros gravados)`
-      );
-      setSyncModalOpen(false);
+      const res = await dataService.importarSitesEricssonEmLote(parsed.rows as any, ericssonUsers, undefined, {
+        mode: 'append_only',
+      });
+
+      setImportSummary(res);
+      if (res.errorMessage) {
+        setSyncError(res.errorMessage);
+      } else {
+        onUpdated(
+          parsed.rows as any,
+          sheetMeta,
+          `Planilha "${file.name}" importada com sucesso (+${res.novas} novos registros gravados, ${res.jaExistiam} já existiam mantidos).`
+        );
+      }
     } catch (err: any) {
       console.error('Erro ao ler ou importar planilha Ericsson:', err);
-      setSyncError('Falha ao ler o arquivo Excel (.xlsx) ou gravar no Firestore.');
+      setSyncError(`Falha ao ler o arquivo Excel (.xlsx) ou gravar no Firestore: ${err?.message || String(err)}`);
     } finally {
       setSyncLoading(false);
       if (excelInputRef.current) excelInputRef.current.value = '';
@@ -1452,16 +1436,20 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
                           <FileSpreadsheet className="w-6 h-6" />
                         </div>
                         <div className="font-bold text-slate-800 text-sm">
-                          {rows.length === 0
+                          {!hasFullAccess
+                            ? 'Nenhum site demandado para você no momento'
+                            : rows.length === 0
                             ? 'Nenhum site encontrado no Firestore (ericsson_sites)'
                             : 'Nenhum site corresponde aos filtros selecionados'}
                         </div>
                         <p className="text-xs text-slate-500 leading-relaxed">
-                          {rows.length === 0
+                          {!hasFullAccess
+                            ? 'Aguarde a atribuição de demandas pela coordenação da Ameta Telecom.'
+                            : rows.length === 0
                             ? 'A coleção ericsson_sites está vazia no banco ameta-sistema-teste. Utilize o botão abaixo para importar a planilha oficial (.xlsx) ou importe os dados iniciais no Painel de Admin.'
                             : 'Tente alterar ou limpar os filtros de busca para visualizar os sites cadastrados.'}
                         </p>
-                        {rows.length === 0 && (
+                        {rows.length === 0 && hasFullAccess && (
                           <div className="pt-2">
                             <button
                               type="button"
@@ -2112,54 +2100,40 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
               {syncError && (
                 <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 flex items-center gap-2">
                   <AlertCircle className="w-4 h-4 shrink-0" />
-                  <span>{syncError}</span>
+                  <span className="font-mono">{syncError}</span>
                 </div>
               )}
 
-              <form onSubmit={handleSyncOneDrive} className="space-y-3">
-                <div>
-                  <label className="block font-semibold text-slate-700 mb-1">
-                    1. Sincronizar via Link do Excel Online (OneDrive)
-                  </label>
-                  <input
-                    type="url"
-                    required
-                    value={oneDriveUrl}
-                    onChange={(e) => setOneDriveUrl(e.target.value)}
-                    placeholder="https://onedrive.live.com/..."
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 focus:outline-none focus:bg-white focus:border-[#223585]"
-                  />
+              {importSummary && (
+                <div className="p-3.5 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-900 space-y-1.5">
+                  <div className="flex items-center gap-1.5 font-bold text-xs text-emerald-800">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                    <span>Resultado da Importação no Firestore:</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 text-[11px] font-mono pt-1">
+                    <div className="bg-white p-2 rounded border border-emerald-100">
+                      <span className="text-slate-500 block text-[10px]">TOTAL ANALISADO</span>
+                      <strong>{importSummary.totalAnalisados}</strong>
+                    </div>
+                    <div className="bg-white p-2 rounded border border-emerald-100">
+                      <span className="text-emerald-600 block text-[10px]">NOVOS GRAVADOS</span>
+                      <strong className="text-emerald-700">+{importSummary.novas}</strong>
+                    </div>
+                  </div>
                 </div>
-                <button
-                  type="submit"
-                  disabled={syncLoading}
-                  className="w-full py-2.5 bg-[#1E8E8D] hover:bg-[#177372] disabled:opacity-50 text-white font-bold rounded-lg transition-colors flex items-center justify-center gap-2 cursor-pointer"
-                >
-                  <RefreshCw className={`w-4 h-4 ${syncLoading ? 'animate-spin' : ''}`} />
-                  <span>
-                    {syncLoading
-                      ? 'Sincronizando Planilha Ericsson...'
-                      : 'Sincronizar Agora do Excel Online'}
-                  </span>
-                </button>
-              </form>
+              )}
 
-              <div className="relative py-2 flex items-center justify-center">
-                <div className="border-t border-slate-200 w-full" />
-                <span className="bg-white px-3 text-[11px] text-slate-400 uppercase font-bold">
-                  ou
-                </span>
-                <div className="border-t border-slate-200 w-full" />
-              </div>
-
-              <div>
-                <label className="block font-semibold text-slate-700 mb-1.5">
-                  2. Carregar Nova Versão do Arquivo (.XLSX) do Computador
+              <div className="space-y-2">
+                <label className="block font-semibold text-slate-700">
+                  Selecionar Arquivo Excel (.XLSX / .CSV) do Computador
                 </label>
+                <p className="text-[11px] text-slate-500">
+                  A importação apenas acrescenta novos sites. Os dados e vínculos existentes nunca são apagados ou substituídos.
+                </p>
                 <input
                   ref={excelInputRef}
                   type="file"
-                  accept=".xlsx,.xls"
+                  accept=".xlsx,.xls,.csv"
                   onChange={handleUploadLocalExcel}
                   className="hidden"
                 />
@@ -2167,10 +2141,10 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
                   type="button"
                   disabled={syncLoading}
                   onClick={() => excelInputRef.current?.click()}
-                  className="w-full py-3 border-2 border-dashed border-slate-300 hover:border-[#223585] rounded-xl bg-slate-50 hover:bg-blue-50/30 text-slate-700 font-semibold flex items-center justify-center gap-2 transition-colors cursor-pointer"
+                  className="w-full py-4 border-2 border-dashed border-slate-300 hover:border-[#223585] rounded-xl bg-slate-50 hover:bg-blue-50/30 text-slate-800 font-bold flex flex-col items-center justify-center gap-2 transition-colors cursor-pointer disabled:opacity-50"
                 >
-                  <Upload className="w-4 h-4 text-[#223585]" />
-                  <span>Selecionar Planilha Ericsson (.xlsx)</span>
+                  <Upload className="w-6 h-6 text-[#223585]" />
+                  <span>{syncLoading ? 'Gravando em lotes de 20 no Firestore...' : 'Clique para Selecionar a Planilha (.xlsx)'}</span>
                 </button>
               </div>
             </div>

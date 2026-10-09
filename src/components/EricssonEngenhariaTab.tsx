@@ -27,6 +27,7 @@ import {
   ERICSSON_ORIGINAL_COLUMNS,
 } from '../types/telecom';
 import { computeEricssonSiteCounters } from '../utils/ericssonSpreadsheetUtils';
+import { doesEricssonRowMatchResponsible } from '../utils/spreadsheetUtils';
 import { cloudFetch } from '../lib/firebaseCloud';
 
 const fetch = cloudFetch;
@@ -110,8 +111,18 @@ export const EricssonEngenhariaTab: React.FC<EricssonEngenhariaTabProps> = ({
     return parts;
   }, [searchQuery]);
 
+  const hasFullAccess =
+    effectiveRole === 'ADM' ||
+    effectiveRole === 'Coordenador Geral' ||
+    effectiveRole === 'Coordenador Engenharia';
+
+  const roleScopedRows = useMemo(() => {
+    if (hasFullAccess) return rows;
+    return rows.filter((r) => doesEricssonRowMatchResponsible(r, user));
+  }, [rows, hasFullAccess, user]);
+
   const filteredRows = useMemo(() => {
-    return rows.filter((r) => {
+    return roleScopedRows.filter((r) => {
       const rState = (r.state || r.fields?.['00.03.State'] || '').trim();
       const rEquipe = (r.equipe || r.fields?.['EQUIPE'] || '').trim();
 

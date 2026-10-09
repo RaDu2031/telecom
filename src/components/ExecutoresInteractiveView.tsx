@@ -29,7 +29,13 @@ import {
 } from 'lucide-react';
 import { TssrRow, AmetaUser, VendorType } from '../types/telecom';
 import { normalizeAccents } from '../utils/spreadsheetUtils';
-import { isEricssonRowAssignedToExecutor } from '../utils/ericssonSpreadsheetUtils';
+import {
+  extractSiteTokens,
+  isTssrRowAssignedToResponsible,
+  isEricssonRowAssignedToResponsible,
+  hasActiveResponsible,
+  getRegisteredUsersForDemanda,
+} from '../services/demandaSharedService';
 
 const STORAGE_EXECUTOR_EMAILS_KEY = 'ameta_executor_emails_map_v1';
 
@@ -137,7 +143,8 @@ interface ExecutoresInteractiveViewProps {
   onAssignRowsToExecutor: (
     rowIds: string[],
     executorName: string,
-    demandDate?: string
+    demandDate?: string,
+    allowTransfer?: boolean
   ) => Promise<void>;
   onUnassignRowsFromExecutor: (
     rowIds: string[],
@@ -178,17 +185,9 @@ export const ExecutoresInteractiveView: React.FC<ExecutoresInteractiveViewProps>
   // Selected Row for Details Drawer
   const [drawerRow, setDrawerRow] = useState<RowItem | null>(null);
 
-  // Registered profiles (vendor isolated)
+  // Registered profiles (unified across Nokia & Ericsson via shared function)
   const allRegisteredUsers = useMemo<AmetaUser[]>(() => {
-    const list = activeVendor === 'ERICSSON' ? ericssonUsers : users;
-    const byEmail = new Map<string, AmetaUser>();
-    list.forEach((u) => {
-      const em = (u.email || '').trim().toLowerCase();
-      if (em) byEmail.set(em, u);
-    });
-    return Array.from(byEmail.values()).sort((a, b) =>
-      a.name.localeCompare(b.name, 'pt-BR')
-    );
+    return getRegisteredUsersForDemanda(users, ericssonUsers, activeVendor);
   }, [users, ericssonUsers, activeVendor]);
 
   // Persisted map of Executor -> linked emails
@@ -245,7 +244,26 @@ export const ExecutoresInteractiveView: React.FC<ExecutoresInteractiveViewProps>
   const [sitePickerSearch, setSitePickerSearch] = useState<string>('');
   const [sitePickerFilter, setSitePickerFilter] = useState<
     'ALL' | 'SEM_EXECUTOR' | 'PARA_FAZER' | 'ENTREGUES' | 'AGUARDANDO_APROVACAO'
-  >('ALL');
+  >('SEM_EXECUTOR');
+
+  // Batch transfer confirmation modal state
+  const [batchTransferModal, setBatchTransferModal] = useState<{
+    isOpen: boolean;
+    ownedRows: Array<{ id: string; name: string; owner: string }>;
+    freeRowIds: string[];
+    allRowIds: string[];
+  } | null>(null);
+
+  // Single transfer confirmation modal state
+  const [singleTransferModal, setSingleTransferModal] = useState<{
+    siteName: string;
+    currentOwner: string;
+    targetOwner: string;
+    tokens: string[];
+  } | null>(null);
+
+  // Warning notice modal state
+  const [warningNotice, setWarningNotice] = useState<string | null>(null);
 
   // Ericsson Specific Filters
   const [ericssonProjectFilter, setEricssonProjectFilter] = useState<
@@ -351,12 +369,12 @@ export const ExecutoresInteractiveView: React.FC<ExecutoresInteractiveViewProps>
 
   // Helper match for row assigned to executor
   const isRowAssignedToExecutor = (row: RowItem, executorName: string): boolean => {
+    if (!row || !executorName) return false;
+    const linkedEmails = getLinkedEmailsForExecutor(executorName);
     if (activeVendor === 'ERICSSON') {
-      return isEricssonRowAssignedToExecutor(row, executorName);
+      return isEricssonRowAssignedToResponsible(row, executorName, linkedEmails);
     }
-    const exField = (row.fields?.['Executor'] || row.fields?.['EXECUTOR'] || row.executor || '').trim();
-    if (!exField || !executorName) return false;
-    return normalizeAccents(exField.toLowerCase()) === normalizeAccents(executorName.trim().toLowerCase());
+    return isTssrRowAssignedToResponsible(row as any, executorName, linkedEmails);
   };
 
   // Project counts for Ericsson project selector bar
@@ -532,7 +550,7 @@ export const ExecutoresInteractiveView: React.FC<ExecutoresInteractiveViewProps>
         row.executor ||
         ''
       ).trim();
-      const hasExecutor = ex !== '' && ex !== '—' && ex !== '-';
+      const hasExecutor = hasActiveResponsible(ex);
       const statusEng = (row.fields?.['STATUS Engenharia'] || row.fields?.['Status'] || row.vistoriaStatus || row.status || '').trim();
       const statusLower = statusEng.toLowerCase();
       const isEntregue =
@@ -584,14 +602,62 @@ export const ExecutoresInteractiveView: React.FC<ExecutoresInteractiveViewProps>
     );
   };
 
+  const unassignedVisibleCount = useMemo(() => {
+    return pickerEngineeringRows.filter((r) => {
+      const cur = (
+        r.fields?.['EXECUTOR'] ||
+        r.fields?.['EXECUTOR WR'] ||
+        r.fields?.['EXECUTOR QRF'] ||
+        r.fields?.['EXECUTOR PPI'] ||
+        r.fields?.['Executor'] ||
+        r.executor ||
+        ''
+      ).trim();
+      return !hasActiveResponsible(cur);
+    }).length;
+  }, [pickerEngineeringRows]);
+
   const handleSelectAllVisiblePicker = () => {
-    const visibleIds = pickerEngineeringRows.slice(0, 100).map((r) => r.id);
-    const allSelected =
-      visibleIds.length > 0 && visibleIds.every((id) => selectedRowIds.includes(id));
-    if (allSelected) {
+    const visibleUnassigned = pickerEngineeringRows.filter((r) => {
+      const cur = (
+        r.fields?.['EXECUTOR'] ||
+        r.fields?.['EXECUTOR WR'] ||
+        r.fields?.['EXECUTOR QRF'] ||
+        r.fields?.['EXECUTOR PPI'] ||
+        r.fields?.['Executor'] ||
+        r.executor ||
+        ''
+      ).trim();
+      return !hasActiveResponsible(cur);
+    });
+    const visibleUnassignedIds = visibleUnassigned.map((r) => r.id);
+    const allUnassignedSelected =
+      visibleUnassignedIds.length > 0 &&
+      visibleUnassignedIds.every((id) => selectedRowIds.includes(id));
+
+    if (allUnassignedSelected) {
       setSelectedRowIds([]);
     } else {
-      setSelectedRowIds(visibleIds);
+      setSelectedRowIds(visibleUnassignedIds);
+    }
+  };
+
+  const executeAssign = async (rowIdsToAssign: string[], allowTransfer: boolean) => {
+    if (rowIdsToAssign.length === 0 || !selectedExecutor) return;
+    setIsAssigning(true);
+    try {
+      const tokensToAssign = Array.from(
+        new Set(
+          pickerEngineeringRows
+            .filter((r) => rowIdsToAssign.includes(r.id))
+            .flatMap((r) => extractSiteTokens(r))
+            .concat(rowIdsToAssign)
+        )
+      );
+      await onAssignRowsToExecutor(tokensToAssign, selectedExecutor, undefined, allowTransfer);
+      setSelectedRowIds((prev) => prev.filter((id) => !rowIdsToAssign.includes(id)));
+    } finally {
+      setIsAssigning(false);
     }
   };
 
@@ -603,18 +669,49 @@ export const ExecutoresInteractiveView: React.FC<ExecutoresInteractiveViewProps>
       (r) => selectedRowIds.includes(r.id) && isRowAssignedToExecutor(r, selectedExecutor) && r.status !== 'Finalizado'
     );
     if (duplicates.length > 0) {
-      const dupNames = duplicates.map((d) => d.intervencaoClaro || d.siteId).join(', ');
-      alert(`O(s) site(s) [${dupNames}] já estão demandados para "${selectedExecutor}" em aberto.`);
+      const dupNames = duplicates.map((d) => d.intervencaoClaro || d.siteId || d.id).join(', ');
+      setWarningNotice(`O(s) site(s) [${dupNames}] já estão demandados para "${selectedExecutor}" em aberto.`);
       return;
     }
 
-    setIsAssigning(true);
-    try {
-      await onAssignRowsToExecutor(selectedRowIds, selectedExecutor);
-      setSelectedRowIds([]);
-    } finally {
-      setIsAssigning(false);
+    // Partition selected rows into owned vs free
+    const selectedRows = pickerEngineeringRows.filter((r) => selectedRowIds.includes(r.id));
+    const ownedRows: Array<{ id: string; name: string; owner: string }> = [];
+    const freeRowIds: string[] = [];
+
+    selectedRows.forEach((r) => {
+      const cur = (
+        r.fields?.['EXECUTOR'] ||
+        r.fields?.['EXECUTOR WR'] ||
+        r.fields?.['EXECUTOR QRF'] ||
+        r.fields?.['EXECUTOR PPI'] ||
+        r.fields?.['Executor'] ||
+        r.executor ||
+        ''
+      ).trim();
+      if (hasActiveResponsible(cur) && cur.toLowerCase() !== selectedExecutor.toLowerCase()) {
+        ownedRows.push({
+          id: r.id,
+          name: r.siteId || r.intervencaoClaro || r.id,
+          owner: cur,
+        });
+      } else {
+        freeRowIds.push(r.id);
+      }
+    });
+
+    if (ownedRows.length > 0) {
+      setBatchTransferModal({
+        isOpen: true,
+        ownedRows,
+        freeRowIds,
+        allRowIds: selectedRowIds,
+      });
+      return;
     }
+
+    // All are free
+    await executeAssign(selectedRowIds, false);
   };
 
   const handleClearAllForSelectedExecutor = async () => {
@@ -645,6 +742,7 @@ export const ExecutoresInteractiveView: React.FC<ExecutoresInteractiveViewProps>
       onSimulateExecutorView({
         ...matchedUser,
         role: 'Executor',
+        equipe: selectedExecutor,
         assignedPlatform: activeVendor === 'ERICSSON' ? 'ERICSSON' : 'NOKIA',
       });
       return;
@@ -1312,8 +1410,33 @@ export const ExecutoresInteractiveView: React.FC<ExecutoresInteractiveViewProps>
                   )}
                 </div>
 
-                {/* Filter Dropdowns */}
-                <div className="flex flex-wrap items-center justify-between gap-1.5">
+                {/* Filter Dropdowns & Chips */}
+                <div className="space-y-1.5">
+                  <div className="flex flex-wrap items-center gap-1">
+                    {(
+                      [
+                        { id: 'SEM_EXECUTOR', label: 'Sem Executor' },
+                        { id: 'ALL', label: 'Todos' },
+                        { id: 'PARA_FAZER', label: 'Pendente' },
+                        { id: 'ENTREGUES', label: 'Entregues' },
+                        { id: 'AGUARDANDO_APROVACAO', label: 'Aguardando' },
+                      ] as const
+                    ).map((f) => (
+                      <button
+                        key={f.id}
+                        type="button"
+                        onClick={() => setSitePickerFilter(f.id)}
+                        className={`px-2 py-1 rounded-md text-[11px] font-medium cursor-pointer transition-colors ${
+                          sitePickerFilter === f.id
+                            ? 'bg-slate-900 text-white font-semibold shadow-xs'
+                            : 'bg-[#F3F4F6] hover:bg-slate-200 text-slate-600'
+                        }`}
+                      >
+                        {f.label}
+                      </button>
+                    ))}
+                  </div>
+
                   {activeVendor === 'ERICSSON' ? (
                     <div className="flex flex-wrap items-center gap-1.5 w-full">
                       {/* Status Filter */}
@@ -1359,60 +1482,33 @@ export const ExecutoresInteractiveView: React.FC<ExecutoresInteractiveViewProps>
                       </select>
                     </div>
                   ) : (
-                    <>
-                      <div className="flex flex-wrap items-center gap-1">
-                        {(
-                          [
-                            { id: 'ALL', label: 'Todos' },
-                            { id: 'SEM_EXECUTOR', label: 'Sem Executor' },
-                            { id: 'PARA_FAZER', label: 'Pendente' },
-                            { id: 'ENTREGUES', label: 'Entregues' },
-                            { id: 'AGUARDANDO_APROVACAO', label: 'Aguardando' },
-                          ] as const
-                        ).map((f) => (
-                          <button
-                            key={f.id}
-                            type="button"
-                            onClick={() => setSitePickerFilter(f.id)}
-                            className={`px-2 py-1 rounded-md text-[11px] font-medium cursor-pointer ${
-                              sitePickerFilter === f.id
-                                ? 'bg-slate-900 text-white font-semibold'
-                                : 'bg-[#F3F4F6] hover:bg-slate-200 text-slate-600'
-                            }`}
-                          >
-                            {f.label}
-                          </button>
+                    <div className="flex items-center gap-1">
+                      <select
+                        value={sitePickerUf}
+                        onChange={(e) => setSitePickerUf(e.target.value)}
+                        className="px-2 py-1 bg-[#F3F4F6] border border-slate-200 rounded-md text-[11px] font-semibold text-slate-700"
+                      >
+                        <option value="ALL">Todas UFs</option>
+                        {availableUfs.map((u) => (
+                          <option key={u} value={u}>
+                            UF: {u}
+                          </option>
                         ))}
-                      </div>
+                      </select>
 
-                      <div className="flex items-center gap-1">
-                        <select
-                          value={sitePickerUf}
-                          onChange={(e) => setSitePickerUf(e.target.value)}
-                          className="px-2 py-1 bg-[#F3F4F6] border border-slate-200 rounded-md text-[11px] font-semibold text-slate-700"
-                        >
-                          <option value="ALL">Todas UFs</option>
-                          {availableUfs.map((u) => (
-                            <option key={u} value={u}>
-                              UF: {u}
-                            </option>
-                          ))}
-                        </select>
-
-                        <select
-                          value={sitePickerProjeto}
-                          onChange={(e) => setSitePickerProjeto(e.target.value)}
-                          className="px-2 py-1 bg-[#F3F4F6] border border-slate-200 rounded-md text-[11px] font-semibold text-slate-700 max-w-[120px] truncate"
-                        >
-                          <option value="ALL">Projetos</option>
-                          {availableProjetos.map((p) => (
-                            <option key={p} value={p}>
-                              {p}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                    </>
+                      <select
+                        value={sitePickerProjeto}
+                        onChange={(e) => setSitePickerProjeto(e.target.value)}
+                        className="px-2 py-1 bg-[#F3F4F6] border border-slate-200 rounded-md text-[11px] font-semibold text-slate-700 max-w-[120px] truncate"
+                      >
+                        <option value="ALL">Projetos</option>
+                        {availableProjetos.map((p) => (
+                          <option key={p} value={p}>
+                            {p}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
                   )}
                 </div>
 
@@ -1427,7 +1523,7 @@ export const ExecutoresInteractiveView: React.FC<ExecutoresInteractiveViewProps>
                     <span>
                       {selectedRowIds.length > 0
                         ? `Desmarcar (${selectedRowIds.length})`
-                        : `Selecionar todos (${Math.min(100, activePickerCount)})`}
+                        : `Selecionar todos (${unassignedVisibleCount})`}
                     </span>
                   </button>
 
@@ -1438,7 +1534,7 @@ export const ExecutoresInteractiveView: React.FC<ExecutoresInteractiveViewProps>
                     className="w-full sm:w-auto justify-center px-4 py-3 sm:py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white text-xs font-black uppercase tracking-wide rounded-xl flex items-center gap-1.5 cursor-pointer shadow-sm"
                   >
                     <span>
-                      Demandar {selectedRowIds.length > 0 ? `${selectedRowIds.length} ` : ''}Linha(s)
+                      Demandar {selectedRowIds.length > 0 ? `${selectedRowIds.length} ` : ''}linha(s)
                       para {selectedExecutor}
                     </span>
                     <ArrowRight className="w-4 h-4 shrink-0" />
@@ -1448,7 +1544,7 @@ export const ExecutoresInteractiveView: React.FC<ExecutoresInteractiveViewProps>
 
               {/* Scrollable Picker List */}
               <div className="divide-y divide-slate-100 max-h-[460px] overflow-y-auto">
-                {pickerEngineeringRows.slice(0, 120).map((row) => {
+                {pickerEngineeringRows.map((row) => {
                   const isChecked = selectedRowIds.includes(row.id);
                   const currentEx = (
                     row.fields?.['EXECUTOR'] ||
@@ -1547,12 +1643,15 @@ export const ExecutoresInteractiveView: React.FC<ExecutoresInteractiveViewProps>
                               </p>
                             )}
 
-                            {currentEx ? (
-                              <p className="text-[10px] text-amber-800 font-bold">
-                                Demandado para: {currentEx}
-                              </p>
+                            {hasActiveResponsible(currentEx) ? (
+                              <div className="flex items-center gap-1.5 mt-0.5">
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-100 text-amber-900 border border-amber-300 rounded text-[11px] font-bold shadow-2xs">
+                                  <UserCheck className="w-3 h-3 text-amber-700 shrink-0" />
+                                  Demandado para: {currentEx}
+                                </span>
+                              </div>
                             ) : (
-                              <p className="text-[10px] text-slate-400 italic">Sem executor atribuído</p>
+                              <p className="text-[10px] text-emerald-700 font-semibold italic">Sem executor atribuído</p>
                             )}
                           </div>
                         </div>
@@ -1571,20 +1670,48 @@ export const ExecutoresInteractiveView: React.FC<ExecutoresInteractiveViewProps>
                           <ExternalLink className="w-3.5 h-3.5" />
                         </button>
 
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (selectedExecutor) {
-                              onAssignRowsToExecutor([row.id], selectedExecutor);
-                            }
-                          }}
-                          className="px-2.5 py-1 bg-white hover:bg-emerald-600 hover:text-white text-emerald-700 border border-emerald-300 rounded-lg text-[11px] font-bold transition-colors flex items-center gap-1 shrink-0 cursor-pointer shadow-2xs"
-                          title={`Mandar ${intervencao} para ${selectedExecutor}`}
-                        >
-                          <span>Mandar</span>
-                          <ArrowRight className="w-3 h-3" />
-                        </button>
+                        {(() => {
+                          const isOwned =
+                            hasActiveResponsible(currentEx) &&
+                            currentEx.toLowerCase() !== selectedExecutor.toLowerCase();
+                          return (
+                            <button
+                              type="button"
+                              onClick={async (e) => {
+                                e.stopPropagation();
+                                if (!selectedExecutor) return;
+                                const tokens = Array.from(
+                                  new Set(
+                                    [...extractSiteTokens(row), row.id, row.siteId, row.intervencaoClaro].filter(Boolean) as string[]
+                                  )
+                                );
+                                if (isOwned) {
+                                  setSingleTransferModal({
+                                    siteName: intervencao,
+                                    currentOwner: currentEx,
+                                    targetOwner: selectedExecutor,
+                                    tokens,
+                                  });
+                                  return;
+                                }
+                                await onAssignRowsToExecutor(tokens, selectedExecutor, undefined, false);
+                              }}
+                              className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-colors flex items-center gap-1 shrink-0 cursor-pointer shadow-2xs ${
+                                isOwned
+                                  ? 'bg-amber-50 hover:bg-amber-600 hover:text-white text-amber-800 border border-amber-300'
+                                  : 'bg-white hover:bg-emerald-600 hover:text-white text-emerald-700 border border-emerald-300'
+                              }`}
+                              title={
+                                isOwned
+                                  ? `Transferir ${intervencao} de ${currentEx} para ${selectedExecutor}`
+                                  : `Mandar ${intervencao} para ${selectedExecutor}`
+                              }
+                            >
+                              <span>{isOwned ? 'Transferir' : 'Mandar'}</span>
+                              <ArrowRight className="w-3 h-3" />
+                            </button>
+                          );
+                        })()}
                       </div>
                     </div>
                   );
@@ -1747,7 +1874,14 @@ export const ExecutoresInteractiveView: React.FC<ExecutoresInteractiveViewProps>
 
                         <button
                           type="button"
-                          onClick={() => onUnassignRowsFromExecutor([row.id], selectedExecutor)}
+                          onClick={() => {
+                            const tokens = Array.from(
+                              new Set(
+                                [...extractSiteTokens(row), row.id, row.siteId, row.intervencaoClaro].filter(Boolean) as string[]
+                              )
+                            );
+                            onUnassignRowsFromExecutor(tokens, selectedExecutor);
+                          }}
                           className="px-2 py-1 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 rounded-md text-[11px] font-medium cursor-pointer"
                           title={`Desvincular ${intervencao} deste executor`}
                         >
@@ -1945,6 +2079,194 @@ export const ExecutoresInteractiveView: React.FC<ExecutoresInteractiveViewProps>
                 className="px-4 py-2 bg-slate-900 text-white rounded-xl text-xs font-bold cursor-pointer"
               >
                 Fechar Ficha
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Batch Transfer Modal */}
+      {batchTransferModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-2xs animate-fadeIn">
+          <div className="bg-white rounded-2xl max-w-lg w-full p-5 shadow-2xl border border-slate-200 space-y-4">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center shrink-0">
+                <AlertCircle className="w-6 h-6 text-amber-600" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <h4 className="text-sm font-bold text-slate-900">
+                  Aviso de Demanda em Lote: Sites com Responsável
+                </h4>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Você selecionou <strong className="text-slate-800">{batchTransferModal.allRowIds.length}</strong> linha(s).
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setBatchTransferModal(null)}
+                className="text-slate-400 hover:text-slate-700 cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl space-y-2 text-xs">
+              <p className="font-bold text-amber-900">
+                {batchTransferModal.ownedRows.length} linha(s) já possuem outro responsável ativo:
+              </p>
+              <div className="max-h-36 overflow-y-auto space-y-1 pr-1">
+                {batchTransferModal.ownedRows.map((r) => (
+                  <div key={r.id} className="flex items-center justify-between text-[11px] bg-white px-2 py-1 rounded border border-amber-200">
+                    <span className="font-mono font-bold text-slate-800">{r.name}</span>
+                    <span className="text-amber-800 font-semibold">Atual: {r.owner}</span>
+                  </div>
+                ))}
+              </div>
+              {batchTransferModal.freeRowIds.length > 0 && (
+                <p className="text-emerald-800 font-semibold text-[11px] pt-1 border-t border-amber-200/60">
+                  {batchTransferModal.freeRowIds.length} linha(s) estão livres (sem responsável).
+                </p>
+              )}
+            </div>
+
+            <p className="text-xs text-slate-600">
+              Deseja transferir todas as linhas para <strong>"{selectedExecutor}"</strong> ou ignorar as que já possuem dono e demandar apenas as linhas livres?
+            </p>
+
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-2 pt-2 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setBatchTransferModal(null)}
+                className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold cursor-pointer"
+              >
+                Cancelar
+              </button>
+              {batchTransferModal.freeRowIds.length > 0 && (
+                <button
+                  type="button"
+                  onClick={async () => {
+                    const freeIds = batchTransferModal.freeRowIds;
+                    setBatchTransferModal(null);
+                    await executeAssign(freeIds, false);
+                  }}
+                  className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold cursor-pointer"
+                >
+                  Demandar apenas livres ({batchTransferModal.freeRowIds.length})
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={async () => {
+                  const allIds = batchTransferModal.allRowIds;
+                  setBatchTransferModal(null);
+                  await executeAssign(allIds, true);
+                }}
+                className="px-3.5 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold cursor-pointer"
+              >
+                Transferir todas ({batchTransferModal.allRowIds.length})
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Single Transfer Modal */}
+      {singleTransferModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-2xs animate-fadeIn">
+          <div className="bg-white rounded-2xl max-w-md w-full p-5 shadow-2xl border border-slate-200 space-y-4">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center shrink-0">
+                <AlertCircle className="w-6 h-6 text-amber-600" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <h4 className="text-sm font-bold text-slate-900">
+                  Confirmar Transferência de Demanda
+                </h4>
+                <p className="text-xs text-slate-500 font-mono mt-0.5 font-bold">
+                  {singleTransferModal.siteName}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSingleTransferModal(null)}
+                className="text-slate-400 hover:text-slate-700 cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="p-3.5 bg-amber-50 border border-amber-200 rounded-xl space-y-2 text-xs">
+              <p className="text-slate-700 leading-relaxed text-xs">
+                Este site já está demandado para{' '}
+                <strong className="text-amber-900 bg-amber-100/90 px-1.5 py-0.5 rounded border border-amber-300 font-bold">
+                  {singleTransferModal.currentOwner}
+                </strong>
+                . Deseja transferir para{' '}
+                <strong className="text-slate-900 font-bold">
+                  "{singleTransferModal.targetOwner}"
+                </strong>
+                ?
+              </p>
+              <p className="text-[11px] text-amber-800 pt-1 border-t border-amber-200/60">
+                Ao confirmar, o site sairá da tela do executor anterior e irá para o novo (nunca fica nos dois).
+              </p>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setSingleTransferModal(null)}
+                className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  const { tokens, targetOwner } = singleTransferModal;
+                  setSingleTransferModal(null);
+                  await onAssignRowsToExecutor(tokens, targetOwner, undefined, true);
+                }}
+                className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold cursor-pointer shadow-xs"
+              >
+                Confirmar Transferência
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Warning Notice Modal */}
+      {warningNotice && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-2xs animate-fadeIn">
+          <div className="bg-white rounded-2xl max-w-md w-full p-5 shadow-2xl border border-slate-200 space-y-4">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center shrink-0">
+                <AlertCircle className="w-6 h-6 text-amber-600" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <h4 className="text-sm font-bold text-slate-900">
+                  Aviso
+                </h4>
+                <p className="text-xs text-slate-700 mt-1">
+                  {warningNotice}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setWarningNotice(null)}
+                className="text-slate-400 hover:text-slate-700 cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="flex items-center justify-end pt-2 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setWarningNotice(null)}
+                className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold cursor-pointer"
+              >
+                OK
               </button>
             </div>
           </div>

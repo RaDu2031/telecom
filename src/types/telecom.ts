@@ -166,6 +166,8 @@ export interface TelecomSite {
   dataIntegracao: string; // ACIONAMENTO / SI Planned
   dataAtivacao: string; // SI Executed
   responsavelCampo: string; // Executor
+  responsavelDemand?: string; // Explicit demand assignment
+  equipe?: string; // Equipe name
   equipeParceira: string; // EQUIPE EXECUTANTE
   ordemServico: string; // Oc Site Pre
   alarmesAtivos: string; // Pendência Engenharia / Status Financeiro
@@ -173,6 +175,12 @@ export interface TelecomSite {
   customFields?: Record<string, string>; // Exact columns from Column A to Observação
   responsaveisUids?: string[];
   responsaveisEmails?: string[];
+  vistoriaFileId?: string;
+  vistoriaFileName?: string;
+  vistoriaFileUrl?: string;
+  vistoriaDownloadUrl?: string;
+  vistoriaDeliveredAt?: string;
+  vistoriaUploadedBy?: string;
   isNew?: boolean; // True when newly added/imported into the system
   createdAt?: string;
   updatedAt: string;
@@ -277,9 +285,12 @@ export function canUserAccessVendor(
 }
 
 export type MandatoryDocType =
+  | 'ASO'
   | 'NR10'
   | 'NR35'
-  | 'ASO'
+  | 'NR06'
+  | 'CNH'
+  | 'CRLV'
   | 'PCMSO'
   | 'PGR'
   | 'PRIMEIROS_SOCORROS'
@@ -311,9 +322,12 @@ export const MANDATORY_USER_DOCUMENTS: Array<{
   label: string;
   shortLabel: string;
 }> = [
-  { type: 'NR10', label: 'NR 10', shortLabel: 'NR 10' },
-  { type: 'NR35', label: 'NR 35', shortLabel: 'NR 35' },
-  { type: 'ASO', label: 'ASO', shortLabel: 'ASO' },
+  { type: 'ASO', label: 'ASO (Atestado Saúde Ocupacional)', shortLabel: 'ASO' },
+  { type: 'NR10', label: 'NR 10 (Segurança em Eletricidade)', shortLabel: 'NR 10' },
+  { type: 'NR35', label: 'NR 35 (Trabalho em Altura)', shortLabel: 'NR 35' },
+  { type: 'NR06', label: 'NR 06 (Ficha de EPI)', shortLabel: 'NR 06' },
+  { type: 'CNH', label: 'CNH (Habilitação)', shortLabel: 'CNH' },
+  { type: 'CRLV', label: 'CRLV (Documento do Veículo)', shortLabel: 'CRLV' },
   { type: 'PCMSO', label: 'PCMSO', shortLabel: 'PCMSO' },
   { type: 'PGR', label: 'PGR', shortLabel: 'PGR' },
   {
@@ -326,7 +340,7 @@ export const MANDATORY_USER_DOCUMENTS: Array<{
     label: 'Contrato de Trabalho',
     shortLabel: 'Contrato',
   },
-  { type: 'RG', label: 'RG', shortLabel: 'RG' },
+  { type: 'RG', label: 'RG / CPF', shortLabel: 'RG' },
 ];
 
 export function ensureUserMandatoryDocuments(
@@ -670,8 +684,11 @@ export interface TssrRow {
   vendor: VendorType;
   tabName: string; // e.g. "TSSR TIM Nokia"
   siteId: string; // "Site Id"
+  sigla?: string; // Optional sigla / abbreviation
   ocSitePre: string; // "Oc Site Pre"
   enderecoId: string; // "Enderecoid"
+  executor?: string;
+  equipe?: string;
   fields: Record<string, string>; // All 37 original TSSR columns
   // System columns (preserved across TSSR spreadsheet reloads)
   vistoriaStatus: TssrVistoriaStatus;
@@ -1088,6 +1105,7 @@ export interface EricssonReprovacaoRecord {
 export interface EricssonEngineeringRow {
   id: string;
   rowKey: string;
+  rowIndex?: number;
   intervencaoClaro: string;
   siteIdA: string;
   siteIdB: string;
@@ -1098,6 +1116,7 @@ export interface EricssonEngineeringRow {
   regional: string;
   tipoSite: string;
   executor: string;
+  equipe?: string;
   fields: Record<string, string>;
   siteAVistoriaStatus?: EricssonVistoriaStatus;
   siteBVistoriaStatus?: EricssonVistoriaStatus;

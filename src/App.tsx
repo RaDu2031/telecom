@@ -81,6 +81,8 @@ import { db } from './lib/firebaseClient';
 import { doc, updateDoc } from 'firebase/firestore';
 import { dataService } from './services/dataService';
 import { INITIAL_SITES, INITIAL_SHEETS } from './data/initialSites';
+import { INITIAL_ERICSSON_SITES } from './data/initialEricssonSites';
+import { INITIAL_ERICSSON_ENGINEERING_ROWS } from './data/initialEricssonEngineering';
 import { AuthGate } from './components/AuthGate';
 import { AmetaLogo } from './components/AmetaLogo';
 import { SiteDetailDrawer } from './components/SiteDetailDrawer';
@@ -109,6 +111,8 @@ import { DuplasInteractiveView } from './components/DuplasInteractiveView';
 import { ExecutoresInteractiveView } from './components/ExecutoresInteractiveView';
 import { GoogleDriveModal } from './components/GoogleDriveModal';
 import { cloudFetch } from './lib/firebaseCloud';
+import { demandaSharedService } from './services/demandaSharedService';
+import { convertSitesToTssrRows } from './utils/tssrSpreadsheetUtils';
 
 const fetch = cloudFetch;
 import {
@@ -119,6 +123,7 @@ import {
   syncSiteColumnUpdate,
   STATUS_FINANCEIRO_OPTIONS,
   doesSiteMatchResponsible,
+  doesEricssonRowMatchResponsible,
   doesSiteMatchEquipe,
   doesSiteMatchExecutor,
   getCanonicalDuplaName,
@@ -195,21 +200,70 @@ export default function App() {
     return null;
   });
 
-  const [sites, setSites] = useState<TelecomSite[]>(INITIAL_SITES);
-  const [sheets, setSheets] = useState<SpreadsheetMeta[]>(INITIAL_SHEETS);
+  const [sites, setSites] = useState<TelecomSite[]>(() => {
+    try {
+      const cached = localStorage.getItem('ameta_cached_sites');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch {}
+    return INITIAL_SITES;
+  });
+  const [sheets, setSheets] = useState<SpreadsheetMeta[]>(() => {
+    try {
+      const cached = localStorage.getItem('ameta_cached_sheets');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch {}
+    return INITIAL_SHEETS;
+  });
   const [engineeringFolders, setEngineeringFolders] = useState<EngineeringFolder[]>([]);
   const [engineeringFiles, setEngineeringFiles] = useState<EngineeringFile[]>([]);
-  const [tssrRows, setTssrRows] = useState<TssrRow[]>([]);
+  const [tssrRows, setTssrRows] = useState<TssrRow[]>(() => {
+    try {
+      const cached = localStorage.getItem('ameta_cached_tssr');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch {}
+    return convertSitesToTssrRows(INITIAL_SITES);
+  });
   const [tssrSheets, setTssrSheets] = useState<TssrSheetMeta[]>([]);
   const [vistoriaPreselectedSiteId, setVistoriaPreselectedSiteId] = useState<string | null>(null);
-  const [ericssonRows, setEricssonRows] = useState<EricssonRow[]>([]);
-  const [ericssonSheetMeta, setEricssonSheetMeta] = useState<EricssonSheetMeta | undefined>(
-    undefined
-  );
+  const [ericssonRows, setEricssonRows] = useState<EricssonRow[]>(() => {
+    try {
+      const cached = localStorage.getItem('ameta_cached_ericsson_sites');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch {}
+    return INITIAL_ERICSSON_SITES;
+  });
+  const [ericssonSheetMeta, setEricssonSheetMeta] = useState<EricssonSheetMeta | undefined>(() => {
+    try {
+      const cached = localStorage.getItem('ameta_cached_ericsson_meta');
+      if (cached) return JSON.parse(cached);
+    } catch {}
+    return undefined;
+  });
   const [ericssonFolders, setEricssonFolders] = useState<EngineeringFolder[]>([]);
   const [ericssonFiles, setEricssonFiles] = useState<EngineeringFile[]>([]);
   const [ericssonUsers, setEricssonUsers] = useState<AmetaUser[]>([]);
-  const [ericssonEngineeringRows, setEricssonEngineeringRows] = useState<EricssonEngineeringRow[]>([]);
+  const [ericssonEngineeringRows, setEricssonEngineeringRows] = useState<EricssonEngineeringRow[]>(() => {
+    try {
+      const cached = localStorage.getItem('ameta_cached_ericsson_eng');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch {}
+    return INITIAL_ERICSSON_ENGINEERING_ROWS;
+  });
   const [serverEricssonExecutorEmailsMap, setServerEricssonExecutorEmailsMap] = useState<Record<string, string[]>>({});
   const [serverEricssonDuplaEmailsMap, setServerEricssonDuplaEmailsMap] = useState<Record<string, string[]>>({});
   const [notifications, setNotifications] = useState<AmetaNotification[]>([]);
@@ -298,14 +352,19 @@ export default function App() {
       const saved = localStorage.getItem(STORAGE_EXECUTORES_KEY);
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          if (!parsed.includes('teste')) return ['teste', ...parsed];
+          return parsed;
+        }
       }
     } catch {
       // ignore
     }
-    return [];
+    return ['teste'];
   });
-  const [serverExecutorEmailsMap, setServerExecutorEmailsMap] = useState<Record<string, string[]>>({});
+  const [serverExecutorEmailsMap, setServerExecutorEmailsMap] = useState<Record<string, string[]>>({
+    teste: ['teste@ametaservicos.com.br'],
+  });
 
   // Top bar quick search state
   const [quickSiteQuery, setQuickSiteQuery] = useState<string>('');
@@ -323,7 +382,7 @@ export default function App() {
 
   // Modals
   const [bulkModalOpen, setBulkModalOpen] = useState<boolean>(false);
-  const [bulkInitialTab, setBulkInitialTab] = useState<'paste' | 'excel' | 'onedrive'>('onedrive');
+  const [bulkInitialTab, setBulkInitialTab] = useState<'paste' | 'excel'>('excel');
   const [pastedShortcutText, setPastedShortcutText] = useState<string>('');
   const [newSiteModalOpen, setNewSiteModalOpen] = useState<boolean>(false);
 
@@ -340,21 +399,54 @@ export default function App() {
     }, 4000);
   }, []);
 
-  // Local static client-side initialization (no backend server required)
+  // Persistent local cache sync across changes
   useEffect(() => {
-    try {
-      const cachedSites = localStorage.getItem('ameta_cached_sites');
-      if (cachedSites) {
-        setSites(JSON.parse(cachedSites));
-      } else {
-        setSites(INITIAL_SITES);
-      }
-      setSheets(INITIAL_SHEETS);
-    } catch {
-      setSites(INITIAL_SITES);
-      setSheets(INITIAL_SHEETS);
+    if (sites && sites.length > 0) {
+      try {
+        localStorage.setItem('ameta_cached_sites', JSON.stringify(sites));
+      } catch {}
     }
-  }, []);
+  }, [sites]);
+
+  useEffect(() => {
+    if (sheets && sheets.length > 0) {
+      try {
+        localStorage.setItem('ameta_cached_sheets', JSON.stringify(sheets));
+      } catch {}
+    }
+  }, [sheets]);
+
+  useEffect(() => {
+    if (ericssonRows && ericssonRows.length > 0) {
+      try {
+        localStorage.setItem('ameta_cached_ericsson_sites', JSON.stringify(ericssonRows));
+      } catch {}
+    }
+  }, [ericssonRows]);
+
+  useEffect(() => {
+    if (ericssonSheetMeta) {
+      try {
+        localStorage.setItem('ameta_cached_ericsson_meta', JSON.stringify(ericssonSheetMeta));
+      } catch {}
+    }
+  }, [ericssonSheetMeta]);
+
+  useEffect(() => {
+    if (ericssonEngineeringRows && ericssonEngineeringRows.length > 0) {
+      try {
+        localStorage.setItem('ameta_cached_ericsson_eng', JSON.stringify(ericssonEngineeringRows));
+      } catch {}
+    }
+  }, [ericssonEngineeringRows]);
+
+  useEffect(() => {
+    if (tssrRows && tssrRows.length > 0) {
+      try {
+        localStorage.setItem('ameta_cached_tssr', JSON.stringify(tssrRows));
+      } catch {}
+    }
+  }, [tssrRows]);
 
   // Observação em tempo real no Firestore (Nokia, Ericsson, Usuários, Duplas e Notificações)
   useEffect(() => {
@@ -366,6 +458,26 @@ export default function App() {
           try {
             localStorage.setItem('ameta_cached_sites', JSON.stringify(fetched));
           } catch {}
+          // Descobrir abas dinamicamente para não sumir com abas adicionadas
+          setSheets((prevSheets) => {
+            const sheetNames = new Set(prevSheets.map((s) => s.name));
+            const newSheets = [...prevSheets];
+            let changed = false;
+            fetched.forEach((s) => {
+              if (s.sheetName && !sheetNames.has(s.sheetName)) {
+                sheetNames.add(s.sheetName);
+                newSheets.push({
+                  id: `sheet_${s.sheetName}`,
+                  vendor: (s.vendor || 'NOKIA') as VendorType,
+                  name: s.sheetName,
+                  description: `Aba ${s.sheetName} importada`,
+                  lastSyncAt: new Date().toISOString(),
+                });
+                changed = true;
+              }
+            });
+            return changed ? newSheets : prevSheets;
+          });
         }
       },
       onEricssonSites: (fetched) => {
@@ -373,9 +485,30 @@ export default function App() {
           setEricssonRows(fetched);
         }
       },
+      onEricssonEngineering: (fetched) => {
+        if (fetched.length > 0) {
+          setEricssonEngineeringRows(fetched);
+        }
+      },
       onUsuarios: (fetched) => {
         if (fetched.length > 0) {
           setUsers(fetched);
+          const ericUsers = fetched.filter(
+            (u) =>
+              u.assignedPlatform === 'ERICSSON' ||
+              u.assignedPlatform === 'BOTH' ||
+              u.assignedPlatform === 'AMBAS' ||
+              u.plataforma === 'ERICSSON' ||
+              u.plataforma === 'AMBAS' ||
+              u.role === 'Vistoriador'
+          );
+          if (ericUsers.length > 0) {
+            setEricssonUsers((prev) => {
+              const byId = new Map(prev.map((u) => [u.id || u.email, u]));
+              ericUsers.forEach((u) => byId.set(u.id || u.email, u));
+              return Array.from(byId.values());
+            });
+          }
           const me = fetched.find((u) => u.email.toLowerCase() === user.email.toLowerCase());
           if (
             me &&
@@ -404,6 +537,23 @@ export default function App() {
 
     return () => unsub();
   }, [user]);
+
+  // Reconcile and synchronize any inconsistent demands across sites and engineering rows
+  useEffect(() => {
+    const res = demandaSharedService.reconciliarDemandasInconsistentes({
+      sites,
+      tssrRows,
+      ericssonEngRows: ericssonEngineeringRows,
+    });
+    if (res.reconciledCount > 0) {
+      setSites(res.sites);
+      setTssrRows(res.tssrRows);
+      try {
+        localStorage.setItem('ameta_cached_sites', JSON.stringify(res.sites));
+        localStorage.setItem('ameta_cached_tssr', JSON.stringify(res.tssrRows));
+      } catch {}
+    }
+  }, []);
 
   // Listen for direct Ctrl+V anywhere on the workspace (Nokia only)
   useEffect(() => {
@@ -508,11 +658,6 @@ export default function App() {
     }
   };
 
-  const ericssonSiteCounters = useMemo(
-    () => computeEricssonSiteCounters(ericssonRows),
-    [ericssonRows]
-  );
-
   // Sync logged-in user's role if updated in the users list (only Rafael Araújo is ADM Dono)
   const isOwnerAdm = isOwnerAdmUser(user?.email);
 
@@ -538,14 +683,64 @@ export default function App() {
 
   const canSeeFullSpreadsheets = hasFullSpreadsheetAccess(effectiveRole);
   const isEngCoordinator = isEngineeringCoordinatorRole(effectiveRole);
+
+  const vendorEricssonRows = useMemo(() => {
+    if (!activeTargetUser) return ericssonRows;
+    if (!canSeeFullSpreadsheets && !isEngCoordinator) {
+      return ericssonRows.filter((r) => doesEricssonRowMatchResponsible(r, activeTargetUser));
+    }
+    if (responsavelDemandFilter !== 'ALL') {
+      return ericssonRows.filter((r) => doesEricssonRowMatchResponsible(r, responsavelDemandFilter));
+    }
+    return ericssonRows;
+  }, [ericssonRows, activeTargetUser, canSeeFullSpreadsheets, isEngCoordinator, responsavelDemandFilter]);
+
+  const vendorEricssonEngineeringRows = useMemo(() => {
+    if (!activeTargetUser) return ericssonEngineeringRows;
+    if (!canSeeFullSpreadsheets && !isEngCoordinator) {
+      return ericssonEngineeringRows.filter((r) => {
+        const rowEx = (
+          r.executor ||
+          r.fields?.['EXECUTOR'] ||
+          r.fields?.['EXECUTOR WR'] ||
+          r.fields?.['EXECUTOR QRF'] ||
+          r.fields?.['EXECUTOR PPI'] ||
+          r.fields?.['Executor'] ||
+          ''
+        ).trim();
+        const rowEq = (r.fields?.['EQUIPE'] || r.equipe || '').trim();
+
+        if (!rowEx && !rowEq) {
+          return doesEricssonRowMatchResponsible(r as any, activeTargetUser);
+        }
+
+        const uEmail = (activeTargetUser.email || '').trim().toLowerCase();
+        const uName = (activeTargetUser.name || '').trim().toLowerCase();
+        const uEquipe = (activeTargetUser.equipe || '').trim().toLowerCase();
+
+        const cleanEx = rowEx.toLowerCase();
+        const cleanEq = rowEq.toLowerCase();
+
+        const matchesEmail = Boolean(uEmail && cleanEx && cleanEx.includes(uEmail));
+        const matchesName = Boolean(uName && cleanEx && (cleanEx.includes(uName) || uName.includes(cleanEx)));
+        const matchesEquipe = Boolean(uEquipe && ((cleanEq && (cleanEq.includes(uEquipe) || uEquipe.includes(cleanEq))) || (cleanEx && (cleanEx.includes(uEquipe) || uEquipe.includes(cleanEx)))));
+
+        return matchesEmail || matchesName || matchesEquipe || doesEricssonRowMatchResponsible(r as any, activeTargetUser);
+      });
+    }
+    return ericssonEngineeringRows;
+  }, [ericssonEngineeringRows, activeTargetUser, canSeeFullSpreadsheets, isEngCoordinator]);
+
+  const ericssonSiteCounters = useMemo(
+    () => computeEricssonSiteCounters(vendorEricssonRows),
+    [vendorEricssonRows]
+  );
   const isGestorEngenharia =
     effectiveRole === 'ADM' ||
     effectiveRole === 'Coordenador Geral' ||
     effectiveRole === 'Coordenador Engenharia' ||
     isEngCoordinator;
-  const canSeeSitesTab =
-    !isEngCoordinator &&
-    !(activeVendor === 'ERICSSON' && (effectiveRole === 'Executor' || effectiveRole === 'Vistoriador'));
+  const canSeeSitesTab = !isEngCoordinator;
   const canSeeEngenhariaTab =
     effectiveRole === 'ADM' ||
     effectiveRole === 'Coordenador Geral' ||
@@ -961,35 +1156,28 @@ export default function App() {
   const handleAssignEricssonRowsToExecutor = async (
     rowIds: string[],
     executorName: string,
-    demandDate?: string
+    demandDate?: string,
+    allowTransfer?: boolean
   ) => {
-    const targetDate = demandDate || new Date().toLocaleDateString('pt-BR');
-    const idSet = new Set(rowIds.map((id) => String(id).trim().toUpperCase()));
-
-    setEricssonEngineeringRows((prev) =>
-      prev.map((r) => {
-        if (
-          idSet.has(r.id.toUpperCase()) ||
-          idSet.has((r.intervencaoClaro || '').toUpperCase()) ||
-          idSet.has((r.siteIdA || '').toUpperCase())
-        ) {
-          return {
-            ...r,
-            executor: executorName,
-            fields: {
-              ...(r.fields || {}),
-              EXECUTOR: executorName,
-              'Data Demanda': targetDate,
-            },
-            updatedAt: new Date().toISOString(),
-          };
-        }
-        return r;
-      })
-    );
-
+    const linkedEmails = serverEricssonExecutorEmailsMap[executorName] || [];
+    const res = await demandaSharedService.atribuirDemanda({
+      siteTokens: rowIds,
+      responsibleName: executorName,
+      linkedEmails,
+      vendor: 'ERICSSON',
+      demandDate,
+      currentSites: sites,
+      currentTssrRows: tssrRows,
+      currentEricssonEngRows: ericssonEngineeringRows,
+      actorEmail: user?.email,
+      actorName: user?.name,
+      allowTransfer,
+    });
+    setSites(res.updatedSites);
+    setTssrRows(res.updatedTssrRows);
+    setEricssonEngineeringRows(res.updatedEricssonEngRows);
     showToast(
-      `${rowIds.length} demanda(s) da Engenharia Ericsson atribuídas para "${executorName}"!`
+      `${res.count} demanda(s) da Engenharia Ericsson atribuídas para "${executorName}"!`
     );
   };
 
@@ -997,50 +1185,30 @@ export default function App() {
     rowIds: string[],
     executorName: string
   ) => {
-    const idSet = new Set(rowIds.map((id) => String(id).trim().toUpperCase()));
-    setEricssonEngineeringRows((prev) =>
-      prev.map((r) => {
-        if (
-          idSet.has(r.id.toUpperCase()) ||
-          idSet.has((r.intervencaoClaro || '').toUpperCase()) ||
-          idSet.has((r.siteIdA || '').toUpperCase())
-        ) {
-          const nextFields = { ...(r.fields || {}) };
-          delete nextFields.EXECUTOR;
-          delete nextFields['Data Demanda'];
-          return {
-            ...r,
-            executor: '',
-            fields: nextFields,
-            updatedAt: new Date().toISOString(),
-          };
-        }
-        return r;
-      })
-    );
+    const res = await demandaSharedService.removerDemanda({
+      siteTokens: rowIds,
+      vendor: 'ERICSSON',
+      currentSites: sites,
+      currentTssrRows: tssrRows,
+      currentEricssonEngRows: ericssonEngineeringRows,
+    });
+    setSites(res.updatedSites);
+    setTssrRows(res.updatedTssrRows);
+    setEricssonEngineeringRows(res.updatedEricssonEngRows);
     showToast(`Demanda(s) desvinculadas de "${executorName}" na Engenharia Ericsson.`);
   };
 
   const handleClearEricssonExecutorRows = async (executorName: string) => {
-    setEricssonEngineeringRows((prev) =>
-      prev.map((r) => {
-        if (
-          (r.executor || '').trim().toLowerCase() === executorName.trim().toLowerCase() ||
-          (r.fields?.['EXECUTOR'] || '').trim().toLowerCase() === executorName.trim().toLowerCase()
-        ) {
-          const nextFields = { ...(r.fields || {}) };
-          delete nextFields.EXECUTOR;
-          delete nextFields['Data Demanda'];
-          return {
-            ...r,
-            executor: '',
-            fields: nextFields,
-            updatedAt: new Date().toISOString(),
-          };
-        }
-        return r;
-      })
-    );
+    const res = await demandaSharedService.limparTodasDemandas({
+      responsibleName: executorName,
+      vendor: 'ERICSSON',
+      currentSites: sites,
+      currentTssrRows: tssrRows,
+      currentEricssonEngRows: ericssonEngineeringRows,
+    });
+    setSites(res.updatedSites);
+    setTssrRows(res.updatedTssrRows);
+    setEricssonEngineeringRows(res.updatedEricssonEngRows);
     showToast(`Todas as demandas de "${executorName}" desvinculadas na Engenharia Ericsson.`);
   };
 
@@ -1100,30 +1268,28 @@ export default function App() {
   const handleAssignRowsToExecutor = async (
     rowIds: string[],
     executorName: string,
-    demandDate?: string
+    demandDate?: string,
+    allowTransfer?: boolean
   ) => {
-    const targetDate = demandDate || new Date().toLocaleDateString('pt-BR');
-    const tokenSet = new Set(rowIds.map((id) => String(id).trim().toUpperCase()));
-
-    setTssrRows((prev) =>
-      prev.map((r) => {
-        if (tokenSet.has(r.id.toUpperCase()) || tokenSet.has(r.siteId.toUpperCase())) {
-          return {
-            ...r,
-            fields: {
-              ...(r.fields || {}),
-              Executor: executorName,
-              'Data de demanda': targetDate,
-            },
-            updatedAt: new Date().toISOString(),
-          };
-        }
-        return r;
-      })
-    );
-
+    const linkedEmails = serverExecutorEmailsMap[executorName] || [];
+    const res = await demandaSharedService.atribuirDemanda({
+      siteTokens: rowIds,
+      responsibleName: executorName,
+      linkedEmails,
+      vendor: 'NOKIA',
+      demandDate,
+      currentSites: sites,
+      currentTssrRows: tssrRows,
+      currentEricssonEngRows: ericssonEngineeringRows,
+      actorEmail: user?.email,
+      actorName: user?.name,
+      allowTransfer,
+    });
+    setSites(res.updatedSites);
+    setTssrRows(res.updatedTssrRows);
+    setEricssonEngineeringRows(res.updatedEricssonEngRows);
     showToast(
-      `${rowIds.length} site(s) da Engenharia demandados para o Executor "${executorName}"!`
+      `${res.count} site(s) da Engenharia demandados para o Executor "${executorName}"!`
     );
   };
 
@@ -1131,43 +1297,30 @@ export default function App() {
     rowIds: string[],
     executorName: string
   ) => {
-    const tokenSet = new Set(rowIds.map((id) => String(id).trim().toUpperCase()));
-    setTssrRows((prev) =>
-      prev.map((r) => {
-        if (tokenSet.has(r.id.toUpperCase()) || tokenSet.has(r.siteId.toUpperCase())) {
-          return {
-            ...r,
-            fields: {
-              ...(r.fields || {}),
-              Executor: '',
-              'Data de demanda': '',
-            },
-            updatedAt: new Date().toISOString(),
-          };
-        }
-        return r;
-      })
-    );
+    const res = await demandaSharedService.removerDemanda({
+      siteTokens: rowIds,
+      vendor: 'NOKIA',
+      currentSites: sites,
+      currentTssrRows: tssrRows,
+      currentEricssonEngRows: ericssonEngineeringRows,
+    });
+    setSites(res.updatedSites);
+    setTssrRows(res.updatedTssrRows);
+    setEricssonEngineeringRows(res.updatedEricssonEngRows);
     showToast(`Site(s) desvinculados do Executor "${executorName}".`);
   };
 
   const handleClearAllExecutorRows = async (executorName: string) => {
-    setTssrRows((prev) =>
-      prev.map((r) => {
-        if ((r.fields?.['Executor'] || '').trim().toLowerCase() === executorName.trim().toLowerCase()) {
-          return {
-            ...r,
-            fields: {
-              ...(r.fields || {}),
-              Executor: '',
-              'Data de demanda': '',
-            },
-            updatedAt: new Date().toISOString(),
-          };
-        }
-        return r;
-      })
-    );
+    const res = await demandaSharedService.limparTodasDemandas({
+      responsibleName: executorName,
+      vendor: 'NOKIA',
+      currentSites: sites,
+      currentTssrRows: tssrRows,
+      currentEricssonEngRows: ericssonEngineeringRows,
+    });
+    setSites(res.updatedSites);
+    setTssrRows(res.updatedTssrRows);
+    setEricssonEngineeringRows(res.updatedEricssonEngRows);
     showToast(`Todos os sites da Engenharia de "${executorName}" foram desvinculados.`);
   };
 
@@ -1279,10 +1432,13 @@ export default function App() {
   // Base pools by sheet for quick counts on the filter buttons
   const rawControleGeralPool = useMemo(
     () =>
-      vendorSites.filter((s) =>
-        activeVendor === 'NOKIA' ? s.sheetName === 'Controle Geral' : true
-      ),
-    [vendorSites, activeVendor]
+      vendorSites.filter((s) => {
+        if (effectiveRole === 'Executor' || (!canSeeFullSpreadsheets && !isEngCoordinator)) {
+          return true;
+        }
+        return activeVendor === 'NOKIA' ? s.sheetName === 'Controle Geral' : true;
+      }),
+    [vendorSites, activeVendor, effectiveRole, canSeeFullSpreadsheets, isEngCoordinator]
   );
 
   const rawCanceladosPool = useMemo(
@@ -1362,6 +1518,12 @@ export default function App() {
       return functionFilter === 'NOVOS' ? vendorSites.filter(isNovoSite) : vendorSites;
     }
 
+    if (effectiveRole === 'Executor' || (!canSeeFullSpreadsheets && !isEngCoordinator)) {
+      if (functionFilter === 'NOVOS') return rawControleGeralPool.filter(isNovoSite);
+      if (functionFilter === 'FINALIZADAS') return rawControleGeralPool.filter(isFinalizadaSite);
+      return rawControleGeralPool;
+    }
+
     switch (functionFilter) {
       case 'NOVOS':
         return rawControleGeralPool.filter(isNovoSite);
@@ -1388,6 +1550,9 @@ export default function App() {
   }, [
     activeVendor,
     vendorSites,
+    effectiveRole,
+    canSeeFullSpreadsheets,
+    isEngCoordinator,
     functionFilter,
     rawControleGeralPool,
     rawCanceladosPool,
@@ -1925,82 +2090,55 @@ export default function App() {
       return;
     }
 
-    // Immediate optimistic state update when clearing all sites for a Dupla / Responsible
     if (clearAllForResponsible) {
-      const unassignSet = new Set(
-        (unassignSiteTokens || [])
-          .map((t) => String(t || '').trim().toUpperCase())
-          .filter(Boolean)
+      const res = await demandaSharedService.limparTodasDemandas({
+        responsibleName: clearAllForResponsible,
+        vendor: activeVendor,
+        currentSites: sites,
+        currentTssrRows: tssrRows,
+        currentEricssonEngRows: ericssonEngineeringRows,
+        siteTokensToClear: unassignSiteTokens,
+      });
+      setSites(res.updatedSites);
+      setTssrRows(res.updatedTssrRows);
+      setEricssonEngineeringRows(res.updatedEricssonEngRows);
+      showToast(
+        `Demanda de "${clearAllForResponsible}" foi limpa (${res.count} site(s) removido(s)).`
       );
-      setSites((prev) =>
-        prev.map((s) => {
-          if (s.vendor !== activeVendor) return s;
-          if (s.sheetName === 'Equipes' || s.sheetName === 'Controle Cancelados') return s;
-          const matchesToken =
-            unassignSet.size > 0 &&
-            (unassignSet.has(s.id.toUpperCase()) ||
-              unassignSet.has(s.siteId.trim().toUpperCase()));
-          const matchesTarget =
-            doesSiteMatchEquipe(s, clearAllForResponsible) ||
-            doesSiteMatchResponsible(s, clearAllForResponsible);
-          if (!matchesToken && !matchesTarget) return s;
-          return {
-            ...s,
-            equipeParceira: '',
-            responsavelCampo: '',
-            customFields: {
-              ...(s.customFields || {}),
-              'EQUIPE EXECUTANTE': '',
-              Executor: '',
-              Responsável: '',
-              'E-MAIL DUPLA': '',
-              ...(s.customFields && 'EQUIPE' in s.customFields ? { EQUIPE: '' } : {}),
-              ...(s.customFields && 'TalonView Executor' in s.customFields
-                ? { 'TalonView Executor': '' }
-                : {}),
-              ...(s.customFields && 'EMAIL_DUPLA' in s.customFields ? { EMAIL_DUPLA: '' } : {}),
-            },
-          };
-        })
+    } else {
+      const linkedEmails =
+        serverDuplaEmailsMap[targetResponsible] ||
+        serverExecutorEmailsMap[targetResponsible] ||
+        serverEricssonDuplaEmailsMap[targetResponsible] ||
+        serverEricssonExecutorEmailsMap[targetResponsible] ||
+        [];
+      const res = await demandaSharedService.atribuirDemanda({
+        siteTokens: tokens,
+        responsibleName: targetResponsible,
+        linkedEmails,
+        vendor: activeVendor,
+        currentSites: sites,
+        currentTssrRows: tssrRows,
+        currentEricssonEngRows: ericssonEngineeringRows,
+        actorEmail: user?.email,
+        actorName: user?.name,
+      });
+      setSites(res.updatedSites);
+      setTssrRows(res.updatedTssrRows);
+      setEricssonEngineeringRows(res.updatedEricssonEngRows);
+      showToast(
+        `${res.count} site(s) colocado(s) na demanda de "${targetResponsible}"!`
       );
     }
-
-    try {
-      if (clearAllForResponsible) {
-        const res = await dataService.limparTodosSitesDemanda({
-          responsibleName: clearAllForResponsible,
-          siteTokens: unassignSiteTokens,
-          vendor: activeVendor,
-        });
-        showToast(
-          `Demanda de "${clearAllForResponsible}" foi limpa no Firestore (${res.updatedCount} site(s) removido(s)).`
-        );
-      } else {
-        const res = await dataService.atribuirDemandaSites({
-          siteTokens: tokens,
-          responsibleName: targetResponsible,
-          vendor: activeVendor,
-          actorEmail: user?.email,
-          actorName: user?.name,
-        });
-        showToast(
-          `${res.updatedCount || tokens.length} site(s) colocado(s) na demanda de "${targetResponsible}" no Firestore!`
-        );
-      }
-      setQuickAssignSitesInput('');
-    } catch (err: any) {
-      console.error('Erro ao atribuir demanda no Firestore:', err);
-      showToast(`Erro no Firestore [sites]: ${err?.code || err?.message || err}`);
-    }
+    setQuickAssignSitesInput('');
   };
 
   const handleBulkImport = async (params: {
     sites: Partial<TelecomSite>[];
     vendor: VendorType;
     sheetName: string;
-    mode: 'upsert' | 'append' | 'replace_sheet';
+    mode: 'append_only' | 'fill_empty';
     sourceFileName?: string;
-    liveSyncUrl?: string;
     columns?: string[];
   }) => {
     try {
@@ -2008,28 +2146,72 @@ export default function App() {
         const res = await dataService.importarSitesNokiaEmLote(
           params.sites as TelecomSite[],
           users,
-          serverDuplaEmailsMap
+          serverDuplaEmailsMap,
+          { mode: params.mode }
         );
         setActiveVendor(params.vendor);
-        setActiveSheetName(params.sheetName);
+        if (params.sheetName) {
+          setActiveSheetName(params.sheetName);
+          setSheets((prev) => {
+            if (prev.some((s) => s.name === params.sheetName)) return prev;
+            return [
+              ...prev,
+              {
+                id: `sheet_${params.sheetName}`,
+                vendor: params.vendor,
+                name: params.sheetName,
+                description: `Aba ${params.sheetName} importada`,
+                lastSyncAt: new Date().toISOString(),
+                columns: params.columns,
+                sourceFileName: params.sourceFileName,
+              },
+            ];
+          });
+        }
+        setSites((prev) => {
+          const importedIds = new Set((params.sites as TelecomSite[]).map((s) => s.id));
+          const filtered = prev.filter((s) => !importedIds.has(s.id));
+          const next = [...(params.sites as TelecomSite[]), ...filtered];
+          try {
+            localStorage.setItem('ameta_cached_sites', JSON.stringify(next));
+          } catch {}
+          return next;
+        });
         showToast(
-          `Planilha "${params.sheetName}" sincronizada no Firestore (${res.totalGravados} sites gravados)`
+          `Planilha "${params.sheetName}" processada (+${res.novas} novos sites gravados, ${res.jaExistiam} já existiam mantidos)`
         );
+        return res;
       } else {
         const res = await dataService.importarSitesEricssonEmLote(
           params.sites as any,
           users,
-          serverDuplaEmailsMap
+          serverDuplaEmailsMap,
+          { mode: params.mode }
         );
         setActiveVendor(params.vendor);
-        setActiveSheetName(params.sheetName);
+        if (params.sheetName) setActiveSheetName(params.sheetName);
+        setEricssonRows((prev) => {
+          const importedIds = new Set((params.sites as any[]).map((s) => s.id));
+          const filtered = prev.filter((s) => !importedIds.has(s.id));
+          return [...(params.sites as any[]), ...filtered];
+        });
         showToast(
-          `Planilha "${params.sheetName}" sincronizada no Firestore (${res.totalGravados} sites Ericsson gravados)`
+          `Planilha "${params.sheetName}" processada (+${res.novas} novos sites Ericsson gravados, ${res.jaExistiam} já existiam mantidos)`
         );
+        return res;
       }
     } catch (err: any) {
       console.error('Erro ao importar planilha no Firestore:', err);
       showToast(`Erro ao gravar no Firestore: ${err?.code || err?.message || err}`);
+      return {
+        totalAnalisados: params.sites.length,
+        novas: 0,
+        jaExistiam: 0,
+        comErro: params.sites.length,
+        totalGravados: 0,
+        lotesExecutados: 0,
+        errorMessage: err?.message || String(err),
+      };
     }
   };
 
@@ -3163,33 +3345,27 @@ export default function App() {
 
   const vendorEngineeringFilesCount = useMemo(() => {
     if (activeVendor === 'ERICSSON') {
-      if (effectiveRole === 'Vistoriador' && activeTargetUser) {
-        return ericssonFiles.filter((fl) =>
-          doesFileMatchUserResponsibleSites(fl, activeTargetUser, sites, ericssonRows)
-        ).length;
-      }
-      if (
-        effectiveRole !== 'ADM' &&
-        effectiveRole !== 'Coordenador Geral' &&
-        effectiveRole !== 'Coordenador Engenharia' &&
-        activeTargetUser
-      ) {
-        return ericssonFiles.filter(
+      if (!canSeeFullSpreadsheets && !isEngCoordinator && activeTargetUser) {
+        const matchedFiles = ericssonFiles.filter(
           (fl) =>
-            doesFileMatchUserResponsibleSites(fl, activeTargetUser, sites, ericssonRows) ||
+            doesFileMatchUserResponsibleSites(fl, activeTargetUser, sites, vendorEricssonRows) ||
             doesDocumentMatchResponsible(fl, undefined, activeTargetUser)
-        ).length;
+        );
+        if (matchedFiles.length > 0) return matchedFiles.length;
+        return vendorEricssonEngineeringRows.length || vendorEricssonRows.length;
       }
-      return ericssonFiles.length;
+      if (ericssonFiles.length > 0) return ericssonFiles.length;
+      return ericssonEngineeringRows.length || ericssonRows.length;
     }
 
     const allFolders = engineeringFolders.filter((fd) => fd.vendor === activeVendor);
     const allVendor = engineeringFiles.filter((f) => f.vendor === activeVendor);
 
     if (effectiveRole === 'Vistoriador' && activeTargetUser) {
-      return allVendor.filter((fl) =>
+      const matched = allVendor.filter((fl) =>
         doesFileMatchUserResponsibleSites(fl, activeTargetUser, sites, ericssonRows)
-      ).length;
+      );
+      if (matched.length > 0) return matched.length;
     }
 
     // Exclude TSSR Entrada and TSSR project folders from Vistoria folder count for other roles
@@ -3216,21 +3392,24 @@ export default function App() {
       effectiveRole !== 'Coordenador Engenharia' &&
       activeTargetUser
     ) {
-      return vistoriaScoped.filter((fl) => {
+      const filtered = vistoriaScoped.filter((fl) => {
         const folder = allFolders.find((fd) => fd.id === fl.folderId);
         return (
           doesFileMatchUserResponsibleSites(fl, activeTargetUser, sites, ericssonRows) ||
           doesDocumentMatchResponsible(fl, folder, activeTargetUser)
         );
-      }).length;
+      });
+      if (filtered.length > 0) return filtered.length;
     }
-    return vistoriaScoped.length;
+    return vistoriaScoped.length > 0 ? vistoriaScoped.length : tssrRows.length;
   }, [
     engineeringFiles,
     engineeringFolders,
     ericssonFiles,
     sites,
     ericssonRows,
+    ericssonEngineeringRows,
+    tssrRows,
     activeVendor,
     effectiveRole,
     activeTargetUser,
@@ -3448,7 +3627,7 @@ export default function App() {
                   <FileSpreadsheet className="w-3.5 h-3.5 text-[#1E8E8D] shrink-0" />
                   <span>Engenharia</span>
                   <span className="font-mono text-[11px] text-slate-500 tabular-nums">
-                    ({activeVendor === 'ERICSSON' ? ericssonRows.length : tssrRows.length})
+                    ({activeVendor === 'ERICSSON' ? (ericssonEngineeringRows.length || ericssonRows.length) : tssrRows.length})
                   </span>
                 </button>
               )}
@@ -3755,7 +3934,7 @@ export default function App() {
                         type="button"
                         onClick={() => {
                           setIsRaMenuOpen(false);
-                          setBulkInitialTab('onedrive');
+                          setBulkInitialTab('excel');
                           setActiveTopTab('importar');
                         }}
                         className={`w-full px-3.5 py-2.5 sm:py-1.5 text-left flex items-center gap-2 hover:bg-slate-50 cursor-pointer ${
@@ -4095,7 +4274,7 @@ export default function App() {
                       : 'bg-slate-100 text-slate-700'
                   }`}
                 >
-                  {activeVendor === 'ERICSSON' ? ericssonRows.length : tssrRows.length}
+                  {activeVendor === 'ERICSSON' ? (ericssonEngineeringRows.length || ericssonRows.length) : tssrRows.length}
                 </span>
               </button>
             )}
@@ -4324,7 +4503,7 @@ export default function App() {
                     : 'bg-slate-800 hover:bg-slate-700 text-slate-200'
                 }`}
               >
-                Engenharia ({activeVendor === 'ERICSSON' ? ericssonRows.length : tssrRows.length})
+                Engenharia ({activeVendor === 'ERICSSON' ? (ericssonEngineeringRows.length || ericssonRows.length) : tssrRows.length})
               </button>
             )}
             {canAccessDemandaExecutores && (
@@ -4392,7 +4571,7 @@ export default function App() {
               <EricssonSitesTab
                 user={activeTargetUser || user}
                 effectiveRole={effectiveRole}
-                rows={ericssonRows}
+                rows={vendorEricssonRows}
                 sheetMeta={ericssonSheetMeta || null}
                 ericssonUsers={ericssonUsers}
                 onUpdated={(nextRows, nextMeta, toastMsg, nextFiles) => {
@@ -4434,9 +4613,9 @@ export default function App() {
               <EricssonVistoriaTab
                 user={activeTargetUser || user}
                 effectiveRole={effectiveRole}
-                rows={ericssonRows}
+                rows={vendorEricssonRows}
                 sheetMeta={ericssonSheetMeta || null}
-                engineeringRows={ericssonEngineeringRows}
+                engineeringRows={vendorEricssonEngineeringRows}
                 folders={ericssonFolders}
                 files={ericssonFiles}
                 focusedFolderId={ericssonVistoriaFocus?.folderId || null}
@@ -4625,7 +4804,9 @@ export default function App() {
                   <div>
                     <div className="flex items-center gap-2">
                       <span className="text-sm font-bold text-slate-900">
-                        Pasta Controle Geral
+                        {canSeeFullSpreadsheets
+                          ? 'Pasta Controle Geral'
+                          : 'Meus Sites Demandados'}
                       </span>
                       <span className="px-2 py-0.5 bg-[#F3F4F6] border border-slate-200 rounded-md text-xs font-mono text-slate-700 font-semibold tabular-nums">
                         {filteredControleGeralSites.length} registro
@@ -5651,7 +5832,7 @@ export default function App() {
                       key={tabItem.id}
                       type="button"
                       onClick={() => {
-                        if (tabItem.id === 'importar') setBulkInitialTab('onedrive');
+                        if (tabItem.id === 'importar') setBulkInitialTab('excel');
                         if (tabItem.id === 'colar') {
                           setPastedShortcutText('');
                           setBulkInitialTab('paste');
@@ -5719,58 +5900,65 @@ export default function App() {
                     showToast(`Dupla renomeada de "${oldName}" para "${clean}".`);
                   }}
                   onDeleteDupla={(name) => handleDeleteDupla(name)}
-                  onAssignSitesToDupla={async (siteIds, duplaName, linkedEmails, targetVendor) => {
-                    try {
-                      const res = await dataService.atribuirDemandaSites({
-                        siteTokens: siteIds,
-                        responsibleName: duplaName,
-                        linkedEmails,
-                        vendor: targetVendor,
-                        actorEmail: user?.email,
-                        actorName: user?.name,
-                      });
-                      showToast(
-                        `${res.updatedCount || siteIds.length} site(s) ${
-                          targetVendor === 'ERICSSON' ? 'Ericsson' : 'TIM/Nokia'
-                        } enviados para a dupla "${duplaName}"!`
-                      );
-                    } catch (err: any) {
-                      console.error('Erro ao atribuir demanda no Firestore:', err);
-                      showToast(`Erro no Firestore [sites]: ${err?.code || err?.message || err}`);
-                    }
+                  onAssignSitesToDupla={async (siteIds, duplaName, linkedEmails, targetVendor, allowTransfer) => {
+                    const vendor = targetVendor || activeVendor;
+                    const res = await demandaSharedService.atribuirDemanda({
+                      siteTokens: siteIds,
+                      responsibleName: duplaName,
+                      linkedEmails,
+                      vendor,
+                      currentSites: sites,
+                      currentTssrRows: tssrRows,
+                      currentEricssonEngRows: ericssonEngineeringRows,
+                      actorEmail: user?.email,
+                      actorName: user?.name,
+                      allowTransfer,
+                    });
+                    setSites(res.updatedSites);
+                    setTssrRows(res.updatedTssrRows);
+                    setEricssonEngineeringRows(res.updatedEricssonEngRows);
+                    showToast(
+                      `${res.count} site(s) ${
+                        vendor === 'ERICSSON' ? 'Ericsson' : 'TIM/Nokia'
+                      } enviados para a dupla "${duplaName}"!`
+                    );
                   }}
                   onUnassignSitesFromDupla={async (siteIds, duplaName, targetVendor) => {
-                    try {
-                      await dataService.desvincularDemandaSites({
-                        siteTokens: siteIds,
-                        vendor: targetVendor,
-                      });
-                      showToast(
-                        `Site ${
-                          targetVendor === 'ERICSSON' ? 'Ericsson' : 'TIM/Nokia'
-                        } removido da demanda de "${duplaName}".`
-                      );
-                    } catch (err: any) {
-                      console.error('Erro ao desvincular demanda no Firestore:', err);
-                      showToast(`Erro no Firestore [sites]: ${err?.code || err?.message || err}`);
-                    }
+                    const vendor = targetVendor || activeVendor;
+                    const res = await demandaSharedService.removerDemanda({
+                      siteTokens: siteIds,
+                      vendor,
+                      currentSites: sites,
+                      currentTssrRows: tssrRows,
+                      currentEricssonEngRows: ericssonEngineeringRows,
+                    });
+                    setSites(res.updatedSites);
+                    setTssrRows(res.updatedTssrRows);
+                    setEricssonEngineeringRows(res.updatedEricssonEngRows);
+                    showToast(
+                      `Site ${
+                        vendor === 'ERICSSON' ? 'Ericsson' : 'TIM/Nokia'
+                      } removido da demanda de "${duplaName}".`
+                    );
                   }}
                   onClearDuplaSites={async (duplaName, siteIdsToClear, targetVendor) => {
-                    try {
-                      await dataService.limparTodosSitesDemanda({
-                        responsibleName: duplaName,
-                        siteTokens: siteIdsToClear,
-                        vendor: targetVendor,
-                      });
-                      showToast(
-                        `Todos os sites ${
-                          targetVendor === 'ERICSSON' ? 'Ericsson' : 'TIM/Nokia'
-                        } de "${duplaName}" foram desvinculados.`
-                      );
-                    } catch (err: any) {
-                      console.error('Erro ao limpar demanda no Firestore:', err);
-                      showToast(`Erro no Firestore [sites]: ${err?.code || err?.message || err}`);
-                    }
+                    const vendor = targetVendor || activeVendor;
+                    const res = await demandaSharedService.limparTodasDemandas({
+                      responsibleName: duplaName,
+                      vendor,
+                      currentSites: sites,
+                      currentTssrRows: tssrRows,
+                      currentEricssonEngRows: ericssonEngineeringRows,
+                      siteTokensToClear: siteIdsToClear,
+                    });
+                    setSites(res.updatedSites);
+                    setTssrRows(res.updatedTssrRows);
+                    setEricssonEngineeringRows(res.updatedEricssonEngRows);
+                    showToast(
+                      `Todos os sites ${
+                        vendor === 'ERICSSON' ? 'Ericsson' : 'TIM/Nokia'
+                      } de "${duplaName}" foram desvinculados.`
+                    );
                   }}
                   onLinkEmailsToDupla={async (duplaName, emails) => {
                     try {
@@ -5935,20 +6123,22 @@ export default function App() {
                 />
               )}
 
-              {/* ABA 3 DO RA: IMPORTAR / ONEDRIVE */}
+              {/* ABA 3 DO RA: IMPORTAR EXCEL (.XLSX / .CSV) */}
               {resolvedTopTab === 'importar' && (
                 <BulkPasteModal
                   isOpen={true}
                   inlineTabMode={true}
-                  initialTab="onedrive"
+                  initialTab="excel"
                   activeVendor={activeVendor}
                   activeSheetName={activeSheetName === 'ALL' ? 'Controle Geral' : activeSheetName}
                   sheets={sheets}
                   initialPastedText=""
+                  existingSites={sites}
                   onClose={() => setActiveTopTab('sites')}
                   onBulkImport={async (params) => {
-                    await handleBulkImport(params);
+                    const res = await handleBulkImport(params);
                     setActiveTopTab('sites');
+                    return res;
                   }}
                 />
               )}
@@ -5963,10 +6153,12 @@ export default function App() {
                   activeSheetName={activeSheetName === 'ALL' ? 'Controle Geral' : activeSheetName}
                   sheets={sheets}
                   initialPastedText={pastedShortcutText}
+                  existingSites={sites}
                   onClose={() => setActiveTopTab('sites')}
                   onBulkImport={async (params) => {
-                    await handleBulkImport(params);
+                    const res = await handleBulkImport(params);
                     setActiveTopTab('sites');
+                    return res;
                   }}
                 />
               )}
@@ -6277,13 +6469,14 @@ export default function App() {
         </div>
       )}
 
-      {/* Bulk Paste (Ctrl+C / Ctrl+V), OneDrive & Excel Import Modal */}
+      {/* Bulk Paste (Ctrl+C / Ctrl+V) & Excel Import Modal */}
       <BulkPasteModal
         isOpen={bulkModalOpen}
         initialTab={bulkInitialTab}
         activeVendor={activeVendor}
         activeSheetName={activeSheetName === 'ALL' ? 'Controle Geral' : activeSheetName}
         sheets={sheets}
+        existingSites={sites}
         initialPastedText={pastedShortcutText}
         onClose={() => {
           setBulkModalOpen(false);

@@ -284,18 +284,22 @@ export const EricssonVistoriaTab: React.FC<EricssonVistoriaTabProps> = ({
         r.fields?.['EXECUTOR PPI'] ||
         r.fields?.['Executor'] ||
         ''
-      )
-        .trim()
-        .toLowerCase();
+      ).trim();
 
-      const rowEq = (r.fields?.['EQUIPE'] || '').trim().toLowerCase();
+      const rowEq = (r.fields?.['EQUIPE'] || r.equipe || '').trim();
 
-      return (
-        (myEmail && rowEx.includes(myEmail)) ||
-        (myName && (rowEx.includes(myName) || myName.includes(rowEx))) ||
-        (myEquipe && (rowEx.includes(myEquipe) || rowEq.includes(myEquipe))) ||
-        doesEricssonRowMatchResponsible(r as any, user)
-      );
+      if (!rowEx && !rowEq) {
+        return doesEricssonRowMatchResponsible(r as any, user);
+      }
+
+      const cleanEx = rowEx.toLowerCase();
+      const cleanEq = rowEq.toLowerCase();
+
+      const matchesEmail = Boolean(myEmail && cleanEx && cleanEx.includes(myEmail));
+      const matchesName = Boolean(myName && cleanEx && (cleanEx.includes(myName) || myName.includes(cleanEx)));
+      const matchesEquipe = Boolean(myEquipe && ((cleanEq && (cleanEq.includes(myEquipe) || myEquipe.includes(cleanEq))) || (cleanEx && (cleanEx.includes(myEquipe) || myEquipe.includes(cleanEx)))));
+
+      return matchesEmail || matchesName || matchesEquipe || doesEricssonRowMatchResponsible(r as any, user);
     });
   }, [isExecutor, engineeringRows, user]);
 
@@ -1234,7 +1238,37 @@ export const EricssonVistoriaTab: React.FC<EricssonVistoriaTabProps> = ({
         </div>
       </div>
 
-      {activeProjetoClaroSubTab === 'planilha' && hasExecutorEricssonDemands ? (
+      {isExecutor && !hasExecutorEricssonDemands ? (
+        <div className="bg-white border border-slate-200 rounded-2xl p-10 text-center space-y-4 shadow-2xs">
+          <div className="w-14 h-14 mx-auto rounded-2xl bg-amber-500/10 border border-amber-400/30 flex items-center justify-center text-amber-600">
+            <FileSpreadsheet className="w-7 h-7" />
+          </div>
+          <div className="max-w-md mx-auto space-y-1.5">
+            <h3 className="text-base font-black text-slate-900">
+              Nenhum site/demanda atribuído a você no momento
+            </h3>
+            <p className="text-xs text-slate-500 leading-relaxed">
+              Quando a coordenação demandar intervenções ou sites para a sua equipe, eles aparecerão automaticamente nesta lista em tempo real.
+            </p>
+          </div>
+        </div>
+      ) : isVistoriador && responsibleRows.length === 0 && ericssonFiles.length === 0 ? (
+        <div className="bg-white border border-slate-200 rounded-2xl p-10 text-center space-y-4 shadow-2xs">
+          <div className="w-14 h-14 mx-auto rounded-2xl bg-amber-500/10 border border-amber-400/30 flex items-center justify-center text-amber-600">
+            <FolderOpen className="w-7 h-7" />
+          </div>
+          <div className="max-w-md mx-auto space-y-1.5">
+            <h3 className="text-base font-black text-slate-900">
+              Nenhum site/vistoria demandado para você no momento
+            </h3>
+            <p className="text-xs text-slate-500 leading-relaxed">
+              Aguarde a atribuição de demandas pela coordenação no painel de gestão de vistorias.
+            </p>
+          </div>
+        </div>
+      ) : (
+        <>
+          {activeProjetoClaroSubTab === 'planilha' && hasExecutorEricssonDemands ? (
         /* =====================================================================
             MIRRORED ERICSSON ENGINEERING VIEW FOR EXECUTOR (READ-ONLY)
            ===================================================================== */
@@ -1657,6 +1691,8 @@ export const EricssonVistoriaTab: React.FC<EricssonVistoriaTabProps> = ({
           </div>
         )}
       </div>
+        </>
+      )}
       </>
       )}
 

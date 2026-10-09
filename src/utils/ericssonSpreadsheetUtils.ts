@@ -88,7 +88,7 @@ export function parseEricssonWorkbookBuffer(buffer: ArrayBuffer): {
     return { tabName: targetSheetName, columns: ERICSSON_ORIGINAL_COLUMNS, rows: [] };
   }
 
-  // Locate header row (usually row index 2 in ERICSSON CLARO TX where "01.00. Chaves" and "01.21.Site ID A" appear)
+  // Locate header row (usually row index 2 in ERICSSON CLARO TX where "01.00. Chaves" and "01.21.Site ID A" appear, or row 1 in Site list)
   let headerRowIndex = 0;
   for (let i = 0; i < Math.min(12, rawRows.length); i++) {
     const rowCells = (rawRows[i] || []).map((c) => normalizeHeader(c).toLowerCase());
@@ -96,7 +96,8 @@ export function parseEricssonWorkbookBuffer(buffer: ArrayBuffer): {
       (c) => c.includes('site id a') || c === '01.21.site id a'
     );
     const hasChaves = rowCells.some((c) => c.includes('chaves'));
-    if (hasSiteIdA || hasChaves) {
+    const hasIntervencao = rowCells.some((c) => c === 'asp' || c.includes('intervencao') || c.includes('tipo doc'));
+    if (hasSiteIdA || hasChaves || hasIntervencao) {
       headerRowIndex = i;
       break;
     }
@@ -909,17 +910,28 @@ export function parseEricssonEngineeringWorkbookBuffer(buffer: ArrayBuffer): {
     }
   }
 
-  const rawHeaders = (rawRows[headerRowIndex] || []).map((c) => normalizeHeader(c));
-  const detectedColumns: string[] = [];
-  rawHeaders.forEach((h, idx) => {
-    if (h) detectedColumns.push(h);
-    else if (idx < ERICSSON_SITE_LIST_COLUMNS.length) {
-      detectedColumns.push(ERICSSON_SITE_LIST_COLUMNS[idx]);
+  const rawHeaders = (rawRows[headerRowIndex] || []).map((c) => String(c || '').trim());
+  const canonical = [...ERICSSON_SITE_LIST_COLUMNS];
+  const canonicalNorm = canonical.map((c) => c.toLowerCase().replace(/\r?\n/g, ' ').replace(/\s+/g, ' '));
+  const columns: string[] = [];
+
+  canonical.forEach((c) => {
+    const cNorm = c.toLowerCase().replace(/\r?\n/g, ' ').replace(/\s+/g, ' ');
+    const found = rawHeaders.find((h) => h.toLowerCase().replace(/\r?\n/g, ' ').replace(/\s+/g, ' ') === cNorm);
+    if (found) {
+      columns.push(found);
+    } else {
+      columns.push(c);
     }
   });
 
-  const columns =
-    detectedColumns.length >= 10 ? detectedColumns : [...ERICSSON_SITE_LIST_COLUMNS];
+  rawHeaders.forEach((h) => {
+    if (!h) return;
+    const hNorm = h.toLowerCase().replace(/\r?\n/g, ' ').replace(/\s+/g, ' ');
+    if (!canonicalNorm.includes(hNorm) && !columns.includes(h)) {
+      columns.push(h);
+    }
+  });
 
   const parsedRows: EricssonEngineeringRow[] = [];
   const now = new Date().toISOString();
@@ -953,15 +965,17 @@ export function parseEricssonEngineeringWorkbookBuffer(buffer: ArrayBuffer): {
       siteIdB = parts[1] ? parts[1].trim() : '';
     }
 
-    const rowId = `eric-eng-${rIdx - headerRowIndex}`;
+    const rowSeq = rIdx - headerRowIndex;
+    const rowId = `eric_eng_${rowSeq}`;
     const statusVal = fields['Status'] || '';
     const tipoDocVal = fields['Tipo doc'] || '';
 
     parsedRows.push({
       id: rowId,
-      rowKey: `${intervencao}__${tipoDocVal}__${rIdx}`,
+      rowKey: `${intervencao}__${tipoDocVal}__${rowSeq}`,
+      rowIndex: rowSeq,
       intervencaoClaro: intervencao,
-      siteIdA: siteIdA || `SITE_${rIdx}`,
+      siteIdA: siteIdA || `SITE_${rowSeq}`,
       siteIdB: siteIdB,
       statusA: statusVal || 'Pendente',
       statusB: siteIdB ? statusVal || 'Pendente' : '',
@@ -996,10 +1010,11 @@ export function exportEricssonEngineeringToXlsx(
   fileName: string = 'Engenharia_Ericsson.xlsx'
 ): void {
   const cols = columns && columns.length > 0 ? columns : ERICSSON_SITE_LIST_COLUMNS;
-  const data = rows.map((r) => {
+  const sorted = [...rows].sort((a, b) => (a.rowIndex ?? 0) - (b.rowIndex ?? 0));
+  const data = sorted.map((r) => {
     const obj: Record<string, string> = {};
     cols.forEach((c) => {
-      obj[c] = r.fields?.[c] || '';
+      obj[c] = r.fields?.[c] ?? r.fields?.[c.replace(/\r?\n/g, ' ')] ?? '';
     });
     return obj;
   });
@@ -1016,10 +1031,14 @@ export function exportEricssonEngineeringToCsv(
   fileName: string = 'Engenharia_Ericsson.csv'
 ): void {
   const cols = columns && columns.length > 0 ? columns : ERICSSON_SITE_LIST_COLUMNS;
-  const headerLine = cols.map((c) => `"${c.replace(/"/g, '""')}"`).join(';');
-  const dataLines = rows.map((r) =>
+  const sorted = [...rows].sort((a, b) => (a.rowIndex ?? 0) - (b.rowIndex ?? 0));
+  const headerLine = cols.map((c) => `"${c.replace(/\r?\n/g, ' ').replace(/"/g, '""')}"`).join(';');
+  const dataLines = sorted.map((r) =>
     cols
-      .map((c) => `"${(r.fields?.[c] || '').replace(/"/g, '""')}"`)
+      .map((c) => {
+        const val = r.fields?.[c] ?? r.fields?.[c.replace(/\r?\n/g, ' ')] ?? '';
+        return `"${String(val).replace(/"/g, '""')}"`;
+      })
       .join(';')
   );
   const csvContent = [headerLine, ...dataLines].join('\r\n');

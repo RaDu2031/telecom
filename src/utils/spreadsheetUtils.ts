@@ -905,14 +905,27 @@ export function doesSiteMatchEquipe(site: TelecomSite, targetEquipe: string): bo
 export function doesSiteMatchExecutor(site: TelecomSite, targetExecutor: string): boolean {
   if (!targetExecutor || targetExecutor === 'ALL') return true;
   const rawExec = (
+    site.responsavelDemand ||
     getCellValueForColumn(site, 'Executor') ||
     getCellValueForColumn(site, 'TalonView Executor') ||
     site.responsavelCampo ||
+    site.equipeParceira ||
+    site.equipe ||
+    (site.customFields && site.customFields['EQUIPE EXECUTANTE']) ||
     ''
   ).trim();
+
   const canonSiteExec = getCanonicalExecutorName(rawExec);
   const canonTargetExec = getCanonicalExecutorName(targetExecutor);
-  return canonSiteExec.toLowerCase() === canonTargetExec.toLowerCase();
+  if (canonSiteExec.toLowerCase() === canonTargetExec.toLowerCase()) return true;
+
+  const normSite = normalizeAccents(rawExec.toLowerCase());
+  const normTarget = normalizeAccents(targetExecutor.toLowerCase());
+  if (normSite === normTarget) return true;
+  if (normSite && normTarget && (normSite.includes(normTarget) || normTarget.includes(normSite))) {
+    return true;
+  }
+  return false;
 }
 
 export const DEFAULT_EQUIPES_DUPLAS: string[] = [];
@@ -935,65 +948,164 @@ const GENERIC_NON_DUPLA_EQUIPES = new Set([
 
 export function doesSiteMatchResponsible(
   site: TelecomSite,
-  userOrName: { name: string; email?: string; equipe?: string } | string
+  userOrName: { uid?: string; id?: string; name?: string; email?: string; equipe?: string } | string,
+  linkedEmails: string[] = []
 ): boolean {
+  if (!site) return false;
+
   const rawSiteEq = (
+    site.responsavelDemand ||
+    site.responsavelCampo ||
+    site.equipeParceira ||
+    site.equipe ||
     getCellValueForColumn(site, 'EQUIPE EXECUTANTE') ||
     getCellValueForColumn(site, 'EQUIPE') ||
-    site.equipeParceira ||
+    getCellValueForColumn(site, 'Executor') ||
+    getCellValueForColumn(site, 'Responsável') ||
     ''
   ).trim();
-  const canonSiteEq = getCanonicalDuplaName(rawSiteEq);
+  const siteNorm = normalizeAccents(rawSiteEq.toLowerCase());
+  const canonSiteEq = getCanonicalDuplaName(rawSiteEq) || getCanonicalExecutorName(rawSiteEq);
 
-  const emailDuplaVal =
+  const emailDuplaVal = (
     (site.customFields &&
       (site.customFields['E-MAIL DUPLA'] ||
         site.customFields['EMAIL_DUPLA'])) ||
-    '';
+    ''
+  ).trim().toLowerCase();
 
-  // 1. If userOrName is a string (e.g. Dupla name in DuplasInteractiveView or responsavelDemandFilter)
+  const responsaveisEmails = Array.isArray(site.responsaveisEmails)
+    ? site.responsaveisEmails.map((e) => String(e).trim().toLowerCase())
+    : [];
+  const responsaveisUids = Array.isArray(site.responsaveisUids)
+    ? site.responsaveisUids.map((u) => String(u).trim())
+    : [];
+
+  const emailSet = new Set(
+    linkedEmails.map((e) => e.trim().toLowerCase()).filter(Boolean)
+  );
+
+  // 1. If userOrName is a string (e.g. Dupla name, Executor name or filter value)
   if (typeof userOrName === 'string') {
     const cleanStr = userOrName.trim();
-    if (!cleanStr) return false;
-    if (doesSiteMatchEquipe(site, cleanStr)) {
+    if (!cleanStr || cleanStr === 'ALL') return true;
+
+    if (cleanStr.includes('@')) {
+      const lower = cleanStr.toLowerCase();
+      if (emailDuplaVal.includes(lower) || responsaveisEmails.includes(lower) || emailSet.has(lower)) {
+        return true;
+      }
+    }
+
+    if (doesSiteMatchEquipe(site, cleanStr)) return true;
+    if (doesSiteMatchExecutor(site, cleanStr)) return true;
+
+    const normTarget = normalizeAccents(cleanStr.toLowerCase());
+    if (siteNorm && normTarget && siteNorm === normTarget) return true;
+
+    const canonTarget = getCanonicalDuplaName(cleanStr) || getCanonicalExecutorName(cleanStr);
+    if (canonSiteEq && canonTarget && canonSiteEq.toLowerCase() === canonTarget.toLowerCase()) {
       return true;
     }
-    if (cleanStr.includes('@') && emailDuplaVal.toLowerCase().includes(cleanStr.toLowerCase())) {
-      return true;
+
+    // Check linked emails
+    if (emailSet.size > 0) {
+      for (const em of emailSet) {
+        if (emailDuplaVal.includes(em) || responsaveisEmails.includes(em)) return true;
+      }
     }
+
+    // Exact word boundary match
+    if (siteNorm && normTarget) {
+      const siteWords = siteNorm.split(/[\s/\\-]+/).filter(Boolean);
+      const targetWords = normTarget.split(/[\s/\\-]+/).filter(Boolean);
+      if (siteWords.includes(normTarget) || targetWords.includes(siteNorm)) {
+        return true;
+      }
+    }
+
     return false;
   }
 
-  // 2. Direct Profile Email Link check ("vinculado com e-mail deles de perfil")
+  // 2. Direct UID Match
+  const userUid = userOrName.uid || userOrName.id;
+  if (userUid && responsaveisUids.includes(userUid)) {
+    return true;
+  }
+
+  // 3. Direct Email Match (in customFields['E-MAIL DUPLA'], site.responsaveisEmails or linkedEmails)
   if (userOrName.email) {
     const targetEmail = userOrName.email.trim().toLowerCase();
-    if (targetEmail && emailDuplaVal.toLowerCase().includes(targetEmail)) {
-      // If site also has a Dupla set and user has a specific Dupla set, ensure they don't conflict
-      const normUserEq = normalizeAccents(userOrName.equipe || '');
-      if (
-        canonSiteEq &&
-        normUserEq &&
-        !GENERIC_NON_DUPLA_EQUIPES.has(normUserEq)
-      ) {
-        return doesSiteMatchEquipe(site, userOrName.equipe!);
+    if (targetEmail) {
+      emailSet.add(targetEmail);
+      if (emailDuplaVal.includes(targetEmail) || responsaveisEmails.includes(targetEmail)) {
+        return true;
       }
-      return true;
     }
   }
 
-  // 3. Direct Dupla / Equipe Executante Link check on user profile object
+  if (emailSet.size > 0) {
+    for (const em of emailSet) {
+      if (emailDuplaVal.includes(em) || responsaveisEmails.includes(em)) return true;
+    }
+  }
+
+  // 4. Direct Dupla / Equipe Match on user profile object
   if (userOrName.equipe) {
-    const normUserEq = normalizeAccents(userOrName.equipe);
+    const normUserEq = normalizeAccents(userOrName.equipe.toLowerCase());
     if (normUserEq && !GENERIC_NON_DUPLA_EQUIPES.has(normUserEq)) {
-      return doesSiteMatchEquipe(site, userOrName.equipe);
+      if (doesSiteMatchEquipe(site, userOrName.equipe)) return true;
+      if (siteNorm && siteNorm === normUserEq) return true;
+      const cUserEq = getCanonicalDuplaName(userOrName.equipe);
+      if (canonSiteEq && cUserEq && canonSiteEq.toLowerCase() === cUserEq.toLowerCase()) return true;
+      const siteWords = siteNorm.split(/[\s/\\-]+/).filter(Boolean);
+      if (siteWords.includes(normUserEq)) return true;
     }
   }
 
-  // 4. Fallback to matching user's name against the site's canonical Dupla / Equipe Executante
+  // 5. User Name Match (as executor or part of dupla)
   if (userOrName.name) {
     const cleanUserName = userOrName.name.replace(/\s*\(.*?\)\s*/g, '').trim();
-    if (cleanUserName && doesSiteMatchEquipe(site, cleanUserName)) {
-      return true;
+    if (cleanUserName) {
+      if (doesSiteMatchExecutor(site, cleanUserName)) return true;
+      if (doesSiteMatchEquipe(site, cleanUserName)) return true;
+
+      const normUser = normalizeAccents(cleanUserName.toLowerCase());
+      if (normUser && siteNorm && siteNorm === normUser) return true;
+
+      const cUserName = getCanonicalExecutorName(cleanUserName);
+      if (canonSiteEq && cUserName && canonSiteEq.toLowerCase() === cUserName.toLowerCase()) return true;
+
+      if (normUser && siteNorm) {
+        const siteWords = siteNorm.split(/[\s/\\-]+/).filter(Boolean);
+        const nameWords = normUser.split(/[\s/\\-]+/).filter(Boolean);
+        if (siteWords.includes(normUser) || nameWords.includes(siteNorm)) {
+          return true;
+        }
+      }
+    }
+  }
+
+  // 6. Direct responsavelDemand or customFields['Executor'] check against name or equipe
+  const siteDemandResp = (
+    site.responsavelDemand ||
+    (site.customFields && site.customFields['Executor']) ||
+    (site.customFields && site.customFields['EQUIPE EXECUTANTE']) ||
+    ''
+  ).trim();
+  if (siteDemandResp) {
+    const normResp = normalizeAccents(siteDemandResp.toLowerCase());
+    if (userOrName.name) {
+      const normName = normalizeAccents(userOrName.name.replace(/\s*\(.*?\)\s*/g, '').trim().toLowerCase());
+      if (normName && (normResp === normName || normResp.includes(normName) || normName.includes(normResp))) {
+        return true;
+      }
+    }
+    if (userOrName.equipe) {
+      const normEq = normalizeAccents(userOrName.equipe.toLowerCase());
+      if (normEq && (normResp === normEq || normResp.includes(normEq) || normEq.includes(normResp))) {
+        return true;
+      }
     }
   }
 
@@ -1047,20 +1159,50 @@ export function doesEricssonRowMatchResponsible(
   row: EricssonRow,
   userOrName: { name: string; email?: string; equipe?: string } | string
 ): boolean {
-  const rowEqRaw = (row.equipe || row.fields?.['EQUIPE'] || '').trim();
-  const canonRowEq = getCanonicalDuplaName(rowEqRaw) || rowEqRaw;
-  const normRowEq = normalizeAccents(canonRowEq);
+  if (!row) return false;
+  const rawCandidates = [
+    row.equipe,
+    row.fields?.['EQUIPE'],
+    row.responsavelDemand,
+    row.responsavelCampo,
+    row.fields?.['Executor'],
+    row.fields?.['EXECUTOR'],
+    row.fields?.['Responsável'],
+    row.fields?.['EQUIPE EXECUTANTE'],
+    row.executor,
+  ]
+    .filter(Boolean)
+    .map((s) => String(s).trim())
+    .filter(
+      (s) =>
+        s.length > 0 &&
+        s !== '—' &&
+        s !== '-' &&
+        s.toLowerCase() !== 'a definir' &&
+        s.toLowerCase() !== 'sem executor' &&
+        s.toLowerCase() !== 'sem dupla' &&
+        s.toLowerCase() !== 'sem equipe'
+    );
+
   const emailDuplaVal = (row.fields?.['E-MAIL DUPLA'] || '').trim().toLowerCase();
+
+  if (rawCandidates.length === 0 && !emailDuplaVal) {
+    return false;
+  }
 
   if (typeof userOrName === 'string') {
     const cleanTarget = getCanonicalDuplaName(userOrName) || userOrName.trim();
     const normTarget = normalizeAccents(cleanTarget);
     if (!normTarget) return false;
-    return (
-      normRowEq === normTarget ||
-      normRowEq.includes(normTarget) ||
-      normTarget.includes(normRowEq)
-    );
+    return rawCandidates.some((cand) => {
+      const canonRowEq = getCanonicalDuplaName(cand) || cand;
+      const normRowEq = normalizeAccents(canonRowEq);
+      return (
+        normRowEq === normTarget ||
+        normRowEq.includes(normTarget) ||
+        normTarget.includes(normRowEq)
+      );
+    });
   }
 
   if (userOrName.email) {
@@ -1078,30 +1220,36 @@ export function doesEricssonRowMatchResponsible(
     }
   }
 
-  if (userOrName.equipe) {
-    const cleanUserEq = getCanonicalDuplaName(userOrName.equipe) || userOrName.equipe.trim();
-    const normUserEq = normalizeAccents(cleanUserEq);
-    if (normUserEq && !GENERIC_NON_DUPLA_EQUIPES.has(normUserEq) && normRowEq) {
-      if (
-        normRowEq === normUserEq ||
-        normRowEq.includes(normUserEq) ||
-        normUserEq.includes(normRowEq)
-      ) {
-        return true;
+  for (const cand of rawCandidates) {
+    const canonRowEq = getCanonicalDuplaName(cand) || cand;
+    const normRowEq = normalizeAccents(canonRowEq);
+    if (!normRowEq) continue;
+
+    if (userOrName.equipe) {
+      const cleanUserEq = getCanonicalDuplaName(userOrName.equipe) || userOrName.equipe.trim();
+      const normUserEq = normalizeAccents(cleanUserEq);
+      if (normUserEq && !GENERIC_NON_DUPLA_EQUIPES.has(normUserEq)) {
+        if (
+          normRowEq === normUserEq ||
+          normRowEq.includes(normUserEq) ||
+          normUserEq.includes(normRowEq)
+        ) {
+          return true;
+        }
       }
     }
-  }
 
-  if (userOrName.name) {
-    const cleanUserName = userOrName.name.replace(/\s*\(.*?\)\s*/g, '').trim();
-    const normUserName = normalizeAccents(cleanUserName);
-    if (normUserName && normRowEq) {
-      if (
-        normRowEq === normUserName ||
-        normRowEq.includes(normUserName) ||
-        normUserName.includes(normRowEq)
-      ) {
-        return true;
+    if (userOrName.name) {
+      const cleanUserName = userOrName.name.replace(/\s*\(.*?\)\s*/g, '').trim();
+      const normUserName = normalizeAccents(cleanUserName);
+      if (normUserName) {
+        if (
+          normRowEq === normUserName ||
+          normRowEq.includes(normUserName) ||
+          normUserName.includes(normRowEq)
+        ) {
+          return true;
+        }
       }
     }
   }

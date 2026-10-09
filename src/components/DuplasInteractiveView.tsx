@@ -17,6 +17,7 @@ import {
   ExternalLink,
   UserCheck,
   Link2,
+  AlertCircle,
 } from 'lucide-react';
 import { TelecomSite, AmetaUser, VendorType, EricssonRow } from '../types/telecom';
 import {
@@ -26,6 +27,10 @@ import {
   getCanonicalDuplaName,
   normalizeAccents,
 } from '../utils/spreadsheetUtils';
+import {
+  hasActiveResponsible,
+  getRegisteredUsersForDemanda,
+} from '../services/demandaSharedService';
 import {
   isSiteFeito,
   isSiteNotaPendente,
@@ -50,7 +55,8 @@ interface DuplasInteractiveViewProps {
     siteIds: string[],
     duplaName: string,
     linkedEmails: string[],
-    targetVendor: VendorType
+    targetVendor: VendorType,
+    allowTransfer?: boolean
   ) => Promise<void>;
   onUnassignSitesFromDupla: (
     siteIds: string[],
@@ -143,17 +149,9 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = ({
   const [editingDupla, setEditingDupla] = useState<string | null>(null);
   const [editingDuplaValue, setEditingDuplaValue] = useState<string>('');
 
-  // Vendor-isolated registered profiles (only Nokia users on Nokia, only Ericsson users on Ericsson)
+  // Registered profiles (unified across Nokia & Ericsson via shared function)
   const allRegisteredUsers = useMemo<AmetaUser[]>(() => {
-    const list = activeVendor === 'ERICSSON' ? (ericssonUsers || []) : (users || []);
-    const byEmail = new Map<string, AmetaUser>();
-    list.forEach((u) => {
-      const em = (u.email || '').trim().toLowerCase();
-      if (em) byEmail.set(em, u);
-    });
-    return Array.from(byEmail.values()).sort((a, b) =>
-      a.name.localeCompare(b.name, 'pt-BR')
-    );
+    return getRegisteredUsersForDemanda(users, ericssonUsers, activeVendor);
   }, [users, ericssonUsers, activeVendor]);
 
   // Local + server persisted map of Dupla -> linked profile emails
@@ -205,8 +203,25 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = ({
   // Site picker controls (left column of workspace)
   const [sitePickerSearch, setSitePickerSearch] = useState<string>('');
   const [sitePickerFilter, setSitePickerFilter] = useState<
-    'ALL' | 'SEM_DUPLA' | 'PARA_FAZER' | 'FEITOS'
-  >('ALL');
+    'ALL' | 'SEM_DUPLA' | 'PARA_FAZER' | 'FEITOS' | 'AGUARDANDO'
+  >('SEM_DUPLA');
+
+  // Batch transfer confirmation modal state
+  const [batchTransferModal, setBatchTransferModal] = useState<{
+    isOpen: boolean;
+    ownedItems: Array<{ id: string; name: string; owner: string }>;
+    freeItemIds: string[];
+    allItemIds: string[];
+  } | null>(null);
+
+  // Single transfer confirmation modal state
+  const [singleTransferModal, setSingleTransferModal] = useState<{
+    siteName: string;
+    currentOwner: string;
+    targetOwner: string;
+    siteIds: string[];
+    vendor: 'NOKIA' | 'ERICSSON';
+  } | null>(null);
   const [sitePickerUf, setSitePickerUf] = useState<string>('ALL');
   const [selectedSiteIds, setSelectedSiteIds] = useState<string[]>([]);
   const [isAssigning, setIsAssigning] = useState<boolean>(false);
@@ -336,7 +351,8 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = ({
   // Nokia sites for a given Dupla
   const getNokiaSitesForDupla = (duplaName: string): TelecomSite[] => {
     const linkedEmails = getLinkedEmailsForDupla(duplaName);
-    const matched = nokiaControleGeralSites.filter((s) => {
+    const matched = sites.filter((s) => {
+      if (s.vendor !== 'NOKIA') return false;
       if (doesSiteMatchEquipe(s, duplaName)) return true;
       if (doesSiteMatchResponsible(s, duplaName)) return true;
       return linkedEmails.some((em) =>
@@ -420,12 +436,24 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = ({
         if (uf !== sitePickerUf) return false;
       }
 
-      const eq = (getCellValueForColumn(s, 'EQUIPE EXECUTANTE') || s.equipeParceira || '').trim();
-      const hasDupla = eq !== '' && eq !== '—' && eq.toLowerCase() !== 'a definir';
+      const eq = (
+        s.responsavelDemand ||
+        getCellValueForColumn(s, 'EQUIPE EXECUTANTE') ||
+        s.equipeParceira ||
+        s.equipe ||
+        ''
+      ).trim();
+      const hasDupla = hasActiveResponsible(eq);
 
       if (sitePickerFilter === 'SEM_DUPLA' && hasDupla) return false;
       if (sitePickerFilter === 'PARA_FAZER' && isSiteFeito(s)) return false;
       if (sitePickerFilter === 'FEITOS' && !isSiteFeito(s)) return false;
+      if (sitePickerFilter === 'AGUARDANDO') {
+        const st = ((s as any).vistoriaStatus || s.status || getCellValueForColumn(s, 'STATUS Vistoria') || '').toLowerCase();
+        if (!st.includes('aguardando') && !st.includes('análise') && !st.includes('analise') && !st.includes('aprovação')) {
+          return false;
+        }
+      }
 
       if (tokens.length > 0) {
         const hay = `${s.siteId} ${getCellValueForColumn(s, 'END ID') || s.siteName} ${
@@ -468,12 +496,18 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = ({
       }
 
       const eq = (r.equipe || r.fields?.['EQUIPE'] || '').trim();
-      const hasDupla = eq !== '' && eq !== '—' && eq.toLowerCase() !== 'a definir';
+      const hasDupla = hasActiveResponsible(eq);
       const feito = isEricssonRowFeito(r);
 
       if (sitePickerFilter === 'SEM_DUPLA' && hasDupla) return false;
       if (sitePickerFilter === 'PARA_FAZER' && feito) return false;
       if (sitePickerFilter === 'FEITOS' && !feito) return false;
+      if (sitePickerFilter === 'AGUARDANDO') {
+        const st = (r.statusA || r.statusB || r.fields?.['Status'] || (r as any).status || '').toLowerCase();
+        if (!st.includes('aguardando') && !st.includes('análise') && !st.includes('analise')) {
+          return false;
+        }
+      }
 
       if (tokens.length > 0) {
         const hay = `${r.siteIdA} ${r.siteIdB} ${r.siteName} ${r.chaves} ${r.cidadeA} ${r.cidadeB} ${r.state} ${eq} ${r.servico}`.toLowerCase();
@@ -500,6 +534,25 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = ({
       ? assignedNokiaSitesForSelectedDupla.length
       : assignedEricssonRowsForSelectedDupla.length;
 
+  const unassignedVisibleCount = useMemo(() => {
+    if (activeVendor === 'NOKIA') {
+      return pickerNokiaSites.filter((s) => {
+        const eq = (
+          s.responsavelDemand ||
+          getCellValueForColumn(s, 'EQUIPE EXECUTANTE') ||
+          s.equipeParceira ||
+          s.equipe ||
+          ''
+        ).trim();
+        return !hasActiveResponsible(eq);
+      }).length;
+    }
+    return pickerEricssonRows.filter((r) => {
+      const eq = (r.equipe || r.fields?.['EQUIPE'] || '').trim();
+      return !hasActiveResponsible(eq);
+    }).length;
+  }, [activeVendor, pickerNokiaSites, pickerEricssonRows]);
+
   const toggleSelectSite = (token: string) => {
     setSelectedSiteIds((prev) =>
       prev.includes(token) ? prev.filter((id) => id !== token) : [...prev, token]
@@ -507,33 +560,110 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = ({
   };
 
   const handleSelectAllVisiblePicker = () => {
-    const visibleIds =
+    const visibleUnassigned =
       activeVendor === 'NOKIA'
-        ? pickerNokiaSites.slice(0, 100).map((s) => s.siteId)
-        : pickerEricssonRows.slice(0, 100).map((r) => r.id);
+        ? pickerNokiaSites
+            .filter((s) => {
+              const eq = (
+                s.responsavelDemand ||
+                getCellValueForColumn(s, 'EQUIPE EXECUTANTE') ||
+                s.equipeParceira ||
+                s.equipe ||
+                ''
+              ).trim();
+              return !hasActiveResponsible(eq);
+            })
+            .map((s) => s.siteId)
+        : pickerEricssonRows
+            .filter((r) => {
+              const eq = (r.equipe || r.fields?.['EQUIPE'] || '').trim();
+              return !hasActiveResponsible(eq);
+            })
+            .map((r) => r.id);
+
     const allSelected =
-      visibleIds.length > 0 && visibleIds.every((code) => selectedSiteIds.includes(code));
+      visibleUnassigned.length > 0 &&
+      visibleUnassigned.every((code) => selectedSiteIds.includes(code));
     if (allSelected) {
       setSelectedSiteIds([]);
     } else {
-      setSelectedSiteIds(visibleIds);
+      setSelectedSiteIds(visibleUnassigned);
+    }
+  };
+
+  const executeAssign = async (siteIdsToAssign: string[], allowTransfer: boolean) => {
+    if (siteIdsToAssign.length === 0 || !selectedDupla) return;
+    setIsAssigning(true);
+    try {
+      await onAssignSitesToDupla(
+        siteIdsToAssign,
+        selectedDupla,
+        activeDuplaLinkedEmails,
+        activeVendor,
+        allowTransfer
+      );
+      setSelectedSiteIds((prev) => prev.filter((id) => !siteIdsToAssign.includes(id)));
+    } finally {
+      setIsAssigning(false);
     }
   };
 
   const handleConfirmAssignSelected = async () => {
-    if (selectedSiteIds.length === 0) return;
-    setIsAssigning(true);
-    try {
-      await onAssignSitesToDupla(
-        selectedSiteIds,
-        selectedDupla,
-        activeDuplaLinkedEmails,
-        activeVendor
-      );
-      setSelectedSiteIds([]);
-    } finally {
-      setIsAssigning(false);
+    if (selectedSiteIds.length === 0 || !selectedDupla) return;
+
+    // Check if any selected site already has another responsible assigned
+    const ownedItems: Array<{ id: string; name: string; owner: string }> = [];
+    const freeItemIds: string[] = [];
+
+    if (activeVendor === 'NOKIA') {
+      pickerNokiaSites.forEach((s) => {
+        if (selectedSiteIds.includes(s.siteId)) {
+          const cur = (
+            s.responsavelDemand ||
+            getCellValueForColumn(s, 'EQUIPE EXECUTANTE') ||
+            s.equipeParceira ||
+            s.equipe ||
+            ''
+          ).trim();
+          if (hasActiveResponsible(cur) && cur.toLowerCase() !== selectedDupla.toLowerCase()) {
+            ownedItems.push({
+              id: s.siteId,
+              name: s.siteId,
+              owner: cur,
+            });
+          } else {
+            freeItemIds.push(s.siteId);
+          }
+        }
+      });
+    } else {
+      pickerEricssonRows.forEach((r) => {
+        if (selectedSiteIds.includes(r.id)) {
+          const cur = (r.equipe || r.fields?.['EQUIPE'] || '').trim();
+          if (hasActiveResponsible(cur) && cur.toLowerCase() !== selectedDupla.toLowerCase()) {
+            ownedItems.push({
+              id: r.id,
+              name: r.siteIdA || r.id,
+              owner: cur,
+            });
+          } else {
+            freeItemIds.push(r.id);
+          }
+        }
+      });
     }
+
+    if (ownedItems.length > 0) {
+      setBatchTransferModal({
+        isOpen: true,
+        ownedItems,
+        freeItemIds,
+        allItemIds: selectedSiteIds,
+      });
+      return;
+    }
+
+    await executeAssign(selectedSiteIds, false);
   };
 
   const handleClearAllForSelectedDupla = async () => {
@@ -1038,7 +1168,7 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = ({
                   <option value="">
                     {emailSearchQuery.trim()
                       ? `Encontrados (${filteredRegisteredUsers.length}) — toque para escolher...`
-                      : `Escolher na lista de e-mails (${allRegisteredUsers.length})...`}
+                      : `-- Escolher Usuário Cadastrado (${allRegisteredUsers.length}) --`}
                   </option>
                   {filteredRegisteredUsers.map((u) => {
                     const alreadyLinked = activeDuplaLinkedEmails.includes(
@@ -1170,19 +1300,20 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = ({
                 <div className="flex flex-wrap items-center gap-1">
                   {(
                     [
+                      { id: 'SEM_DUPLA', label: 'Sem Executor' },
                       { id: 'ALL', label: 'Todos' },
-                      { id: 'SEM_DUPLA', label: 'Sem Dupla' },
-                      { id: 'PARA_FAZER', label: 'Para Fazer' },
-                      { id: 'FEITOS', label: 'Feitos' },
+                      { id: 'PARA_FAZER', label: 'Pendente' },
+                      { id: 'FEITOS', label: 'Entregues' },
+                      { id: 'AGUARDANDO', label: 'Aguardando' },
                     ] as const
                   ).map((f) => (
                     <button
                       key={f.id}
                       type="button"
                       onClick={() => setSitePickerFilter(f.id)}
-                      className={`px-2 py-1 rounded-md text-[11px] font-medium cursor-pointer ${
+                      className={`px-2 py-1 rounded-md text-[11px] font-medium cursor-pointer transition-colors ${
                         sitePickerFilter === f.id
-                          ? 'bg-slate-900 text-white font-semibold'
+                          ? 'bg-slate-900 text-white font-semibold shadow-xs'
                           : 'bg-[#F3F4F6] hover:bg-slate-200 text-slate-600'
                       }`}
                     >
@@ -1216,18 +1347,18 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = ({
                   <span>
                     {selectedSiteIds.length > 0
                       ? `Desmarcar (${selectedSiteIds.length})`
-                      : `Selecionar todos visíveis (${Math.min(100, activePickerCount)})`}
+                      : `Selecionar todos (${unassignedVisibleCount})`}
                   </span>
                 </button>
 
                 <button
                   type="button"
-                  disabled={selectedSiteIds.length === 0 || isAssigning}
+                  disabled={selectedSiteIds.length === 0 || isAssigning || !selectedDupla}
                   onClick={handleConfirmAssignSelected}
                   className="w-full sm:w-auto justify-center px-4 py-3 sm:py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white text-xs font-black uppercase tracking-wide rounded-xl flex items-center gap-1.5 cursor-pointer shadow-sm"
                 >
                   <span>
-                    Demandar {selectedSiteIds.length > 0 ? `${selectedSiteIds.length} ` : ''}Site(s)
+                    Demandar {selectedSiteIds.length > 0 ? `${selectedSiteIds.length} ` : ''}linha(s)
                     para {selectedDupla}
                   </span>
                   <ArrowRight className="w-4 h-4 shrink-0" />
@@ -1241,8 +1372,10 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = ({
                 ? pickerNokiaSites.slice(0, 120).map((site) => {
                     const isChecked = selectedSiteIds.includes(site.siteId);
                     const currentEq = (
+                      site.responsavelDemand ||
                       getCellValueForColumn(site, 'EQUIPE EXECUTANTE') ||
                       site.equipeParceira ||
+                      site.equipe ||
                       ''
                     ).trim();
                     const feito = isSiteFeito(site);
@@ -1281,32 +1414,62 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = ({
                             </div>
                             <div className="text-[11px] text-slate-500 truncate mt-0.5">
                               {getCellValueForColumn(site, 'END ID') || site.siteName} ·{' '}
-                              {currentEq && currentEq !== '—' ? (
-                                <span className="text-slate-600">Atual: {currentEq}</span>
+                              {hasActiveResponsible(currentEq) ? (
+                                <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-900 bg-amber-100 border border-amber-300 px-2 py-0.5 rounded shadow-2xs">
+                                  <UserCheck className="w-3 h-3 text-amber-700" />
+                                  Demandado para: {currentEq}
+                                </span>
                               ) : (
-                                <span className="text-slate-400 italic">Sem dupla</span>
+                                <span className="text-[10px] text-emerald-700 font-semibold italic">Sem equipe</span>
                               )}
                             </div>
                           </div>
                         </div>
 
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onAssignSitesToDupla(
-                              [site.siteId],
-                              selectedDupla,
-                              activeDuplaLinkedEmails,
-                              'NOKIA'
-                            );
-                          }}
-                          className="px-2.5 py-1 bg-[#F3F4F6] hover:bg-blue-600 hover:text-white text-slate-700 border border-slate-200 rounded-lg text-[11px] font-semibold transition-colors flex items-center gap-1 shrink-0 cursor-pointer"
-                          title={`Mandar ${site.siteId} imediatamente para ${selectedDupla}`}
-                        >
-                          <span>Mandar</span>
-                          <ArrowRight className="w-3 h-3" />
-                        </button>
+                        {(() => {
+                          const isOwned =
+                            hasActiveResponsible(currentEq) &&
+                            currentEq.toLowerCase() !== selectedDupla.toLowerCase();
+                          return (
+                            <button
+                              type="button"
+                              onClick={async (e) => {
+                                e.stopPropagation();
+                                if (!selectedDupla) return;
+                                if (isOwned) {
+                                  setSingleTransferModal({
+                                    siteName: site.siteId,
+                                    currentOwner: currentEq,
+                                    targetOwner: selectedDupla,
+                                    siteIds: [site.siteId],
+                                    vendor: 'NOKIA',
+                                  });
+                                  return;
+                                }
+                                await onAssignSitesToDupla(
+                                  [site.siteId],
+                                  selectedDupla,
+                                  activeDuplaLinkedEmails,
+                                  'NOKIA',
+                                  false
+                                );
+                              }}
+                              className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-colors flex items-center gap-1 shrink-0 cursor-pointer shadow-2xs ${
+                                isOwned
+                                  ? 'bg-amber-50 hover:bg-amber-600 hover:text-white text-amber-800 border border-amber-300'
+                                  : 'bg-[#F3F4F6] hover:bg-blue-600 hover:text-white text-slate-700 border border-slate-200'
+                              }`}
+                              title={
+                                isOwned
+                                  ? `Transferir ${site.siteId} de ${currentEq} para ${selectedDupla}`
+                                  : `Mandar ${site.siteId} para ${selectedDupla}`
+                              }
+                            >
+                              <span>{isOwned ? 'Transferir' : 'Mandar'}</span>
+                              <ArrowRight className="w-3 h-3" />
+                            </button>
+                          );
+                        })()}
                       </div>
                     );
                   })
@@ -1356,32 +1519,62 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = ({
                             <div className="text-[11px] text-slate-500 truncate mt-0.5">
                               {row.chaves ? `Chave: ${row.chaves} · ` : ''}
                               {row.servico || 'Ericsson TX'} ·{' '}
-                              {currentEq && currentEq !== '—' ? (
-                                <span className="text-slate-600">Atual: {currentEq}</span>
+                              {hasActiveResponsible(currentEq) ? (
+                                <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-900 bg-amber-100 border border-amber-300 px-2 py-0.5 rounded shadow-2xs">
+                                  <UserCheck className="w-3 h-3 text-amber-700" />
+                                  Demandado para: {currentEq}
+                                </span>
                               ) : (
-                                <span className="text-slate-400 italic">Sem dupla</span>
+                                <span className="text-[10px] text-emerald-700 font-semibold italic">Sem equipe</span>
                               )}
                             </div>
                           </div>
                         </div>
 
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onAssignSitesToDupla(
-                              [row.id],
-                              selectedDupla,
-                              activeDuplaLinkedEmails,
-                              'ERICSSON'
-                            );
-                          }}
-                          className="px-2.5 py-1 bg-[#F3F4F6] hover:bg-blue-600 hover:text-white text-slate-700 border border-slate-200 rounded-lg text-[11px] font-semibold transition-colors flex items-center gap-1 shrink-0 cursor-pointer"
-                          title={`Mandar ${displayCode} imediatamente para ${selectedDupla}`}
-                        >
-                          <span>Mandar</span>
-                          <ArrowRight className="w-3 h-3" />
-                        </button>
+                        {(() => {
+                          const isOwned =
+                            hasActiveResponsible(currentEq) &&
+                            currentEq.toLowerCase() !== selectedDupla.toLowerCase();
+                          return (
+                            <button
+                              type="button"
+                              onClick={async (e) => {
+                                e.stopPropagation();
+                                if (!selectedDupla) return;
+                                if (isOwned) {
+                                  setSingleTransferModal({
+                                    siteName: displayCode,
+                                    currentOwner: currentEq,
+                                    targetOwner: selectedDupla,
+                                    siteIds: [row.id],
+                                    vendor: 'ERICSSON',
+                                  });
+                                  return;
+                                }
+                                await onAssignSitesToDupla(
+                                  [row.id],
+                                  selectedDupla,
+                                  activeDuplaLinkedEmails,
+                                  'ERICSSON',
+                                  false
+                                );
+                              }}
+                              className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-colors flex items-center gap-1 shrink-0 cursor-pointer shadow-2xs ${
+                                isOwned
+                                  ? 'bg-amber-50 hover:bg-amber-600 hover:text-white text-amber-800 border border-amber-300'
+                                  : 'bg-[#F3F4F6] hover:bg-blue-600 hover:text-white text-slate-700 border border-slate-200'
+                              }`}
+                              title={
+                                isOwned
+                                  ? `Transferir ${displayCode} de ${currentEq} para ${selectedDupla}`
+                                  : `Mandar ${displayCode} para ${selectedDupla}`
+                              }
+                            >
+                              <span>{isOwned ? 'Transferir' : 'Mandar'}</span>
+                              <ArrowRight className="w-3 h-3" />
+                            </button>
+                          );
+                        })()}
                       </div>
                     );
                   })}
@@ -1597,6 +1790,163 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = ({
         </div>
       </div>
       </div>
+
+      {/* Batch Transfer Modal */}
+      {batchTransferModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-2xs animate-fadeIn">
+          <div className="bg-white rounded-2xl max-w-lg w-full p-5 shadow-2xl border border-slate-200 space-y-4">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center shrink-0">
+                <AlertCircle className="w-6 h-6 text-amber-600" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <h4 className="text-sm font-bold text-slate-900">
+                  Aviso de Demanda em Lote: Sites com Responsável
+                </h4>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Você selecionou <strong className="text-slate-800">{batchTransferModal.allItemIds.length}</strong> site(s).
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setBatchTransferModal(null)}
+                className="text-slate-400 hover:text-slate-700 cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl space-y-2 text-xs">
+              <p className="font-bold text-amber-900">
+                {batchTransferModal.ownedItems.length} site(s) já possuem outra equipe atribuída:
+              </p>
+              <div className="max-h-36 overflow-y-auto space-y-1 pr-1">
+                {batchTransferModal.ownedItems.map((item) => (
+                  <div key={item.id} className="flex items-center justify-between text-[11px] bg-white px-2 py-1 rounded border border-amber-200">
+                    <span className="font-mono font-bold text-slate-800">{item.name}</span>
+                    <span className="text-amber-800 font-semibold">Atual: {item.owner}</span>
+                  </div>
+                ))}
+              </div>
+              {batchTransferModal.freeItemIds.length > 0 && (
+                <p className="text-emerald-800 font-semibold text-[11px] pt-1 border-t border-amber-200/60">
+                  {batchTransferModal.freeItemIds.length} site(s) estão livres (sem equipe).
+                </p>
+              )}
+            </div>
+
+            <p className="text-xs text-slate-600">
+              Deseja transferir todos os sites para <strong>"{selectedDupla}"</strong> ou ignorar os que já possuem dono e demandar apenas os sites livres?
+            </p>
+
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-2 pt-2 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setBatchTransferModal(null)}
+                className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold cursor-pointer"
+              >
+                Cancelar
+              </button>
+              {batchTransferModal.freeItemIds.length > 0 && (
+                <button
+                  type="button"
+                  onClick={async () => {
+                    const freeIds = batchTransferModal.freeItemIds;
+                    setBatchTransferModal(null);
+                    await executeAssign(freeIds, false);
+                  }}
+                  className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold cursor-pointer"
+                >
+                  Demandar apenas livres ({batchTransferModal.freeItemIds.length})
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={async () => {
+                  const allIds = batchTransferModal.allItemIds;
+                  setBatchTransferModal(null);
+                  await executeAssign(allIds, true);
+                }}
+                className="px-3.5 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold cursor-pointer"
+              >
+                Transferir todos ({batchTransferModal.allItemIds.length})
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Single Transfer Modal */}
+      {singleTransferModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-2xs animate-fadeIn">
+          <div className="bg-white rounded-2xl max-w-md w-full p-5 shadow-2xl border border-slate-200 space-y-4">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center shrink-0">
+                <AlertCircle className="w-6 h-6 text-amber-600" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <h4 className="text-sm font-bold text-slate-900">
+                  Confirmar Transferência de Demanda
+                </h4>
+                <p className="text-xs text-slate-500 font-mono mt-0.5 font-bold">
+                  {singleTransferModal.siteName}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSingleTransferModal(null)}
+                className="text-slate-400 hover:text-slate-700 cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="p-3.5 bg-amber-50 border border-amber-200 rounded-xl space-y-2 text-xs">
+              <p className="text-slate-700 leading-relaxed text-xs">
+                Este site já está demandado para{' '}
+                <strong className="text-amber-900 bg-amber-100/90 px-1.5 py-0.5 rounded border border-amber-300 font-bold">
+                  {singleTransferModal.currentOwner}
+                </strong>
+                . Deseja transferir para{' '}
+                <strong className="text-slate-900 font-bold">
+                  "{singleTransferModal.targetOwner}"
+                </strong>
+                ?
+              </p>
+              <p className="text-[11px] text-amber-800 pt-1 border-t border-amber-200/60">
+                Ao confirmar, o site sairá da tela da equipe anterior e irá para a nova (nunca fica nas duas).
+              </p>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setSingleTransferModal(null)}
+                className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  const { siteIds, targetOwner, vendor } = singleTransferModal;
+                  setSingleTransferModal(null);
+                  await onAssignSitesToDupla(
+                    siteIds,
+                    targetOwner,
+                    activeDuplaLinkedEmails,
+                    vendor,
+                    true
+                  );
+                }}
+                className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold cursor-pointer shadow-xs"
+              >
+                Confirmar Transferência
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

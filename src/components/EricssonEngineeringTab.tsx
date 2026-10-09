@@ -38,8 +38,8 @@ import {
   EngineeringFile,
   ERICSSON_SITE_LIST_COLUMNS,
   ERICSSON_REAL_STATUSES_BY_DOC,
-  DEFAULT_ERICSSON_ENG_ONEDRIVE_URL,
 } from '../types/telecom';
+import { INITIAL_ERICSSON_ENGINEERING_ROWS } from '../data/initialEricssonEngineering';
 import {
   computeEricssonConsolidatedStats,
   exportEricssonEngineeringToXlsx,
@@ -50,8 +50,45 @@ import {
   normalizeEricssonRealStatus,
   isEricssonRowReproved,
 } from '../utils/ericssonSpreadsheetUtils';
+
+/**
+ * Ensures columns strictly follow the canonical 51-column sequence from the OneDrive spreadsheet.
+ */
+export const sortColumnsToCanonical = (rawCols?: string[]): string[] => {
+  const canonical = [...ERICSSON_SITE_LIST_COLUMNS];
+  if (!rawCols || rawCols.length === 0) return canonical;
+
+  const canonicalNorm = canonical.map((c) =>
+    c.toLowerCase().replace(/\r?\n/g, ' ').replace(/\s+/g, ' ')
+  );
+  const ordered: string[] = [];
+
+  canonical.forEach((c) => {
+    const cNorm = c.toLowerCase().replace(/\r?\n/g, ' ').replace(/\s+/g, ' ');
+    const found = rawCols.find(
+      (rc) => rc.toLowerCase().replace(/\r?\n/g, ' ').replace(/\s+/g, ' ') === cNorm
+    );
+    if (found) {
+      ordered.push(found);
+    } else {
+      ordered.push(c);
+    }
+  });
+
+  rawCols.forEach((rc) => {
+    if (!rc) return;
+    const rcNorm = rc.toLowerCase().replace(/\r?\n/g, ' ').replace(/\s+/g, ' ');
+    if (!canonicalNorm.includes(rcNorm) && !ordered.includes(rc)) {
+      ordered.push(rc);
+    }
+  });
+
+  return ordered;
+};
 import { doesEricssonRowMatchResponsible } from '../utils/spreadsheetUtils';
-import { dataService } from '../services/dataService';
+import { dataService, FIRESTORE_COLLECTIONS } from '../services/dataService';
+import { db } from '../lib/firebaseClient';
+import { collection, onSnapshot } from 'firebase/firestore';
 import { EricssonConsolidatedTopPanel } from './EricssonConsolidatedTopPanel';
 import { EricssonEngineeringDrawer } from './EricssonEngineeringDrawer';
 import {
@@ -77,8 +114,26 @@ export const EricssonEngineeringTab: React.FC<EricssonEngineeringTabProps> = ({
   showToast,
 }) => {
   // Main data state
-  const [rows, setRows] = useState<EricssonEngineeringRow[]>([]);
-  const [reprovacoes, setReprovacoes] = useState<EricssonReprovacaoRecord[]>([]);
+  const [rows, setRows] = useState<EricssonEngineeringRow[]>(() => {
+    try {
+      const cached = localStorage.getItem('ameta_cached_ericsson_eng');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch {}
+    return INITIAL_ERICSSON_ENGINEERING_ROWS;
+  });
+  const [reprovacoes, setReprovacoes] = useState<EricssonReprovacaoRecord[]>(() => {
+    try {
+      const cached = localStorage.getItem('ameta_cached_ericsson_reprovacoes');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch {}
+    return [];
+  });
   const [columns, setColumns] = useState<string[]>([...ERICSSON_SITE_LIST_COLUMNS]);
   const [meta, setMeta] = useState<{
     id?: string;
@@ -89,7 +144,6 @@ export const EricssonEngineeringTab: React.FC<EricssonEngineeringTabProps> = ({
     totalRows?: number;
   }>({});
   const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [isSyncingOneDrive, setIsSyncingOneDrive] = useState<boolean>(false);
 
   const isExecutor = effectiveRole === 'Executor';
   const isVistoriador = effectiveRole === 'Vistoriador';
@@ -120,8 +174,6 @@ export const EricssonEngineeringTab: React.FC<EricssonEngineeringTabProps> = ({
   const [selectedDeliveryDocGroup, setSelectedDeliveryDocGroup] = useState<EricssonDocGroup | null>(null);
 
   // Modals
-  const [isOneDriveModalOpen, setIsOneDriveModalOpen] = useState<boolean>(false);
-  const [oneDriveInputUrl, setOneDriveInputUrl] = useState<string>(DEFAULT_ERICSSON_ENG_ONEDRIVE_URL);
   const [isNewRowModalOpen, setIsNewRowModalOpen] = useState<boolean>(false);
   const [editingRow, setEditingRow] = useState<EricssonEngineeringRow | null>(null);
   const [attachingFileRow, setAttachingFileRow] = useState<EricssonEngineeringRow | null>(null);
@@ -146,7 +198,18 @@ export const EricssonEngineeringTab: React.FC<EricssonEngineeringTabProps> = ({
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isUploadingFile, setIsUploadingFile] = useState<boolean>(false);
 
-  // Fetch initial data from Firestore
+  // Fetch initial data & subscribe to real-time updates from Firestore
+  const updateColumnsFromRows = (rowList: EricssonEngineeringRow[]) => {
+    if (!rowList || rowList.length === 0) return;
+    const firstWithFields = rowList.find((r) => r.fields && Object.keys(r.fields).length >= 5);
+    if (firstWithFields && firstWithFields.fields) {
+      const keys = Object.keys(firstWithFields.fields);
+      setColumns(sortColumnsToCanonical(keys));
+    } else {
+      setColumns([...ERICSSON_SITE_LIST_COLUMNS]);
+    }
+  };
+
   const loadData = async () => {
     try {
       setIsLoading(true);
@@ -157,35 +220,11 @@ export const EricssonEngineeringTab: React.FC<EricssonEngineeringTabProps> = ({
 
       if (Array.isArray(engRows) && engRows.length > 0) {
         setRows(engRows as EricssonEngineeringRow[]);
+        updateColumnsFromRows(engRows as EricssonEngineeringRow[]);
       } else {
-        // Fallback: carregar sites da coleção ericsson_sites
-        const sites = await dataService.carregarSitesEricsson();
-        if (Array.isArray(sites) && sites.length > 0) {
-          const mapped: EricssonEngineeringRow[] = sites.map((s, idx) => {
-            const intervencao = (
-              s.fields?.['Intervencao Claro'] ||
-              s.fields?.['Intervenção Claro'] ||
-              `${s.siteIdA || ''}${s.siteIdB ? `-${s.siteIdB}` : ''}`
-            ).trim();
-            return {
-              id: s.id || `eric_eng_${idx}`,
-              rowKey: s.rowKey || `${intervencao}_${idx}`,
-              intervencaoClaro: intervencao,
-              siteIdA: s.siteIdA || '',
-              siteIdB: s.siteIdB || '',
-              statusA: s.statusA || s.siteAVistoriaStatus || 'Pendente',
-              statusB: s.statusB || s.siteBVistoriaStatus || '',
-              tipoDoc: s.fields?.['Tipo doc'] || 'WR',
-              status: s.fields?.['Status'] || s.statusA || '',
-              regional: s.state || s.fields?.['Regional'] || '',
-              tipoSite: s.fields?.['TIPO SITE'] || '',
-              executor: s.equipe || s.fields?.['EXECUTOR'] || '',
-              fields: s.fields || {},
-              updatedAt: s.updatedAt || new Date().toISOString(),
-            };
-          });
-          setRows(mapped);
-        }
+        // Inicializa com as 250 linhas reais da planilha do OneDrive na ordem exata
+        setRows(INITIAL_ERICSSON_ENGINEERING_ROWS);
+        setColumns([...ERICSSON_SITE_LIST_COLUMNS]);
       }
 
       if (Array.isArray(repRows) && repRows.length > 0) {
@@ -200,7 +239,52 @@ export const EricssonEngineeringTab: React.FC<EricssonEngineeringTabProps> = ({
 
   useEffect(() => {
     loadData();
+
+    // Iniciar escutas em tempo real das coleções ericsson_engenharia e ericsson_reprovacoes
+    const unsubEng = onSnapshot(
+      collection(db, FIRESTORE_COLLECTIONS.ERICSSON_ENGENHARIA),
+      (snap) => {
+        if (!snap.empty) {
+          const fetched = snap.docs.map((d) => ({ id: d.id, ...d.data() } as EricssonEngineeringRow));
+          setRows(fetched);
+          updateColumnsFromRows(fetched);
+        }
+      },
+      (err) => console.error('Erro na escuta de ericsson_engenharia:', err)
+    );
+
+    const unsubRep = onSnapshot(
+      collection(db, FIRESTORE_COLLECTIONS.ERICSSON_REPROVACOES),
+      (snap) => {
+        if (!snap.empty) {
+          const fetched = snap.docs.map((d) => ({ id: d.id, ...d.data() } as EricssonReprovacaoRecord));
+          setReprovacoes(fetched);
+        }
+      },
+      (err) => console.error('Erro na escuta de ericsson_reprovacoes:', err)
+    );
+
+    return () => {
+      unsubEng();
+      unsubRep();
+    };
   }, []);
+
+  useEffect(() => {
+    if (rows && rows.length > 0) {
+      try {
+        localStorage.setItem('ameta_cached_ericsson_eng', JSON.stringify(rows));
+      } catch {}
+    }
+  }, [rows]);
+
+  useEffect(() => {
+    if (reprovacoes && reprovacoes.length > 0) {
+      try {
+        localStorage.setItem('ameta_cached_ericsson_reprovacoes', JSON.stringify(reprovacoes));
+      } catch {}
+    }
+  }, [reprovacoes]);
 
   // Register Reprovação handler in Firestore
   const handleRegisterReprovacao = async (record: Omit<EricssonReprovacaoRecord, 'id' | 'createdAt'>) => {
@@ -310,17 +394,18 @@ export const EricssonEngineeringTab: React.FC<EricssonEngineeringTabProps> = ({
           r.fields?.['EXECUTOR PPI'] ||
           r.fields?.['Executor'] ||
           ''
-        )
-          .trim()
-          .toLowerCase();
+        ).trim();
 
-        const rowEq = (r.fields?.['EQUIPE'] || '').trim().toLowerCase();
+        const rowEq = (r.fields?.['EQUIPE'] || r.equipe || '').trim();
 
-        const matchesEx =
-          (myEmail && rowEx.includes(myEmail)) ||
-          (myName && (rowEx.includes(myName) || myName.includes(rowEx))) ||
-          (myEquipe && (rowEx.includes(myEquipe) || rowEq.includes(myEquipe))) ||
-          doesEricssonRowMatchResponsible(r as any, user);
+        const cleanEx = rowEx.toLowerCase();
+        const cleanEq = rowEq.toLowerCase();
+
+        const matchesEmail = Boolean(myEmail && cleanEx && cleanEx.includes(myEmail));
+        const matchesName = Boolean(myName && cleanEx && (cleanEx.includes(myName) || myName.includes(cleanEx)));
+        const matchesEquipe = Boolean(myEquipe && ((cleanEq && (cleanEq.includes(myEquipe) || myEquipe.includes(cleanEq))) || (cleanEx && (cleanEx.includes(myEquipe) || myEquipe.includes(cleanEx)))));
+
+        const matchesEx = matchesEmail || matchesName || matchesEquipe || doesEricssonRowMatchResponsible(r as any, user);
 
         if (!matchesEx) return false;
 
@@ -498,10 +583,12 @@ export const EricssonEngineeringTab: React.FC<EricssonEngineeringTabProps> = ({
 
   // Sorted rows
   const sortedRows = useMemo(() => {
-    if (!sortColumn) return filteredRows;
+    if (!sortColumn) {
+      return [...filteredRows].sort((a, b) => (a.rowIndex ?? 0) - (b.rowIndex ?? 0));
+    }
     return [...filteredRows].sort((a, b) => {
-      let valA = String(a.fields?.[sortColumn] ?? (a as any)[sortColumn] ?? '').trim();
-      let valB = String(b.fields?.[sortColumn] ?? (b as any)[sortColumn] ?? '').trim();
+      let valA = String(a.fields?.[sortColumn] ?? a.fields?.[sortColumn.replace(/\r?\n/g, ' ')] ?? (a as any)[sortColumn] ?? '').trim();
+      let valB = String(b.fields?.[sortColumn] ?? b.fields?.[sortColumn.replace(/\r?\n/g, ' ')] ?? (b as any)[sortColumn] ?? '').trim();
 
       // Special fallback for EXECUTOR column
       if (sortColumn === 'EXECUTOR') {
@@ -556,16 +643,30 @@ export const EricssonEngineeringTab: React.FC<EricssonEngineeringTabProps> = ({
     pageSize,
   ]);
 
-  // Sync OneDrive
-  const handleSyncOneDrive = async (_targetUrl: string) => {
-    setIsSyncingOneDrive(false);
-    setIsOneDriveModalOpen(false);
-    showToast(
-      'Para importar no momento, selecione seu arquivo .xlsx pelo botão "Importar Planilha (.xlsx)". O suporte a proxy OneDrive via Worker Cloudflare está em avaliação.'
-    );
+  // Import default initial rows from the OneDrive spreadsheet into Firestore
+  const handleImportInitialRows = async () => {
+    try {
+      showToast(`Gravando dados iniciais da planilha (${INITIAL_ERICSSON_ENGINEERING_ROWS.length} linhas) no Firestore...`);
+      const res = await dataService.importarEricssonEngenhariaEmLote(INITIAL_ERICSSON_ENGINEERING_ROWS, {
+        mode: 'append_only',
+      });
+      if (res.errorMessage) {
+        showToast(res.errorMessage);
+      } else {
+        setRows((prev) => {
+          const existingIds = new Set(prev.map((p) => p.id));
+          const toAdd = INITIAL_ERICSSON_ENGINEERING_ROWS.filter((r) => !existingIds.has(r.id));
+          return [...prev, ...toAdd];
+        });
+        setColumns([...ERICSSON_SITE_LIST_COLUMNS]);
+        showToast(`Dados iniciais gravados no Firestore (+${res.novas} novos, ${res.jaExistiam} já existiam).`);
+      }
+    } catch (err: any) {
+      showToast(`Erro ao gravar dados iniciais: ${err?.message || err}`);
+    }
   };
 
-  // Local Excel file upload directly to Firestore in batches
+  // Local Excel file upload directly to Firestore in batches (Append-Only)
   const handleUploadLocalFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -590,10 +691,10 @@ export const EricssonEngineeringTab: React.FC<EricssonEngineeringTabProps> = ({
         raw: false,
       });
 
-      // Find header row
+      // Find header row (skip row 0 if it has numbers/counts like 4352, 4352...)
       let headerRowIndex = 0;
       for (let i = 0; i < Math.min(10, rawRows.length); i++) {
-        const rowCells = (rawRows[i] || []).map((c) => String(c || '').toLowerCase());
+        const rowCells = (rawRows[i] || []).map((c) => String(c || '').toLowerCase().trim());
         if (rowCells.some((c) => c === 'asp' || c.includes('intervencao') || c.includes('tipo doc'))) {
           headerRowIndex = i;
           break;
@@ -601,7 +702,7 @@ export const EricssonEngineeringTab: React.FC<EricssonEngineeringTabProps> = ({
       }
 
       const rawHeaders = (rawRows[headerRowIndex] || []).map((c) => String(c || '').trim());
-      const cols = rawHeaders.length >= 10 ? rawHeaders : [...ERICSSON_SITE_LIST_COLUMNS];
+      const cols = sortColumnsToCanonical(rawHeaders.filter(Boolean));
 
       const parsed: EricssonEngineeringRow[] = [];
       const now = new Date().toISOString();
@@ -628,11 +729,13 @@ export const EricssonEngineeringTab: React.FC<EricssonEngineeringTabProps> = ({
           siteB = parts[1] ? parts[1].trim() : '';
         }
 
-        parsed.push({
-          id: `eric_eng_${r}_${Date.now()}`,
-          rowKey: `${intervencao}__${fields['Tipo doc'] || ''}__${r}`,
+        const rowSeq = r - headerRowIndex;
+        const newRowItem: EricssonEngineeringRow = {
+          id: `eric_eng_${rowSeq}_${Date.now()}`,
+          rowKey: `${intervencao}__${fields['Tipo doc'] || ''}__${rowSeq}`,
+          rowIndex: rowSeq,
           intervencaoClaro: intervencao,
-          siteIdA: siteA || `SITE_${r}`,
+          siteIdA: siteA || `SITE_${rowSeq}`,
           siteIdB: siteB,
           statusA: fields['Status'] || 'Pendente',
           statusB: siteB ? fields['Status'] || 'Pendente' : '',
@@ -640,26 +743,38 @@ export const EricssonEngineeringTab: React.FC<EricssonEngineeringTabProps> = ({
           status: fields['Status'] || '',
           regional: fields['Regional'] || '',
           tipoSite: fields['TIPO SITE'] || '',
-          executor: fields['EXECUTOR'] || '',
+          executor: fields['EXECUTOR'] || fields['EXECUTOR WR'] || fields['EXECUTOR QRF'] || fields['EXECUTOR PPI'] || fields['Executor'] || '',
           fields,
           siteAVistoriaStatus: 'Pendente',
-          siteBVistoriaStatus: siteB ? 'Pendente' : undefined,
           updatedAt: now,
-        });
+        };
+
+        if (siteB) {
+          newRowItem.siteBVistoriaStatus = 'Pendente';
+        }
+
+        parsed.push(newRowItem);
       }
 
-      // Gravando em lote diretamente no Firestore
-      showToast(`Gravando ${parsed.length} linhas no Firestore (ericsson_engenharia)...`);
-      await dataService.importarEricssonEngenhariaEmLote(parsed);
-      setRows(parsed);
-      setColumns(cols);
-      setMeta({
-        tabName: sheetName,
-        sourceFileName: file.name,
-        lastSyncAt: now,
-        totalRows: parsed.length,
+      // Gravando em lotes de 20 com proteção apenas acrescentar
+      showToast(`Analisando e gravando ${parsed.length} linhas no Firestore (ericsson_engenharia)...`);
+      const res = await dataService.importarEricssonEngenhariaEmLote(parsed, {
+        mode: 'append_only',
       });
-      showToast(`Planilha importada com sucesso! (${parsed.length} linhas gravadas no Firestore)`);
+
+      if (res.errorMessage) {
+        showToast(res.errorMessage);
+      } else {
+        setRows((prev) => [...prev, ...parsed]);
+        setColumns(cols);
+        setMeta({
+          tabName: sheetName,
+          sourceFileName: file.name,
+          lastSyncAt: now,
+          totalRows: parsed.length,
+        });
+        showToast(`Planilha importada! (+${res.novas} novas gravadas, ${res.jaExistiam} já existiam mantidas).`);
+      }
     } catch (err: any) {
       console.error(err);
       showToast(`Falha ao processar arquivo .xlsx no Firestore: ${err?.message || err}`);
@@ -866,31 +981,28 @@ export const EricssonEngineeringTab: React.FC<EricssonEngineeringTabProps> = ({
           <div className="flex flex-wrap items-center gap-2">
             {!isUserRestricted && (
               <>
-                {/* Sync OneDrive */}
-                <button
-                  type="button"
-                  onClick={() => setIsOneDriveModalOpen(true)}
-                  disabled={isSyncingOneDrive}
-                  className="px-3.5 py-2 bg-[#1E8E8D] hover:bg-[#177271] text-white text-xs font-bold rounded-xl transition-all shadow-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
-                  title="Sincronizar planilha com o OneDrive do Excel Online"
-                >
-                  <RefreshCw
-                    className={`w-3.5 h-3.5 ${isSyncingOneDrive ? 'animate-spin' : ''}`}
-                  />
-                  <span>{isSyncingOneDrive ? 'Sincronizando...' : 'Sincronizar OneDrive'}</span>
-                </button>
-
                 {/* Upload Local .XLSX */}
-                <label className="px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold rounded-xl transition-all shadow-xs flex items-center gap-1.5 cursor-pointer">
-                  <Upload className="w-3.5 h-3.5 text-amber-400" />
-                  <span>Carregar .XLSX</span>
+                <label className="px-3.5 py-2 bg-emerald-700 hover:bg-emerald-600 text-white text-xs font-bold rounded-xl transition-all shadow-xs flex items-center gap-1.5 cursor-pointer">
+                  <Upload className="w-3.5 h-3.5 text-emerald-200" />
+                  <span>Selecionar Planilha Excel (.xlsx)</span>
                   <input
                     type="file"
-                    accept=".xlsx,.xls"
+                    accept=".xlsx,.xls,.csv"
                     onChange={handleUploadLocalFile}
                     className="hidden"
                   />
                 </label>
+
+                {/* Importar Dados Iniciais da Planilha */}
+                <button
+                  type="button"
+                  onClick={handleImportInitialRows}
+                  className="px-3.5 py-2 bg-blue-700 hover:bg-blue-600 text-white text-xs font-bold rounded-xl transition-all shadow-xs flex items-center gap-1.5 cursor-pointer"
+                  title="Gravar as 250 linhas iniciais da planilha no Firestore com segurança (append-only)"
+                >
+                  <FileSpreadsheet className="w-3.5 h-3.5 text-blue-200" />
+                  <span>Importar Dados Iniciais</span>
+                </button>
 
                 {/* + Nova Linha */}
                 <button
@@ -1338,7 +1450,7 @@ export const EricssonEngineeringTab: React.FC<EricssonEngineeringTabProps> = ({
                       title={`Clique para ordenar por ${colName}`}
                     >
                       <div className="flex items-center gap-1.5">
-                        <span>{colName}</span>
+                        <span>{colName.replace(/\r?\n/g, ' ')}</span>
                         <span className="text-slate-400 group-hover:text-white shrink-0">
                           {isSorted ? (
                             sortDirection === 'asc' ? (
@@ -1376,7 +1488,7 @@ export const EricssonEngineeringTab: React.FC<EricssonEngineeringTabProps> = ({
                     <FileSpreadsheet className="w-8 h-8 mx-auto mb-2 text-slate-300" />
                     <p className="font-bold text-slate-700 text-sm">Nenhuma linha encontrada</p>
                     <p className="text-xs text-slate-400 mt-1">
-                      Ajuste os filtros de busca ou sincronize com o OneDrive.
+                      Ajuste os filtros de busca ou importe uma planilha Excel (.xlsx).
                     </p>
                   </td>
                 </tr>
@@ -1411,7 +1523,7 @@ export const EricssonEngineeringTab: React.FC<EricssonEngineeringTabProps> = ({
                           return null;
                         }
 
-                        const cellVal = row.fields?.[colName] ?? '';
+                        const cellVal = row.fields?.[colName] ?? row.fields?.[colName.replace(/\r?\n/g, ' ')] ?? '';
 
                         // Special badge styling for Tipo doc
                         if (colName === 'Tipo doc' && cellVal) {
@@ -1559,74 +1671,6 @@ export const EricssonEngineeringTab: React.FC<EricssonEngineeringTabProps> = ({
           </div>
         </div>
       </div>
-
-      {/* =====================================================================
-          5. MODAL: SINCRONIZAR ONEDRIVE
-         ===================================================================== */}
-      {isOneDriveModalOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-lg w-full p-5 space-y-4 shadow-xl border border-slate-200 animate-in fade-in zoom-in-95">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-lg bg-teal-500 text-white flex items-center justify-center">
-                  <RefreshCw className="w-4 h-4" />
-                </div>
-                <h3 className="text-sm font-bold text-slate-900">
-                  Sincronizar com o OneDrive (Excel Online)
-                </h3>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsOneDriveModalOpen(false)}
-                className="text-slate-400 hover:text-slate-600 cursor-pointer"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <div className="space-y-3 text-xs">
-              <p className="text-slate-600 leading-relaxed">
-                Insira o link compartilhado da planilha da Ericsson no OneDrive.
-                O sistema carrega todas as 51 colunas exatas da aba{' '}
-                <strong>Site list</strong> e atualiza o consolidado em tempo real.
-              </p>
-              <div>
-                <label className="block font-bold text-slate-700 mb-1">
-                  Link do OneDrive (.XLSX):
-                </label>
-                <input
-                  type="text"
-                  value={oneDriveInputUrl}
-                  onChange={(e) => setOneDriveInputUrl(e.target.value)}
-                  placeholder="https://onedrive.live.com/:x:/g/personal/..."
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl font-mono text-xs focus:outline-none focus:border-teal-500 focus:bg-white"
-                />
-              </div>
-            </div>
-
-            <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
-              <button
-                type="button"
-                onClick={() => setIsOneDriveModalOpen(false)}
-                className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100 cursor-pointer"
-              >
-                Cancelar
-              </button>
-              <button
-                type="button"
-                disabled={isSyncingOneDrive || !oneDriveInputUrl.trim()}
-                onClick={() => handleSyncOneDrive(oneDriveInputUrl.trim())}
-                className="px-4 py-2 rounded-xl text-xs font-bold bg-[#1E8E8D] hover:bg-[#177271] text-white shadow-xs cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
-              >
-                <RefreshCw
-                  className={`w-3.5 h-3.5 ${isSyncingOneDrive ? 'animate-spin' : ''}`}
-                />
-                <span>{isSyncingOneDrive ? 'Baixando...' : 'Carregar e Atualizar'}</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* =====================================================================
           6. MODAL: NOVA LINHA / EDITAR LINHA

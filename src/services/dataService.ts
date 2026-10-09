@@ -29,6 +29,7 @@ import {
   EngineeringFolder,
   EngineeringFile,
   EricssonRow,
+  EricssonEngineeringRow,
   UserRole,
   AssignedPlatformScope,
   UserSituacao,
@@ -58,6 +59,24 @@ export const FIRESTORE_COLLECTIONS = {
   CHAMADOS: 'chamados',
   APP_META: 'app_meta',
 } as const;
+
+export function sanitizeFirestoreData<T>(data: T): T {
+  if (data === undefined) return null as unknown as T;
+  if (data === null) return null as unknown as T;
+  if (Array.isArray(data)) {
+    return data.map((item) => sanitizeFirestoreData(item)) as unknown as T;
+  }
+  if (typeof data === 'object' && !(data instanceof Date)) {
+    const clean: Record<string, any> = {};
+    for (const [k, v] of Object.entries(data as Record<string, any>)) {
+      if (v !== undefined) {
+        clean[k] = sanitizeFirestoreData(v);
+      }
+    }
+    return clean as unknown as T;
+  }
+  return data;
+}
 
 export function sanitizeSiteDocId(rawSiteId: string, sheetName?: string): string {
   const cleanSite = (rawSiteId || '')
@@ -216,23 +235,60 @@ export interface IDataService {
   importarSitesNokiaEmLote(
     sites: TelecomSite[],
     users?: AmetaUser[],
-    duplaEmailsMap?: Record<string, string[]>
-  ): Promise<{ totalGravados: number; lotesExecutados: number }>;
+    duplaEmailsMap?: Record<string, string[]>,
+    options?: {
+      mode?: 'append_only' | 'fill_empty';
+      onProgress?: (info: { gravados: number; total: number; lote: number; totalLotes: number }) => void;
+    }
+  ): Promise<{
+    totalAnalisados: number;
+    novas: number;
+    jaExistiam: number;
+    comErro: number;
+    totalGravados: number;
+    lotesExecutados: number;
+    errorMessage?: string;
+  }>;
   importarSitesEricssonEmLote(
     rows: EricssonRow[],
     users?: AmetaUser[],
-    duplaEmailsMap?: Record<string, string[]>
-  ): Promise<{ totalGravados: number; lotesExecutados: number }>;
+    duplaEmailsMap?: Record<string, string[]>,
+    options?: {
+      mode?: 'append_only' | 'fill_empty';
+      onProgress?: (info: { gravados: number; total: number; lote: number; totalLotes: number }) => void;
+    }
+  ): Promise<{
+    totalAnalisados: number;
+    novas: number;
+    jaExistiam: number;
+    comErro: number;
+    totalGravados: number;
+    lotesExecutados: number;
+    errorMessage?: string;
+  }>;
   importarTssrNokiaEmLote(
     rows: TssrRow[],
-    users?: AmetaUser[]
-  ): Promise<{ totalGravados: number; lotesExecutados: number }>;
+    users?: AmetaUser[],
+    options?: {
+      mode?: 'append_only' | 'fill_empty';
+      onProgress?: (info: { gravados: number; total: number; lote: number; totalLotes: number }) => void;
+    }
+  ): Promise<{
+    totalAnalisados: number;
+    novas: number;
+    jaExistiam: number;
+    comErro: number;
+    totalGravados: number;
+    lotesExecutados: number;
+    errorMessage?: string;
+  }>;
   salvarSiteNokia(
     site: TelecomSite,
     users?: AmetaUser[],
     duplaEmailsMap?: Record<string, string[]>
   ): Promise<void>;
   excluirSiteNokia(siteId: string): Promise<void>;
+  carregarSitesNokia(): Promise<TelecomSite[]>;
   salvarSiteEricsson(
     row: EricssonRow,
     users?: AmetaUser[],
@@ -242,7 +298,21 @@ export interface IDataService {
   carregarSitesEricsson(): Promise<EricssonRow[]>;
   salvarTssrNokia(row: TssrRow): Promise<void>;
   excluirTssrNokia(rowId: string): Promise<void>;
-  importarEricssonEngenhariaEmLote(rows: any[]): Promise<{ totalGravados: number }>;
+  importarEricssonEngenhariaEmLote(
+    rows: any[],
+    options?: {
+      mode?: 'append_only' | 'fill_empty';
+      onProgress?: (info: { gravados: number; total: number; lote: number; totalLotes: number }) => void;
+    }
+  ): Promise<{
+    totalAnalisados: number;
+    novas: number;
+    jaExistiam: number;
+    comErro: number;
+    totalGravados: number;
+    lotesExecutados: number;
+    errorMessage?: string;
+  }>;
   carregarEricssonEngenharia(): Promise<any[]>;
   carregarEricssonReprovacoes(): Promise<any[]>;
   salvarEricssonEngenhariaRow(row: any): Promise<void>;
@@ -286,6 +356,7 @@ export interface IDataService {
     vendor: 'NOKIA' | 'ERICSSON';
     actorEmail?: string;
     actorName?: string;
+    allowTransfer?: boolean;
   }): Promise<{ updatedCount: number }>;
   desvincularDemandaSites(params: {
     siteTokens: string[];
@@ -360,6 +431,7 @@ export interface IDataService {
       onNokiaFolders?: (folders: EngineeringFolder[]) => void;
       onNokiaFiles?: (files: EngineeringFile[]) => void;
       onEricssonSites?: (rows: EricssonRow[]) => void;
+      onEricssonEngineering?: (rows: EricssonEngineeringRow[]) => void;
       onEricssonFolders?: (folders: EngineeringFolder[]) => void;
       onEricssonFiles?: (files: EngineeringFile[]) => void;
       onUsuarios?: (users: AmetaUser[]) => void;
@@ -512,55 +584,382 @@ class FirebaseDataService implements IDataService {
   async importarSitesNokiaEmLote(
     sites: TelecomSite[],
     _users?: AmetaUser[],
-    _duplaEmailsMap?: Record<string, string[]>
-  ): Promise<{ totalGravados: number; lotesExecutados: number }> {
-    for (const site of sites) {
-      const docId = sanitizeSiteDocId(site.siteId || site.id, site.sheetName);
-      await setDoc(doc(db, FIRESTORE_COLLECTIONS.NOKIA_SITES, docId), {
-        ...site,
-        id: docId,
-      }, { merge: true });
+    _duplaEmailsMap?: Record<string, string[]>,
+    options?: {
+      mode?: 'append_only' | 'fill_empty';
+      onProgress?: (info: { gravados: number; total: number; lote: number; totalLotes: number }) => void;
     }
-    return { totalGravados: sites.length, lotesExecutados: 1 };
+  ): Promise<{
+    totalAnalisados: number;
+    novas: number;
+    jaExistiam: number;
+    comErro: number;
+    totalGravados: number;
+    lotesExecutados: number;
+    errorMessage?: string;
+  }> {
+    const mode = options?.mode || 'append_only';
+    let novas = 0;
+    let jaExistiam = 0;
+    let comErro = 0;
+    let totalGravados = 0;
+    let lotes = 0;
+
+    try {
+      // 1. Load existing docs from Firestore to accurately identify existing site IDs
+      const snap = await getDocs(collection(db, FIRESTORE_COLLECTIONS.NOKIA_SITES));
+      const existingMap = new Map<string, any>();
+      snap.docs.forEach((d) => {
+        existingMap.set(d.id.toUpperCase(), d.data());
+        const rawSiteId = (d.data()?.siteId || '').toString().trim().toUpperCase();
+        if (rawSiteId) {
+          existingMap.set(rawSiteId, d.data());
+        }
+      });
+
+      const docsToWrite: Array<{ id: string; data: any }> = [];
+
+      for (const site of sites) {
+        const cleanSiteId = (site.siteId || site.id || '').toString().trim();
+        if (!cleanSiteId) {
+          comErro++;
+          continue;
+        }
+
+        const docId = sanitizeSiteDocId(cleanSiteId, site.sheetName);
+        const existingData = existingMap.get(docId.toUpperCase()) || existingMap.get(cleanSiteId.toUpperCase());
+
+        if (existingData) {
+          jaExistiam++;
+          if (mode === 'fill_empty') {
+            // Fill ONLY empty or null fields, preserving any existing non-empty values
+            const merged = { ...existingData };
+            const cleanIncoming = sanitizeFirestoreData(site);
+            Object.keys(cleanIncoming).forEach((key) => {
+              const curVal = merged[key];
+              const newVal = cleanIncoming[key];
+              if (
+                (curVal === undefined || curVal === null || curVal === '' || curVal === '—' || curVal === '-') &&
+                newVal !== undefined && newVal !== null && newVal !== ''
+              ) {
+                merged[key] = newVal;
+              }
+            });
+            // Merge customFields safely
+            if (site.customFields && typeof site.customFields === 'object') {
+              merged.customFields = { ...(merged.customFields || {}) };
+              Object.keys(site.customFields).forEach((ck) => {
+                const curC = merged.customFields[ck];
+                const newC = site.customFields![ck];
+                if ((curC === undefined || curC === null || curC === '') && newC) {
+                  merged.customFields[ck] = newC;
+                }
+              });
+            }
+            docsToWrite.push({ id: docId, data: merged });
+          }
+        } else {
+          novas++;
+          docsToWrite.push({
+            id: docId,
+            data: sanitizeFirestoreData({
+              ...site,
+              id: docId,
+              createdAt: site.createdAt || new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+            }),
+          });
+        }
+      }
+
+      // 2. Write in batches of up to 20 documents
+      const chunkSize = 20;
+      const totalLotes = Math.ceil(docsToWrite.length / chunkSize) || 1;
+
+      for (let i = 0; i < docsToWrite.length; i += chunkSize) {
+        const chunk = docsToWrite.slice(i, i + chunkSize);
+        const batch = writeBatch(db);
+        for (const item of chunk) {
+          batch.set(doc(db, FIRESTORE_COLLECTIONS.NOKIA_SITES, item.id), item.data, { merge: true });
+        }
+        await batch.commit();
+        totalGravados += chunk.length;
+        lotes++;
+        if (options?.onProgress) {
+          options.onProgress({
+            gravados: totalGravados,
+            total: docsToWrite.length,
+            lote: lotes,
+            totalLotes,
+          });
+        }
+      }
+
+      return {
+        totalAnalisados: sites.length,
+        novas,
+        jaExistiam,
+        comErro,
+        totalGravados,
+        lotesExecutados: lotes || 1,
+      };
+    } catch (err: any) {
+      console.error('Erro no lote nokia_sites:', err);
+      const errMsg = `[Coleção: ${FIRESTORE_COLLECTIONS.NOKIA_SITES}] Código: ${err.code || 'desconhecido'} - ${err.message || String(err)}`;
+      return {
+        totalAnalisados: sites.length,
+        novas,
+        jaExistiam,
+        comErro,
+        totalGravados,
+        lotesExecutados: lotes,
+        errorMessage: errMsg,
+      };
+    }
   }
 
   async importarSitesEricssonEmLote(
     rows: EricssonRow[],
     _users?: AmetaUser[],
-    _duplaEmailsMap?: Record<string, string[]>
-  ): Promise<{ totalGravados: number; lotesExecutados: number }> {
-    for (const row of rows) {
-      const docId = sanitizeEricssonDocId(row);
-      await setDoc(doc(db, FIRESTORE_COLLECTIONS.ERICSSON_SITES, docId), {
-        ...row,
-        id: docId,
-      }, { merge: true });
+    _duplaEmailsMap?: Record<string, string[]>,
+    options?: {
+      mode?: 'append_only' | 'fill_empty';
+      onProgress?: (info: { gravados: number; total: number; lote: number; totalLotes: number }) => void;
     }
-    return { totalGravados: rows.length, lotesExecutados: 1 };
+  ): Promise<{
+    totalAnalisados: number;
+    novas: number;
+    jaExistiam: number;
+    comErro: number;
+    totalGravados: number;
+    lotesExecutados: number;
+    errorMessage?: string;
+  }> {
+    const mode = options?.mode || 'append_only';
+    let novas = 0;
+    let jaExistiam = 0;
+    let comErro = 0;
+    let totalGravados = 0;
+    let lotes = 0;
+
+    try {
+      const snap = await getDocs(collection(db, FIRESTORE_COLLECTIONS.ERICSSON_SITES));
+      const existingMap = new Map<string, any>();
+      snap.docs.forEach((d) => {
+        existingMap.set(d.id.toUpperCase(), d.data());
+        const rKey = (d.data()?.rowKey || '').toString().trim().toUpperCase();
+        if (rKey) existingMap.set(rKey, d.data());
+      });
+
+      const docsToWrite: Array<{ id: string; data: any }> = [];
+
+      for (const row of rows) {
+        const docId = sanitizeEricssonDocId(row);
+        if (!docId) {
+          comErro++;
+          continue;
+        }
+
+        const existingData = existingMap.get(docId.toUpperCase()) || (row.rowKey ? existingMap.get(row.rowKey.toUpperCase()) : null);
+
+        if (existingData) {
+          jaExistiam++;
+          if (mode === 'fill_empty') {
+            const merged = { ...existingData };
+            const cleanIncoming = sanitizeFirestoreData(row);
+            Object.keys(cleanIncoming).forEach((k) => {
+              const cur = merged[k];
+              const newVal = cleanIncoming[k];
+              if ((cur === undefined || cur === null || cur === '') && newVal !== undefined && newVal !== null && newVal !== '') {
+                merged[k] = newVal;
+              }
+            });
+            if (row.fields && typeof row.fields === 'object') {
+              merged.fields = { ...(merged.fields || {}) };
+              Object.keys(row.fields).forEach((fk) => {
+                const curF = merged.fields[fk];
+                const newF = row.fields![fk];
+                if ((curF === undefined || curF === null || curF === '') && newF) {
+                  merged.fields[fk] = newF;
+                }
+              });
+            }
+            docsToWrite.push({ id: docId, data: merged });
+          }
+        } else {
+          novas++;
+          docsToWrite.push({
+            id: docId,
+            data: sanitizeFirestoreData({
+              ...row,
+              id: docId,
+              createdAt: row.createdAt || new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+            }),
+          });
+        }
+      }
+
+      const chunkSize = 20;
+      const totalLotes = Math.ceil(docsToWrite.length / chunkSize) || 1;
+
+      for (let i = 0; i < docsToWrite.length; i += chunkSize) {
+        const chunk = docsToWrite.slice(i, i + chunkSize);
+        const batch = writeBatch(db);
+        for (const item of chunk) {
+          batch.set(doc(db, FIRESTORE_COLLECTIONS.ERICSSON_SITES, item.id), item.data, { merge: true });
+        }
+        await batch.commit();
+        totalGravados += chunk.length;
+        lotes++;
+        if (options?.onProgress) {
+          options.onProgress({
+            gravados: totalGravados,
+            total: docsToWrite.length,
+            lote: lotes,
+            totalLotes,
+          });
+        }
+      }
+
+      return {
+        totalAnalisados: rows.length,
+        novas,
+        jaExistiam,
+        comErro,
+        totalGravados,
+        lotesExecutados: lotes || 1,
+      };
+    } catch (err: any) {
+      console.error('Erro no lote ericsson_sites:', err);
+      const errMsg = `[Coleção: ${FIRESTORE_COLLECTIONS.ERICSSON_SITES}] Código: ${err.code || 'desconhecido'} - ${err.message || String(err)}`;
+      return {
+        totalAnalisados: rows.length,
+        novas,
+        jaExistiam,
+        comErro,
+        totalGravados,
+        lotesExecutados: lotes,
+        errorMessage: errMsg,
+      };
+    }
   }
 
   async importarTssrNokiaEmLote(
     rows: TssrRow[],
-    _users?: AmetaUser[]
-  ): Promise<{ totalGravados: number; lotesExecutados: number }> {
-    const chunkSize = 400;
+    _users?: AmetaUser[],
+    options?: {
+      mode?: 'append_only' | 'fill_empty';
+      onProgress?: (info: { gravados: number; total: number; lote: number; totalLotes: number }) => void;
+    }
+  ): Promise<{
+    totalAnalisados: number;
+    novas: number;
+    jaExistiam: number;
+    comErro: number;
+    totalGravados: number;
+    lotesExecutados: number;
+    errorMessage?: string;
+  }> {
+    const mode = options?.mode || 'append_only';
+    let novas = 0;
+    let jaExistiam = 0;
+    let comErro = 0;
     let totalGravados = 0;
     let lotes = 0;
-    for (let i = 0; i < rows.length; i += chunkSize) {
-      const chunk = rows.slice(i, i + chunkSize);
-      const batch = writeBatch(db);
-      for (const row of chunk) {
-        const docId = row.id || `TSSR_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
-        batch.set(doc(db, FIRESTORE_COLLECTIONS.NOKIA_TSSR, docId), {
-          ...row,
-          id: docId,
-        }, { merge: true });
+
+    try {
+      const snap = await getDocs(collection(db, FIRESTORE_COLLECTIONS.NOKIA_TSSR));
+      const existingMap = new Map<string, any>();
+      snap.docs.forEach((d) => {
+        existingMap.set(d.id.toUpperCase(), d.data());
+        const sId = (d.data()?.siteId || d.data()?.sigla || '').toString().trim().toUpperCase();
+        if (sId) existingMap.set(sId, d.data());
+      });
+
+      const docsToWrite: Array<{ id: string; data: any }> = [];
+
+      for (const row of rows) {
+        const cleanKey = (row.siteId || row.sigla || row.id || '').toString().trim();
+        if (!cleanKey) {
+          comErro++;
+          continue;
+        }
+
+        const docId = row.id || `TSSR_${cleanKey.replace(/[^a-zA-Z0-9_-]/g, '_')}`;
+        const existingData = existingMap.get(docId.toUpperCase()) || existingMap.get(cleanKey.toUpperCase());
+
+        if (existingData) {
+          jaExistiam++;
+          if (mode === 'fill_empty') {
+            const merged = { ...existingData };
+            const cleanIncoming = sanitizeFirestoreData(row);
+            Object.keys(cleanIncoming).forEach((k) => {
+              const cur = merged[k];
+              const newVal = cleanIncoming[k];
+              if ((cur === undefined || cur === null || cur === '') && newVal !== undefined && newVal !== null && newVal !== '') {
+                merged[k] = newVal;
+              }
+            });
+            docsToWrite.push({ id: docId, data: merged });
+          }
+        } else {
+          novas++;
+          docsToWrite.push({
+            id: docId,
+            data: sanitizeFirestoreData({
+              ...row,
+              id: docId,
+              createdAt: row.createdAt || new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+            }),
+          });
+        }
       }
-      await batch.commit();
-      totalGravados += chunk.length;
-      lotes++;
+
+      const chunkSize = 20;
+      const totalLotes = Math.ceil(docsToWrite.length / chunkSize) || 1;
+
+      for (let i = 0; i < docsToWrite.length; i += chunkSize) {
+        const chunk = docsToWrite.slice(i, i + chunkSize);
+        const batch = writeBatch(db);
+        for (const item of chunk) {
+          batch.set(doc(db, FIRESTORE_COLLECTIONS.NOKIA_TSSR, item.id), item.data, { merge: true });
+        }
+        await batch.commit();
+        totalGravados += chunk.length;
+        lotes++;
+        if (options?.onProgress) {
+          options.onProgress({
+            gravados: totalGravados,
+            total: docsToWrite.length,
+            lote: lotes,
+            totalLotes,
+          });
+        }
+      }
+
+      return {
+        totalAnalisados: rows.length,
+        novas,
+        jaExistiam,
+        comErro,
+        totalGravados,
+        lotesExecutados: lotes || 1,
+      };
+    } catch (err: any) {
+      console.error('Erro no lote nokia_tssr:', err);
+      const errMsg = `[Coleção: ${FIRESTORE_COLLECTIONS.NOKIA_TSSR}] Código: ${err.code || 'desconhecido'} - ${err.message || String(err)}`;
+      return {
+        totalAnalisados: rows.length,
+        novas,
+        jaExistiam,
+        comErro,
+        totalGravados,
+        lotesExecutados: lotes,
+        errorMessage: errMsg,
+      };
     }
-    return { totalGravados, lotesExecutados: lotes || 1 };
   }
 
   async excluirTssrNokia(rowId: string): Promise<void> {
@@ -568,24 +967,131 @@ class FirebaseDataService implements IDataService {
   }
 
   async importarEricssonEngenhariaEmLote(
-    rows: any[]
-  ): Promise<{ totalGravados: number }> {
-    const chunkSize = 400;
-    let totalGravados = 0;
-    for (let i = 0; i < rows.length; i += chunkSize) {
-      const chunk = rows.slice(i, i + chunkSize);
-      const batch = writeBatch(db);
-      for (const r of chunk) {
-        const docId = r.id || `eric_eng_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
-        batch.set(doc(db, FIRESTORE_COLLECTIONS.ERICSSON_ENGENHARIA, docId), {
-          ...r,
-          id: docId,
-        }, { merge: true });
-      }
-      await batch.commit();
-      totalGravados += chunk.length;
+    rows: any[],
+    options?: {
+      mode?: 'append_only' | 'fill_empty';
+      onProgress?: (info: { gravados: number; total: number; lote: number; totalLotes: number }) => void;
     }
-    return { totalGravados };
+  ): Promise<{
+    totalAnalisados: number;
+    novas: number;
+    jaExistiam: number;
+    comErro: number;
+    totalGravados: number;
+    lotesExecutados: number;
+    errorMessage?: string;
+  }> {
+    const mode = options?.mode || 'append_only';
+    let novas = 0;
+    let jaExistiam = 0;
+    let comErro = 0;
+    let totalGravados = 0;
+    let lotes = 0;
+
+    try {
+      const snap = await getDocs(collection(db, FIRESTORE_COLLECTIONS.ERICSSON_ENGENHARIA));
+      const existingMap = new Map<string, any>();
+      snap.docs.forEach((d) => {
+        const data = d.data();
+        existingMap.set(d.id.toUpperCase(), data);
+        const rowKey = (data?.rowKey || '').toString().trim().toUpperCase();
+        if (rowKey) existingMap.set(rowKey, data);
+      });
+
+      const docsToWrite: Array<{ id: string; data: any }> = [];
+
+      for (const r of rows) {
+        const cleanIntervencao = (r.intervencaoClaro || r.fields?.['Intervencao Claro'] || r.siteIdA || r.id || '').toString().trim();
+        if (!cleanIntervencao) {
+          comErro++;
+          continue;
+        }
+
+        const uniqueKey = (r.rowKey || `${cleanIntervencao}__${r.tipoDoc || r.fields?.['Tipo doc'] || ''}__${r.rowIndex !== undefined ? r.rowIndex : ''}`).toString().trim().toUpperCase();
+        const docId = r.id || `eric_eng_${uniqueKey.replace(/[^a-zA-Z0-9_-]/g, '_')}`;
+        const existingData = existingMap.get(docId.toUpperCase()) || existingMap.get(uniqueKey);
+
+        if (existingData) {
+          jaExistiam++;
+          if (mode === 'fill_empty') {
+            const merged = { ...existingData };
+            const cleanIncoming = sanitizeFirestoreData(r);
+            Object.keys(cleanIncoming).forEach((k) => {
+              const cur = merged[k];
+              const newVal = cleanIncoming[k];
+              if ((cur === undefined || cur === null || cur === '') && newVal !== undefined && newVal !== null && newVal !== '') {
+                merged[k] = newVal;
+              }
+            });
+            if (r.fields && typeof r.fields === 'object') {
+              merged.fields = { ...(merged.fields || {}) };
+              Object.keys(r.fields).forEach((fk) => {
+                const curF = merged.fields[fk];
+                const newF = r.fields![fk];
+                if ((curF === undefined || curF === null || curF === '') && newF) {
+                  merged.fields[fk] = newF;
+                }
+              });
+            }
+            docsToWrite.push({ id: docId, data: merged });
+          }
+        } else {
+          novas++;
+          docsToWrite.push({
+            id: docId,
+            data: sanitizeFirestoreData({
+              ...r,
+              id: docId,
+              createdAt: r.createdAt || new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+            }),
+          });
+        }
+      }
+
+      const chunkSize = 20;
+      const totalLotes = Math.ceil(docsToWrite.length / chunkSize) || 1;
+
+      for (let i = 0; i < docsToWrite.length; i += chunkSize) {
+        const chunk = docsToWrite.slice(i, i + chunkSize);
+        const batch = writeBatch(db);
+        for (const item of chunk) {
+          batch.set(doc(db, FIRESTORE_COLLECTIONS.ERICSSON_ENGENHARIA, item.id), item.data, { merge: true });
+        }
+        await batch.commit();
+        totalGravados += chunk.length;
+        lotes++;
+        if (options?.onProgress) {
+          options.onProgress({
+            gravados: totalGravados,
+            total: docsToWrite.length,
+            lote: lotes,
+            totalLotes,
+          });
+        }
+      }
+
+      return {
+        totalAnalisados: rows.length,
+        novas,
+        jaExistiam,
+        comErro,
+        totalGravados,
+        lotesExecutados: lotes || 1,
+      };
+    } catch (err: any) {
+      console.error('Erro no lote ericsson_engenharia:', err);
+      const errMsg = `[Coleção: ${FIRESTORE_COLLECTIONS.ERICSSON_ENGENHARIA}] Código: ${err.code || 'desconhecido'} - ${err.message || String(err)}`;
+      return {
+        totalAnalisados: rows.length,
+        novas,
+        jaExistiam,
+        comErro,
+        totalGravados,
+        lotesExecutados: lotes,
+        errorMessage: errMsg,
+      };
+    }
   }
 
   async carregarEricssonEngenharia(): Promise<any[]> {
@@ -610,10 +1116,10 @@ class FirebaseDataService implements IDataService {
 
   async salvarEricssonEngenhariaRow(row: any): Promise<void> {
     const docId = row.id || `eric_eng_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
-    await setDoc(doc(db, FIRESTORE_COLLECTIONS.ERICSSON_ENGENHARIA, docId), {
+    await setDoc(doc(db, FIRESTORE_COLLECTIONS.ERICSSON_ENGENHARIA, docId), sanitizeFirestoreData({
       ...row,
       id: docId,
-    }, { merge: true });
+    }), { merge: true });
   }
 
   async excluirEricssonEngenhariaRow(rowId: string): Promise<void> {
@@ -622,11 +1128,11 @@ class FirebaseDataService implements IDataService {
 
   async salvarEricssonReprovacao(record: any): Promise<void> {
     const docId = record.id || `rep_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
-    await setDoc(doc(db, FIRESTORE_COLLECTIONS.ERICSSON_REPROVACOES, docId), {
+    await setDoc(doc(db, FIRESTORE_COLLECTIONS.ERICSSON_REPROVACOES, docId), sanitizeFirestoreData({
       ...record,
       id: docId,
       createdAt: record.createdAt || new Date().toISOString(),
-    }, { merge: true });
+    }), { merge: true });
   }
 
   async excluirEricssonReprovacao(recordId: string): Promise<void> {
@@ -639,14 +1145,24 @@ class FirebaseDataService implements IDataService {
     _duplaEmailsMap?: Record<string, string[]>
   ): Promise<void> {
     const docId = sanitizeSiteDocId(site.siteId || site.id, site.sheetName);
-    await setDoc(doc(db, FIRESTORE_COLLECTIONS.NOKIA_SITES, docId), {
+    await setDoc(doc(db, FIRESTORE_COLLECTIONS.NOKIA_SITES, docId), sanitizeFirestoreData({
       ...site,
       id: docId,
-    }, { merge: true });
+    }), { merge: true });
   }
 
   async excluirSiteNokia(siteId: string): Promise<void> {
     await deleteDoc(doc(db, FIRESTORE_COLLECTIONS.NOKIA_SITES, siteId));
+  }
+
+  async carregarSitesNokia(): Promise<TelecomSite[]> {
+    try {
+      const snap = await getDocs(collection(db, FIRESTORE_COLLECTIONS.NOKIA_SITES));
+      return snap.docs.map((d) => ({ id: d.id, ...d.data() } as TelecomSite));
+    } catch (err) {
+      console.error('Erro ao carregar nokia_sites:', err);
+      return [];
+    }
   }
 
   async salvarSiteEricsson(
@@ -655,10 +1171,10 @@ class FirebaseDataService implements IDataService {
     _duplaEmailsMap?: Record<string, string[]>
   ): Promise<void> {
     const docId = sanitizeEricssonDocId(row);
-    await setDoc(doc(db, FIRESTORE_COLLECTIONS.ERICSSON_SITES, docId), {
+    await setDoc(doc(db, FIRESTORE_COLLECTIONS.ERICSSON_SITES, docId), sanitizeFirestoreData({
       ...row,
       id: docId,
-    }, { merge: true });
+    }), { merge: true });
   }
 
   async excluirSiteEricsson(rowId: string): Promise<void> {
@@ -677,18 +1193,18 @@ class FirebaseDataService implements IDataService {
 
   async salvarTssrNokia(row: TssrRow): Promise<void> {
     const docId = row.id || `TSSR_${Date.now()}`;
-    await setDoc(doc(db, FIRESTORE_COLLECTIONS.NOKIA_TSSR, docId), {
+    await setDoc(doc(db, FIRESTORE_COLLECTIONS.NOKIA_TSSR, docId), sanitizeFirestoreData({
       ...row,
       id: docId,
-    }, { merge: true });
+    }), { merge: true });
   }
 
   async salvarPastaNokia(folder: EngineeringFolder): Promise<void> {
     const docId = folder.id || `FOLDER_${Date.now()}`;
-    await setDoc(doc(db, FIRESTORE_COLLECTIONS.NOKIA_PASTAS, docId), {
+    await setDoc(doc(db, FIRESTORE_COLLECTIONS.NOKIA_PASTAS, docId), sanitizeFirestoreData({
       ...folder,
       id: docId,
-    }, { merge: true });
+    }), { merge: true });
   }
 
   async excluirPastaNokia(folderId: string): Promise<void> {
@@ -702,11 +1218,11 @@ class FirebaseDataService implements IDataService {
     _duplaEmailsMap?: Record<string, string[]>
   ): Promise<void> {
     const docId = file.id || `FILE_${Date.now()}`;
-    await setDoc(doc(db, FIRESTORE_COLLECTIONS.NOKIA_ARQUIVOS, docId), {
+    await setDoc(doc(db, FIRESTORE_COLLECTIONS.NOKIA_ARQUIVOS, docId), sanitizeFirestoreData({
       ...file,
       id: docId,
       uploadedAt: file.uploadedAt || new Date().toISOString(),
-    }, { merge: true });
+    }), { merge: true });
   }
 
   async excluirArquivoNokia(fileId: string): Promise<void> {
@@ -715,10 +1231,10 @@ class FirebaseDataService implements IDataService {
 
   async salvarPastaEricsson(folder: EngineeringFolder): Promise<void> {
     const docId = folder.id || `FOLDER_ERIC_${Date.now()}`;
-    await setDoc(doc(db, FIRESTORE_COLLECTIONS.ERICSSON_PASTAS, docId), {
+    await setDoc(doc(db, FIRESTORE_COLLECTIONS.ERICSSON_PASTAS, docId), sanitizeFirestoreData({
       ...folder,
       id: docId,
-    }, { merge: true });
+    }), { merge: true });
   }
 
   async excluirPastaEricsson(folderId: string): Promise<void> {
@@ -732,11 +1248,11 @@ class FirebaseDataService implements IDataService {
     _duplaEmailsMap?: Record<string, string[]>
   ): Promise<void> {
     const docId = file.id || `FILE_ERIC_${Date.now()}`;
-    await setDoc(doc(db, FIRESTORE_COLLECTIONS.ERICSSON_ARQUIVOS, docId), {
+    await setDoc(doc(db, FIRESTORE_COLLECTIONS.ERICSSON_ARQUIVOS, docId), sanitizeFirestoreData({
       ...file,
       id: docId,
       uploadedAt: file.uploadedAt || new Date().toISOString(),
-    }, { merge: true });
+    }), { merge: true });
   }
 
   async excluirArquivoEricsson(fileId: string): Promise<void> {
@@ -960,6 +1476,7 @@ class FirebaseDataService implements IDataService {
     vendor: 'NOKIA' | 'ERICSSON';
     actorEmail?: string;
     actorName?: string;
+    allowTransfer?: boolean;
   }): Promise<{ updatedCount: number }> {
     const tokens = new Set(params.siteTokens.map((t) => t.trim().toUpperCase()));
     const colName = params.vendor === 'ERICSSON' ? FIRESTORE_COLLECTIONS.ERICSSON_SITES : FIRESTORE_COLLECTIONS.NOKIA_SITES;
@@ -972,6 +1489,38 @@ class FirebaseDataService implements IDataService {
       const sId = (data.siteId || data.id || '').toUpperCase();
       const docId = d.id.toUpperCase();
       if (tokens.has(sId) || tokens.has(docId)) {
+        // Backend validation: If site already has another active responsible and allowTransfer was not given, reject/skip
+        const currentResp = (
+          data.responsavelDemand ||
+          data.equipeParceira ||
+          data.equipe ||
+          data.responsavelCampo ||
+          data.customFields?.['Executor'] ||
+          data.customFields?.['EQUIPE EXECUTANTE'] ||
+          data.customFields?.['Responsável'] ||
+          data.fields?.['EQUIPE'] ||
+          data.fields?.['EXECUTOR'] ||
+          data.fields?.['EXECUTOR WR'] ||
+          data.fields?.['EXECUTOR QRF'] ||
+          data.fields?.['EXECUTOR PPI'] ||
+          ''
+        ).trim();
+
+        const hasActiveResp =
+          currentResp !== '' &&
+          currentResp !== '—' &&
+          currentResp !== '-' &&
+          currentResp.toLowerCase() !== 'a definir' &&
+          currentResp.toLowerCase() !== 'sem executor' &&
+          currentResp.toLowerCase() !== 'sem dupla' &&
+          currentResp.toLowerCase() !== 'sem equipe' &&
+          currentResp.toLowerCase() !== params.responsibleName.trim().toLowerCase();
+
+        if (hasActiveResp && !params.allowTransfer) {
+          // Reject transfer without explicit permission
+          continue;
+        }
+
         if (params.vendor === 'ERICSSON') {
           batch.update(d.ref, {
             responsavelDemand: params.responsibleName,
@@ -1259,6 +1808,7 @@ class FirebaseDataService implements IDataService {
       onNokiaFolders?: (folders: EngineeringFolder[]) => void;
       onNokiaFiles?: (files: EngineeringFile[]) => void;
       onEricssonSites?: (rows: EricssonRow[]) => void;
+      onEricssonEngineering?: (rows: EricssonEngineeringRow[]) => void;
       onEricssonFolders?: (folders: EngineeringFolder[]) => void;
       onEricssonFiles?: (files: EngineeringFile[]) => void;
       onUsuarios?: (users: AmetaUser[]) => void;
@@ -1309,6 +1859,14 @@ class FirebaseDataService implements IDataService {
           const list = snap.docs.map((d) => ({ id: d.id, ...d.data() } as EricssonRow));
           callbacks.onEricssonSites!(list);
         }, (err) => console.error('Ericsson sites snapshot error:', err))
+      );
+    }
+    if (callbacks.onEricssonEngineering) {
+      unsubs.push(
+        onSnapshot(collection(db, FIRESTORE_COLLECTIONS.ERICSSON_ENGENHARIA), (snap) => {
+          const list = snap.docs.map((d) => ({ id: d.id, ...d.data() } as EricssonEngineeringRow));
+          callbacks.onEricssonEngineering!(list);
+        }, (err) => console.error('Ericsson engenharia snapshot error:', err))
       );
     }
     if (callbacks.onEricssonFolders) {

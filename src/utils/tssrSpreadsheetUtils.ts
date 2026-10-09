@@ -1,5 +1,6 @@
 import * as XLSX from 'xlsx';
 import {
+  TelecomSite,
   TssrRow,
   TSSR_TIM_NOKIA_ORIGINAL_COLUMNS,
   TSSR_SYSTEM_COLUMNS,
@@ -389,4 +390,93 @@ export function exportTssrRowsToCsv(rows: TssrRow[], fileName: string): void {
   URL.revokeObjectURL(url);
 }
 
+export function convertSitesToTssrRows(
+  sites: TelecomSite[],
+  vendor: VendorType = 'NOKIA',
+  tabName = 'TSSR TIM Nokia'
+): TssrRow[] {
+  const now = new Date().toISOString();
+  return sites
+    .filter((s) => s.vendor === vendor)
+    .map((s, idx) => {
+      const siteId = (s.siteId || '').trim().toUpperCase();
+      const ocSitePre = (
+        (s.customFields && s.customFields['Oc Site Pre']) ||
+        s.ordemServico ||
+        ''
+      ).trim();
+      const enderecoId = (
+        (s.customFields && s.customFields['END ID']) ||
+        s.siteName ||
+        s.regional ||
+        ''
+      ).trim();
+
+      const fields: Record<string, string> = {};
+      TSSR_TIM_NOKIA_ORIGINAL_COLUMNS.forEach((col) => {
+        fields[col] = '';
+      });
+
+      // Populate canonical fields from TelecomSite
+      fields['Site Id'] = siteId;
+      fields['Oc Site Pre'] = ocSitePre;
+      fields['Enderecoid'] = enderecoId;
+      fields['Regional'] = (s.regional || (s.customFields && s.customFields['REG.']) || s.uf || '').trim();
+      fields['UF'] = (s.uf || (s.customFields && s.customFields['UF']) || '').trim();
+      fields['Cidade'] = (s.municipio || (s.customFields && s.customFields['MUNICÍPIO']) || '').trim();
+      fields['Tipo site'] = (s.tipoInfra || (s.customFields && s.customFields['Tipo Site']) || '').trim();
+      fields['Tipo doc'] = (s.tecnologias || (s.customFields && s.customFields['PROJETO']) || 'TSSR').trim();
+      fields['Status'] = (s.status || (s.customFields && s.customFields['STATUS']) || '').trim();
+      fields['STATUS Engenharia'] = fields['Status'];
+      fields['Executor'] = (
+        s.responsavelDemand ||
+        (s.customFields && s.customFields['Executor']) ||
+        (s.customFields && s.customFields['EQUIPE EXECUTANTE']) ||
+        s.responsavelCampo ||
+        ''
+      ).trim();
+      fields['Data de demanda'] = (
+        (s.customFields && s.customFields['Data de demanda']) ||
+        (s.customFields && s.customFields['Data Demanda']) ||
+        ''
+      ).trim();
+
+      if (s.customFields) {
+        Object.entries(s.customFields).forEach(([k, v]) => {
+          if (k in fields && !fields[k]) {
+            fields[k] = String(v ?? '');
+          }
+        });
+      }
+
+      const isDelivered =
+        fields['Status'].toLowerCase().includes('finalizada') ||
+        fields['Status'].toLowerCase().includes('concl') ||
+        Boolean(s.vistoriaFileUrl);
+
+      return {
+        id: s.id || `tssr-${vendor.toLowerCase()}-${idx}`,
+        rowKey: buildTssrRowKey(siteId, ocSitePre),
+        vendor,
+        tabName,
+        siteId,
+        ocSitePre,
+        enderecoId,
+        executor: fields['Executor'],
+        equipe: (s.equipe || s.equipeParceira || s.customFields?.['EQUIPE EXECUTANTE'] || '').trim(),
+        fields,
+        vistoriaStatus: isDelivered ? 'Entregue' : 'Pendente',
+        vistoriaFileId: s.vistoriaFileId,
+        vistoriaFileName: s.vistoriaFileName,
+        vistoriaFileUrl: s.vistoriaFileUrl,
+        vistoriaDownloadUrl: s.vistoriaDownloadUrl,
+        vistoriaDeliveredAt: s.vistoriaDeliveredAt,
+        vistoriaUploadedBy: s.vistoriaUploadedBy,
+        createdAt: s.createdAt || now,
+        updatedAt: s.updatedAt || now,
+      };
+    });
+}
+
 export { TSSR_ALL_COLUMNS };
+
