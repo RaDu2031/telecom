@@ -467,8 +467,9 @@ export interface AmetaUser {
   role: UserRole;
   tipo?: 'admin' | 'usuario';
   situacao?: UserSituacao; // 'dono' | 'aguardando' | 'ativo' | 'bloqueado'
+  cliente?: 'NOKIA' | 'ERICSSON' | 'AMBAS' | 'BOTH'; // Cliente/Plataforma (Nokia, Ericsson, Ambas)
   plataforma?: AssignedPlatformScope;
-  assignedPlatform?: AssignedPlatformScope; // 'NOKIA' (TIM/Nokia), 'ERICSSON', or 'BOTH'
+  assignedPlatform?: AssignedPlatformScope; // 'NOKIA' (TIM/Nokia), 'ERICSSON', or 'BOTH' / 'AMBAS'
   accessReleased?: boolean; // Released/approved by ADM Dono
   releasedByEmail?: string;
   releasedAt?: string;
@@ -486,6 +487,38 @@ export interface AmetaUser {
   preferredVendor?: VendorType;
   createdAt: string;
   updatedAt?: string;
+  
+  // PARTE 1 & PARTE 2: Initial password, batch import, lockout, and audit
+  orgaoEmissor?: string;
+  dataNascimento?: string;
+  mustChangePassword?: boolean;
+  initialPasswordHash?: string;
+  batchId?: string;
+  batchStatus?: 'Aguardando primeiro acesso' | 'Concluído' | 'Pendente de liberação';
+  cpf3Digits?: string;
+  failedAttempts?: number;
+  lockoutUntil?: string;
+  desativado?: boolean;
+}
+
+export interface AuditLogEntry {
+  id: string;
+  action:
+    | 'CREATE_USER'
+    | 'EDIT_USER'
+    | 'DISABLE_USER'
+    | 'REACTIVATE_USER'
+    | 'RESET_PASSWORD'
+    | 'IMPORT_BATCH'
+    | 'FIRST_ACCESS'
+    | 'FAILED_ATTEMPT'
+    | 'ACCOUNT_LOCKOUT'
+    | 'END_BATCH_PASSWORD';
+  actorEmail: string;
+  targetEmail?: string;
+  targetName?: string;
+  details: string;
+  createdAt: string;
 }
 
 export type NotificationEventType =
@@ -1224,6 +1257,28 @@ export const DEFAULT_ERICSSON_COLABORADORES: EricssonColaborador[] = [
     capacidade: '20',
     observacoes: '',
   },
+  { nome: 'Mateus Fernando dos Santos Ribeiro', atividade: 'Vistoriador / Campo', capacidade: '5', observacoes: 'mateus_ribeiro@ametaservicos.com.br' },
+  { nome: 'Luís Fernando Batista', atividade: 'Vistoriador / Campo', capacidade: '5', observacoes: 'luis.batista@ametaservicos.com.br' },
+  { nome: 'Gabriel Henrique de Souza', atividade: 'Vistoriador / Campo', capacidade: '5', observacoes: 'gabriel.souza@ametaservicos.com.br' },
+  { nome: 'Vagner Cesar de Souza', atividade: 'Vistoriador / Campo', capacidade: '5', observacoes: 'vagner.souza@ametaservicos.com.br' },
+  { nome: 'Diego Nassu', atividade: 'Vistoriador / Campo', capacidade: '5', observacoes: 'diego.nassu@ametaservicos.com.br' },
+  { nome: 'Vagner Luiz dos Reis', atividade: 'Vistoriador / Campo', capacidade: '5', observacoes: 'vagner.reis@ametaservicos.com.br' },
+  { nome: 'Eduardo dos Santos Maciel', atividade: 'Vistoriador / Campo', capacidade: '5', observacoes: 'eduardo.maciel@ametaservicos.com.br' },
+  { nome: 'Sandro Maciel Santa Barbara', atividade: 'Vistoriador / Campo', capacidade: '5', observacoes: 'sandro.maciel@ametaservicos.com.br' },
+  { nome: 'Reinaldo Fernandes da Silva', atividade: 'Vistoriador / Campo', capacidade: '5', observacoes: 'reinaldo.silva@ametaservicos.com.br' },
+  { nome: 'Erick Luigi Cruz da Silva', atividade: 'Vistoriador / Campo', capacidade: '5', observacoes: 'erick.luigi@ametaservicos.com.br' },
+  { nome: 'Marlon de Paula Pereira', atividade: 'Vistoriador / Campo', capacidade: '5', observacoes: 'marlon.pereira@ametaservicos.com.br' },
+  { nome: 'Alexandre Rodrigues de Souza', atividade: 'Vistoriador / Campo', capacidade: '5', observacoes: 'alexandre.souza@ametaservicos.com.br' },
+  { nome: 'Igor dos Santos', atividade: 'Vistoriador / Campo', capacidade: '5', observacoes: 'igor.santos@ametaservicos.com.br' },
+  { nome: 'Alexandre dos Santos', atividade: 'Vistoriador / Campo', capacidade: '5', observacoes: 'alexandre.santos@ametaservicos.com.br' },
+  { nome: 'Alexandre da Silva Sousa', atividade: 'Vistoriador / Campo', capacidade: '5', observacoes: 'alexandre.sousa@ametaservicos.com.br' },
+  { nome: 'Magno Rodolfo dos Santos Ribeiro', atividade: 'Vistoriador / Campo', capacidade: '5', observacoes: 'magno.ribeiro@ametaservicos.com.br' },
+  { nome: 'Vinicius Lazaro Viana', atividade: 'Vistoriador / Campo', capacidade: '5', observacoes: 'vinicius.viana@ametaservicos.com.br' },
+  { nome: 'Davi Vitorino de Souza', atividade: 'Vistoriador / Campo', capacidade: '5', observacoes: 'davi.souza@ametaservicos.com.br' },
+  { nome: 'Alessandro Dos Santos Ribeiro', atividade: 'Vistoriador / Campo', capacidade: '5', observacoes: 'alessandro.ribeiro@ametaservicos.com.br' },
+  { nome: 'Eduardo Luchini', atividade: 'Vistoriador / Campo', capacidade: '5', observacoes: 'eduardo.luchini@ametaservicos.com.br' },
+  { nome: 'Caio Ficher Peirão', atividade: 'Vistoriador / Campo', capacidade: '5', observacoes: 'caio.ficher@ametaservicos.com.br' },
+  { nome: 'Kleber Frederico de Souza', atividade: 'Vistoriador / Campo', capacidade: '5', observacoes: 'kleber.souza@ametaservicos.com.br' },
 ];
 
 

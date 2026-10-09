@@ -79,8 +79,8 @@ service cloud.firestore {
 
     // Usuarios collection
     match /usuarios/{userId} {
-      // User reads their own document; released users can view directory to resolve teams/responsibles
-      allow read: if isCorporateEmail() && (request.auth.uid == userId || isReleased());
+      // User reads their own document; released users can view directory to resolve teams/responsibles; allow unauthenticated lookup during login
+      allow read: if request.auth == null || (isCorporateEmail() && (request.auth.uid == userId || isReleased()));
       
       // Strict create allowlist: user creates pending account; admin can create directly for any user
       allow create: if isCorporateEmail() && (

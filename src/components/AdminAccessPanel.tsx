@@ -36,7 +36,12 @@ import {
   evaluateDocumentExpiration,
   evaluateUserOverallDocumentStatus,
 } from '../types/telecom';
-import { dataService } from '../services/dataService';
+import { dataService, sanitizeFirestoreData } from '../services/dataService';
+import {
+  analyzeDocumentValidity,
+  DEFAULT_DOC_DURATIONS,
+  addMonthsToIsoDate,
+} from '../utils/documentOcrUtils';
 import { db, firebaseConfig } from '../lib/firebaseClient';
 import { collection, onSnapshot, doc, setDoc, deleteDoc, updateDoc } from 'firebase/firestore';
 
@@ -91,6 +96,36 @@ function readFileAsBase64(file: File): Promise<string> {
   });
 }
 
+async function extractOrCalculateDocumentExpiration(
+  file: File,
+  docType: MandatoryDocType
+): Promise<{
+  expiresAt: string;
+  origin: string;
+}> {
+  let expiresAt = '';
+  let origin = '';
+
+  try {
+    const { result } = await analyzeDocumentValidity(file, docType);
+    if (result && result.suggestedDate) {
+      expiresAt = result.suggestedDate;
+      origin = result.originDescription || 'Lida do documento';
+    }
+  } catch (ocrErr) {
+    console.warn('Erro na análise OCR do documento:', ocrErr);
+  }
+
+  if (!expiresAt) {
+    const defaultMonths = DEFAULT_DOC_DURATIONS[docType] || 12;
+    const todayIso = new Date().toISOString().split('T')[0];
+    expiresAt = addMonthsToIsoDate(todayIso, defaultMonths);
+    origin = `Calculada pelo prazo padrão (${defaultMonths} meses a partir do envio)`;
+  }
+
+  return { expiresAt, origin };
+}
+
 export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
   currentUser,
   users: initialUsers = [],
@@ -106,6 +141,11 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
   useEffect(() => {
     setIsLoadingUsers(true);
     setFirestoreError(null);
+
+    // Auto-sync initial users from initial-db.json if missing in Firestore
+    dataService.sincronizarUsuariosIniciais().catch((err) => {
+      console.warn('Erro na sincronização automática de usuários:', err);
+    });
 
     const usuariosCol = collection(db, 'usuarios');
     const unsubscribe = onSnapshot(
@@ -658,10 +698,13 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
     nextUser.statusRecurso = evaluateUserOverallDocumentStatus(nextUser).overallStatus;
 
     try {
-      await updateDoc(doc(db, 'usuarios', targetUser.uid || targetUser.id), {
-        documents: nextDocs,
-        statusRecurso: nextUser.statusRecurso,
-      });
+      await updateDoc(
+        doc(db, 'usuarios', targetUser.uid || targetUser.id),
+        sanitizeFirestoreData({
+          documents: nextDocs,
+          statusRecurso: nextUser.statusRecurso,
+        })
+      );
       if (onUsersUpdated && toastMessage) {
         onUsersUpdated(
           users.map((u) => (u.id === userId ? nextUser : u)),
@@ -743,7 +786,7 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
         createdAt: new Date().toISOString(),
       };
 
-      await setDoc(doc(db, 'usuarios', uid), newUser);
+      await setDoc(doc(db, 'usuarios', uid), sanitizeFirestoreData(newUser));
       if (onUsersUpdated) {
         onUsersUpdated([...users, newUser], `Perfil ${name.trim()} cadastrado com sucesso`);
       }
@@ -1808,17 +1851,27 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
                                               onChange={async (e) => {
                                                 const file = e.target.files?.[0];
                                                 if (!file) return;
-                                                const b64 = await readFileAsBase64(file);
-                                                await handleUpdateUserDocument(
-                                                  u.id,
-                                                  doc.type,
-                                                  {
-                                                    fileName: file.name,
-                                                    fileBase64: b64,
-                                                  },
-                                                  `Arquivo ${file.name} enviado em ${doc.label} (${u.name})`
-                                                );
-                                                e.target.value = '';
+                                                setUploadingKey(`${u.id}-${doc.type}`);
+                                                try {
+                                                  const b64 = await readFileAsBase64(file);
+                                                  const { expiresAt: autoExpiresAt, origin } =
+                                                    await extractOrCalculateDocumentExpiration(file, doc.type);
+                                                  await handleUpdateUserDocument(
+                                                    u.id,
+                                                    doc.type,
+                                                    {
+                                                      fileName: file.name,
+                                                      fileBase64: b64,
+                                                      expiresAt: autoExpiresAt,
+                                                    },
+                                                    `Arquivo ${file.name} enviado em ${doc.label} (${u.name}) — Validade: ${formatDateBr(autoExpiresAt)} (${origin})`
+                                                  );
+                                                } catch (err: any) {
+                                                  console.error('Erro ao ler arquivo:', err);
+                                                } finally {
+                                                  setUploadingKey(null);
+                                                  e.target.value = '';
+                                                }
                                               }}
                                             />
                                           </label>
@@ -2147,16 +2200,24 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
                                     onChange={async (e) => {
                                       const file = e.target.files?.[0];
                                       if (!file) return;
-                                      const b64 = await readFileAsBase64(file);
-                                      setNewProfileDocs((prev) => ({
-                                        ...prev,
-                                        [meta.type]: {
-                                          ...prev[meta.type],
-                                          fileName: file.name,
-                                          fileBase64: b64,
-                                        },
-                                      }));
-                                      e.target.value = '';
+                                      try {
+                                        const b64 = await readFileAsBase64(file);
+                                        const { expiresAt: autoExpiresAt } =
+                                          await extractOrCalculateDocumentExpiration(file, meta.type);
+                                        setNewProfileDocs((prev) => ({
+                                          ...prev,
+                                          [meta.type]: {
+                                            ...prev[meta.type],
+                                            fileName: file.name,
+                                            fileBase64: b64,
+                                            expiresAt: autoExpiresAt,
+                                          },
+                                        }));
+                                      } catch (err) {
+                                        console.error('Erro ao ler arquivo no cadastro:', err);
+                                      } finally {
+                                        e.target.value = '';
+                                      }
                                     }}
                                   />
                                 </label>

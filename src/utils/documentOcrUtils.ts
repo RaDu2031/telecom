@@ -3,9 +3,17 @@ import { createWorker } from 'tesseract.js';
 import { MandatoryDocType, UserDocStatus } from '../types/telecom';
 
 // Configure pdfjs worker
-if (typeof window !== 'undefined' && 'Worker' in window) {
-  // Use CDN worker or standard fallback
-  pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version || '3.11.174'}/pdf.worker.min.js`;
+if (typeof window !== 'undefined') {
+  try {
+    pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
+      'pdfjs-dist/build/pdf.worker.min.mjs',
+      import.meta.url
+    ).toString();
+  } catch {
+    pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdn.jsdelivr.net/npm/pdfjs-dist@${
+      pdfjsLib.version || '6.4.299'
+    }/build/pdf.worker.min.mjs`;
+  }
 }
 
 export interface DocDurationConfig {
@@ -173,21 +181,26 @@ export function evaluateDocStatus(expiresAt?: string): {
  * Extract text from PDF file using pdfjs-dist
  */
 export async function extractTextFromPdf(file: File): Promise<string> {
-  const arrayBuffer = await file.arrayBuffer();
-  const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
-  const pdf = await loadingTask.promise;
-  let fullText = '';
+  try {
+    const arrayBuffer = await file.arrayBuffer();
+    const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
+    const pdf = await loadingTask.promise;
+    let fullText = '';
 
-  for (let pageNum = 1; pageNum <= Math.min(pdf.numPages, 5); pageNum++) {
-    const page = await pdf.getPage(pageNum);
-    const content = await page.getTextContent();
-    const strings = content.items
-      .map((item: any) => (item.str ? item.str : ''))
-      .filter(Boolean);
-    fullText += `\n${strings.join(' ')}`;
+    for (let pageNum = 1; pageNum <= Math.min(pdf.numPages, 5); pageNum++) {
+      const page = await pdf.getPage(pageNum);
+      const content = await page.getTextContent();
+      const strings = content.items
+        .map((item: any) => (item.str ? item.str : ''))
+        .filter(Boolean);
+      fullText += `\n${strings.join(' ')}`;
+    }
+
+    return fullText.trim();
+  } catch (err) {
+    console.warn('PDF text extraction failed:', err);
+    return '';
   }
-
-  return fullText.trim();
 }
 
 /**

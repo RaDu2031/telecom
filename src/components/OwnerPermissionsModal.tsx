@@ -142,6 +142,40 @@ export const OwnerPermissionsModal: React.FC<OwnerPermissionsModalProps> = ({
     });
   }, [nokiaUsers, ericssonUsers]);
 
+  // Auto-sync initial seed users when modal opens
+  React.useEffect(() => {
+    if (isOpen) {
+      dataService.sincronizarUsuariosIniciais().catch(() => {});
+    }
+  }, [isOpen]);
+
+  // Manual trigger for user sync
+  const [syncingVistoriadores, setSyncingVistoriadores] = useState(false);
+  const handleManualSyncVistoriadores = async () => {
+    setSyncingVistoriadores(true);
+    try {
+      const added = await dataService.sincronizarUsuariosIniciais();
+      if (added > 0) {
+        setStatusBanner({
+          type: 'success',
+          text: `Sincronização concluída! ${added} novo(s) vistoriador(es) foram gravados no Firestore com a senha padrão "ameta2026".`,
+        });
+      } else {
+        setStatusBanner({
+          type: 'success',
+          text: `Todos os 22 vistoriadores cadastrados já estão presentes e sincronizados no Firestore.`,
+        });
+      }
+    } catch (err: any) {
+      setStatusBanner({
+        type: 'error',
+        text: `Erro ao sincronizar vistoriadores: ${err?.message || err}`,
+      });
+    } finally {
+      setSyncingVistoriadores(false);
+    }
+  };
+
   // Local draft edits per user email
   const [rowDrafts, setRowDrafts] = useState<
     Record<
@@ -412,6 +446,31 @@ export const OwnerPermissionsModal: React.FC<OwnerPermissionsModalProps> = ({
                 </div>
               </div>
             ))}
+          </div>
+
+          {/* Quick Info & Sync Button for Initial Colaboradores */}
+          <div className="p-3.5 rounded-xl bg-slate-900 border border-sky-500/40 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
+            <div className="flex items-center gap-2.5">
+              <div className="p-2 rounded-lg bg-sky-500/20 text-sky-300 font-black">
+                🔑
+              </div>
+              <div>
+                <div className="font-bold text-slate-100">
+                  Senha Padrão Inicial dos Colaboradores: <span className="font-mono text-amber-300 bg-amber-500/20 px-2 py-0.5 rounded border border-amber-500/40">ameta2026</span>
+                </div>
+                <div className="text-[11px] text-slate-400 mt-0.5">
+                  No primeiro acesso, cada colaborador confirma seu CPF e cria uma nova senha pessoal.
+                </div>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={handleManualSyncVistoriadores}
+              disabled={syncingVistoriadores}
+              className="px-3.5 py-2 rounded-lg bg-sky-500 hover:bg-sky-400 text-slate-950 font-black text-xs uppercase tracking-wide flex items-center gap-1.5 cursor-pointer shrink-0 transition-colors"
+            >
+              <span>{syncingVistoriadores ? 'Sincronizando...' : '⚡ Sincronizar 22 Vistoriadores Cadastrados'}</span>
+            </button>
           </div>
 
           {statusBanner && (

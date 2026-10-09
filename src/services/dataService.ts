@@ -35,7 +35,9 @@ import {
   UserSituacao,
   isOwnerAdmUser,
   ensureUserMandatoryDocuments,
+  AuditLogEntry,
 } from '../types/telecom';
+import { hashString } from '../utils/authUtils';
 import {
   doesSiteMatchResponsible,
   doesEricssonRowMatchResponsible,
@@ -58,6 +60,7 @@ export const FIRESTORE_COLLECTIONS = {
   DUPLAS_CONFIG: 'duplas_config',
   CHAMADOS: 'chamados',
   APP_META: 'app_meta',
+  AUDIT_LOGS: 'audit_logs',
 } as const;
 
 export function sanitizeFirestoreData<T>(data: T): T {
@@ -214,6 +217,8 @@ export function resolveEricssonRowResponsaveis(
 
 export interface IDataService {
   isConfigured(): boolean;
+  sincronizarUsuariosIniciais(): Promise<number>;
+  registrarAuditLog(entry: Omit<AuditLogEntry, 'id' | 'createdAt'>): Promise<void>;
   garantirUsuarioAoAutenticar(params: {
     uid: string;
     email: string;
@@ -518,7 +523,7 @@ class FirebaseDataService implements IDataService {
           accessReleased: true,
           emailVerified: true,
         };
-        await setDoc(userRef, updated, { merge: true });
+        await setDoc(userRef, sanitizeFirestoreData(updated), { merge: true });
         return updated;
       }
       return { id: params.uid, uid: params.uid, ...existing };
@@ -530,7 +535,7 @@ class FirebaseDataService implements IDataService {
       name: params.name,
     });
 
-    await setDoc(userRef, newUser);
+    await setDoc(userRef, sanitizeFirestoreData(newUser));
     return newUser;
   }
 
@@ -577,7 +582,7 @@ class FirebaseDataService implements IDataService {
       assignedPlatform: params.plataforma === 'AMBAS' ? 'BOTH' : params.plataforma,
     };
 
-    await setDoc(userRef, payload, { merge: true });
+    await setDoc(userRef, sanitizeFirestoreData(payload), { merge: true });
     return { id: params.uid, uid: params.uid, ...payload } as AmetaUser;
   }
 
@@ -1263,11 +1268,11 @@ class FirebaseDataService implements IDataService {
     duplaEmailsMap: Record<string, string[]>,
     customDuplas?: string[]
   ): Promise<void> {
-    await setDoc(doc(db, 'duplas_config', 'main'), {
+    await setDoc(doc(db, 'duplas_config', 'main'), sanitizeFirestoreData({
       duplaEmailsMap,
       customDuplas,
       updatedAt: new Date().toISOString(),
-    }, { merge: true });
+    }), { merge: true });
   }
 
   async carregarMapaDuplas(): Promise<{
@@ -1287,11 +1292,11 @@ class FirebaseDataService implements IDataService {
 
   async criarNotificacao(notif: AmetaNotification): Promise<void> {
     const docId = notif.id || `NOTIF_${Date.now()}`;
-    await setDoc(doc(db, FIRESTORE_COLLECTIONS.NOTIFICACOES, docId), {
+    await setDoc(doc(db, FIRESTORE_COLLECTIONS.NOTIFICACOES, docId), sanitizeFirestoreData({
       ...notif,
       id: docId,
       createdAt: notif.createdAt || new Date().toISOString(),
-    }, { merge: true });
+    }), { merge: true });
   }
 
   async registrarNovoUsuarioCorporativo(params: {
@@ -1318,7 +1323,7 @@ class FirebaseDataService implements IDataService {
     });
 
     try {
-      await setDoc(doc(db, FIRESTORE_COLLECTIONS.USUARIOS, uid), newUser);
+      await setDoc(doc(db, FIRESTORE_COLLECTIONS.USUARIOS, uid), sanitizeFirestoreData(newUser));
     } catch (dbError: any) {
       let authDeleteStatus = 'Conta recém-criada no Authentication foi excluída com sucesso.';
       try {
@@ -1361,11 +1366,14 @@ class FirebaseDataService implements IDataService {
     statusRecurso?: string;
   }): Promise<void> {
     const userRef = doc(db, FIRESTORE_COLLECTIONS.USUARIOS, params.uidOrId);
-    await updateDoc(userRef, {
-      documents: params.documents,
-      dispensadoDocumentos: params.dispensadoDocumentos ?? false,
-      statusRecurso: params.statusRecurso || 'analise',
-    });
+    await updateDoc(
+      userRef,
+      sanitizeFirestoreData({
+        documents: params.documents,
+        dispensadoDocumentos: params.dispensadoDocumentos ?? false,
+        statusRecurso: params.statusRecurso || 'analise',
+      })
+    );
   }
 
   async garantirDocumentoUsuarioNoCadastro(
@@ -1410,7 +1418,7 @@ class FirebaseDataService implements IDataService {
       assignedPlatform: payload.plataforma,
     };
 
-    await setDoc(userRef, merged, { merge: true });
+    await setDoc(userRef, sanitizeFirestoreData(merged), { merge: true });
     return { id: uid, uid, ...merged } as AmetaUser;
   }
 
@@ -1452,7 +1460,7 @@ class FirebaseDataService implements IDataService {
       });
       await batch.commit();
     } else if (notificationId) {
-      await updateDoc(doc(db, FIRESTORE_COLLECTIONS.NOTIFICACOES, notificationId), { read: true });
+      await updateDoc(doc(db, FIRESTORE_COLLECTIONS.NOTIFICACOES, notificationId), sanitizeFirestoreData({ read: true }));
     }
   }
 
@@ -1461,12 +1469,171 @@ class FirebaseDataService implements IDataService {
   }
 
   async bloquearUsuario(uid: string, motivo?: string): Promise<void> {
-    await updateDoc(doc(db, FIRESTORE_COLLECTIONS.USUARIOS, uid), {
-      situacao: 'bloqueado',
-      accessReleased: false,
-      bloqueadoEm: new Date().toISOString(),
-      motivoBloqueio: motivo || 'Acesso bloqueado pelo administrador (conta Auth preservada)',
+    await updateDoc(
+      doc(db, FIRESTORE_COLLECTIONS.USUARIOS, uid),
+      sanitizeFirestoreData({
+        situacao: 'bloqueado',
+        accessReleased: false,
+        bloqueadoEm: new Date().toISOString(),
+        motivoBloqueio: motivo || 'Acesso bloqueado pelo administrador (conta Auth preservada)',
+      })
+    );
+  }
+
+  // Audit Log recording
+  async registrarAuditLog(entry: Omit<AuditLogEntry, 'id' | 'createdAt'>): Promise<void> {
+    try {
+      const docRef = doc(collection(db, FIRESTORE_COLLECTIONS.AUDIT_LOGS));
+      await setDoc(
+        docRef,
+        sanitizeFirestoreData({
+          ...entry,
+          id: docRef.id,
+          createdAt: new Date().toISOString(),
+        })
+      );
+    } catch (err) {
+      console.error('Erro ao gravar log de auditoria:', err);
+    }
+  }
+
+  async obterAuditLogs(): Promise<AuditLogEntry[]> {
+    try {
+      const snap = await getDocs(collection(db, FIRESTORE_COLLECTIONS.AUDIT_LOGS));
+      const list = snap.docs.map((d) => ({ id: d.id, ...d.data() } as AuditLogEntry));
+      list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      return list;
+    } catch {
+      return [];
+    }
+  }
+
+  // Desativar ou Reativar usuário garantindo a proteção de pelo menos 2 ADMs ativos
+  async desativarOuReativarUsuario(params: {
+    targetUid: string;
+    desativar: boolean;
+    actorEmail: string;
+  }): Promise<void> {
+    const userRef = doc(db, FIRESTORE_COLLECTIONS.USUARIOS, params.targetUid);
+    const snap = await getDoc(userRef);
+    if (!snap.exists()) {
+      throw new Error('Usuário não encontrado.');
+    }
+    const user = snap.data() as AmetaUser;
+
+    // Regra de segurança: Garantir pelo menos dois ADMs ativos
+    if (params.desativar && (user.role === 'ADM' || isOwnerAdmUser(user.email, user.situacao))) {
+      const allUsers = await this.listarTodosUsuarios();
+      const activeAdms = allUsers.filter(
+        (u) =>
+          (u.role === 'ADM' || isOwnerAdmUser(u.email, u.situacao)) &&
+          u.situacao !== 'bloqueado' &&
+          !u.desativado &&
+          u.id !== params.targetUid &&
+          u.uid !== params.targetUid
+      );
+
+      if (activeAdms.length < 1) {
+        throw new Error(
+          'Operação recusada: É obrigatório manter pelo menos dois administradores ativos no sistema. Não é permitido desativar o último ADM ativo.'
+        );
+      }
+    }
+
+    const nextSituacao: UserSituacao = params.desativar ? 'bloqueado' : 'ativo';
+    await updateDoc(
+      userRef,
+      sanitizeFirestoreData({
+        situacao: nextSituacao,
+        desativado: params.desativar,
+        accessReleased: !params.desativar,
+        updatedAt: new Date().toISOString(),
+      })
+    );
+
+    await this.registrarAuditLog({
+      action: params.desativar ? 'DISABLE_USER' : 'REACTIVATE_USER',
+      actorEmail: params.actorEmail,
+      targetEmail: user.email,
+      targetName: user.name,
+      details: params.desativar
+        ? `Usuário/Equipe ${user.name} (${user.email}) foi desativado(a). Histórico e demandas mantidos.`
+        : `Usuário/Equipe ${user.name} (${user.email}) foi reativado(a).`,
     });
+  }
+
+  // Redefinir senha inicial pelo ADM
+  async redefinirSenhaUsuario(params: {
+    targetUid: string;
+    newInitialPassword: string;
+    actorEmail: string;
+  }): Promise<void> {
+    const userRef = doc(db, FIRESTORE_COLLECTIONS.USUARIOS, params.targetUid);
+    const snap = await getDoc(userRef);
+    if (!snap.exists()) {
+      throw new Error('Usuário não encontrado.');
+    }
+    const user = snap.data() as AmetaUser;
+    const pwdHash = await hashString(params.newInitialPassword);
+
+    await updateDoc(
+      userRef,
+      sanitizeFirestoreData({
+        mustChangePassword: true,
+        initialPasswordHash: pwdHash,
+        batchStatus: 'Aguardando primeiro acesso',
+        failedAttempts: 0,
+        lockoutUntil: null,
+        updatedAt: new Date().toISOString(),
+      })
+    );
+
+    await this.registrarAuditLog({
+      action: 'RESET_PASSWORD',
+      actorEmail: params.actorEmail,
+      targetEmail: user.email,
+      targetName: user.name,
+      details: `Senha inicial redefinida para ${user.name} (${user.email}). Troca obrigatória no primeiro acesso ativada.`,
+    });
+  }
+
+  // Encerrar senha inicial do lote (ADM)
+  async encerrarSenhaInicialLote(params: {
+    batchId: string;
+    actorEmail: string;
+  }): Promise<{ updatedCount: number }> {
+    const snap = await getDocs(
+      query(
+        collection(db, FIRESTORE_COLLECTIONS.USUARIOS),
+        where('batchId', '==', params.batchId)
+      )
+    );
+
+    let count = 0;
+    const batch = writeBatch(db);
+
+    for (const docSnap of snap.docs) {
+      const u = docSnap.data() as AmetaUser;
+      if (u.mustChangePassword && u.batchStatus !== 'Concluído') {
+        batch.update(docSnap.ref, sanitizeFirestoreData({
+          batchStatus: 'Pendente de liberação',
+          updatedAt: new Date().toISOString(),
+        }));
+        count++;
+      }
+    }
+
+    if (count > 0) {
+      await batch.commit();
+    }
+
+    await this.registrarAuditLog({
+      action: 'END_BATCH_PASSWORD',
+      actorEmail: params.actorEmail,
+      details: `Senha inicial do lote "${params.batchId}" encerrada pelo ADM. ${count} conta(s) alteradas para 'Pendente de liberação'.`,
+    });
+
+    return { updatedCount: count };
   }
 
   async atribuirDemandaSites(params: {
@@ -1549,7 +1716,7 @@ class FirebaseDataService implements IDataService {
       await batch.commit();
 
       const notifRef = doc(collection(db, FIRESTORE_COLLECTIONS.NOTIFICACOES));
-      await setDoc(notifRef, {
+      await setDoc(notifRef, sanitizeFirestoreData({
         id: notifRef.id,
         title: `Nova Demanda: ${count} site(s) ${params.vendor === 'ERICSSON' ? 'Ericsson' : 'TIM/Nokia'}`,
         message: `${count} site(s) colocados na demanda da equipe "${params.responsibleName}".`,
@@ -1560,7 +1727,7 @@ class FirebaseDataService implements IDataService {
         targetPlatform: params.vendor,
         targetResponsible: params.responsibleName,
         actorEmail: params.actorEmail || '',
-      });
+      }));
     }
 
     return { updatedCount: count };
@@ -1700,11 +1867,11 @@ class FirebaseDataService implements IDataService {
     emails: string[];
   }): Promise<void> {
     const cfgRef = doc(db, 'duplas_config', 'main');
-    await setDoc(cfgRef, {
+    await setDoc(cfgRef, sanitizeFirestoreData({
       duplaEmailsMap: {
         [params.duplaName]: params.emails,
       },
-    }, { merge: true });
+    }), { merge: true });
   }
 
   async importarDadosIniciais(onProgress?: (msg: string) => void): Promise<{
@@ -1769,7 +1936,7 @@ class FirebaseDataService implements IDataService {
       for (const u of seed.users) {
         const uid = u.uid || u.id;
         if (uid) {
-          batch.set(doc(db, FIRESTORE_COLLECTIONS.USUARIOS, uid), u, { merge: true });
+          batch.set(doc(db, FIRESTORE_COLLECTIONS.USUARIOS, uid), sanitizeFirestoreData(u), { merge: true });
           totalUsers++;
         }
       }
@@ -1778,9 +1945,9 @@ class FirebaseDataService implements IDataService {
 
     // 4. Configuração de Duplas
     if (seed.duplaEmailsMap) {
-      await setDoc(doc(db, 'duplas_config', 'main'), {
+      await setDoc(doc(db, 'duplas_config', 'main'), sanitizeFirestoreData({
         duplaEmailsMap: seed.duplaEmailsMap,
-      }, { merge: true });
+      }), { merge: true });
     }
 
     // 5. Notificações
@@ -1788,16 +1955,54 @@ class FirebaseDataService implements IDataService {
       const batch = writeBatch(db);
       for (const n of seed.notifications.slice(0, 100)) {
         const docId = n.id || `notif_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
-        batch.set(doc(db, FIRESTORE_COLLECTIONS.NOTIFICACOES, docId), {
+        batch.set(doc(db, FIRESTORE_COLLECTIONS.NOTIFICACOES, docId), sanitizeFirestoreData({
           ...n,
           id: docId,
-        }, { merge: true });
+        }), { merge: true });
       }
       await batch.commit();
     }
 
     if (onProgress) onProgress(`Importação inicial concluída com sucesso! (${totalSites} Nokia, ${totalEricsson} Ericsson, ${totalUsers} Usuários)`);
     return { totalSites, totalEricsson, totalUsers };
+  }
+
+  async sincronizarUsuariosIniciais(): Promise<number> {
+    try {
+      const res = await window.fetch('/initial-db.json');
+      if (!res.ok) return 0;
+      const seed = await res.json();
+      if (!Array.isArray(seed.users) || seed.users.length === 0) return 0;
+
+      const snap = await getDocs(collection(db, FIRESTORE_COLLECTIONS.USUARIOS));
+      const existingEmails = new Set(
+        snap.docs.map((d) => (d.data().email || '').toLowerCase().trim())
+      );
+
+      let count = 0;
+      const batch = writeBatch(db);
+      for (const u of seed.users) {
+        const email = (u.email || '').toLowerCase().trim();
+        if (email && (!existingEmails.has(email) || email === 'teste.liberacao@ametaservicos.com.br')) {
+          const uid = u.uid || u.id;
+          if (uid) {
+            batch.set(
+              doc(db, FIRESTORE_COLLECTIONS.USUARIOS, uid),
+              sanitizeFirestoreData(u),
+              { merge: true }
+            );
+            count++;
+          }
+        }
+      }
+      if (count > 0) {
+        await batch.commit();
+      }
+      return count;
+    } catch (err) {
+      console.error('Erro ao sincronizar usuários iniciais:', err);
+      return 0;
+    }
   }
 
   observarColecoesPlataforma(

@@ -1160,16 +1160,17 @@ export function doesEricssonRowMatchResponsible(
   userOrName: { name: string; email?: string; equipe?: string } | string
 ): boolean {
   if (!row) return false;
+  const rAny = row as any;
   const rawCandidates = [
     row.equipe,
     row.fields?.['EQUIPE'],
-    row.responsavelDemand,
-    row.responsavelCampo,
+    rAny.responsavelDemand,
+    rAny.responsavelCampo,
     row.fields?.['Executor'],
     row.fields?.['EXECUTOR'],
     row.fields?.['Responsável'],
     row.fields?.['EQUIPE EXECUTANTE'],
-    row.executor,
+    rAny.executor,
   ]
     .filter(Boolean)
     .map((s) => String(s).trim())

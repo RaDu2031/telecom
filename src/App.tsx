@@ -79,7 +79,7 @@ import {
 import { isFirebaseEnvConfigured } from './lib/firebase';
 import { db } from './lib/firebaseClient';
 import { doc, updateDoc } from 'firebase/firestore';
-import { dataService } from './services/dataService';
+import { dataService, sanitizeFirestoreData } from './services/dataService';
 import { INITIAL_SITES, INITIAL_SHEETS } from './data/initialSites';
 import { INITIAL_ERICSSON_SITES } from './data/initialEricssonSites';
 import { INITIAL_ERICSSON_ENGINEERING_ROWS } from './data/initialEricssonEngineering';
@@ -650,7 +650,7 @@ export default function App() {
       try {
         const uid = user.uid || user.id;
         if (uid) {
-          await updateDoc(doc(db, 'usuarios', uid), { preferredVendor: vendor });
+          await updateDoc(doc(db, 'usuarios', uid), sanitizeFirestoreData({ preferredVendor: vendor }));
         }
       } catch {
         // non-blocking
@@ -3346,26 +3346,22 @@ export default function App() {
   const vendorEngineeringFilesCount = useMemo(() => {
     if (activeVendor === 'ERICSSON') {
       if (!canSeeFullSpreadsheets && !isEngCoordinator && activeTargetUser) {
-        const matchedFiles = ericssonFiles.filter(
+        return ericssonFiles.filter(
           (fl) =>
             doesFileMatchUserResponsibleSites(fl, activeTargetUser, sites, vendorEricssonRows) ||
             doesDocumentMatchResponsible(fl, undefined, activeTargetUser)
-        );
-        if (matchedFiles.length > 0) return matchedFiles.length;
-        return vendorEricssonEngineeringRows.length || vendorEricssonRows.length;
+        ).length;
       }
-      if (ericssonFiles.length > 0) return ericssonFiles.length;
-      return ericssonEngineeringRows.length || ericssonRows.length;
+      return ericssonFiles.length;
     }
 
     const allFolders = engineeringFolders.filter((fd) => fd.vendor === activeVendor);
     const allVendor = engineeringFiles.filter((f) => f.vendor === activeVendor);
 
     if (effectiveRole === 'Vistoriador' && activeTargetUser) {
-      const matched = allVendor.filter((fl) =>
+      return allVendor.filter((fl) =>
         doesFileMatchUserResponsibleSites(fl, activeTargetUser, sites, ericssonRows)
-      );
-      if (matched.length > 0) return matched.length;
+      ).length;
     }
 
     // Exclude TSSR Entrada and TSSR project folders from Vistoria folder count for other roles
@@ -3392,26 +3388,26 @@ export default function App() {
       effectiveRole !== 'Coordenador Engenharia' &&
       activeTargetUser
     ) {
-      const filtered = vistoriaScoped.filter((fl) => {
+      return vistoriaScoped.filter((fl) => {
         const folder = allFolders.find((fd) => fd.id === fl.folderId);
         return (
           doesFileMatchUserResponsibleSites(fl, activeTargetUser, sites, ericssonRows) ||
           doesDocumentMatchResponsible(fl, folder, activeTargetUser)
         );
-      });
-      if (filtered.length > 0) return filtered.length;
+      }).length;
     }
-    return vistoriaScoped.length > 0 ? vistoriaScoped.length : tssrRows.length;
+    return vistoriaScoped.length;
   }, [
     engineeringFiles,
     engineeringFolders,
     ericssonFiles,
     sites,
+    vendorEricssonRows,
     ericssonRows,
-    ericssonEngineeringRows,
-    tssrRows,
     activeVendor,
     effectiveRole,
+    canSeeFullSpreadsheets,
+    isEngCoordinator,
     activeTargetUser,
   ]);
 

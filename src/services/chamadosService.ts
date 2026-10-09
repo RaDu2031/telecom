@@ -1,4 +1,5 @@
 import { db } from '../lib/firebaseClient';
+import { sanitizeFirestoreData } from './dataService';
 import {
   collection,
   addDoc,
@@ -38,13 +39,13 @@ export async function criarChamado(
   const protocolo = `CHM-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
   const now = new Date().toISOString();
   try {
-    const docRef = await addDoc(collection(db, CHAMADOS_COLLECTION), {
+    const docRef = await addDoc(collection(db, CHAMADOS_COLLECTION), sanitizeFirestoreData({
       ...ticket,
       protocolo,
       status: 'Aberto',
       createdAt: now,
       updatedAt: now,
-    });
+    }));
     return docRef.id;
   } catch (error: any) {
     console.error('Erro ao criar chamado:', error);
@@ -60,13 +61,13 @@ export async function atualizarStatusChamado(
 ): Promise<void> {
   const docRef = doc(db, CHAMADOS_COLLECTION, id);
   try {
-    await updateDoc(docRef, {
+    await updateDoc(docRef, sanitizeFirestoreData({
       status,
       respostaAdmin: respostaAdmin || null,
       atendidoPor: adminName || 'Administrador',
       atendidoEm: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-    });
+    }));
   } catch (error: any) {
     console.error('Erro ao atualizar chamado:', error);
     throw new Error(`Falha ao atualizar chamado: ${error.message || error}`);
