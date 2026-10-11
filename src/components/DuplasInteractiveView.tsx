@@ -39,6 +39,7 @@ import {
 } from './InteractiveSpreadsheetChart';
 
 const STORAGE_DUPLA_EMAILS_KEY = 'ameta_dupla_emails_map_v2';
+const STORAGE_ERICSSON_DUPLA_EMAILS_KEY = 'ameta_ericsson_dupla_emails_map_v2';
 
 interface DuplasInteractiveViewProps {
   sites: TelecomSite[];
@@ -46,6 +47,7 @@ interface DuplasInteractiveViewProps {
   users: AmetaUser[];
   ericssonUsers?: AmetaUser[];
   serverDuplaEmailsMap?: Record<string, string[]>;
+  customDuplas?: string[];
   activeVendor: VendorType;
   equipesDuplas: string[];
   onAddDupla: (name: string) => void;
@@ -154,11 +156,16 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = ({
     return getRegisteredUsersForDemanda(users, ericssonUsers, activeVendor);
   }, [users, ericssonUsers, activeVendor]);
 
+  const storageKey =
+    activeVendor === 'ERICSSON'
+      ? STORAGE_ERICSSON_DUPLA_EMAILS_KEY
+      : STORAGE_DUPLA_EMAILS_KEY;
+
   // Local + server persisted map of Dupla -> linked profile emails
   const [duplaEmailsMap, setDuplaEmailsMap] = useState<Record<string, string[]>>(() => {
     try {
       localStorage.removeItem('ameta_dupla_emails_map_v1');
-      const saved = localStorage.getItem(STORAGE_DUPLA_EMAILS_KEY);
+      const saved = localStorage.getItem(storageKey);
       if (saved) {
         const parsed = JSON.parse(saved);
         if (parsed && typeof parsed === 'object') return parsed;
@@ -169,20 +176,21 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = ({
     return {};
   });
 
-  // Merge serverDuplaEmailsMap whenever received from backend
+  // Re-synchronize when activeVendor changes or serverDuplaEmailsMap arrives
   useEffect(() => {
-    if (serverDuplaEmailsMap && Object.keys(serverDuplaEmailsMap).length > 0) {
-      setDuplaEmailsMap((prev) => {
-        const merged = { ...prev, ...serverDuplaEmailsMap };
-        try {
-          localStorage.setItem(STORAGE_DUPLA_EMAILS_KEY, JSON.stringify(merged));
-        } catch {
-          // ignore
-        }
-        return merged;
-      });
+    let localMap: Record<string, string[]> = {};
+    try {
+      const saved = localStorage.getItem(storageKey);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed && typeof parsed === 'object') localMap = parsed;
+      }
+    } catch {
+      // ignore
     }
-  }, [serverDuplaEmailsMap]);
+    const merged = { ...localMap, ...(serverDuplaEmailsMap || {}) };
+    setDuplaEmailsMap(merged);
+  }, [serverDuplaEmailsMap, activeVendor, storageKey]);
 
   // Email linking controls (only from registered profiles, with search filter)
   const [selectedUserEmailToLink, setSelectedUserEmailToLink] = useState<string>('');
@@ -297,7 +305,7 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = ({
     };
     setDuplaEmailsMap(nextMap);
     try {
-      localStorage.setItem(STORAGE_DUPLA_EMAILS_KEY, JSON.stringify(nextMap));
+      localStorage.setItem(storageKey, JSON.stringify(nextMap));
     } catch {
       // ignore storage errors
     }

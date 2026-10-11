@@ -42,6 +42,18 @@
       },
       "required": ["id", "fileName", "storageFileName"]
     },
+    "UserPrivateData": {
+      "title": "UserPrivateData",
+      "description": "Dados privados e credenciais do usuário (CPF, hash da senha inicial, sal)",
+      "type": "object",
+      "properties": {
+        "cpf": { "type": "string" },
+        "initialPasswordHash": { "type": "string" },
+        "salt": { "type": "string" },
+        "updatedAt": { "type": "string" },
+        "createdAt": { "type": "string" }
+      }
+    },
     "Chamado": {
       "title": "Chamado",
       "description": "Chamado de suporte técnico ou dúvida aberta por usuário",
@@ -64,6 +76,10 @@
     "/usuarios/{userId}": {
       "schema": { "$ref": "#/entities/User" },
       "description": "Coleção de perfis e permissões dos usuários"
+    },
+    "/usuarios/{userId}/privado/{docId}": {
+      "schema": { "$ref": "#/entities/UserPrivateData" },
+      "description": "Subcoleção privada de dados e credenciais do usuário"
     },
     "/chamados/{chamadoId}": {
       "schema": { "$ref": "#/entities/Chamado" },

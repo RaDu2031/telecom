@@ -172,11 +172,26 @@ export const AuthGate: React.FC<AuthGateProps> = ({ onAuthenticated }) => {
           );
         }
 
+        let privateData: { cpf?: string; initialPasswordHash?: string; salt?: string } | null = null;
+        try {
+          const privSnap = await getDoc(doc(db, 'usuarios', uid, 'privado', 'dados'));
+          if (privSnap.exists()) {
+            privateData = privSnap.data() as any;
+          }
+        } catch (privErr) {
+          console.warn('[AuthGate] Não foi possível carregar dados de usuarios/' + uid + '/privado/dados:', privErr);
+        }
+
         setPendingFirstAccessUser({
           uid,
           email: cleanEmail,
           name: loggedUser.name,
-          userData,
+          userData: {
+            ...userData,
+            cpf: privateData?.cpf || userData.cpf || '',
+            initialPasswordHash: privateData?.initialPasswordHash || '',
+            salt: privateData?.salt || '',
+          },
           credentialUser: userCredential.user,
         });
         setMode('first_access');
@@ -271,6 +286,19 @@ export const AuthGate: React.FC<AuthGateProps> = ({ onAuthenticated }) => {
             updatedAt: new Date().toISOString(),
           })
         );
+
+        // Limpar o hash de senha inicial em usuarios/{uid}/privado/dados
+        try {
+          await updateDoc(
+            doc(db, 'usuarios', pendingUser.uid, 'privado', 'dados'),
+            sanitizeFirestoreData({
+              initialPasswordHash: '',
+              updatedAt: new Date().toISOString(),
+            })
+          );
+        } catch {
+          // Ignora se o documento privado não tiver sido criado
+        }
       } catch (updErr) {
         handleFirestoreError(updErr, OperationType.UPDATE, `usuarios/${pendingUser.uid}`);
       }

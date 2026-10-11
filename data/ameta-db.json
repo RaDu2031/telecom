@@ -118,7 +118,6 @@
       "emailVerified": true,
       "verifiedAt": "2026-10-02T22:47:35.592Z",
       "createdAt": "2026-10-02T22:47:35.592Z",
-      "passwordHash": "6f73323705c94d35dd1abd5dcdda5218ecf1f528ef5961651818bbda627c274e",
       "documents": [
         {
           "type": "NR10",

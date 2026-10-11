@@ -139,7 +139,7 @@ interface ExecutoresInteractiveViewProps {
   executoresList: string[];
   onAddExecutor: (name: string) => void;
   onRenameExecutor: (oldName: string, newName: string) => Promise<void>;
-  onDeleteExecutor: (name: string) => void;
+  onDeleteExecutor: (name: string) => void | Promise<void>;
   onAssignRowsToExecutor: (
     rowIds: string[],
     executorName: string,
@@ -209,18 +209,15 @@ export const ExecutoresInteractiveView: React.FC<ExecutoresInteractiveViewProps>
   });
 
   useEffect(() => {
-    if (serverExecutorEmailsMap && Object.keys(serverExecutorEmailsMap).length > 0) {
-      setExecutorEmailsMap((prev) => {
-        const merged = { ...prev, ...serverExecutorEmailsMap };
-        try {
-          const storageKey =
-            activeVendor === 'ERICSSON'
-              ? 'ameta_ericsson_executor_emails_map_v1'
-              : STORAGE_EXECUTOR_EMAILS_KEY;
-          localStorage.setItem(storageKey, JSON.stringify(merged));
-        } catch {}
-        return merged;
-      });
+    const storageKey =
+      activeVendor === 'ERICSSON'
+        ? 'ameta_ericsson_executor_emails_map_v1'
+        : STORAGE_EXECUTOR_EMAILS_KEY;
+    if (serverExecutorEmailsMap) {
+      setExecutorEmailsMap(serverExecutorEmailsMap);
+      try {
+        localStorage.setItem(storageKey, JSON.stringify(serverExecutorEmailsMap));
+      } catch {}
     }
   }, [serverExecutorEmailsMap, activeVendor]);
 

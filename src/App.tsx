@@ -111,8 +111,13 @@ import { DuplasInteractiveView } from './components/DuplasInteractiveView';
 import { ExecutoresInteractiveView } from './components/ExecutoresInteractiveView';
 import { GoogleDriveModal } from './components/GoogleDriveModal';
 import { cloudFetch } from './lib/firebaseCloud';
-import { demandaSharedService } from './services/demandaSharedService';
 import { convertSitesToTssrRows } from './utils/tssrSpreadsheetUtils';
+import {
+  demandaSharedService,
+  isTssrRowAssignedToResponsible,
+  isEricssonRowAssignedToResponsible,
+  isSiteAssignedToResponsible,
+} from './services/demandaSharedService';
 
 const fetch = cloudFetch;
 import {
@@ -128,6 +133,8 @@ import {
   doesSiteMatchExecutor,
   getCanonicalDuplaName,
   getCanonicalExecutorName,
+  matchesDuplaName,
+  normalizeAccents,
   getShortResponsibleLabel,
   doesDocumentMatchResponsible,
   doesFileMatchUserResponsibleSites,
@@ -268,6 +275,22 @@ export default function App() {
   const [serverEricssonDuplaEmailsMap, setServerEricssonDuplaEmailsMap] = useState<Record<string, string[]>>({});
   const [notifications, setNotifications] = useState<AmetaNotification[]>([]);
   const [serverDuplaEmailsMap, setServerDuplaEmailsMap] = useState<Record<string, string[]>>({});
+  const [excludedDuplasNokia, setExcludedDuplasNokia] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem('ameta_excluded_duplas_nokia_v1');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [excludedDuplasEricsson, setExcludedDuplasEricsson] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem('ameta_excluded_duplas_ericsson_v1');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
   const [ownerPermissionsModalOpen, setOwnerPermissionsModalOpen] = useState<boolean>(false);
   const [isAppGoogleDriveOpen, setIsAppGoogleDriveOpen] = useState<boolean>(false);
   const [ericssonVistoriaFocus, setEricssonVistoriaFocus] = useState<{
@@ -526,8 +549,26 @@ export default function App() {
         if (cfg.duplaEmailsMap) {
           setServerDuplaEmailsMap(cfg.duplaEmailsMap);
         }
+        if (cfg.ericssonDuplaEmailsMap) {
+          setServerEricssonDuplaEmailsMap(cfg.ericssonDuplaEmailsMap);
+        }
         if (Array.isArray(cfg.customDuplas) && cfg.customDuplas.length > 0) {
           setCustomDuplas(cfg.customDuplas);
+        }
+        if (Array.isArray(cfg.customDuplasEricsson) && cfg.customDuplasEricsson.length > 0) {
+          setCustomDuplasEricsson(cfg.customDuplasEricsson);
+        }
+        if (Array.isArray(cfg.excludedDuplasNokia)) {
+          setExcludedDuplasNokia(cfg.excludedDuplasNokia);
+          try {
+            localStorage.setItem('ameta_excluded_duplas_nokia_v1', JSON.stringify(cfg.excludedDuplasNokia));
+          } catch {}
+        }
+        if (Array.isArray(cfg.excludedDuplasEricsson)) {
+          setExcludedDuplasEricsson(cfg.excludedDuplasEricsson);
+          try {
+            localStorage.setItem('ameta_excluded_duplas_ericsson_v1', JSON.stringify(cfg.excludedDuplasEricsson));
+          } catch {}
         }
       },
       onNotificacoes: (notifs) => {
@@ -819,16 +860,21 @@ export default function App() {
     } catch {}
   };
 
+  const isDuplaExcluded = (name: string, excludedList: string[]): boolean => {
+    if (!name || !excludedList || excludedList.length === 0) return false;
+    return excludedList.some((ex) => matchesDuplaName(name, ex));
+  };
+
   // NOKIA ONLY Duplas / Equipes Executantes (Completely isolated from Ericsson)
   const nokiaEquipesDuplas = useMemo<string[]>(() => {
     const set = new Set<string>();
     customDuplas.forEach((d) => {
       const c = getCanonicalDuplaName(d) || d.trim();
-      if (c) set.add(c);
+      if (c && !isDuplaExcluded(c, excludedDuplasNokia)) set.add(c);
     });
     Object.keys(serverDuplaEmailsMap || {}).forEach((d) => {
       const c = getCanonicalDuplaName(d) || d.trim();
-      if (c) set.add(c);
+      if (c && !isDuplaExcluded(c, excludedDuplasNokia)) set.add(c);
     });
     // Add exclusively Nokia registered users
     assignableUsersList.forEach((u) => {
@@ -846,13 +892,16 @@ export default function App() {
         rawEq !== 'Equipe de Teste'
       ) {
         const c = getCanonicalDuplaName(rawEq) || rawEq;
-        if (c) set.add(c);
+        if (c && !isDuplaExcluded(c, excludedDuplasNokia)) set.add(c);
       } else if (u.name && u.name.trim()) {
-        set.add(u.name.trim());
+        const c = u.name.trim();
+        if (!isDuplaExcluded(c, excludedDuplasNokia)) set.add(c);
       }
     });
-    return Array.from(set).sort((a, b) => a.localeCompare(b, 'pt-BR'));
-  }, [customDuplas, serverDuplaEmailsMap, assignableUsersList]);
+    return Array.from(set)
+      .filter((d) => !isDuplaExcluded(d, excludedDuplasNokia))
+      .sort((a, b) => a.localeCompare(b, 'pt-BR'));
+  }, [customDuplas, serverDuplaEmailsMap, assignableUsersList, excludedDuplasNokia]);
 
   // ERICSSON ONLY Duplas / Equipes Executantes (Completely isolated from Nokia)
   const ericssonEquipesDuplas = useMemo<string[]>(() => {
@@ -860,19 +909,19 @@ export default function App() {
     // 1. Custom Ericsson duplas
     customDuplasEricsson.forEach((d) => {
       const c = getCanonicalDuplaName(d) || d.trim();
-      if (c) set.add(c);
+      if (c && !isDuplaExcluded(c, excludedDuplasEricsson)) set.add(c);
     });
     // 2. Server map for Ericsson
     Object.keys(serverEricssonDuplaEmailsMap || {}).forEach((d) => {
       const c = getCanonicalDuplaName(d) || d.trim();
-      if (c) set.add(c);
+      if (c && !isDuplaExcluded(c, excludedDuplasEricsson)) set.add(c);
     });
     // 3. From Ericsson spreadsheet rows (ericssonRows)
     ericssonRows.forEach((r) => {
       const eq = (r.equipe || r.fields?.['EQUIPE'] || '').trim();
       if (eq && eq !== '—' && eq !== '-' && eq.toLowerCase() !== 'cancelado') {
         const c = getCanonicalDuplaName(eq) || eq;
-        set.add(c);
+        if (c && !isDuplaExcluded(c, excludedDuplasEricsson)) set.add(c);
       }
     });
     // 4. From Ericsson Engineering rows (ericssonEngineeringRows)
@@ -880,7 +929,7 @@ export default function App() {
       const eq = (r.fields?.['EQUIPE'] || r.fields?.['Equipe'] || '').trim();
       if (eq && eq !== '—' && eq !== '-') {
         const c = getCanonicalDuplaName(eq) || eq;
-        set.add(c);
+        if (c && !isDuplaExcluded(c, excludedDuplasEricsson)) set.add(c);
       }
     });
     // 5. From Ericsson registered users ONLY
@@ -899,13 +948,16 @@ export default function App() {
         rawEq !== 'Equipe de Teste'
       ) {
         const c = getCanonicalDuplaName(rawEq) || rawEq;
-        if (c) set.add(c);
+        if (c && !isDuplaExcluded(c, excludedDuplasEricsson)) set.add(c);
       } else if (u.name && u.name.trim()) {
-        set.add(u.name.trim());
+        const c = u.name.trim();
+        if (!isDuplaExcluded(c, excludedDuplasEricsson)) set.add(c);
       }
     });
-    return Array.from(set).sort((a, b) => a.localeCompare(b, 'pt-BR'));
-  }, [customDuplasEricsson, serverEricssonDuplaEmailsMap, ericssonRows, ericssonEngineeringRows, ericssonUsers]);
+    return Array.from(set)
+      .filter((d) => !isDuplaExcluded(d, excludedDuplasEricsson))
+      .sort((a, b) => a.localeCompare(b, 'pt-BR'));
+  }, [customDuplasEricsson, serverEricssonDuplaEmailsMap, ericssonRows, ericssonEngineeringRows, ericssonUsers, excludedDuplasEricsson]);
 
   // Active vendor duplas list
   const equipesDuplas = useMemo<string[]>(() => {
@@ -925,7 +977,7 @@ export default function App() {
     }
   };
 
-  const handleAddDupla = () => {
+  const handleAddDupla = async () => {
     const clean = newDuplaInput.trim();
     if (!clean) return;
     if (equipesDuplas.some((d) => d.toLowerCase() === clean.toLowerCase())) {
@@ -935,11 +987,35 @@ export default function App() {
     if (activeVendor === 'ERICSSON') {
       const next = [clean, ...customDuplasEricsson];
       saveCustomDuplasEricsson(next);
+      setExcludedDuplasEricsson((prev) => {
+        const nextEx = prev.filter((ex) => !matchesDuplaName(ex, clean));
+        try {
+          localStorage.setItem('ameta_excluded_duplas_ericsson_v1', JSON.stringify(nextEx));
+        } catch {}
+        return nextEx;
+      });
+      try {
+        await dataService.removerEquipeExcluida({ duplaName: clean, vendor: 'ERICSSON' });
+      } catch (err) {
+        console.error('Erro ao remover equipe de excluídas da Ericsson:', err);
+      }
       setNewDuplaInput('');
       showToast(`Equipe "${clean}" adicionada para a Ericsson!`);
     } else {
       const next = [clean, ...customDuplas];
       saveCustomDuplas(next);
+      setExcludedDuplasNokia((prev) => {
+        const nextEx = prev.filter((ex) => !matchesDuplaName(ex, clean));
+        try {
+          localStorage.setItem('ameta_excluded_duplas_nokia_v1', JSON.stringify(nextEx));
+        } catch {}
+        return nextEx;
+      });
+      try {
+        await dataService.removerEquipeExcluida({ duplaName: clean, vendor: 'NOKIA' });
+      } catch (err) {
+        console.error('Erro ao remover equipe de excluídas da Nokia:', err);
+      }
       setNewDuplaInput('');
       showToast(`Dupla "${clean}" adicionada para a Nokia!`);
     }
@@ -955,10 +1031,26 @@ export default function App() {
       const nextList = customDuplasEricsson.map((d) => (d === oldName ? clean : d));
       if (!nextList.includes(clean)) nextList.unshift(clean);
       saveCustomDuplasEricsson(nextList);
+      setExcludedDuplasEricsson((prev) => {
+        const nextEx = prev.filter((ex) => !matchesDuplaName(ex, clean));
+        try {
+          localStorage.setItem('ameta_excluded_duplas_ericsson_v1', JSON.stringify(nextEx));
+        } catch {}
+        return nextEx;
+      });
+      dataService.removerEquipeExcluida({ duplaName: clean, vendor: 'ERICSSON' }).catch(() => {});
     } else {
       const nextList = customDuplas.map((d) => (d === oldName ? clean : d));
       if (!nextList.includes(clean)) nextList.unshift(clean);
       saveCustomDuplas(nextList);
+      setExcludedDuplasNokia((prev) => {
+        const nextEx = prev.filter((ex) => !matchesDuplaName(ex, clean));
+        try {
+          localStorage.setItem('ameta_excluded_duplas_nokia_v1', JSON.stringify(nextEx));
+        } catch {}
+        return nextEx;
+      });
+      dataService.removerEquipeExcluida({ duplaName: clean, vendor: 'NOKIA' }).catch(() => {});
     }
     setEditingDuplaTarget(null);
 
@@ -974,23 +1066,326 @@ export default function App() {
     showToast(`Equipe atualizada de "${oldName}" para "${clean}".`);
   };
 
-  const handleDeleteDupla = async (targetName: string) => {
-    const canonTarget = getCanonicalDuplaName(targetName) || targetName;
-    if (activeVendor === 'ERICSSON') {
-      const next = customDuplasEricsson.filter((d) => {
-        const canonD = getCanonicalDuplaName(d) || d;
-        return d !== targetName && canonD.toLowerCase() !== canonTarget.toLowerCase();
-      });
-      saveCustomDuplasEricsson(next);
+  const handleDeleteDupla = async (targetName: string, vendorParam?: VendorType) => {
+    const vendor = vendorParam || activeVendor;
+    const isEricsson = vendor === 'ERICSSON';
+    const cleanTarget = targetName.trim();
+    if (!cleanTarget) return;
+
+    const canonTarget = getCanonicalDuplaName(cleanTarget) || cleanTarget;
+
+    // 1. Calculate impacted items for confirmation modal
+    const emailMap = isEricsson ? serverEricssonDuplaEmailsMap : serverDuplaEmailsMap;
+    const linkedEmails = Array.from(
+      new Set([...(emailMap[cleanTarget] || []), ...(emailMap[canonTarget] || [])])
+    );
+
+    // Registered users with this team (DO NOT DELETE USERS!)
+    const userList = isEricsson ? ericssonUsers : users;
+    const affectedUsers = userList.filter((u) => {
+      return matchesDuplaName(u.equipe, cleanTarget) || matchesDuplaName(u.name, cleanTarget);
+    });
+
+    // Impacted sites / rows
+    let sitesToFreeCount = 0;
+    if (isEricsson) {
+      const sitesCount = sites.filter(
+        (s) =>
+          s.vendor === 'ERICSSON' &&
+          (matchesDuplaName(s.responsavelDemand, cleanTarget) ||
+            matchesDuplaName(s.equipeParceira, cleanTarget) ||
+            matchesDuplaName(s.equipe, cleanTarget) ||
+            matchesDuplaName(s.customFields?.['EQUIPE'], cleanTarget) ||
+            matchesDuplaName(s.customFields?.['EQUIPE EXECUTANTE'], cleanTarget) ||
+            isSiteAssignedToResponsible(s, cleanTarget, linkedEmails))
+      ).length;
+      const ericssonRowsCount = ericssonRows.filter(
+        (r) =>
+          matchesDuplaName(r.equipe, cleanTarget) ||
+          matchesDuplaName(r.fields?.['EQUIPE'], cleanTarget) ||
+          matchesDuplaName(r.fields?.['EQUIPE EXECUTANTE'], cleanTarget) ||
+          doesEricssonRowMatchResponsible(r, cleanTarget)
+      ).length;
+      const engRowsCount = ericssonEngineeringRows.filter(
+        (r) =>
+          matchesDuplaName(r.equipe, cleanTarget) ||
+          matchesDuplaName(r.fields?.['EQUIPE'], cleanTarget) ||
+          matchesDuplaName(r.fields?.['Equipe'], cleanTarget) ||
+          matchesDuplaName(r.fields?.['EQUIPE EXECUTANTE'], cleanTarget) ||
+          isEricssonRowAssignedToResponsible(r, cleanTarget, linkedEmails)
+      ).length;
+      sitesToFreeCount = sitesCount + ericssonRowsCount + engRowsCount;
     } else {
-      const next = customDuplas.filter((d) => {
-        const canonD = getCanonicalDuplaName(d) || d;
-        return d !== targetName && canonD.toLowerCase() !== canonTarget.toLowerCase();
-      });
-      saveCustomDuplas(next);
+      const sitesCount = sites.filter(
+        (s) =>
+          s.vendor === 'NOKIA' &&
+          (matchesDuplaName(s.responsavelDemand, cleanTarget) ||
+            matchesDuplaName(s.equipeParceira, cleanTarget) ||
+            matchesDuplaName(s.equipe, cleanTarget) ||
+            matchesDuplaName(s.responsavelCampo, cleanTarget) ||
+            matchesDuplaName(s.customFields?.['EQUIPE'], cleanTarget) ||
+            matchesDuplaName(s.customFields?.['EQUIPE EXECUTANTE'], cleanTarget) ||
+            isSiteAssignedToResponsible(s, cleanTarget, linkedEmails))
+      ).length;
+      const tssrCount = tssrRows.filter(
+        (r) =>
+          matchesDuplaName(r.equipe, cleanTarget) ||
+          matchesDuplaName(r.fields?.['EQUIPE'], cleanTarget) ||
+          matchesDuplaName(r.fields?.['EQUIPE EXECUTANTE'], cleanTarget) ||
+          isTssrRowAssignedToResponsible(r, cleanTarget, linkedEmails)
+      ).length;
+      sitesToFreeCount = sitesCount + tssrCount;
     }
-    await handleBulkAssignSitesResponsible('', '', targetName);
-    showToast(`Equipe "${targetName}" removida.`);
+
+    // 4) Modal confirmation
+    const confirmMessage =
+      `Deseja realmente excluir a equipe "${cleanTarget}" do sistema ${
+        isEricsson ? 'Ericsson' : 'TIM / Nokia'
+      }?\n\n` +
+      `• Sites/linhas que serão liberados: ${sitesToFreeCount}\n` +
+      `• E-mails que serão desvinculados: ${linkedEmails.length}\n` +
+      `• Usuários cadastrados com esta equipe: ${affectedUsers.length}\n\n` +
+      `Atenção: Os usuários cadastrados NÃO serão apagados do sistema. Deseja prosseguir com a exclusão?`;
+
+    const confirmed = window.confirm(confirmMessage);
+    if (!confirmed) return;
+
+    try {
+      // 1) Remove name from custom list of that client
+      if (isEricsson) {
+        const next = customDuplasEricsson.filter((d) => !matchesDuplaName(d, cleanTarget));
+        saveCustomDuplasEricsson(next);
+      } else {
+        const next = customDuplas.filter((d) => !matchesDuplaName(d, cleanTarget));
+        saveCustomDuplas(next);
+      }
+
+      // 2) Remove key in email map of that client in state, localStorage and Firestore
+      if (isEricsson) {
+        setServerEricssonDuplaEmailsMap((prev) => {
+          const next = { ...prev };
+          Object.keys(next).forEach((k) => {
+            if (matchesDuplaName(k, cleanTarget)) delete next[k];
+          });
+          return next;
+        });
+        try {
+          const saved = localStorage.getItem('ameta_ericsson_dupla_emails_map_v1');
+          if (saved) {
+            const parsed = JSON.parse(saved);
+            Object.keys(parsed).forEach((k) => {
+              if (matchesDuplaName(k, cleanTarget)) delete parsed[k];
+            });
+            localStorage.setItem('ameta_ericsson_dupla_emails_map_v1', JSON.stringify(parsed));
+          }
+        } catch {}
+        await dataService.desvincularEmailsDupla({
+          duplaName: cleanTarget,
+          vendor: 'ERICSSON',
+        });
+      } else {
+        setServerDuplaEmailsMap((prev) => {
+          const next = { ...prev };
+          Object.keys(next).forEach((k) => {
+            if (matchesDuplaName(k, cleanTarget)) delete next[k];
+          });
+          return next;
+        });
+        try {
+          const saved = localStorage.getItem('ameta_dupla_emails_map_v1');
+          if (saved) {
+            const parsed = JSON.parse(saved);
+            Object.keys(parsed).forEach((k) => {
+              if (matchesDuplaName(k, cleanTarget)) delete parsed[k];
+            });
+            localStorage.setItem('ameta_dupla_emails_map_v1', JSON.stringify(parsed));
+          }
+        } catch {}
+        await dataService.desvincularEmailsDupla({
+          duplaName: cleanTarget,
+          vendor: 'NOKIA',
+        });
+      }
+
+      // 3) Clear equipe field in ALL rows of that client and persist in Firestore
+      const nowIso = new Date().toISOString();
+      if (isEricsson) {
+        setSites((prev) =>
+          prev.map((s) => {
+            if (s.vendor !== 'ERICSSON') return s;
+            const match =
+              matchesDuplaName(s.responsavelDemand, cleanTarget) ||
+              matchesDuplaName(s.equipeParceira, cleanTarget) ||
+              matchesDuplaName(s.equipe, cleanTarget) ||
+              matchesDuplaName(s.customFields?.['EQUIPE'], cleanTarget) ||
+              matchesDuplaName(s.customFields?.['EQUIPE EXECUTANTE'], cleanTarget) ||
+              isSiteAssignedToResponsible(s, cleanTarget, linkedEmails);
+            if (!match) return s;
+            return {
+              ...s,
+              responsavelDemand: '',
+              responsavelCampo: '',
+              equipeParceira: '',
+              equipe: '',
+              responsaveisEmails: [],
+              customFields: {
+                ...(s.customFields || {}),
+                'EQUIPE EXECUTANTE': '',
+                EQUIPE: '',
+                'E-MAIL DUPLA': '',
+              },
+              updatedAt: nowIso,
+            };
+          })
+        );
+        setEricssonRows((prev) =>
+          prev.map((r) => {
+            const match =
+              matchesDuplaName(r.equipe, cleanTarget) ||
+              matchesDuplaName(r.fields?.['EQUIPE'], cleanTarget) ||
+              matchesDuplaName(r.fields?.['EQUIPE EXECUTANTE'], cleanTarget) ||
+              doesEricssonRowMatchResponsible(r, cleanTarget);
+            if (!match) return r;
+            return {
+              ...r,
+              equipe: '',
+              fields: {
+                ...(r.fields || {}),
+                EQUIPE: '',
+                'EQUIPE EXECUTANTE': '',
+                'E-MAIL DUPLA': '',
+              },
+              updatedAt: nowIso,
+            };
+          })
+        );
+        setEricssonEngineeringRows((prev) =>
+          prev.map((r) => {
+            const match =
+              matchesDuplaName(r.equipe, cleanTarget) ||
+              matchesDuplaName(r.fields?.['EQUIPE'], cleanTarget) ||
+              matchesDuplaName(r.fields?.['Equipe'], cleanTarget) ||
+              matchesDuplaName(r.fields?.['EQUIPE EXECUTANTE'], cleanTarget) ||
+              isEricssonRowAssignedToResponsible(r, cleanTarget, linkedEmails);
+            if (!match) return r;
+            return {
+              ...r,
+              equipe: '',
+              fields: {
+                ...(r.fields || {}),
+                EQUIPE: '',
+                Equipe: '',
+                'EQUIPE EXECUTANTE': '',
+                'E-MAIL DUPLA': '',
+              },
+              updatedAt: nowIso,
+            };
+          })
+        );
+      } else {
+        setSites((prev) =>
+          prev.map((s) => {
+            if (s.vendor !== 'NOKIA') return s;
+            const match =
+              matchesDuplaName(s.responsavelDemand, cleanTarget) ||
+              matchesDuplaName(s.equipeParceira, cleanTarget) ||
+              matchesDuplaName(s.equipe, cleanTarget) ||
+              matchesDuplaName(s.responsavelCampo, cleanTarget) ||
+              matchesDuplaName(s.customFields?.['EQUIPE'], cleanTarget) ||
+              matchesDuplaName(s.customFields?.['EQUIPE EXECUTANTE'], cleanTarget) ||
+              isSiteAssignedToResponsible(s, cleanTarget, linkedEmails);
+            if (!match) return s;
+            return {
+              ...s,
+              responsavelDemand: '',
+              responsavelCampo: '',
+              equipeParceira: '',
+              equipe: '',
+              responsaveisEmails: [],
+              customFields: {
+                ...(s.customFields || {}),
+                'EQUIPE EXECUTANTE': '',
+                EQUIPE: '',
+                'E-MAIL DUPLA': '',
+              },
+              updatedAt: nowIso,
+            };
+          })
+        );
+        setTssrRows((prev) =>
+          prev.map((r) => {
+            const match =
+              matchesDuplaName(r.equipe, cleanTarget) ||
+              matchesDuplaName(r.fields?.['EQUIPE'], cleanTarget) ||
+              matchesDuplaName(r.fields?.['EQUIPE EXECUTANTE'], cleanTarget) ||
+              isTssrRowAssignedToResponsible(r, cleanTarget, linkedEmails);
+            if (!match) return r;
+            return {
+              ...r,
+              equipe: '',
+              fields: {
+                ...(r.fields || {}),
+                EQUIPE: '',
+                'EQUIPE EXECUTANTE': '',
+                'E-MAIL DUPLA': '',
+              },
+              updatedAt: nowIso,
+            };
+          })
+        );
+      }
+
+      await dataService.limparTodasLinhasEquipeDupla({
+        duplaName: cleanTarget,
+        vendor: isEricsson ? 'ERICSSON' : 'NOKIA',
+      });
+
+      try {
+        await demandaSharedService.limparTodasDemandas({
+          responsibleName: cleanTarget,
+          vendor,
+          currentSites: sites,
+          currentTssrRows: tssrRows,
+          currentEricssonEngRows: ericssonEngineeringRows,
+        });
+      } catch {}
+
+      // 5) Add to excluded list per client (persisted in Firestore duplas_config/main)
+      if (isEricsson) {
+        setExcludedDuplasEricsson((prev) => {
+          const next = Array.from(new Set([...prev, cleanTarget, canonTarget]));
+          try {
+            localStorage.setItem('ameta_excluded_duplas_ericsson_v1', JSON.stringify(next));
+          } catch {}
+          return next;
+        });
+        await dataService.adicionarEquipeExcluida({
+          duplaName: cleanTarget,
+          vendor: 'ERICSSON',
+        });
+      } else {
+        setExcludedDuplasNokia((prev) => {
+          const next = Array.from(new Set([...prev, cleanTarget, canonTarget]));
+          try {
+            localStorage.setItem('ameta_excluded_duplas_nokia_v1', JSON.stringify(next));
+          } catch {}
+          return next;
+        });
+        await dataService.adicionarEquipeExcluida({
+          duplaName: cleanTarget,
+          vendor: 'NOKIA',
+        });
+      }
+
+      showToast(
+        `Equipe "${cleanTarget}" excluída com sucesso (${
+          isEricsson ? 'Ericsson' : 'TIM / Nokia'
+        }).`
+      );
+    } catch (err: any) {
+      console.error('Erro ao excluir equipe:', err);
+      showToast(`Erro ao excluir equipe "${cleanTarget}": ${err?.message || err}`);
+    }
   };
 
   // Custom added executores for Ericsson
@@ -1142,15 +1537,105 @@ export default function App() {
         return r;
       })
     );
+
+    try {
+      await dataService.renomearExecutorEngenharia({
+        oldName,
+        newName: clean,
+        vendor: 'ERICSSON',
+      });
+    } catch (err) {
+      console.error('Erro ao gravar renomeação de executor no Firestore (ericsson_engenharia):', err);
+    }
+
+    const linkedEmails = serverEricssonExecutorEmailsMap[oldName] || serverEricssonDuplaEmailsMap[oldName] || [];
+    if (linkedEmails.length > 0) {
+      setServerEricssonExecutorEmailsMap((prev) => {
+        const next = { ...prev };
+        delete next[oldName];
+        next[clean] = linkedEmails;
+        return next;
+      });
+      setServerEricssonDuplaEmailsMap((prev) => {
+        const next = { ...prev };
+        delete next[oldName];
+        next[clean] = linkedEmails;
+        return next;
+      });
+      try {
+        const saved = localStorage.getItem('ameta_ericsson_executor_emails_map_v1');
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          delete parsed[oldName];
+          parsed[clean] = linkedEmails;
+          localStorage.setItem('ameta_ericsson_executor_emails_map_v1', JSON.stringify(parsed));
+        }
+      } catch {}
+      try {
+        await dataService.renomearEmailsDupla({
+          oldName,
+          newName: clean,
+          vendor: 'ERICSSON',
+        });
+      } catch (err) {
+        console.error('Erro ao renomear e-mails vinculados da Ericsson no Firestore:', err);
+      }
+    }
+
     showToast(`Executor Ericsson renomeado para "${clean}".`);
   };
 
-  const handleDeleteEricssonExecutor = (name: string) => {
+  const handleDeleteEricssonExecutor = async (name: string) => {
+    const cleanName = name.trim();
+    if (!cleanName) return;
+
+    const linkedEmails = serverEricssonExecutorEmailsMap[cleanName] || serverEricssonDuplaEmailsMap[cleanName] || [];
+    const demandsCount =
+      ericssonEngineeringRows.filter((r) => isEricssonRowAssignedToResponsible(r, cleanName, linkedEmails)).length +
+      sites.filter((s) => s.vendor === 'ERICSSON' && isSiteAssignedToResponsible(s, cleanName, linkedEmails)).length;
+
+    if (demandsCount > 0) {
+      const confirmed = window.confirm(
+        `O executor "${cleanName}" possui ${demandsCount} site(s)/demanda(s) atribuído(s) na Ericsson. Deseja realmente excluí-lo e desvincular todos os ${demandsCount} site(s)?`
+      );
+      if (!confirmed) return;
+    }
+
+    await handleClearEricssonExecutorRows(cleanName);
+
+    setServerEricssonExecutorEmailsMap((prev) => {
+      const next = { ...prev };
+      delete next[cleanName];
+      return next;
+    });
+    setServerEricssonDuplaEmailsMap((prev) => {
+      const next = { ...prev };
+      delete next[cleanName];
+      return next;
+    });
+    try {
+      const saved = localStorage.getItem('ameta_ericsson_executor_emails_map_v1');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        delete parsed[cleanName];
+        localStorage.setItem('ameta_ericsson_executor_emails_map_v1', JSON.stringify(parsed));
+      }
+    } catch {}
+
+    try {
+      await dataService.desvincularEmailsDupla({
+        duplaName: cleanName,
+        vendor: 'ERICSSON',
+      });
+    } catch (err) {
+      console.error('Erro ao remover e-mails vinculados da Ericsson no Firestore:', err);
+    }
+
     const next = customExecutoresEricsson.filter(
-      (e) => e.toLowerCase() !== name.toLowerCase()
+      (e) => e.toLowerCase() !== cleanName.toLowerCase()
     );
     saveCustomExecutoresEricsson(next);
-    showToast(`Executor "${name}" removido da lista da Ericsson.`);
+    showToast(`Executor "${cleanName}" removido da lista da Ericsson.`);
   };
 
   const handleAssignEricssonRowsToExecutor = async (
@@ -1220,10 +1705,15 @@ export default function App() {
       ...prev,
       [executorName]: emails,
     }));
+    setServerEricssonDuplaEmailsMap((prev) => ({
+      ...prev,
+      [executorName]: emails,
+    }));
     try {
       await dataService.vincularEmailsDupla({
         duplaName: executorName,
         emails,
+        vendor: 'ERICSSON',
       });
       showToast(`E-mails vinculados ao executor Ericsson "${executorName}".`);
     } catch {
@@ -1240,9 +1730,13 @@ export default function App() {
 
     setTssrRows((prev) =>
       prev.map((r) => {
-        if ((r.fields?.['Executor'] || '').trim().toLowerCase() === oldName.trim().toLowerCase()) {
+        if (
+          (r.executor || '').trim().toLowerCase() === oldName.trim().toLowerCase() ||
+          (r.fields?.['Executor'] || '').trim().toLowerCase() === oldName.trim().toLowerCase()
+        ) {
           return {
             ...r,
+            executor: clean,
             fields: {
               ...(r.fields || {}),
               Executor: clean,
@@ -1254,15 +1748,104 @@ export default function App() {
       })
     );
 
+    try {
+      await dataService.renomearExecutorEngenharia({
+        oldName,
+        newName: clean,
+        vendor: 'NOKIA',
+      });
+    } catch (err) {
+      console.error('Erro ao gravar renomeação de executor no Firestore (nokia_tssr):', err);
+    }
+
+    const linkedEmails = serverExecutorEmailsMap[oldName] || serverDuplaEmailsMap[oldName] || [];
+    if (linkedEmails.length > 0) {
+      setServerExecutorEmailsMap((prev) => {
+        const next = { ...prev };
+        delete next[oldName];
+        next[clean] = linkedEmails;
+        return next;
+      });
+      setServerDuplaEmailsMap((prev) => {
+        const next = { ...prev };
+        delete next[oldName];
+        next[clean] = linkedEmails;
+        return next;
+      });
+      try {
+        const saved = localStorage.getItem('ameta_executor_emails_map_v1');
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          delete parsed[oldName];
+          parsed[clean] = linkedEmails;
+          localStorage.setItem('ameta_executor_emails_map_v1', JSON.stringify(parsed));
+        }
+      } catch {}
+      try {
+        await dataService.renomearEmailsDupla({
+          oldName,
+          newName: clean,
+          vendor: 'NOKIA',
+        });
+      } catch (err) {
+        console.error('Erro ao renomear e-mails vinculados da Nokia no Firestore:', err);
+      }
+    }
+
     showToast(`Executor renomeado de "${oldName}" para "${clean}".`);
   };
 
-  const handleDeleteExecutor = (name: string) => {
+  const handleDeleteExecutor = async (name: string) => {
+    const cleanName = name.trim();
+    if (!cleanName) return;
+
+    const linkedEmails = serverExecutorEmailsMap[cleanName] || serverDuplaEmailsMap[cleanName] || [];
+    const demandsCount =
+      tssrRows.filter((r) => isTssrRowAssignedToResponsible(r, cleanName, linkedEmails)).length +
+      sites.filter((s) => s.vendor === 'NOKIA' && isSiteAssignedToResponsible(s, cleanName, linkedEmails)).length;
+
+    if (demandsCount > 0) {
+      const confirmed = window.confirm(
+        `O executor "${cleanName}" possui ${demandsCount} site(s)/demanda(s) atribuído(s). Deseja realmente excluí-lo e desvincular todos os ${demandsCount} site(s)?`
+      );
+      if (!confirmed) return;
+    }
+
+    await handleClearAllExecutorRows(cleanName);
+
+    setServerExecutorEmailsMap((prev) => {
+      const next = { ...prev };
+      delete next[cleanName];
+      return next;
+    });
+    setServerDuplaEmailsMap((prev) => {
+      const next = { ...prev };
+      delete next[cleanName];
+      return next;
+    });
+    try {
+      const saved = localStorage.getItem('ameta_executor_emails_map_v1');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        delete parsed[cleanName];
+        localStorage.setItem('ameta_executor_emails_map_v1', JSON.stringify(parsed));
+      }
+    } catch {}
+
+    try {
+      await dataService.desvincularEmailsDupla({
+        duplaName: cleanName,
+        vendor: 'NOKIA',
+      });
+    } catch (err) {
+      console.error('Erro ao remover e-mails vinculados da Nokia no Firestore:', err);
+    }
+
     const next = customExecutores.filter(
-      (e) => e.toLowerCase() !== name.toLowerCase()
+      (e) => e.toLowerCase() !== cleanName.toLowerCase()
     );
     saveCustomExecutores(next);
-    showToast(`Executor "${name}" removido da lista.`);
+    showToast(`Executor "${cleanName}" removido com sucesso.`);
   };
 
   const handleAssignRowsToExecutor = async (
@@ -1329,10 +1912,15 @@ export default function App() {
       ...prev,
       [executorName]: emails,
     }));
+    setServerDuplaEmailsMap((prev) => ({
+      ...prev,
+      [executorName]: emails,
+    }));
     try {
       await dataService.vincularEmailsDupla({
         duplaName: executorName,
         emails,
+        vendor: 'NOKIA',
       });
       showToast(`E-mails vinculados ao executor "${executorName}".`);
     } catch {
@@ -2107,11 +2695,13 @@ export default function App() {
       );
     } else {
       const linkedEmails =
-        serverDuplaEmailsMap[targetResponsible] ||
-        serverExecutorEmailsMap[targetResponsible] ||
-        serverEricssonDuplaEmailsMap[targetResponsible] ||
-        serverEricssonExecutorEmailsMap[targetResponsible] ||
-        [];
+        activeVendor === 'ERICSSON'
+          ? (serverEricssonDuplaEmailsMap[targetResponsible] ||
+             serverEricssonExecutorEmailsMap[targetResponsible] ||
+             [])
+          : (serverDuplaEmailsMap[targetResponsible] ||
+             serverExecutorEmailsMap[targetResponsible] ||
+             []);
       const res = await demandaSharedService.atribuirDemanda({
         siteTokens: tokens,
         responsibleName: targetResponsible,
@@ -2184,8 +2774,8 @@ export default function App() {
       } else {
         const res = await dataService.importarSitesEricssonEmLote(
           params.sites as any,
-          users,
-          serverDuplaEmailsMap,
+          ericssonUsers,
+          serverEricssonDuplaEmailsMap,
           { mode: params.mode }
         );
         setActiveVendor(params.vendor);
@@ -5863,14 +6453,53 @@ export default function App() {
                   ericssonRows={ericssonRows}
                   users={users}
                   ericssonUsers={ericssonUsers}
-                  serverDuplaEmailsMap={serverDuplaEmailsMap}
+                  serverDuplaEmailsMap={
+                    activeVendor === 'ERICSSON'
+                      ? serverEricssonDuplaEmailsMap
+                      : serverDuplaEmailsMap
+                  }
+                  customDuplas={
+                    activeVendor === 'ERICSSON'
+                      ? customDuplasEricsson
+                      : customDuplas
+                  }
                   activeVendor={activeVendor}
                   equipesDuplas={equipesDuplas}
-                  onAddDupla={(name) => {
+                  onAddDupla={async (name) => {
                     const clean = name.trim();
                     if (!clean) return;
-                    if (!customDuplas.some((d) => d.toLowerCase() === clean.toLowerCase())) {
-                      saveCustomDuplas([clean, ...customDuplas]);
+                    if (activeVendor === 'ERICSSON') {
+                      if (!customDuplasEricsson.some((d) => d.toLowerCase() === clean.toLowerCase())) {
+                        saveCustomDuplasEricsson([clean, ...customDuplasEricsson]);
+                      }
+                      setExcludedDuplasEricsson((prev) => {
+                        const nextEx = prev.filter((ex) => !matchesDuplaName(ex, clean));
+                        try {
+                          localStorage.setItem('ameta_excluded_duplas_ericsson_v1', JSON.stringify(nextEx));
+                        } catch {}
+                        return nextEx;
+                      });
+                      try {
+                        await dataService.removerEquipeExcluida({ duplaName: clean, vendor: 'ERICSSON' });
+                      } catch (err) {
+                        console.error('Erro ao remover equipe de excluídas da Ericsson:', err);
+                      }
+                    } else {
+                      if (!customDuplas.some((d) => d.toLowerCase() === clean.toLowerCase())) {
+                        saveCustomDuplas([clean, ...customDuplas]);
+                      }
+                      setExcludedDuplasNokia((prev) => {
+                        const nextEx = prev.filter((ex) => !matchesDuplaName(ex, clean));
+                        try {
+                          localStorage.setItem('ameta_excluded_duplas_nokia_v1', JSON.stringify(nextEx));
+                        } catch {}
+                        return nextEx;
+                      });
+                      try {
+                        await dataService.removerEquipeExcluida({ duplaName: clean, vendor: 'NOKIA' });
+                      } catch (err) {
+                        console.error('Erro ao remover equipe de excluídas da Nokia:', err);
+                      }
                     }
                     showToast(
                       `Dupla "${clean}" criada no sistema ${
@@ -5881,9 +6510,31 @@ export default function App() {
                   onRenameDupla={async (oldName, newName) => {
                     const clean = newName.trim();
                     if (!clean || clean === oldName) return;
-                    const nextList = customDuplas.map((d) => (d === oldName ? clean : d));
-                    if (!nextList.includes(clean)) nextList.unshift(clean);
-                    saveCustomDuplas(nextList);
+                    if (activeVendor === 'ERICSSON') {
+                      const nextList = customDuplasEricsson.map((d) => (d === oldName ? clean : d));
+                      if (!nextList.includes(clean)) nextList.unshift(clean);
+                      saveCustomDuplasEricsson(nextList);
+                      setExcludedDuplasEricsson((prev) => {
+                        const nextEx = prev.filter((ex) => !matchesDuplaName(ex, clean));
+                        try {
+                          localStorage.setItem('ameta_excluded_duplas_ericsson_v1', JSON.stringify(nextEx));
+                        } catch {}
+                        return nextEx;
+                      });
+                      dataService.removerEquipeExcluida({ duplaName: clean, vendor: 'ERICSSON' }).catch(() => {});
+                    } else {
+                      const nextList = customDuplas.map((d) => (d === oldName ? clean : d));
+                      if (!nextList.includes(clean)) nextList.unshift(clean);
+                      saveCustomDuplas(nextList);
+                      setExcludedDuplasNokia((prev) => {
+                        const nextEx = prev.filter((ex) => !matchesDuplaName(ex, clean));
+                        try {
+                          localStorage.setItem('ameta_excluded_duplas_nokia_v1', JSON.stringify(nextEx));
+                        } catch {}
+                        return nextEx;
+                      });
+                      dataService.removerEquipeExcluida({ duplaName: clean, vendor: 'NOKIA' }).catch(() => {});
+                    }
                     try {
                       await dataService.renomearEquipeDupla({
                         oldName,
@@ -5956,22 +6607,48 @@ export default function App() {
                       } de "${duplaName}" foram desvinculados.`
                     );
                   }}
-                  onLinkEmailsToDupla={async (duplaName, emails) => {
+                  onLinkEmailsToDupla={async (duplaName, emails, targetVendor) => {
+                    const vendor = targetVendor || activeVendor;
                     try {
                       await dataService.vincularEmailsDupla({
                         duplaName,
                         emails,
+                        vendor,
                       });
-                      setServerDuplaEmailsMap((prev) => ({
-                        ...prev,
-                        [duplaName]: emails,
-                      }));
+                      if (vendor === 'ERICSSON') {
+                        setServerEricssonDuplaEmailsMap((prev) => ({
+                          ...prev,
+                          [duplaName]: emails,
+                        }));
+                      } else {
+                        setServerDuplaEmailsMap((prev) => ({
+                          ...prev,
+                          [duplaName]: emails,
+                        }));
+                      }
                       showToast(
-                        `E-mail(s) vinculados à dupla "${duplaName}" com sucesso no Firestore!`
+                        `E-mail(s) vinculados à dupla "${duplaName}" com sucesso no Firestore (${
+                          vendor === 'ERICSSON' ? 'Ericsson' : 'TIM / Nokia'
+                        })!`
                       );
                     } catch (err: any) {
                       console.error('Erro ao vincular e-mails no Firestore:', err);
-                      showToast(`Erro no Firestore [duplas_config]: ${err?.code || err?.message || err}`);
+                      if (vendor === 'ERICSSON') {
+                        setServerEricssonDuplaEmailsMap((prev) => ({
+                          ...prev,
+                          [duplaName]: emails,
+                        }));
+                      } else {
+                        setServerDuplaEmailsMap((prev) => ({
+                          ...prev,
+                          [duplaName]: emails,
+                        }));
+                      }
+                      showToast(
+                        `E-mails associados localmente à dupla "${duplaName}" (${
+                          vendor === 'ERICSSON' ? 'Ericsson' : 'TIM / Nokia'
+                        }).`
+                      );
                     }
                   }}
                   onSimulateDuplaView={
@@ -6499,14 +7176,8 @@ export default function App() {
         ownerUser={user}
         nokiaUsers={users}
         ericssonUsers={ericssonUsers}
-        availableNokiaEquipes={equipesDuplas}
-        availableEricssonEquipes={Array.from(
-          new Set(
-            ericssonRows
-              .map((r) => (r.equipe || r.fields?.['EQUIPE'] || '').trim())
-              .filter(Boolean)
-          )
-        )}
+        availableNokiaEquipes={nokiaEquipesDuplas}
+        availableEricssonEquipes={ericssonEquipesDuplas}
         onPermissionsUpdated={(nextNokia, nextEricsson, nextNotifs, toastMsg, nextDuplaMap) => {
           setUsers(nextNokia);
           setEricssonUsers(nextEricsson);

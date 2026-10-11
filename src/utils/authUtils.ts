@@ -40,28 +40,43 @@ export function validateCpfFormat(rawCpf: string): {
   };
 }
 
+function getSecureRandomInt(max: number): number {
+  if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
+    const arr = new Uint32Array(1);
+    crypto.getRandomValues(arr);
+    return arr[0] % max;
+  }
+  return Math.floor(Math.random() * max);
+}
+
 export function generateRandomPassword(length = 10): string {
-  const letters = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
+  const lowercase = 'abcdefghijklmnopqrstuvwxyz';
+  const uppercase = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
   const digits = '0123456789';
   const symbols = '!@#$%&*';
 
-  let pwd = '';
-  // Ensure at least 1 uppercase, 1 lowercase, 1 digit, 1 symbol
-  pwd += letters[Math.floor(Math.random() * 26)]; // lowercase
-  pwd += letters[26 + Math.floor(Math.random() * 26)]; // uppercase
-  pwd += digits[Math.floor(Math.random() * 10)];
-  pwd += symbols[Math.floor(Math.random() * symbols.length)];
+  // Ensure at least 1 lowercase, 1 uppercase, 1 digit, 1 symbol
+  const chars: string[] = [
+    lowercase[getSecureRandomInt(lowercase.length)],
+    uppercase[getSecureRandomInt(uppercase.length)],
+    digits[getSecureRandomInt(digits.length)],
+    symbols[getSecureRandomInt(symbols.length)],
+  ];
 
-  const allChars = letters + digits + symbols;
-  for (let i = 4; i < length; i++) {
-    pwd += allChars[Math.floor(Math.random() * allChars.length)];
+  const allChars = lowercase + uppercase + digits + symbols;
+  for (let i = chars.length; i < length; i++) {
+    chars.push(allChars[getSecureRandomInt(allChars.length)]);
   }
 
-  // Shuffle
-  return pwd
-    .split('')
-    .sort(() => Math.random() - 0.5)
-    .join('');
+  // Fisher-Yates cryptographically secure shuffle
+  for (let i = chars.length - 1; i > 0; i--) {
+    const j = getSecureRandomInt(i + 1);
+    const temp = chars[i];
+    chars[i] = chars[j];
+    chars[j] = temp;
+  }
+
+  return chars.join('');
 }
 
 export function validatePasswordComplexity(password: string): {
@@ -86,6 +101,56 @@ export function validatePasswordComplexity(password: string): {
   }
 
   return { isValid: true };
+}
+
+export function generateRandomSalt(byteLength = 16): string {
+  if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
+    const arr = new Uint8Array(byteLength);
+    crypto.getRandomValues(arr);
+    return Array.from(arr)
+      .map((b) => b.toString(16).padStart(2, '0'))
+      .join('');
+  }
+  return Math.random().toString(36).slice(2) + Date.now().toString(36);
+}
+
+export async function hashStringWithSalt(plainText: string, salt: string): Promise<string> {
+  if (!plainText) return '';
+  const saltedPayload = `${salt}:${plainText}`;
+
+  if (typeof crypto !== 'undefined' && crypto.subtle) {
+    try {
+      const msgUint8 = new TextEncoder().encode(saltedPayload);
+      const hashBuffer = await crypto.subtle.digest('SHA-256', msgUint8);
+      const hashArray = Array.from(new Uint8Array(hashBuffer));
+      return hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
+    } catch {
+      // Fallback below
+    }
+  }
+
+  let hash = 0;
+  for (let i = 0; i < saltedPayload.length; i++) {
+    const char = saltedPayload.charCodeAt(i);
+    hash = (hash << 5) - hash + char;
+    hash |= 0;
+  }
+  return 's_' + Math.abs(hash).toString(36);
+}
+
+export async function createSaltedHash(plainText: string): Promise<{ hash: string; salt: string }> {
+  const salt = generateRandomSalt(16);
+  const hash = await hashStringWithSalt(plainText, salt);
+  return { hash, salt };
+}
+
+export async function verifySaltedHash(
+  plainText: string,
+  salt: string,
+  expectedHash: string
+): Promise<boolean> {
+  const computed = await hashStringWithSalt(plainText, salt);
+  return computed === expectedHash;
 }
 
 export async function hashString(plainText: string): Promise<string> {

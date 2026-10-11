@@ -873,6 +873,19 @@ export function getCanonicalExecutorName(rawExecutor: string): string {
   return trimmed;
 }
 
+export function matchesDuplaName(candidate: string | undefined | null, targetName: string): boolean {
+  if (!candidate || !targetName) return false;
+  const candTrim = String(candidate).trim();
+  const targetTrim = String(targetName).trim();
+  if (!candTrim || candTrim === '—' || candTrim === '-' || !targetTrim) return false;
+  const candNorm = normalizeAccents(candTrim.toLowerCase());
+  const targetNorm = normalizeAccents(targetTrim.toLowerCase());
+  if (candNorm === targetNorm) return true;
+  const candCanon = normalizeAccents((getCanonicalDuplaName(candTrim) || candTrim).toLowerCase());
+  const targetCanon = normalizeAccents((getCanonicalDuplaName(targetTrim) || targetTrim).toLowerCase());
+  return candCanon === targetCanon || candCanon === targetNorm || candNorm === targetCanon;
+}
+
 export function doesSiteMatchEquipe(site: TelecomSite, targetEquipe: string): boolean {
   if (!targetEquipe || targetEquipe === 'ALL') return true;
 

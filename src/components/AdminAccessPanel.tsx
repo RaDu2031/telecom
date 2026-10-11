@@ -44,6 +44,7 @@ import {
 } from '../utils/documentOcrUtils';
 import { db, firebaseConfig, handleFirestoreError, OperationType, createAuthAccountSecondary } from '../lib/firebase';
 import { collection, onSnapshot, doc, setDoc, deleteDoc, updateDoc } from 'firebase/firestore';
+import { createSaltedHash } from '../utils/authUtils';
 
 interface AdminAccessPanelProps {
   currentUser: AmetaUser;
@@ -780,8 +781,9 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
         const { uid: newUid } = await createAuthAccountSecondary(cleanEmail, initialPassword);
 
         const oldDocId = u.uid || u.id || cleanEmail;
+        const { cpf: rawCpf, initialPasswordHash, ...publicUserData } = u as any;
         const updatedUserPayload: AmetaUser = {
-          ...u,
+          ...publicUserData,
           id: newUid,
           uid: newUid,
           email: cleanEmail,
@@ -793,6 +795,20 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
         };
 
         await setDoc(doc(db, 'usuarios', newUid), sanitizeFirestoreData(updatedUserPayload));
+
+        // Gravar dados sensíveis (cpf, hash com sal) na subcoleção privada
+        const { hash: saltedHash, salt } = await createSaltedHash(initialPassword);
+        await setDoc(
+          doc(db, 'usuarios', newUid, 'privado', 'dados'),
+          sanitizeFirestoreData({
+            cpf: rawCpf ? String(rawCpf).trim() : '',
+            initialPasswordHash: saltedHash,
+            salt,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          }),
+          { merge: true }
+        );
 
         if (oldDocId && oldDocId !== newUid) {
           try {
@@ -889,7 +905,6 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
         name: name.trim(),
         email: cleanEmail,
         telefone: telefone.trim(),
-        cpf: cpf.trim(),
         rg: rg.trim(),
         equipe: equipe.trim() || 'Campo',
         atividade: atividade.trim() || 'ACESSO | TX',
@@ -908,8 +923,22 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
       };
 
       await setDoc(doc(db, 'usuarios', uid), sanitizeFirestoreData(newUser));
+
+      // Salvar CPF na subcoleção privada
+      if (cpf.trim()) {
+        await setDoc(
+          doc(db, 'usuarios', uid, 'privado', 'dados'),
+          sanitizeFirestoreData({
+            cpf: cpf.trim(),
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          }),
+          { merge: true }
+        );
+      }
+
       if (onUsersUpdated) {
-        onUsersUpdated([...users, newUser], `Perfil ${name.trim()} cadastrado com sucesso no Authentication e Firestore`);
+        onUsersUpdated([...users, { ...newUser, cpf: cpf.trim() }], `Perfil ${name.trim()} cadastrado com sucesso no Authentication e Firestore`);
       }
       resetNewResourceForm();
       setAddModalOpen(false);

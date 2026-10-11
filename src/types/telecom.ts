@@ -1,7 +1,7 @@
 export type VendorType = 'NOKIA' | 'ERICSSON';
 
 export const DEFAULT_ONEDRIVE_TSSR_URL = 'https://onedrive.live.com/:x:/g/personal/d82e752e01e5afdd/IQDgA-L4WLPYSbYY7rdSiedCAY39Y72Mn2s6Vn9Ijm0Tq-k?rtime=i_gLDa-r3kg&redeem=aHR0cHM6Ly8xZHJ2Lm1zL3gvYy9kODJlNzUyZTAxZTVhZmRkL0lRRGdBLUw0V0xQWVNiWVk3cmRTaWVkQ0FZMzlZNzJNbjJzNlZuOUlqbTBUcS1rP2U9WEV0d0F4';
-export const DEFAULT_ERICSSON_ENG_ONEDRIVE_URL = 'https://onedrive.live.com/:x:/g/personal/d82e752e01e5afdd/IQCOlAu1cXsYS4GTeMznod4DAcUTBaeVfylro6lYCHY4BQY?rtime=lKiFN4Uj30g&redeem=aHR0cHM6Ly8xZHJ2Lm1zL3gvYy9kODJlNzUyZTAxZTVhZmRkL0lRQ09sQXUxY1hzWVM0R1RlTXpub2Q0REFjVVRCYWVWZnlscm82bFlDSFk0QlFZP2U9TzJIbnRI';
+export const DEFAULT_ERICSSON_ENG_ONEDRIVE_URL = 'https://onedrive.live.com/:x:/g/personal/d82e752e01e5afdd/IQBkdW7amR5BQLwUz3WVNtySAWRS0ZetSRS24kMBQIjwE4E?rtime=bHml02143kg&redeem=aHR0cHM6Ly8xZHJ2Lm1zL3gvYy9kODJlNzUyZTAxZTVhZmRkL0lRQmtkVzdhbVI1QlFMd1V6M1dWTnR5U0FXUlMwWmV0U1JTMjRrTUJRSWp3RTRFP2U9cjhQT3B5';
 
 export type SiteStatus =
   | 'Vistoria - Finalizada'
@@ -499,6 +499,14 @@ export interface AmetaUser {
   failedAttempts?: number;
   lockoutUntil?: string;
   desativado?: boolean;
+}
+
+export interface UserPrivateData {
+  cpf?: string;
+  initialPasswordHash?: string;
+  salt?: string;
+  updatedAt?: string;
+  createdAt?: string;
 }
 
 export interface AuditLogEntry {

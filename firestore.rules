@@ -6,15 +6,25 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    function isCorporateEmail() {
+    function isOwnerEmail() {
       return isSignedIn() && request.auth.token.email != null && (
-        request.auth.token.email.lower().matches('.*@ametaservicos\\.com\\.br$') ||
+        request.auth.token.email.lower() == 'rafael.araujo@ametaservicos.com.br' ||
         request.auth.token.email.lower() == 'rafael.araujo0797@gmail.com'
       );
     }
 
+    function isCorporateEmail() {
+      return isSignedIn() && request.auth.token.email != null && (
+        request.auth.token.email.lower().matches('.*@ametaservicos\\.com\\.br$') ||
+        isOwnerEmail()
+      );
+    }
+
     function isEmailVerified() {
-      return isSignedIn();
+      return isSignedIn() && (
+        request.auth.token.email_verified == true ||
+        isOwnerEmail()
+      );
     }
 
     function getUserData() {
@@ -23,10 +33,7 @@ service cloud.firestore {
 
     function isAdmin() {
       return isCorporateEmail() && isEmailVerified() && (
-        (request.auth.token.email != null && (
-          request.auth.token.email.lower() == 'rafael.araujo0797@gmail.com' ||
-          request.auth.token.email.lower() == 'rafael.araujo@ametaservicos.com.br'
-        )) ||
+        isOwnerEmail() ||
         (exists(/databases/$(database)/documents/usuarios/$(request.auth.uid)) && 
          (getUserData().get('role', '') == 'ADM' || getUserData().get('tipo', '') == 'admin' || getUserData().get('situacao', '') == 'dono'))
       );
@@ -79,8 +86,10 @@ service cloud.firestore {
 
     // Usuarios collection
     match /usuarios/{userId} {
-      // User reads their own document; released users can view directory to resolve teams/responsibles
-      allow read: if isCorporateEmail() && (request.auth.uid == userId || isReleased());
+      // Cada usuário lê só o próprio documento; admin e coordenadores continuam lendo todos
+      allow read: if isCorporateEmail() && isEmailVerified() && (
+        request.auth.uid == userId || isCoordinatorOrAdmin()
+      );
       
       // ONLY Admin can create user documents in Firestore
       allow create: if isCorporateEmail() && isEmailVerified() && isAdmin();
@@ -94,6 +103,16 @@ service cloud.firestore {
       
       // Admin can block or manage user profiles
       allow delete: if isCorporateEmail() && isEmailVerified() && isAdmin();
+
+      // Subcoleção privada de dados e credenciais sensíveis (cpf, initialPasswordHash, salt)
+      match /privado/{docId} {
+        allow read: if isCorporateEmail() && isEmailVerified() && (
+          request.auth.uid == userId || isAdmin()
+        );
+        allow write: if isCorporateEmail() && isEmailVerified() && (
+          request.auth.uid == userId || isAdmin()
+        );
+      }
     }
 
     // Chamados collection

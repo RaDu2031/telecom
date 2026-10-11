@@ -14,6 +14,7 @@ import {
   query,
   where,
   writeBatch,
+  deleteField,
 } from 'firebase/firestore';
 import {
   signInWithEmailAndPassword,
@@ -36,11 +37,15 @@ import {
   isOwnerAdmUser,
   ensureUserMandatoryDocuments,
   AuditLogEntry,
+  UserPrivateData,
 } from '../types/telecom';
-import { hashString } from '../utils/authUtils';
+import { hashString, createSaltedHash } from '../utils/authUtils';
 import {
   doesSiteMatchResponsible,
   doesEricssonRowMatchResponsible,
+  getCanonicalDuplaName,
+  normalizeAccents,
+  matchesDuplaName,
 } from '../utils/spreadsheetUtils';
 
 export type Unsubscribe = () => void;
@@ -227,6 +232,8 @@ export interface IDataService {
   }): Promise<AmetaUser>;
   obterUsuarioPorUid(uid: string): Promise<AmetaUser | null>;
   listarTodosUsuarios(): Promise<AmetaUser[]>;
+  obterDadosPrivadosUsuario(uid: string): Promise<UserPrivateData | null>;
+  salvarDadosPrivadosUsuario(uid: string, dados: UserPrivateData): Promise<void>;
   atualizarPermissaoUsuarioPeloDono(params: {
     uid: string;
     email: string;
@@ -380,7 +387,34 @@ export interface IDataService {
   vincularEmailsDupla(params: {
     duplaName: string;
     emails: string[];
+    vendor?: 'NOKIA' | 'ERICSSON';
   }): Promise<void>;
+  desvincularEmailsDupla(params: {
+    duplaName: string;
+    vendor?: 'NOKIA' | 'ERICSSON';
+  }): Promise<void>;
+  renomearEmailsDupla(params: {
+    oldName: string;
+    newName: string;
+    vendor?: 'NOKIA' | 'ERICSSON';
+  }): Promise<void>;
+  renomearExecutorEngenharia(params: {
+    oldName: string;
+    newName: string;
+    vendor: 'NOKIA' | 'ERICSSON';
+  }): Promise<{ updatedCount: number }>;
+  adicionarEquipeExcluida(params: {
+    duplaName: string;
+    vendor: 'NOKIA' | 'ERICSSON';
+  }): Promise<void>;
+  removerEquipeExcluida(params: {
+    duplaName: string;
+    vendor: 'NOKIA' | 'ERICSSON';
+  }): Promise<void>;
+  limparTodasLinhasEquipeDupla(params: {
+    duplaName: string;
+    vendor: 'NOKIA' | 'ERICSSON';
+  }): Promise<{ updatedCount: number }>;
   importarDadosIniciais(onProgress?: (msg: string) => void): Promise<{
     totalSites: number;
     totalEricsson: number;
@@ -442,7 +476,11 @@ export interface IDataService {
       onUsuarios?: (users: AmetaUser[]) => void;
       onDuplasConfig?: (config: {
         duplaEmailsMap?: Record<string, string[]>;
+        ericssonDuplaEmailsMap?: Record<string, string[]>;
         customDuplas?: string[];
+        customDuplasEricsson?: string[];
+        excludedDuplasNokia?: string[];
+        excludedDuplasEricsson?: string[];
       }) => void;
       onNotificacoes?: (notifs: AmetaNotification[]) => void;
     }
@@ -1303,6 +1341,7 @@ class FirebaseDataService implements IDataService {
     name: string;
     email: string;
     password: string;
+    cpf?: string;
     role?: UserRole;
     equipe?: string;
     telefone?: string;
@@ -1324,6 +1363,21 @@ class FirebaseDataService implements IDataService {
 
     try {
       await setDoc(doc(db, FIRESTORE_COLLECTIONS.USUARIOS, uid), sanitizeFirestoreData(newUser));
+
+      // Gravar dados sensíveis (cpf, hash inicial, sal) na subcoleção privada
+      if (params.cpf || params.password) {
+        const { hash, salt } = await createSaltedHash(params.password);
+        await setDoc(
+          doc(db, FIRESTORE_COLLECTIONS.USUARIOS, uid, 'privado', 'dados'),
+          sanitizeFirestoreData({
+            cpf: params.cpf ? params.cpf.trim() : '',
+            initialPasswordHash: hash,
+            salt,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          })
+        );
+      }
     } catch (dbError: any) {
       let authDeleteStatus = 'Conta recém-criada no Authentication foi excluída com sucesso.';
       try {
@@ -1339,6 +1393,43 @@ class FirebaseDataService implements IDataService {
     }
 
     return newUser;
+  }
+
+  async obterDadosPrivadosUsuario(
+    uid: string
+  ): Promise<UserPrivateData | null> {
+    try {
+      const snap = await getDoc(doc(db, FIRESTORE_COLLECTIONS.USUARIOS, uid, 'privado', 'dados'));
+      if (snap.exists()) {
+        return snap.data() as UserPrivateData;
+      }
+      return null;
+    } catch (err) {
+      console.warn(`[dataService] Não foi possível obter usuarios/${uid}/privado/dados:`, err);
+      return null;
+    }
+  }
+
+  async salvarDadosPrivadosUsuario(
+    uid: string,
+    dados: UserPrivateData
+  ): Promise<void> {
+    try {
+      await setDoc(
+        doc(db, FIRESTORE_COLLECTIONS.USUARIOS, uid, 'privado', 'dados'),
+        sanitizeFirestoreData({
+          ...dados,
+          updatedAt: new Date().toISOString(),
+        }),
+        { merge: true }
+      );
+    } catch (err) {
+      handleFirestoreError(
+        err,
+        OperationType.WRITE,
+        `${FIRESTORE_COLLECTIONS.USUARIOS}/${uid}/privado/dados`
+      );
+    }
   }
 
   async autenticarUsuarioCorporativo(params: {
@@ -1574,13 +1665,23 @@ class FirebaseDataService implements IDataService {
       throw new Error('Usuário não encontrado.');
     }
     const user = snap.data() as AmetaUser;
-    const pwdHash = await hashString(params.newInitialPassword);
+    const { hash: pwdHash, salt } = await createSaltedHash(params.newInitialPassword);
+
+    // Gravar o hash com sal na subcoleção privada
+    await setDoc(
+      doc(db, FIRESTORE_COLLECTIONS.USUARIOS, params.targetUid, 'privado', 'dados'),
+      sanitizeFirestoreData({
+        initialPasswordHash: pwdHash,
+        salt,
+        updatedAt: new Date().toISOString(),
+      }),
+      { merge: true }
+    );
 
     await updateDoc(
       userRef,
       sanitizeFirestoreData({
         mustChangePassword: true,
-        initialPasswordHash: pwdHash,
         batchStatus: 'Aguardando primeiro acesso',
         failedAttempts: 0,
         lockoutUntil: null,
@@ -1865,13 +1966,318 @@ class FirebaseDataService implements IDataService {
   async vincularEmailsDupla(params: {
     duplaName: string;
     emails: string[];
+    vendor?: 'NOKIA' | 'ERICSSON';
   }): Promise<void> {
+    const isEricsson = params.vendor === 'ERICSSON';
+    const fieldName = isEricsson ? 'ericssonDuplaEmailsMap' : 'duplaEmailsMap';
     const cfgRef = doc(db, 'duplas_config', 'main');
     await setDoc(cfgRef, sanitizeFirestoreData({
-      duplaEmailsMap: {
+      [fieldName]: {
         [params.duplaName]: params.emails,
       },
     }), { merge: true });
+  }
+
+  async desvincularEmailsDupla(params: {
+    duplaName: string;
+    vendor?: 'NOKIA' | 'ERICSSON';
+  }): Promise<void> {
+    const isEricsson = params.vendor === 'ERICSSON';
+    const fieldName = isEricsson ? 'ericssonDuplaEmailsMap' : 'duplaEmailsMap';
+    const cfgRef = doc(db, 'duplas_config', 'main');
+    const clean = params.duplaName.trim();
+    const canon = getCanonicalDuplaName(clean) || clean;
+    try {
+      const updates: Record<string, any> = {
+        [`${fieldName}.${clean}`]: deleteField(),
+      };
+      if (canon !== clean) {
+        updates[`${fieldName}.${canon}`] = deleteField();
+      }
+      await updateDoc(cfgRef, updates);
+    } catch {
+      const snap = await getDoc(cfgRef);
+      if (snap.exists()) {
+        const data = snap.data();
+        const currentMap = data[fieldName] as Record<string, string[]> | undefined;
+        if (currentMap) {
+          const nextMap = { ...currentMap };
+          const pLower = clean.toLowerCase();
+          const cLower = canon.toLowerCase();
+          Object.keys(nextMap).forEach((k) => {
+            const kLower = k.trim().toLowerCase();
+            const kCanon = (getCanonicalDuplaName(k) || k).trim().toLowerCase();
+            if (kLower === pLower || kLower === cLower || kCanon === cLower || kCanon === pLower) {
+              delete nextMap[k];
+            }
+          });
+          await setDoc(cfgRef, { [fieldName]: nextMap }, { merge: true });
+        }
+      }
+    }
+  }
+
+  async adicionarEquipeExcluida(params: {
+    duplaName: string;
+    vendor: 'NOKIA' | 'ERICSSON';
+  }): Promise<void> {
+    const isEricsson = params.vendor === 'ERICSSON';
+    const fieldName = isEricsson ? 'excludedDuplasEricsson' : 'excludedDuplasNokia';
+    const cfgRef = doc(db, 'duplas_config', 'main');
+    const clean = params.duplaName.trim();
+    const canon = getCanonicalDuplaName(clean) || clean;
+    const snap = await getDoc(cfgRef);
+    const currentList: string[] = snap.exists() ? (snap.data()[fieldName] || []) : [];
+    const set = new Set(currentList);
+    set.add(clean);
+    if (canon) set.add(canon);
+    await setDoc(cfgRef, { [fieldName]: Array.from(set) }, { merge: true });
+  }
+
+  async removerEquipeExcluida(params: {
+    duplaName: string;
+    vendor: 'NOKIA' | 'ERICSSON';
+  }): Promise<void> {
+    const isEricsson = params.vendor === 'ERICSSON';
+    const fieldName = isEricsson ? 'excludedDuplasEricsson' : 'excludedDuplasNokia';
+    const cfgRef = doc(db, 'duplas_config', 'main');
+    const snap = await getDoc(cfgRef);
+    if (!snap.exists()) return;
+    const currentList: string[] = snap.data()[fieldName] || [];
+    const nextList = currentList.filter((item) => !matchesDuplaName(item, params.duplaName));
+    await setDoc(cfgRef, { [fieldName]: nextList }, { merge: true });
+  }
+
+  async limparTodasLinhasEquipeDupla(params: {
+    duplaName: string;
+    vendor: 'NOKIA' | 'ERICSSON';
+  }): Promise<{ updatedCount: number }> {
+    const isEricsson = params.vendor === 'ERICSSON';
+    let totalUpdated = 0;
+    const nowIso = new Date().toISOString();
+
+    if (isEricsson) {
+      // 1. ERICSSON_SITES
+      const sitesSnap = await getDocs(collection(db, FIRESTORE_COLLECTIONS.ERICSSON_SITES));
+      let batch = writeBatch(db);
+      let batchCount = 0;
+
+      for (const d of sitesSnap.docs) {
+        const data = d.data();
+        const isMatch =
+          matchesDuplaName(data.responsavelDemand, params.duplaName) ||
+          matchesDuplaName(data.equipe, params.duplaName) ||
+          matchesDuplaName(data.equipeParceira, params.duplaName) ||
+          matchesDuplaName(data.fields?.['EQUIPE'], params.duplaName) ||
+          matchesDuplaName(data.fields?.['EQUIPE EXECUTANTE'], params.duplaName);
+
+        if (isMatch) {
+          batch.update(d.ref, {
+            responsavelDemand: '',
+            equipe: '',
+            equipeParceira: '',
+            'fields.EQUIPE': '',
+            'fields.EQUIPE EXECUTANTE': '',
+            'fields.E-MAIL DUPLA': '',
+            updatedAt: nowIso,
+          });
+          batchCount++;
+          totalUpdated++;
+          if (batchCount >= 400) {
+            await batch.commit();
+            batch = writeBatch(db);
+            batchCount = 0;
+          }
+        }
+      }
+      if (batchCount > 0) {
+        await batch.commit();
+      }
+
+      // 2. ERICSSON_ENGENHARIA
+      const engSnap = await getDocs(collection(db, FIRESTORE_COLLECTIONS.ERICSSON_ENGENHARIA));
+      let engBatch = writeBatch(db);
+      let engBatchCount = 0;
+
+      for (const d of engSnap.docs) {
+        const data = d.data();
+        const isMatch =
+          matchesDuplaName(data.equipe, params.duplaName) ||
+          matchesDuplaName(data.fields?.['EQUIPE'], params.duplaName) ||
+          matchesDuplaName(data.fields?.['Equipe'], params.duplaName) ||
+          matchesDuplaName(data.fields?.['EQUIPE EXECUTANTE'], params.duplaName);
+
+        if (isMatch) {
+          engBatch.update(d.ref, {
+            equipe: '',
+            'fields.EQUIPE': '',
+            'fields.Equipe': '',
+            'fields.EQUIPE EXECUTANTE': '',
+            'fields.E-MAIL DUPLA': '',
+            updatedAt: nowIso,
+          });
+          engBatchCount++;
+          totalUpdated++;
+          if (engBatchCount >= 400) {
+            await engBatch.commit();
+            engBatch = writeBatch(db);
+            engBatchCount = 0;
+          }
+        }
+      }
+      if (engBatchCount > 0) {
+        await engBatch.commit();
+      }
+    } else {
+      // 1. NOKIA_SITES
+      const sitesSnap = await getDocs(collection(db, FIRESTORE_COLLECTIONS.NOKIA_SITES));
+      let batch = writeBatch(db);
+      let batchCount = 0;
+
+      for (const d of sitesSnap.docs) {
+        const data = d.data();
+        const isMatch =
+          matchesDuplaName(data.responsavelDemand, params.duplaName) ||
+          matchesDuplaName(data.equipe, params.duplaName) ||
+          matchesDuplaName(data.equipeParceira, params.duplaName) ||
+          matchesDuplaName(data.responsavelCampo, params.duplaName) ||
+          matchesDuplaName(data.customFields?.['EQUIPE'], params.duplaName) ||
+          matchesDuplaName(data.customFields?.['EQUIPE EXECUTANTE'], params.duplaName);
+
+        if (isMatch) {
+          batch.update(d.ref, {
+            responsavelDemand: '',
+            equipe: '',
+            equipeParceira: '',
+            responsavelCampo: '',
+            responsaveisEmails: [],
+            'customFields.EQUIPE': '',
+            'customFields.EQUIPE EXECUTANTE': '',
+            'customFields.E-MAIL DUPLA': '',
+            updatedAt: nowIso,
+          });
+          batchCount++;
+          totalUpdated++;
+          if (batchCount >= 400) {
+            await batch.commit();
+            batch = writeBatch(db);
+            batchCount = 0;
+          }
+        }
+      }
+      if (batchCount > 0) {
+        await batch.commit();
+      }
+
+      // 2. NOKIA_TSSR
+      const tssrSnap = await getDocs(collection(db, FIRESTORE_COLLECTIONS.NOKIA_TSSR));
+      let tssrBatch = writeBatch(db);
+      let tssrBatchCount = 0;
+
+      for (const d of tssrSnap.docs) {
+        const data = d.data();
+        const isMatch =
+          matchesDuplaName(data.equipe, params.duplaName) ||
+          matchesDuplaName(data.fields?.['EQUIPE'], params.duplaName) ||
+          matchesDuplaName(data.fields?.['EQUIPE EXECUTANTE'], params.duplaName);
+
+        if (isMatch) {
+          tssrBatch.update(d.ref, {
+            equipe: '',
+            'fields.EQUIPE': '',
+            'fields.EQUIPE EXECUTANTE': '',
+            'fields.E-MAIL DUPLA': '',
+            updatedAt: nowIso,
+          });
+          tssrBatchCount++;
+          totalUpdated++;
+          if (tssrBatchCount >= 400) {
+            await tssrBatch.commit();
+            tssrBatch = writeBatch(db);
+            tssrBatchCount = 0;
+          }
+        }
+      }
+      if (tssrBatchCount > 0) {
+        await tssrBatch.commit();
+      }
+    }
+
+    return { updatedCount: totalUpdated };
+  }
+
+  async renomearEmailsDupla(params: {
+    oldName: string;
+    newName: string;
+    vendor?: 'NOKIA' | 'ERICSSON';
+  }): Promise<void> {
+    const isEricsson = params.vendor === 'ERICSSON';
+    const fieldName = isEricsson ? 'ericssonDuplaEmailsMap' : 'duplaEmailsMap';
+    const cfgRef = doc(db, 'duplas_config', 'main');
+    const snap = await getDoc(cfgRef);
+    if (!snap.exists()) return;
+    const data = snap.data();
+    const currentMap = data[fieldName] as Record<string, string[]> | undefined;
+    if (currentMap && currentMap[params.oldName]) {
+      const emails = currentMap[params.oldName];
+      try {
+        await updateDoc(cfgRef, {
+          [`${fieldName}.${params.oldName}`]: deleteField(),
+          [`${fieldName}.${params.newName}`]: emails,
+        });
+      } catch {
+        const nextMap = { ...currentMap };
+        delete nextMap[params.oldName];
+        nextMap[params.newName] = emails;
+        await setDoc(cfgRef, { [fieldName]: nextMap }, { merge: true });
+      }
+    }
+  }
+
+  async renomearExecutorEngenharia(params: {
+    oldName: string;
+    newName: string;
+    vendor: 'NOKIA' | 'ERICSSON';
+  }): Promise<{ updatedCount: number }> {
+    const cleanOld = params.oldName.trim().toLowerCase();
+    const cleanNew = params.newName.trim();
+    const isEricsson = params.vendor === 'ERICSSON';
+    const colName = isEricsson
+      ? FIRESTORE_COLLECTIONS.ERICSSON_ENGENHARIA
+      : FIRESTORE_COLLECTIONS.NOKIA_TSSR;
+    const snap = await getDocs(collection(db, colName));
+    const batch = writeBatch(db);
+    let count = 0;
+    const nowIso = new Date().toISOString();
+
+    for (const d of snap.docs) {
+      const data = d.data();
+      const exec = (data.executor || '').trim().toLowerCase();
+      const fieldExec = isEricsson
+        ? (data.fields?.['EXECUTOR'] || '').trim().toLowerCase()
+        : (data.fields?.['Executor'] || '').trim().toLowerCase();
+
+      if (exec === cleanOld || fieldExec === cleanOld) {
+        if (isEricsson) {
+          batch.update(d.ref, {
+            executor: cleanNew,
+            'fields.EXECUTOR': cleanNew,
+            updatedAt: nowIso,
+          });
+        } else {
+          batch.update(d.ref, {
+            executor: cleanNew,
+            'fields.Executor': cleanNew,
+            updatedAt: nowIso,
+          });
+        }
+        count++;
+      }
+    }
+    if (count > 0) {
+      await batch.commit();
+    }
+    return { updatedCount: count };
   }
 
   async importarDadosIniciais(onProgress?: (msg: string) => void): Promise<{
@@ -1936,7 +2342,18 @@ class FirebaseDataService implements IDataService {
       for (const u of seed.users) {
         const uid = u.uid || u.id;
         if (uid) {
-          batch.set(doc(db, FIRESTORE_COLLECTIONS.USUARIOS, uid), sanitizeFirestoreData(u), { merge: true });
+          const { cpf, initialPasswordHash, passwordHash, ...cleanU } = u as any;
+          batch.set(doc(db, FIRESTORE_COLLECTIONS.USUARIOS, uid), sanitizeFirestoreData(cleanU), { merge: true });
+          if (cpf) {
+            batch.set(
+              doc(db, FIRESTORE_COLLECTIONS.USUARIOS, uid, 'privado', 'dados'),
+              sanitizeFirestoreData({
+                cpf: String(cpf).trim(),
+                updatedAt: new Date().toISOString(),
+              }),
+              { merge: true }
+            );
+          }
           totalUsers++;
         }
       }
@@ -1986,11 +2403,22 @@ class FirebaseDataService implements IDataService {
         if (email && (!existingEmails.has(email) || email === 'teste.liberacao@ametaservicos.com.br')) {
           const uid = u.uid || u.id;
           if (uid) {
+            const { cpf, initialPasswordHash, passwordHash, ...cleanU } = u as any;
             batch.set(
               doc(db, FIRESTORE_COLLECTIONS.USUARIOS, uid),
-              sanitizeFirestoreData(u),
+              sanitizeFirestoreData(cleanU),
               { merge: true }
             );
+            if (cpf) {
+              batch.set(
+                doc(db, FIRESTORE_COLLECTIONS.USUARIOS, uid, 'privado', 'dados'),
+                sanitizeFirestoreData({
+                  cpf: String(cpf).trim(),
+                  updatedAt: new Date().toISOString(),
+                }),
+                { merge: true }
+              );
+            }
             count++;
           }
         }
@@ -2006,7 +2434,7 @@ class FirebaseDataService implements IDataService {
   }
 
   observarColecoesPlataforma(
-    _user: AmetaUser,
+    user: AmetaUser,
     callbacks: {
       onNokiaSites?: (sites: TelecomSite[]) => void;
       onNokiaTssr?: (rows: TssrRow[]) => void;
@@ -2019,7 +2447,11 @@ class FirebaseDataService implements IDataService {
       onUsuarios?: (users: AmetaUser[]) => void;
       onDuplasConfig?: (config: {
         duplaEmailsMap?: Record<string, string[]>;
+        ericssonDuplaEmailsMap?: Record<string, string[]>;
         customDuplas?: string[];
+        customDuplasEricsson?: string[];
+        excludedDuplasNokia?: string[];
+        excludedDuplasEricsson?: string[];
       }) => void;
       onNotificacoes?: (notifs: AmetaNotification[]) => void;
     }
@@ -2091,12 +2523,39 @@ class FirebaseDataService implements IDataService {
       );
     }
     if (callbacks.onUsuarios) {
-      unsubs.push(
-        onSnapshot(collection(db, FIRESTORE_COLLECTIONS.USUARIOS), (snap) => {
-          const list = snap.docs.map((d) => ({ id: d.id, uid: d.id, ...d.data() } as AmetaUser));
-          callbacks.onUsuarios!(list);
-        }, (err) => console.error('Usuarios snapshot error:', err))
-      );
+      const isCoordOrAdmin =
+        user.role === 'ADM' ||
+        user.role === 'Coordenador Geral' ||
+        user.role === 'Coordenador Engenharia' ||
+        isOwnerAdmUser(user.email, user.situacao);
+
+      if (isCoordOrAdmin) {
+        unsubs.push(
+          onSnapshot(
+            collection(db, FIRESTORE_COLLECTIONS.USUARIOS),
+            (snap) => {
+              const list = snap.docs.map((d) => ({ id: d.id, uid: d.id, ...d.data() } as AmetaUser));
+              callbacks.onUsuarios!(list);
+            },
+            (err) => console.error('Usuarios snapshot error:', err)
+          )
+        );
+      } else {
+        const myUid = user.uid || user.id;
+        if (myUid) {
+          unsubs.push(
+            onSnapshot(
+              doc(db, FIRESTORE_COLLECTIONS.USUARIOS, myUid),
+              (snap) => {
+                if (snap.exists()) {
+                  callbacks.onUsuarios!([{ id: snap.id, uid: snap.id, ...snap.data() } as AmetaUser]);
+                }
+              },
+              (err) => console.error('Usuario snapshot error:', err)
+            )
+          );
+        }
+      }
     }
     if (callbacks.onDuplasConfig) {
       unsubs.push(

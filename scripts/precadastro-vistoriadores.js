@@ -11,7 +11,19 @@ import fs from 'fs';
 import path from 'path';
 import process from 'process';
 import XLSX from 'xlsx';
-import admin from 'firebase-admin';
+import { initializeApp, cert, getApps } from 'firebase-admin/app';
+import { getAuth } from 'firebase-admin/auth';
+import { getFirestore } from 'firebase-admin/firestore';
+
+import crypto from 'crypto';
+
+function generateRandomSalt(byteLength = 16) {
+  return crypto.randomBytes(byteLength).toString('hex');
+}
+
+function hashStringWithSalt(plainText, salt) {
+  return crypto.createHash('sha256').update(`${salt}:${plainText}`).digest('hex');
+}
 
 const args = process.argv.slice(2);
 function getArgValue(flag) {
@@ -23,9 +35,15 @@ function getArgValue(flag) {
 }
 
 const isDryRun = args.includes('--dry-run');
-const filePath = getArgValue('--file') || getArgValue('-f') || 'vistoriadores.xlsx';
+const filePath = getArgValue('--file') || getArgValue('-f') || 'planilha_vistoriadores.xlsx';
 const targetProject = getArgValue('--project') || 'ameta-sistema-teste';
-const initialPassword = process.env.INITIAL_PASSWORD || 'ameta2026';
+const initialPassword = process.env.INITIAL_PASSWORD;
+
+if (!initialPassword || initialPassword.length < 8) {
+  console.error('Erro de Segurança: A variável de ambiente INITIAL_PASSWORD é obrigatória e deve ter pelo menos 8 caracteres.');
+  console.error('Exemplo de uso: INITIAL_PASSWORD="SenhaSegura123!" node scripts/precadastro-vistoriadores.js --file ./planilha_vistoriadores.xlsx');
+  process.exit(1);
+}
 
 console.log('====================================================');
 console.log(' PRÉ-CADASTRO EM LOTE DE VISTORIADORES - AMETA TELECOM');
@@ -41,7 +59,7 @@ if (targetProject !== 'ameta-sistema-teste' && !args.includes('--project')) {
 
 if (!fs.existsSync(filePath)) {
   console.error(`Erro: Arquivo "${filePath}" não encontrado.`);
-  console.log('Crie o arquivo CSV ou XLSX com as colunas: nome, e-mail, equipe, telefone, plataforma');
+  console.log('Crie o arquivo CSV ou XLSX com as colunas: nome, e-mail, equipe, telefone, plataforma, cpf (opcional)');
   process.exit(1);
 }
 
@@ -54,20 +72,25 @@ if (!serviceAccountKeyPath) {
   }
 }
 
-if (serviceAccountKeyPath && fs.existsSync(serviceAccountKeyPath)) {
-  const serviceAccount = JSON.parse(fs.readFileSync(serviceAccountKeyPath, 'utf8'));
-  admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount),
-    projectId: targetProject,
-  });
+let app;
+if (getApps().length === 0) {
+  if (serviceAccountKeyPath && fs.existsSync(serviceAccountKeyPath)) {
+    const serviceAccount = JSON.parse(fs.readFileSync(serviceAccountKeyPath, 'utf8'));
+    app = initializeApp({
+      credential: cert(serviceAccount),
+      projectId: targetProject,
+    });
+  } else {
+    app = initializeApp({
+      projectId: targetProject,
+    });
+  }
 } else {
-  admin.initializeApp({
-    projectId: targetProject,
-  });
+  app = getApps()[0];
 }
 
-const authAdmin = admin.auth();
-const dbAdmin = admin.firestore();
+const authAdmin = getAuth(app);
+const dbAdmin = getFirestore(app);
 
 function mapPlatform(rawPlatform) {
   const p = (rawPlatform || 'AMBAS').toString().trim().toUpperCase();
@@ -78,98 +101,132 @@ function mapPlatform(rawPlatform) {
 
 async function run() {
   const workbook = XLSX.readFile(filePath);
-  const sheetName = workbook.SheetNames[0];
+  const sheetName = workbook.SheetNames.includes('EQUIPES') ? 'EQUIPES' : workbook.SheetNames[0];
   const sheet = workbook.Sheets[sheetName];
-  const rows = XLSX.utils.sheet_to_json(sheet);
+  const rawRows = XLSX.utils.sheet_to_json(sheet);
 
-  console.log(`Linhas encontradas na planilha: ${rows.length}\n`);
+  console.log(`Planilha lida (${sheetName}). Linhas encontradas: ${rawRows.length}\n`);
 
-  let countCreatedAuth = 0;
-  let countExistingAuth = 0;
-  let countCreatedFirestore = 0;
-  let countUpdatedFirestore = 0;
+  let countCreated = 0;
+  let countIgnored = 0;
   let countErrors = 0;
+  const ignoredEmails = [];
+  const createdEmails = [];
   const errorDetails = [];
 
-  for (let i = 0; i < rows.length; i++) {
-    const row = rows[i];
-    const rawName = row['nome'] || row['Nome'] || row['NOME'] || row['nome completo'] || '';
+  for (let i = 0; i < rawRows.length; i++) {
+    const row = rawRows[i];
+    const rawName = row['nome'] || row['Nome'] || row['NOME'] || row['nome completo'] || row['NOME COMPLETO'] || '';
     const rawEmail = row['e-mail'] || row['email'] || row['Email'] || row['E-mail'] || row['E-MAIL'] || '';
-    const rawEquipe = row['equipe'] || row['Equipe'] || row['EQUIPE'] || 'Vistoriadores / Campo';
+    const rawEquipe = row['equipe'] || row['Equipe'] || row['EQUIPE'] || '1';
     const rawTelefone = row['telefone'] || row['Telefone'] || row['TELEFONE'] || row['whatsapp'] || '';
     const rawPlataforma = row['plataforma'] || row['Plataforma'] || row['PLATAFORMA'] || row['cliente'] || 'AMBAS';
+    const rawCpf = row['cpf'] || row['CPF'] || row['Cpf'] || '';
 
     const cleanEmail = (rawEmail || '').toString().trim().toLowerCase();
     const cleanName = (rawName || '').toString().trim();
+    const cleanCpf = (rawCpf || '').toString().trim();
 
-    if (!cleanEmail || !cleanName) {
-      countErrors++;
-      errorDetails.push(`Linha ${i + 2}: E-mail ou Nome ausente (${cleanName || 'Sem nome'}, ${cleanEmail || 'Sem e-mail'})`);
+    if (!cleanEmail || !cleanName || !cleanEmail.includes('@')) {
       continue;
     }
 
     const { plataforma, assignedPlatform } = mapPlatform(rawPlataforma);
 
     try {
-      let uid;
-      let userRecord;
+      let existingAuthUser = null;
       try {
-        userRecord = await authAdmin.getUserByEmail(cleanEmail);
-        uid = userRecord.uid;
-        countExistingAuth++;
-      } catch (authNotFoundErr) {
-        if (!isDryRun) {
-          userRecord = await authAdmin.createUser({
-            email: cleanEmail,
-            password: initialPassword,
-            displayName: cleanName,
-            emailVerified: true,
-          });
-          uid = userRecord.uid;
-        } else {
-          uid = `dry_run_uid_${i}`;
-        }
-        countCreatedAuth++;
+        existingAuthUser = await authAdmin.getUserByEmail(cleanEmail);
+      } catch (notFound) {
+        existingAuthUser = null;
       }
 
+      if (existingAuthUser) {
+        countIgnored++;
+        ignoredEmails.push(`${cleanEmail} (Já existe no Auth: ${existingAuthUser.uid})`);
+        
+        // Garante que o e-mail do usuário existente esteja marcado como verificado
+        if (!existingAuthUser.emailVerified && !isDryRun) {
+          try {
+            await authAdmin.updateUser(existingAuthUser.uid, { emailVerified: true });
+            console.log(`[AUTH EMAIL_VERIFIED ATUALIZADO] ${cleanEmail}`);
+          } catch (verErr) {
+            console.warn(`[AVISO] Falha ao marcar emailVerified para ${cleanEmail}:`, verErr);
+          }
+        }
+
+        if (isDryRun) {
+          console.log(`[DRY-RUN IGNORADO - JÁ EXISTE AUTH] ${cleanName} (${cleanEmail})`);
+        } else {
+          console.log(`[IGNORADO - JÁ EXISTE AUTH] ${cleanName} (${cleanEmail})`);
+        }
+        continue;
+      }
+
+      if (isDryRun) {
+        countCreated++;
+        createdEmails.push(`${cleanName} (${cleanEmail}) -> DRY-RUN SIMULAÇÃO`);
+        console.log(`[DRY-RUN CRIARIA] ${cleanName} (${cleanEmail}) -> ${plataforma}`);
+        continue;
+      }
+
+      // Real execution: create Auth user first
+      const newAuthUser = await authAdmin.createUser({
+        email: cleanEmail,
+        password: initialPassword,
+        displayName: cleanName,
+        emailVerified: true,
+      });
+
+      const uid = newAuthUser.uid;
       const userDocRef = dbAdmin.collection('usuarios').doc(uid);
+      const docSnap = await userDocRef.get();
 
-      if (!isDryRun) {
-        const userDocSnap = await userDocRef.get();
-        const docExists = userDocSnap.exists;
-
-        const userPayload = {
-          id: uid,
-          uid: uid,
-          email: cleanEmail,
-          name: cleanName,
-          equipe: rawEquipe.toString().trim(),
-          telefone: rawTelefone.toString().trim(),
-          tipo: 'usuario',
-          role: 'Vistoriador',
-          situacao: 'ativo',
-          accessReleased: true,
-          plataforma,
-          assignedPlatform,
-          mustChangePassword: true,
-          batchStatus: 'Aguardando primeiro acesso',
-          emailVerified: true,
-          updatedAt: new Date().toISOString(),
-        };
-
-        if (!docExists) {
-          userPayload.createdAt = new Date().toISOString();
-          await userDocRef.set(userPayload);
-          countCreatedFirestore++;
-        } else {
-          await userDocRef.set(userPayload, { merge: true });
-          countUpdatedFirestore++;
-        }
-      } else {
-        countCreatedFirestore++;
+      if (docSnap.exists) {
+        countIgnored++;
+        ignoredEmails.push(`${cleanEmail} (Já existe no Firestore: usuarios/${uid})`);
+        console.log(`[IGNORADO - DOC FIRESTORE JÁ EXISTIA] ${cleanName} (${cleanEmail})`);
+        continue;
       }
 
-      console.log(`[OK] ${cleanName} (${cleanEmail}) -> ${plataforma}`);
+      // Dados públicos da coleção usuarios (NÃO contém cpf e NÃO contém initialPasswordHash)
+      const userPayload = {
+        id: uid,
+        uid: uid,
+        email: cleanEmail,
+        name: cleanName,
+        equipe: rawEquipe.toString().trim(),
+        telefone: rawTelefone.toString().trim(),
+        tipo: 'usuario',
+        role: 'Vistoriador',
+        situacao: 'ativo',
+        accessReleased: true,
+        plataforma,
+        assignedPlatform,
+        mustChangePassword: true,
+        batchStatus: 'Aguardando primeiro acesso',
+        emailVerified: true,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+
+      await userDocRef.set(userPayload);
+
+      // Dados privados na subcoleção usuarios/{uid}/privado/dados
+      const salt = generateRandomSalt(16);
+      const pwdHash = hashStringWithSalt(initialPassword, salt);
+      await userDocRef.collection('privado').doc('dados').set({
+        cpf: cleanCpf,
+        initialPasswordHash: pwdHash,
+        salt,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      });
+
+      countCreated++;
+      createdEmails.push(`${cleanName} (${cleanEmail}) [UID: ${uid}]`);
+      console.log(`[CRIADO SUCESSO] ${cleanName} (${cleanEmail}) -> ${plataforma}`);
+
     } catch (rowErr) {
       countErrors++;
       errorDetails.push(`Linha ${i + 2} (${cleanEmail}): ${rowErr.message || rowErr}`);
@@ -179,16 +236,24 @@ async function run() {
   console.log('\n====================================================');
   console.log(' RELATÓRIO FINAL DO PRÉ-CADASTRO');
   console.log('====================================================');
-  console.log(`Total Analisados : ${rows.length}`);
-  console.log(`Criados Auth     : ${countCreatedAuth}`);
-  console.log(`Existiam Auth    : ${countExistingAuth}`);
-  console.log(`Criados Firestore: ${countCreatedFirestore}`);
-  console.log(`Atualizados FS   : ${countUpdatedFirestore}`);
+  console.log(`Total Analisados : ${rawRows.length}`);
+  console.log(`Criados          : ${countCreated}`);
+  console.log(`Ignorados        : ${countIgnored}`);
   console.log(`Erros            : ${countErrors}`);
+
+  if (createdEmails.length > 0) {
+    console.log('\n--- Usuários Criados ---');
+    createdEmails.forEach((e) => console.log(` + ${e}`));
+  }
+
+  if (ignoredEmails.length > 0) {
+    console.log('\n--- Usuários Ignorados (Já Existiam) ---');
+    ignoredEmails.forEach((e) => console.log(` - ${e}`));
+  }
 
   if (errorDetails.length > 0) {
     console.log('\n--- Detalhes dos Erros ---');
-    errorDetails.forEach((e) => console.log(` - ${e}`));
+    errorDetails.forEach((e) => console.log(` ! ${e}`));
   }
 }
 
