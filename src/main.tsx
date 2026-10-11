@@ -1,6 +1,7 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App.tsx';
+import { ConfirmProvider } from './hooks/useConfirm.ts';
 import './index.css';
 
 interface ErrorBoundaryState {
@@ -67,6 +68,8 @@ class CloudErrorBoundary extends React.Component<
 
 createRoot(document.getElementById('root')!).render(
   <CloudErrorBoundary>
-    <App />
+    <ConfirmProvider>
+      <App />
+    </ConfirmProvider>
   </CloudErrorBoundary>
 );

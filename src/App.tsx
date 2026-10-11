@@ -110,6 +110,9 @@ import {
 import { DuplasInteractiveView } from './components/DuplasInteractiveView';
 import { ExecutoresInteractiveView } from './components/ExecutoresInteractiveView';
 import { GoogleDriveModal } from './components/GoogleDriveModal';
+import { ConfirmDialog } from './components/ConfirmDialog';
+import { confirmar } from './hooks/useConfirm';
+import { subscribeToast } from './utils/toast';
 import { cloudFetch } from './lib/firebaseCloud';
 import { convertSitesToTssrRows } from './utils/tssrSpreadsheetUtils';
 import {
@@ -368,6 +371,14 @@ export default function App() {
   const [editingDuplaTarget, setEditingDuplaTarget] = useState<string | null>(null);
   const [editingDuplaValue, setEditingDuplaValue] = useState<string>('');
   const [isRaMenuOpen, setIsRaMenuOpen] = useState<boolean>(false);
+  const [deleteDuplaDialog, setDeleteDuplaDialog] = useState<{
+    isOpen: boolean;
+    targetName: string;
+    vendor: VendorType;
+    title: string;
+    message: string;
+    isLoading: boolean;
+  } | null>(null);
 
   // Dynamic Executores (Planilha da Engenharia TSSR TIM Nokia)
   const [customExecutores, setCustomExecutores] = useState<string[]>(() => {
@@ -420,6 +431,15 @@ export default function App() {
     setTimeout(() => {
       setLiveToast((curr) => (curr === msg ? null : curr));
     }, 4000);
+  }, []);
+
+  useEffect(() => {
+    return subscribeToast((msg) => {
+      setLiveToast(msg);
+      setTimeout(() => {
+        setLiveToast((curr) => (curr === msg ? null : curr));
+      }, 4000);
+    });
   }, []);
 
   // Persistent local cache sync across changes
@@ -1066,7 +1086,7 @@ export default function App() {
     showToast(`Equipe atualizada de "${oldName}" para "${clean}".`);
   };
 
-  const handleDeleteDupla = async (targetName: string, vendorParam?: VendorType) => {
+  const handleDeleteDupla = (targetName: string, vendorParam?: VendorType) => {
     const vendor = vendorParam || activeVendor;
     const isEricsson = vendor === 'ERICSSON';
     const cleanTarget = targetName.trim();
@@ -1137,7 +1157,7 @@ export default function App() {
       sitesToFreeCount = sitesCount + tssrCount;
     }
 
-    // 4) Modal confirmation
+    // Modal confirmation message
     const confirmMessage =
       `Deseja realmente excluir a equipe "${cleanTarget}" do sistema ${
         isEricsson ? 'Ericsson' : 'TIM / Nokia'
@@ -1147,8 +1167,29 @@ export default function App() {
       `• Usuários cadastrados com esta equipe: ${affectedUsers.length}\n\n` +
       `Atenção: Os usuários cadastrados NÃO serão apagados do sistema. Deseja prosseguir com a exclusão?`;
 
-    const confirmed = window.confirm(confirmMessage);
-    if (!confirmed) return;
+    // Open custom React modal (ConfirmDialog) instead of window.confirm
+    setDeleteDuplaDialog({
+      isOpen: true,
+      targetName: cleanTarget,
+      vendor,
+      title: `Excluir Equipe "${cleanTarget}"`,
+      message: confirmMessage,
+      isLoading: false,
+    });
+  };
+
+  const executeConfirmedDeleteDupla = async () => {
+    if (!deleteDuplaDialog) return;
+    const { targetName: cleanTarget, vendor } = deleteDuplaDialog;
+    const isEricsson = vendor === 'ERICSSON';
+    const canonTarget = getCanonicalDuplaName(cleanTarget) || cleanTarget;
+
+    const emailMap = isEricsson ? serverEricssonDuplaEmailsMap : serverDuplaEmailsMap;
+    const linkedEmails = Array.from(
+      new Set([...(emailMap[cleanTarget] || []), ...(emailMap[canonTarget] || [])])
+    );
+
+    setDeleteDuplaDialog((prev) => (prev ? { ...prev, isLoading: true } : null));
 
     try {
       // 1) Remove name from custom list of that client
@@ -1382,9 +1423,11 @@ export default function App() {
           isEricsson ? 'Ericsson' : 'TIM / Nokia'
         }).`
       );
+      setDeleteDuplaDialog(null);
     } catch (err: any) {
       console.error('Erro ao excluir equipe:', err);
       showToast(`Erro ao excluir equipe "${cleanTarget}": ${err?.message || err}`);
+      setDeleteDuplaDialog((prev) => (prev ? { ...prev, isLoading: false } : null));
     }
   };
 
@@ -1595,8 +1638,9 @@ export default function App() {
       sites.filter((s) => s.vendor === 'ERICSSON' && isSiteAssignedToResponsible(s, cleanName, linkedEmails)).length;
 
     if (demandsCount > 0) {
-      const confirmed = window.confirm(
-        `O executor "${cleanName}" possui ${demandsCount} site(s)/demanda(s) atribuído(s) na Ericsson. Deseja realmente excluí-lo e desvincular todos os ${demandsCount} site(s)?`
+      const confirmed = await confirmar(
+        `O executor "${cleanName}" possui ${demandsCount} site(s)/demanda(s) atribuído(s) na Ericsson. Deseja realmente excluí-lo e desvincular todos os ${demandsCount} site(s)?`,
+        { title: 'Excluir Executor Ericsson', isDanger: true }
       );
       if (!confirmed) return;
     }
@@ -1805,8 +1849,9 @@ export default function App() {
       sites.filter((s) => s.vendor === 'NOKIA' && isSiteAssignedToResponsible(s, cleanName, linkedEmails)).length;
 
     if (demandsCount > 0) {
-      const confirmed = window.confirm(
-        `O executor "${cleanName}" possui ${demandsCount} site(s)/demanda(s) atribuído(s). Deseja realmente excluí-lo e desvincular todos os ${demandsCount} site(s)?`
+      const confirmed = await confirmar(
+        `O executor "${cleanName}" possui ${demandsCount} site(s)/demanda(s) atribuído(s). Deseja realmente excluí-lo e desvincular todos os ${demandsCount} site(s)?`,
+        { title: 'Excluir Executor', isDanger: true }
       );
       if (!confirmed) return;
     }
@@ -7216,6 +7261,23 @@ export default function App() {
         }}
         currentTssrRows={tssrRows}
         currentVendor={activeVendor}
+      />
+
+      {/* Modal de Confirmação para Exclusão de Equipe (Dupla) */}
+      <ConfirmDialog
+        isOpen={Boolean(deleteDuplaDialog?.isOpen)}
+        title={deleteDuplaDialog?.title || 'Excluir Equipe'}
+        message={deleteDuplaDialog?.message || ''}
+        confirmLabel="Confirmar Exclusão"
+        cancelLabel="Cancelar"
+        isDanger={true}
+        isLoading={Boolean(deleteDuplaDialog?.isLoading)}
+        onConfirm={executeConfirmedDeleteDupla}
+        onCancel={() => {
+          if (!deleteDuplaDialog?.isLoading) {
+            setDeleteDuplaDialog(null);
+          }
+        }}
       />
 
       {/* Mobile Bottom Quick Navigation Bar */}

@@ -29,6 +29,7 @@ import {
   parseEricssonDeliveryDate,
   getSaoPauloDate,
 } from './EricssonWeeklyDeliveriesPanel';
+import { showToast } from '../utils/toast';
 
 export interface EricssonReprovadosPanelProps {
   rows: EricssonEngineeringRow[];
@@ -278,7 +279,7 @@ export const EricssonReprovadosPanel: React.FC<EricssonReprovadosPanelProps> = (
   const handleSaveModal = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!modalIntervencao.trim() || !modalExecutor.trim() || !modalMotivo.trim()) {
-      alert('Por favor preencha a Intervenção, Executor e Motivo da reprovação.');
+      showToast('Por favor preencha a Intervenção, Executor e Motivo da reprovação.');
       return;
     }
 
@@ -300,7 +301,7 @@ export const EricssonReprovadosPanel: React.FC<EricssonReprovadosPanelProps> = (
       setModalExecutor('');
     } catch (err) {
       console.error('Erro ao registrar reprovação:', err);
-      alert('Erro ao registrar reprovação.');
+      showToast('Erro ao registrar reprovação.');
     } finally {
       setIsSaving(false);
     }

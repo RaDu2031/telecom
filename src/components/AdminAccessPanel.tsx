@@ -45,6 +45,8 @@ import {
 import { db, firebaseConfig, handleFirestoreError, OperationType, createAuthAccountSecondary } from '../lib/firebase';
 import { collection, onSnapshot, doc, setDoc, deleteDoc, updateDoc } from 'firebase/firestore';
 import { createSaltedHash } from '../utils/authUtils';
+import { confirmar } from '../hooks/useConfirm';
+import { showToast } from '../utils/toast';
 
 interface AdminAccessPanelProps {
   currentUser: AmetaUser;
@@ -955,8 +957,9 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
   const [initialImportSuccessNotice, setInitialImportSuccessNotice] = useState<string | null>(null);
 
   const handleImportInitialData = async () => {
-    const ok = window.confirm(
-      'Deseja importar a base inicial completa (Sites Nokia, Sites Ericsson, Usuários, Configurações de Duplas e Notificações) de public/initial-db.json para o Firestore em lotes?\n\nEssa rotina não apagará nem sobrescreverá dados já existentes.'
+    const ok = await confirmar(
+      'Deseja importar a base inicial completa (Sites Nokia, Sites Ericsson, Usuários, Configurações de Duplas e Notificações) de public/initial-db.json para o Firestore em lotes?\n\nEssa rotina não apagará nem sobrescreverá dados já existentes.',
+      { title: 'Importação Inicial de Dados', isDanger: false }
     );
     if (!ok) return;
     setImportingInitial(true);
@@ -967,8 +970,8 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
       });
       const successNotice = `Importação concluída com sucesso! • ${res.totalSites} Sites Nokia gravados • ${res.totalEricsson} Sites Ericsson gravados • ${res.totalUsers} Usuários gravados. ⚠️ IMPORTANTE: A base já está salva no Firestore. Você já pode remover o arquivo "public/initial-db.json" do repositório para economizar espaço e manter a segurança.`;
       setInitialImportSuccessNotice(successNotice);
-      alert(
-        `Importação concluída com sucesso!\n• ${res.totalSites} Sites Nokia gravados\n• ${res.totalEricsson} Sites Ericsson gravados\n• ${res.totalUsers} Usuários gravados\n\n⚠️ IMPORTANTE: A base já está salva no Firestore. Você já pode remover o arquivo "public/initial-db.json" do repositório para economizar espaço e manter a segurança.`
+      showToast(
+        `Importação concluída com sucesso! • ${res.totalSites} Sites Nokia gravados • ${res.totalEricsson} Sites Ericsson gravados • ${res.totalUsers} Usuários gravados.`
       );
     } catch (err: any) {
       console.error('Erro na importação inicial:', err);
@@ -981,8 +984,9 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
 
   const handleDeleteResource = async (u: AmetaUser) => {
     if (isOwnerAdmUser(u.email, u.situacao)) return;
-    const ok = window.confirm(
-      `Deseja EXCLUIR permanentemente o usuário ${u.name} (${u.email})?\n\n- Pressione OK para EXCLUIR o documento do usuário do Firestore.\n- Se quiser apenas bloquear o acesso, altere o status para Bloqueado.`
+    const ok = await confirmar(
+      `Deseja EXCLUIR permanentemente o usuário ${u.name} (${u.email})?\n\n- Pressione OK para EXCLUIR o documento do usuário do Firestore.\n- Se quiser apenas bloquear o acesso, altere o status para Bloqueado.`,
+      { title: 'Excluir Usuário Permanentemente', isDanger: true }
     );
     if (!ok) return;
     const targetId = u.uid || u.id;

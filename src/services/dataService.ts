@@ -369,6 +369,7 @@ export interface IDataService {
     actorEmail?: string;
     actorName?: string;
     allowTransfer?: boolean;
+    demandDate?: string;
   }): Promise<{ updatedCount: number }>;
   desvincularDemandaSites(params: {
     siteTokens: string[];
@@ -1745,60 +1746,135 @@ class FirebaseDataService implements IDataService {
     actorEmail?: string;
     actorName?: string;
     allowTransfer?: boolean;
+    demandDate?: string;
   }): Promise<{ updatedCount: number }> {
     const tokens = new Set(params.siteTokens.map((t) => t.trim().toUpperCase()));
-    const colName = params.vendor === 'ERICSSON' ? FIRESTORE_COLLECTIONS.ERICSSON_SITES : FIRESTORE_COLLECTIONS.NOKIA_SITES;
-    const snap = await getDocs(collection(db, colName));
-    const batch = writeBatch(db);
+    const targetDate = params.demandDate || new Date().toLocaleDateString('pt-BR');
+    const nowIso = new Date().toISOString();
     let count = 0;
 
-    for (const d of snap.docs) {
-      const data = d.data();
-      const sId = (data.siteId || data.id || '').toUpperCase();
-      const docId = d.id.toUpperCase();
-      if (tokens.has(sId) || tokens.has(docId)) {
-        // Backend validation: If site already has another active responsible and allowTransfer was not given, reject/skip
-        const currentResp = (
-          data.responsavelDemand ||
-          data.equipeParceira ||
-          data.equipe ||
-          data.responsavelCampo ||
-          data.customFields?.['Executor'] ||
-          data.customFields?.['EQUIPE EXECUTANTE'] ||
-          data.customFields?.['Responsável'] ||
-          data.fields?.['EQUIPE'] ||
-          data.fields?.['EXECUTOR'] ||
-          data.fields?.['EXECUTOR WR'] ||
-          data.fields?.['EXECUTOR QRF'] ||
-          data.fields?.['EXECUTOR PPI'] ||
-          ''
-        ).trim();
+    if (params.vendor === 'ERICSSON') {
+      // 1. ERICSSON_SITES
+      const sitesSnap = await getDocs(collection(db, FIRESTORE_COLLECTIONS.ERICSSON_SITES));
+      const batch1 = writeBatch(db);
+      for (const d of sitesSnap.docs) {
+        const data = d.data();
+        const sId = (data.siteId || data.id || '').toString().trim().toUpperCase();
+        const docId = d.id.toUpperCase();
+        const rowKey = (data.rowKey || '').toString().trim().toUpperCase();
+        if (tokens.has(docId) || (rowKey && tokens.has(rowKey)) || (sId && tokens.has(sId))) {
+          const currentResp = (
+            data.responsavelDemand ||
+            data.equipe ||
+            data.fields?.['EQUIPE'] ||
+            ''
+          ).trim();
+          const hasActiveResp =
+            currentResp !== '' &&
+            currentResp !== '—' &&
+            currentResp !== '-' &&
+            currentResp.toLowerCase() !== 'a definir' &&
+            currentResp.toLowerCase() !== 'sem executor' &&
+            currentResp.toLowerCase() !== 'sem dupla' &&
+            currentResp.toLowerCase() !== 'sem equipe' &&
+            currentResp.toLowerCase() !== params.responsibleName.trim().toLowerCase();
 
-        const hasActiveResp =
-          currentResp !== '' &&
-          currentResp !== '—' &&
-          currentResp !== '-' &&
-          currentResp.toLowerCase() !== 'a definir' &&
-          currentResp.toLowerCase() !== 'sem executor' &&
-          currentResp.toLowerCase() !== 'sem dupla' &&
-          currentResp.toLowerCase() !== 'sem equipe' &&
-          currentResp.toLowerCase() !== params.responsibleName.trim().toLowerCase();
+          if (hasActiveResp && !params.allowTransfer) continue;
 
-        if (hasActiveResp && !params.allowTransfer) {
-          // Reject transfer without explicit permission
-          continue;
-        }
-
-        if (params.vendor === 'ERICSSON') {
-          batch.update(d.ref, {
+          batch1.update(d.ref, {
             responsavelDemand: params.responsibleName,
             equipe: params.responsibleName,
             'fields.EQUIPE': params.responsibleName,
             ...(params.linkedEmails && params.linkedEmails.length > 0 ? { 'fields.E-MAIL DUPLA': params.linkedEmails.join(', ') } : {}),
-            updatedAt: new Date().toISOString(),
+            updatedAt: nowIso,
           });
-        } else {
-          batch.update(d.ref, {
+          count++;
+        }
+      }
+      if (count > 0) {
+        await batch1.commit();
+      }
+
+      // 2. ERICSSON_ENGENHARIA - Match strictly by exact docId, data.id or data.rowKey (NEVER by shared siteId/intervencaoClaro!)
+      const engSnap = await getDocs(collection(db, FIRESTORE_COLLECTIONS.ERICSSON_ENGENHARIA));
+      const batch2 = writeBatch(db);
+      let engCount = 0;
+      for (const d of engSnap.docs) {
+        const data = d.data();
+        const docId = d.id.toUpperCase();
+        const rowId = (data.id || '').toString().trim().toUpperCase();
+        const rowKey = (data.rowKey || '').toString().trim().toUpperCase();
+        if (tokens.has(docId) || (rowId && tokens.has(rowId)) || (rowKey && tokens.has(rowKey))) {
+          const currentResp = (
+            data.executor ||
+            data.fields?.['EXECUTOR'] ||
+            data.fields?.['EXECUTOR WR'] ||
+            data.fields?.['EXECUTOR QRF'] ||
+            data.fields?.['EXECUTOR PPI'] ||
+            data.fields?.['Executor'] ||
+            ''
+          ).trim();
+          const hasActiveResp =
+            currentResp !== '' &&
+            currentResp !== '—' &&
+            currentResp !== '-' &&
+            currentResp.toLowerCase() !== 'a definir' &&
+            currentResp.toLowerCase() !== 'sem executor' &&
+            currentResp.toLowerCase() !== 'sem dupla' &&
+            currentResp.toLowerCase() !== 'sem equipe' &&
+            currentResp.toLowerCase() !== params.responsibleName.trim().toLowerCase();
+
+          if (hasActiveResp && !params.allowTransfer) continue;
+
+          batch2.update(d.ref, {
+            executor: params.responsibleName,
+            'fields.EXECUTOR': params.responsibleName,
+            'fields.EXECUTOR WR': params.responsibleName,
+            'fields.EXECUTOR QRF': params.responsibleName,
+            'fields.EXECUTOR PPI': params.responsibleName,
+            'fields.Executor': params.responsibleName,
+            'fields.Data Demanda': targetDate,
+            updatedAt: nowIso,
+          });
+          engCount++;
+        }
+      }
+      if (engCount > 0) {
+        await batch2.commit();
+        count += engCount;
+      }
+    } else {
+      // NOKIA
+      const sitesSnap = await getDocs(collection(db, FIRESTORE_COLLECTIONS.NOKIA_SITES));
+      const batch1 = writeBatch(db);
+      for (const d of sitesSnap.docs) {
+        const data = d.data();
+        const sId = (data.siteId || data.id || '').toString().trim().toUpperCase();
+        const docId = d.id.toUpperCase();
+        const rowKey = (data.rowKey || '').toString().trim().toUpperCase();
+        if (tokens.has(docId) || (rowKey && tokens.has(rowKey)) || (sId && tokens.has(sId))) {
+          const currentResp = (
+            data.responsavelDemand ||
+            data.equipeParceira ||
+            data.responsavelCampo ||
+            data.customFields?.['Executor'] ||
+            data.customFields?.['EQUIPE EXECUTANTE'] ||
+            data.customFields?.['Responsável'] ||
+            ''
+          ).trim();
+          const hasActiveResp =
+            currentResp !== '' &&
+            currentResp !== '—' &&
+            currentResp !== '-' &&
+            currentResp.toLowerCase() !== 'a definir' &&
+            currentResp.toLowerCase() !== 'sem executor' &&
+            currentResp.toLowerCase() !== 'sem dupla' &&
+            currentResp.toLowerCase() !== 'sem equipe' &&
+            currentResp.toLowerCase() !== params.responsibleName.trim().toLowerCase();
+
+          if (hasActiveResp && !params.allowTransfer) continue;
+
+          batch1.update(d.ref, {
             responsavelDemand: params.responsibleName,
             equipeParceira: params.responsibleName,
             responsavelCampo: params.responsibleName,
@@ -1806,21 +1882,47 @@ class FirebaseDataService implements IDataService {
             'customFields.Executor': params.responsibleName,
             'customFields.Responsável': params.responsibleName,
             ...(params.linkedEmails && params.linkedEmails.length > 0 ? { 'customFields.E-MAIL DUPLA': params.linkedEmails.join(', ') } : {}),
-            updatedAt: new Date().toISOString(),
+            updatedAt: nowIso,
           });
+          count++;
         }
-        count++;
+      }
+      if (count > 0) {
+        await batch1.commit();
+      }
+
+      const tssrSnap = await getDocs(collection(db, FIRESTORE_COLLECTIONS.NOKIA_TSSR));
+      const batch2 = writeBatch(db);
+      let tssrCount = 0;
+      for (const d of tssrSnap.docs) {
+        const data = d.data();
+        const docId = d.id.toUpperCase();
+        const rowId = (data.id || '').toString().trim().toUpperCase();
+        const rowKey = (data.rowKey || '').toString().trim().toUpperCase();
+        const sId = (data.siteId || '').toString().trim().toUpperCase();
+        if (tokens.has(docId) || (rowId && tokens.has(rowId)) || (rowKey && tokens.has(rowKey)) || (sId && tokens.has(sId))) {
+          batch2.update(d.ref, {
+            executor: params.responsibleName,
+            'fields.Executor': params.responsibleName,
+            'fields.EQUIPE EXECUTANTE': params.responsibleName,
+            'fields.Data Demanda': targetDate,
+            updatedAt: nowIso,
+          });
+          tssrCount++;
+        }
+      }
+      if (tssrCount > 0) {
+        await batch2.commit();
+        count += tssrCount;
       }
     }
 
     if (count > 0) {
-      await batch.commit();
-
       const notifRef = doc(collection(db, FIRESTORE_COLLECTIONS.NOTIFICACOES));
       await setDoc(notifRef, sanitizeFirestoreData({
         id: notifRef.id,
-        title: `Nova Demanda: ${count} site(s) ${params.vendor === 'ERICSSON' ? 'Ericsson' : 'TIM/Nokia'}`,
-        message: `${count} site(s) colocados na demanda da equipe "${params.responsibleName}".`,
+        title: `Nova Demanda: ${count} item(ns) ${params.vendor === 'ERICSSON' ? 'Ericsson' : 'TIM/Nokia'}`,
+        message: `${count} item(ns) colocados na demanda da equipe "${params.responsibleName}".`,
         type: 'demanda',
         read: false,
         createdAt: new Date().toISOString(),
@@ -1839,26 +1941,71 @@ class FirebaseDataService implements IDataService {
     vendor: 'NOKIA' | 'ERICSSON';
   }): Promise<{ updatedCount: number }> {
     const tokens = new Set(params.siteTokens.map((t) => t.trim().toUpperCase()));
-    const colName = params.vendor === 'ERICSSON' ? FIRESTORE_COLLECTIONS.ERICSSON_SITES : FIRESTORE_COLLECTIONS.NOKIA_SITES;
-    const snap = await getDocs(collection(db, colName));
-    const batch = writeBatch(db);
+    const nowIso = new Date().toISOString();
     let count = 0;
 
-    for (const d of snap.docs) {
-      const data = d.data();
-      const sId = (data.siteId || data.id || '').toUpperCase();
-      const docId = d.id.toUpperCase();
-      if (tokens.has(sId) || tokens.has(docId)) {
-        if (params.vendor === 'ERICSSON') {
-          batch.update(d.ref, {
+    if (params.vendor === 'ERICSSON') {
+      // 1. ERICSSON_SITES
+      const sitesSnap = await getDocs(collection(db, FIRESTORE_COLLECTIONS.ERICSSON_SITES));
+      const batch1 = writeBatch(db);
+      for (const d of sitesSnap.docs) {
+        const data = d.data();
+        const sId = (data.siteId || data.id || '').toString().trim().toUpperCase();
+        const docId = d.id.toUpperCase();
+        const rowKey = (data.rowKey || '').toString().trim().toUpperCase();
+        if (tokens.has(docId) || (rowKey && tokens.has(rowKey)) || (sId && tokens.has(sId))) {
+          batch1.update(d.ref, {
             responsavelDemand: '',
             equipe: '',
             'fields.EQUIPE': '',
             'fields.E-MAIL DUPLA': '',
-            updatedAt: new Date().toISOString(),
+            updatedAt: nowIso,
           });
-        } else {
-          batch.update(d.ref, {
+          count++;
+        }
+      }
+      if (count > 0) {
+        await batch1.commit();
+      }
+
+      // 2. ERICSSON_ENGENHARIA - Match strictly by exact docId, data.id or data.rowKey (NEVER by shared siteId/intervencaoClaro!)
+      const engSnap = await getDocs(collection(db, FIRESTORE_COLLECTIONS.ERICSSON_ENGENHARIA));
+      const batch2 = writeBatch(db);
+      let engCount = 0;
+      for (const d of engSnap.docs) {
+        const data = d.data();
+        const docId = d.id.toUpperCase();
+        const rowId = (data.id || '').toString().trim().toUpperCase();
+        const rowKey = (data.rowKey || '').toString().trim().toUpperCase();
+        if (tokens.has(docId) || (rowId && tokens.has(rowId)) || (rowKey && tokens.has(rowKey))) {
+          batch2.update(d.ref, {
+            executor: '',
+            'fields.EXECUTOR': '',
+            'fields.EXECUTOR WR': '',
+            'fields.EXECUTOR QRF': '',
+            'fields.EXECUTOR PPI': '',
+            'fields.Executor': '',
+            'fields.Data Demanda': '',
+            updatedAt: nowIso,
+          });
+          engCount++;
+        }
+      }
+      if (engCount > 0) {
+        await batch2.commit();
+        count += engCount;
+      }
+    } else {
+      // NOKIA
+      const sitesSnap = await getDocs(collection(db, FIRESTORE_COLLECTIONS.NOKIA_SITES));
+      const batch1 = writeBatch(db);
+      for (const d of sitesSnap.docs) {
+        const data = d.data();
+        const sId = (data.siteId || data.id || '').toString().trim().toUpperCase();
+        const docId = d.id.toUpperCase();
+        const rowKey = (data.rowKey || '').toString().trim().toUpperCase();
+        if (tokens.has(docId) || (rowKey && tokens.has(rowKey)) || (sId && tokens.has(sId))) {
+          batch1.update(d.ref, {
             responsavelDemand: '',
             equipeParceira: '',
             responsavelCampo: '',
@@ -1866,16 +2013,41 @@ class FirebaseDataService implements IDataService {
             'customFields.Executor': '',
             'customFields.Responsável': '',
             'customFields.E-MAIL DUPLA': '',
-            updatedAt: new Date().toISOString(),
+            updatedAt: nowIso,
           });
+          count++;
         }
-        count++;
+      }
+      if (count > 0) {
+        await batch1.commit();
+      }
+
+      const tssrSnap = await getDocs(collection(db, FIRESTORE_COLLECTIONS.NOKIA_TSSR));
+      const batch2 = writeBatch(db);
+      let tssrCount = 0;
+      for (const d of tssrSnap.docs) {
+        const data = d.data();
+        const docId = d.id.toUpperCase();
+        const rowId = (data.id || '').toString().trim().toUpperCase();
+        const rowKey = (data.rowKey || '').toString().trim().toUpperCase();
+        const sId = (data.siteId || '').toString().trim().toUpperCase();
+        if (tokens.has(docId) || (rowId && tokens.has(rowId)) || (rowKey && tokens.has(rowKey)) || (sId && tokens.has(sId))) {
+          batch2.update(d.ref, {
+            executor: '',
+            'fields.Executor': '',
+            'fields.EQUIPE EXECUTANTE': '',
+            'fields.Data Demanda': '',
+            updatedAt: nowIso,
+          });
+          tssrCount++;
+        }
+      }
+      if (tssrCount > 0) {
+        await batch2.commit();
+        count += tssrCount;
       }
     }
 
-    if (count > 0) {
-      await batch.commit();
-    }
     return { updatedCount: count };
   }
 

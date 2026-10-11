@@ -60,6 +60,8 @@ import {
 } from './EngineeringInteractiveChart';
 import { GoogleDriveModal } from './GoogleDriveModal';
 import { EngineeringVistoriasTab } from './EngineeringVistoriasTab';
+import { confirmar } from '../hooks/useConfirm';
+import { showToast } from '../utils/toast';
 
 interface EngineeringControlTabProps {
   user: AmetaUser;
@@ -336,7 +338,7 @@ export const EngineeringControlTab: React.FC<EngineeringControlTabProps> = ({
       setVistoriaToDelete(null);
     } catch (err: any) {
       console.error('Erro ao excluir anexo de vistoria [nokia_tssr]:', err);
-      alert(`Erro no Firestore ao apagar arquivo: ${err?.code || err?.message || err}`);
+      showToast(`Erro no Firestore ao apagar arquivo: ${err?.code || err?.message || err}`);
     } finally {
       setDeletingVistoria(false);
     }
@@ -713,14 +715,18 @@ export const EngineeringControlTab: React.FC<EngineeringControlTabProps> = ({
       setSelectedRowId(null);
     } catch (err: any) {
       console.error('Erro ao atualizar TSSR no Firestore [nokia_tssr]:', err);
-      alert(`Erro no Firestore [nokia_tssr]: ${err?.code || err?.message || err}`);
+      showToast(`Erro no Firestore [nokia_tssr]: ${err?.code || err?.message || err}`);
     } finally {
       setSavingDrawer(false);
     }
   };
 
   const handleDeleteRow = async (row: TssrRow) => {
-    if (!window.confirm(`Tem certeza que deseja excluir o registro do site "${row.siteId}" da Engenharia TSSR?`)) {
+    const ok = await confirmar(`Tem certeza que deseja excluir o registro do site "${row.siteId}" da Engenharia TSSR?`, {
+      title: 'Excluir Registro TSSR',
+      isDanger: true,
+    });
+    if (!ok) {
       return;
     }
     try {
@@ -733,7 +739,7 @@ export const EngineeringControlTab: React.FC<EngineeringControlTabProps> = ({
       if (selectedRowId === row.id) setSelectedRowId(null);
     } catch (err: any) {
       console.error('Erro ao excluir TSSR no Firestore [nokia_tssr]:', err);
-      alert(`Erro no Firestore [nokia_tssr]: ${err?.code || err?.message || err}`);
+      showToast(`Erro no Firestore [nokia_tssr]: ${err?.code || err?.message || err}`);
     }
   };
 

@@ -30,12 +30,12 @@ import {
 import { TssrRow, AmetaUser, VendorType } from '../types/telecom';
 import { normalizeAccents } from '../utils/spreadsheetUtils';
 import {
-  extractSiteTokens,
   isTssrRowAssignedToResponsible,
   isEricssonRowAssignedToResponsible,
   hasActiveResponsible,
   getRegisteredUsersForDemanda,
 } from '../services/demandaSharedService';
+import { confirmar } from '../hooks/useConfirm';
 
 const STORAGE_EXECUTOR_EMAILS_KEY = 'ameta_executor_emails_map_v1';
 
@@ -643,15 +643,7 @@ export const ExecutoresInteractiveView: React.FC<ExecutoresInteractiveViewProps>
     if (rowIdsToAssign.length === 0 || !selectedExecutor) return;
     setIsAssigning(true);
     try {
-      const tokensToAssign = Array.from(
-        new Set(
-          pickerEngineeringRows
-            .filter((r) => rowIdsToAssign.includes(r.id))
-            .flatMap((r) => extractSiteTokens(r))
-            .concat(rowIdsToAssign)
-        )
-      );
-      await onAssignRowsToExecutor(tokensToAssign, selectedExecutor, undefined, allowTransfer);
+      await onAssignRowsToExecutor(rowIdsToAssign, selectedExecutor, undefined, allowTransfer);
       setSelectedRowIds((prev) => prev.filter((id) => !rowIdsToAssign.includes(id)));
     } finally {
       setIsAssigning(false);
@@ -713,11 +705,11 @@ export const ExecutoresInteractiveView: React.FC<ExecutoresInteractiveViewProps>
 
   const handleClearAllForSelectedExecutor = async () => {
     if (assignedRowsForSelectedExecutor.length === 0 || isClearing) return;
-    if (
-      !window.confirm(
-        `Desvincular todos os ${assignedRowsForSelectedExecutor.length} sites da Engenharia atribuídos a "${selectedExecutor}"?`
-      )
-    ) {
+    const ok = await confirmar(
+      `Desvincular todos os ${assignedRowsForSelectedExecutor.length} sites da Engenharia atribuídos a "${selectedExecutor}"?`,
+      { title: 'Desvincular Todos os Sites', isDanger: true }
+    );
+    if (!ok) {
       return;
     }
     setIsClearing(true);
@@ -1677,14 +1669,10 @@ export const ExecutoresInteractiveView: React.FC<ExecutoresInteractiveViewProps>
                               onClick={async (e) => {
                                 e.stopPropagation();
                                 if (!selectedExecutor) return;
-                                const tokens = Array.from(
-                                  new Set(
-                                    [...extractSiteTokens(row), row.id, row.siteId, row.intervencaoClaro].filter(Boolean) as string[]
-                                  )
-                                );
+                                const tokens = [row.id];
                                 if (isOwned) {
                                   setSingleTransferModal({
-                                    siteName: intervencao,
+                                    siteName: `${intervencao}${tipoDoc ? ` (${tipoDoc})` : ''}`,
                                     currentOwner: currentEx,
                                     targetOwner: selectedExecutor,
                                     tokens,
@@ -1872,11 +1860,7 @@ export const ExecutoresInteractiveView: React.FC<ExecutoresInteractiveViewProps>
                         <button
                           type="button"
                           onClick={() => {
-                            const tokens = Array.from(
-                              new Set(
-                                [...extractSiteTokens(row), row.id, row.siteId, row.intervencaoClaro].filter(Boolean) as string[]
-                              )
-                            );
+                            const tokens = [row.id];
                             onUnassignRowsFromExecutor(tokens, selectedExecutor);
                           }}
                           className="px-2 py-1 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 rounded-md text-[11px] font-medium cursor-pointer"

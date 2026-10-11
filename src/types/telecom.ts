@@ -138,6 +138,7 @@ export const EQUIPES_COLUMNS: string[] = [
 export interface TelecomSite {
   id: string; // Internal UUID or unique key
   siteId: string; // e.g. "SN-OI65J2" or "NK-SP-0104"
+  rowKey?: string;
   vendor: VendorType;
   sheetName: string; // e.g. "Controle Geral", "Controle Cancelados"
   siteName: string; // END ID e.g. "DFBSA_1601"

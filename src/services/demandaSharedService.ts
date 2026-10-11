@@ -103,9 +103,9 @@ export function matchesAnySiteToken(
 }
 
 /**
- * Resolves and expands input tokens across all available site and engineering datasets.
- * Solves the key junction mismatch: passing a row.id or site.id will resolve all
- * associated tokens (siteId, ocSitePre, SMP, intervencaoClaro, rowKey, etc.)
+ * Resolves input tokens strictly without cascade expansion.
+ * Reconciles only exact record identifiers (id <-> rowKey) of the exact selected items,
+ * preventing cascade matching across other rows that share Site ID, intervencaoClaro, ocSitePre, etc.
  */
 export function resolveExpandedSiteTokens(
   inputTokens: string[],
@@ -123,53 +123,38 @@ export function resolveExpandedSiteTokens(
 
   if (initial.size === 0) return initial;
 
-  const expanded = new Set<string>(initial);
+  const result = new Set<string>(initial);
 
-  // 1. Expand from matching TSSR rows
-  currentTssrRows.forEach((r) => {
-    const rowTokens = extractSiteTokens(r);
-    if (rowTokens.some((tok) => expanded.has(tok))) {
-      rowTokens.forEach((tok) => expanded.add(tok));
-    }
-  });
-
-  // 2. Expand from matching Ericsson engineering rows
-  currentEricssonEngRows.forEach((r) => {
-    const rowTokens = extractSiteTokens(r);
-    if (rowTokens.some((tok) => expanded.has(tok))) {
-      rowTokens.forEach((tok) => expanded.add(tok));
-    }
-  });
-
-  // 3. Expand from matching TelecomSite
+  // Link exact ID <-> exact rowKey within corresponding datasets,
+  // NEVER expanding to shared site tokens (siteId, ocSitePre, intervencaoClaro, etc.)
   currentSites.forEach((s) => {
-    const siteTokens = extractSiteTokens(s);
-    if (siteTokens.some((tok) => expanded.has(tok))) {
-      siteTokens.forEach((tok) => expanded.add(tok));
+    const sId = String(s.id || '').trim().toUpperCase();
+    const sRowKey = String(s.rowKey || '').trim().toUpperCase();
+    if ((sId && initial.has(sId)) || (sRowKey && initial.has(sRowKey))) {
+      if (sId) result.add(sId);
+      if (sRowKey) result.add(sRowKey);
     }
   });
 
-  // 4. Second transitive pass between datasets
   currentTssrRows.forEach((r) => {
-    const rowTokens = extractSiteTokens(r);
-    if (rowTokens.some((tok) => expanded.has(tok))) {
-      rowTokens.forEach((tok) => expanded.add(tok));
-    }
-  });
-  currentEricssonEngRows.forEach((r) => {
-    const rowTokens = extractSiteTokens(r);
-    if (rowTokens.some((tok) => expanded.has(tok))) {
-      rowTokens.forEach((tok) => expanded.add(tok));
-    }
-  });
-  currentSites.forEach((s) => {
-    const siteTokens = extractSiteTokens(s);
-    if (siteTokens.some((tok) => expanded.has(tok))) {
-      siteTokens.forEach((tok) => expanded.add(tok));
+    const rId = String(r.id || '').trim().toUpperCase();
+    const rRowKey = String(r.rowKey || '').trim().toUpperCase();
+    if ((rId && initial.has(rId)) || (rRowKey && initial.has(rRowKey))) {
+      if (rId) result.add(rId);
+      if (rRowKey) result.add(rRowKey);
     }
   });
 
-  return expanded;
+  currentEricssonEngRows.forEach((r) => {
+    const rId = String(r.id || '').trim().toUpperCase();
+    const rRowKey = String(r.rowKey || '').trim().toUpperCase();
+    if ((rId && initial.has(rId)) || (rRowKey && initial.has(rRowKey))) {
+      if (rId) result.add(rId);
+      if (rRowKey) result.add(rRowKey);
+    }
+  });
+
+  return result;
 }
 
 /**
@@ -716,7 +701,13 @@ export const demandaSharedService = {
     const nextSites = params.currentSites.map((site) => {
       if (site.vendor !== params.vendor) return site;
 
-      const isMatch = matchesAnySiteToken(site, tokensSet);
+      const sId = String(site.id || '').trim().toUpperCase();
+      const sRowKey = String(site.rowKey || '').trim().toUpperCase();
+      const sSiteId = String(site.siteId || '').trim().toUpperCase();
+      const isMatch =
+        (sId !== '' && tokensSet.has(sId)) ||
+        (sRowKey !== '' && tokensSet.has(sRowKey)) ||
+        (sSiteId !== '' && tokensSet.has(sSiteId));
       if (!isMatch) return site;
 
       const currentResp = getCurrentSiteResponsible(site);
@@ -755,7 +746,13 @@ export const demandaSharedService = {
     const nextTssrRows = (params.currentTssrRows || []).map((row) => {
       if (params.vendor !== 'NOKIA') return row;
 
-      const isMatch = matchesAnySiteToken(row, tokensSet);
+      const rId = String(row.id || '').trim().toUpperCase();
+      const rRowKey = String(row.rowKey || '').trim().toUpperCase();
+      const rSiteId = String(row.siteId || '').trim().toUpperCase();
+      const isMatch =
+        (rId !== '' && tokensSet.has(rId)) ||
+        (rRowKey !== '' && tokensSet.has(rRowKey)) ||
+        (rSiteId !== '' && tokensSet.has(rSiteId));
       if (!isMatch) return row;
 
       const currentResp = getCurrentTssrRowResponsible(row);
@@ -787,7 +784,11 @@ export const demandaSharedService = {
     const nextEricssonEngRows = (params.currentEricssonEngRows || []).map((row) => {
       if (params.vendor !== 'ERICSSON') return row;
 
-      const isMatch = matchesAnySiteToken(row, tokensSet);
+      // In Ericsson Engineering, each service is an individual row (WR, QRF, PPI).
+      // Matching MUST be strictly by exact row.id or row.rowKey so only the selected service row is affected.
+      const rId = String(row.id || '').trim().toUpperCase();
+      const rRowKey = String(row.rowKey || '').trim().toUpperCase();
+      const isMatch = (rId !== '' && tokensSet.has(rId)) || (rRowKey !== '' && tokensSet.has(rRowKey));
       if (!isMatch) return row;
 
       const currentResp = getCurrentEricssonRowResponsible(row);
@@ -886,7 +887,13 @@ export const demandaSharedService = {
     const nextSites = params.currentSites.map((site) => {
       if (site.vendor !== params.vendor) return site;
 
-      const isMatch = matchesAnySiteToken(site, tokensSet);
+      const sId = String(site.id || '').trim().toUpperCase();
+      const sRowKey = String(site.rowKey || '').trim().toUpperCase();
+      const sSiteId = String(site.siteId || '').trim().toUpperCase();
+      const isMatch =
+        (sId !== '' && tokensSet.has(sId)) ||
+        (sRowKey !== '' && tokensSet.has(sRowKey)) ||
+        (sSiteId !== '' && tokensSet.has(sSiteId));
       if (!isMatch) return site;
 
       updatedSitesCount++;
@@ -915,7 +922,13 @@ export const demandaSharedService = {
     const nextTssrRows = (params.currentTssrRows || []).map((row) => {
       if (params.vendor !== 'NOKIA') return row;
 
-      const isMatch = matchesAnySiteToken(row, tokensSet);
+      const rId = String(row.id || '').trim().toUpperCase();
+      const rRowKey = String(row.rowKey || '').trim().toUpperCase();
+      const rSiteId = String(row.siteId || '').trim().toUpperCase();
+      const isMatch =
+        (rId !== '' && tokensSet.has(rId)) ||
+        (rRowKey !== '' && tokensSet.has(rRowKey)) ||
+        (rSiteId !== '' && tokensSet.has(rSiteId));
       if (!isMatch) return row;
 
       updatedTssrCount++;
@@ -937,7 +950,11 @@ export const demandaSharedService = {
     const nextEricssonEngRows = (params.currentEricssonEngRows || []).map((row) => {
       if (params.vendor !== 'ERICSSON') return row;
 
-      const isMatch = matchesAnySiteToken(row, tokensSet);
+      // In Ericsson Engineering, each service is an individual row (WR, QRF, PPI).
+      // Matching MUST be strictly by exact row.id or row.rowKey so only the selected service row is affected.
+      const rId = String(row.id || '').trim().toUpperCase();
+      const rRowKey = String(row.rowKey || '').trim().toUpperCase();
+      const isMatch = (rId !== '' && tokensSet.has(rId)) || (rRowKey !== '' && tokensSet.has(rRowKey));
       if (!isMatch) return row;
 
       updatedEricssonCount++;
@@ -1015,8 +1032,15 @@ export const demandaSharedService = {
     const nextSites = params.currentSites.map((site) => {
       if (site.vendor !== params.vendor) return site;
 
+      const sId = String(site.id || '').trim().toUpperCase();
+      const sRowKey = String(site.rowKey || '').trim().toUpperCase();
+      const sSiteId = String(site.siteId || '').trim().toUpperCase();
       const isDirectMatch = isSiteAssignedToResponsible(site, cleanResponsible, linkedEmails);
-      const isTokenMatch = explicitTokens.size > 0 && matchesAnySiteToken(site, explicitTokens);
+      const isTokenMatch =
+        explicitTokens.size > 0 &&
+        ((sId !== '' && explicitTokens.has(sId)) ||
+         (sRowKey !== '' && explicitTokens.has(sRowKey)) ||
+         (sSiteId !== '' && explicitTokens.has(sSiteId)));
 
       if (!isDirectMatch && !isTokenMatch) return site;
 
@@ -1045,8 +1069,15 @@ export const demandaSharedService = {
     const nextTssrRows = (params.currentTssrRows || []).map((row) => {
       if (params.vendor !== 'NOKIA') return row;
 
+      const rId = String(row.id || '').trim().toUpperCase();
+      const rRowKey = String(row.rowKey || '').trim().toUpperCase();
+      const rSiteId = String(row.siteId || '').trim().toUpperCase();
       const isDirectMatch = isTssrRowAssignedToResponsible(row, cleanResponsible, linkedEmails);
-      const isTokenMatch = explicitTokens.size > 0 && matchesAnySiteToken(row, explicitTokens);
+      const isTokenMatch =
+        explicitTokens.size > 0 &&
+        ((rId !== '' && explicitTokens.has(rId)) ||
+         (rRowKey !== '' && explicitTokens.has(rRowKey)) ||
+         (rSiteId !== '' && explicitTokens.has(rSiteId)));
 
       if (!isDirectMatch && !isTokenMatch) return row;
 
@@ -1068,12 +1099,17 @@ export const demandaSharedService = {
     const nextEricssonEngRows = (params.currentEricssonEngRows || []).map((row) => {
       if (params.vendor !== 'ERICSSON') return row;
 
+      const rId = String(row.id || '').trim().toUpperCase();
+      const rRowKey = String(row.rowKey || '').trim().toUpperCase();
       const isDirectMatch = isEricssonRowAssignedToResponsible(row, cleanResponsible, linkedEmails);
-      const isTokenMatch = explicitTokens.size > 0 && matchesAnySiteToken(row, explicitTokens);
+      const isTokenMatch =
+        explicitTokens.size > 0 &&
+        ((rId !== '' && explicitTokens.has(rId)) ||
+         (rRowKey !== '' && explicitTokens.has(rRowKey)));
 
       if (!isDirectMatch && !isTokenMatch) return row;
 
-      affectedTokens.push(row.intervencaoClaro || row.siteIdA || row.id);
+      affectedTokens.push(row.id);
       return {
         ...row,
         executor: '',

@@ -40,6 +40,7 @@ import {
   ERICSSON_REAL_STATUSES_BY_DOC,
 } from '../types/telecom';
 import { INITIAL_ERICSSON_ENGINEERING_ROWS } from '../data/initialEricssonEngineering';
+import { confirmar } from '../hooks/useConfirm';
 import {
   computeEricssonConsolidatedStats,
   exportEricssonEngineeringToXlsx,
@@ -874,7 +875,11 @@ export const EricssonEngineeringTab: React.FC<EricssonEngineeringTabProps> = ({
   };
 
   const handleDeleteRow = async (id: string) => {
-    if (!window.confirm('Tem certeza que deseja excluir esta linha da Engenharia Ericsson?')) {
+    const ok = await confirmar('Tem certeza que deseja excluir esta linha da Engenharia Ericsson?', {
+      title: 'Excluir Linha da Engenharia',
+      isDanger: true,
+    });
+    if (!ok) {
       return;
     }
     try {
