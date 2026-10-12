@@ -275,6 +275,9 @@ export const ExecutoresInteractiveView: React.FC<ExecutoresInteractiveViewProps>
   const [sitePickerProjeto, setSitePickerProjeto] = useState<string>('ALL');
 
   const [selectedRowIds, setSelectedRowIds] = useState<string[]>([]);
+  const selectedRowIdsSet = useMemo(() => new Set(selectedRowIds), [selectedRowIds]);
+  const [pickerDisplayLimit, setPickerDisplayLimit] = useState<number>(100);
+  const [assignedDisplayLimit, setAssignedDisplayLimit] = useState<number>(100);
   const [isAssigning, setIsAssigning] = useState<boolean>(false);
   const [isClearing, setIsClearing] = useState<boolean>(false);
   const [mobileSection, setMobileSection] = useState<'ALL' | 'EXECUTORES' | 'DEMANDAR' | 'VINCULADOS'>(
@@ -283,6 +286,30 @@ export const ExecutoresInteractiveView: React.FC<ExecutoresInteractiveViewProps>
 
   // Assigned search
   const [assignedSearch, setAssignedSearch] = useState<string>('');
+
+  useEffect(() => {
+    setPickerDisplayLimit(100);
+  }, [
+    sitePickerSearch,
+    sitePickerFilter,
+    ericssonProjectFilter,
+    ericssonStatusFilter,
+    ericssonRegionalFilter,
+    ericssonTipoSiteFilter,
+    sitePickerUf,
+    sitePickerProjeto,
+  ]);
+
+  useEffect(() => {
+    setAssignedDisplayLimit(100);
+  }, [
+    selectedExecutor,
+    assignedSearch,
+    ericssonProjectFilter,
+    ericssonStatusFilter,
+    ericssonRegionalFilter,
+    ericssonTipoSiteFilter,
+  ]);
 
   useEffect(() => {
     if (executoresList.length > 0 && !executoresList.includes(selectedExecutor)) {
@@ -373,6 +400,87 @@ export const ExecutoresInteractiveView: React.FC<ExecutoresInteractiveViewProps>
     }
     return isTssrRowAssignedToResponsible(row as any, executorName, linkedEmails);
   };
+
+  // High performance: Precompute stats for all executores in a single O(N) pass, cached in useMemo!
+  const executorStatsMap = useMemo(() => {
+    const stats: Record<
+      string,
+      {
+        totalSitesCount: number;
+        entreguesCount: number;
+        fazerCount: number;
+        aguardandoCount: number;
+        nokiaActive: boolean;
+        ericssonActive: boolean;
+        isDisponivel: boolean;
+      }
+    > = {};
+
+    executoresList.forEach((ex) => {
+      stats[ex] = {
+        totalSitesCount: 0,
+        entreguesCount: 0,
+        fazerCount: 0,
+        aguardandoCount: 0,
+        nokiaActive: false,
+        ericssonActive: false,
+        isDisponivel: false,
+      };
+    });
+
+    const activeRows = activeVendor === 'ERICSSON' ? ericssonRows : tssrRows;
+
+    executoresList.forEach((executor) => {
+      const linkedEmails = getLinkedEmailsForExecutor(executor);
+      let total = 0;
+      let entregues = 0;
+      let aguardando = 0;
+      let hasActive = false;
+
+      for (let i = 0; i < activeRows.length; i++) {
+        const r = activeRows[i];
+        const isMatched =
+          activeVendor === 'ERICSSON'
+            ? isEricssonRowAssignedToResponsible(r, executor, linkedEmails)
+            : isTssrRowAssignedToResponsible(r as any, executor, linkedEmails);
+
+        if (isMatched) {
+          total++;
+          const statusEng = (r.status || r.fields?.['Status'] || r.vistoriaStatus || '').trim();
+          const isFinal =
+            statusEng === 'Finalizado' ||
+            r.vistoriaStatus === 'Entregue' ||
+            Boolean((r.fields?.['Entregue'] || '').trim()) ||
+            Boolean((r.fields?.['Data Entregue'] || '').trim());
+
+          if (isFinal) {
+            entregues++;
+          } else {
+            hasActive = true;
+          }
+
+          if (
+            statusEng.toLowerCase().includes('aguardando') ||
+            (r.fields?.['STATUS Engenharia'] || '').toLowerCase().includes('aguardando')
+          ) {
+            aguardando++;
+          }
+        }
+      }
+
+      stats[executor] = {
+        totalSitesCount: total,
+        entreguesCount: entregues,
+        fazerCount: total - entregues,
+        aguardandoCount: aguardando,
+        nokiaActive: activeVendor === 'NOKIA' && hasActive,
+        ericssonActive: activeVendor === 'ERICSSON' && hasActive,
+        isDisponivel: total > 0 && entregues === total,
+      };
+    });
+
+    return stats;
+  }, [executoresList, activeVendor, ericssonRows, tssrRows, serverExecutorEmailsMap, executorEmailsMap]);
 
   // Project counts for Ericsson project selector bar
   const ericssonProjectCounts = useMemo(() => {
@@ -992,26 +1100,24 @@ export const ExecutoresInteractiveView: React.FC<ExecutoresInteractiveViewProps>
               const isEditing = editingExecutor === executor;
               const linkedEmails = getLinkedEmailsForExecutor(executor);
 
-              const executorRows = [
-                ...tssrRows.filter((r) => isRowAssignedToExecutor(r, executor)),
-                ...ericssonRows.filter((r) => isRowAssignedToExecutor(r, executor)),
-              ];
-              const totalSitesCount = executorRows.length;
-              const entreguesCount = executorRows.filter(
-                (r) => r.vistoriaStatus === 'Entregue' || r.status === 'Finalizado'
-              ).length;
-              const fazerCount = totalSitesCount - entreguesCount;
-              const aguardandoCount = executorRows.filter((r) =>
-                (r.fields?.['STATUS Engenharia'] || r.status || '').toLowerCase().includes('aguardando')
-              ).length;
-
-              const nokiaActive = executorRows.some(
-                (r) => r.vendor === 'NOKIA' && r.vistoriaStatus !== 'Entregue'
-              );
-              const ericssonActive = executorRows.some(
-                (r) => r.vendor === 'ERICSSON' && r.status !== 'Finalizado'
-              );
-              const isDisponivel = totalSitesCount > 0 && entreguesCount === totalSitesCount;
+              const stats = executorStatsMap[executor] || {
+                totalSitesCount: 0,
+                entreguesCount: 0,
+                fazerCount: 0,
+                aguardandoCount: 0,
+                nokiaActive: false,
+                ericssonActive: false,
+                isDisponivel: false,
+              };
+              const {
+                totalSitesCount,
+                entreguesCount,
+                fazerCount,
+                aguardandoCount,
+                nokiaActive,
+                ericssonActive,
+                isDisponivel,
+              } = stats;
 
               return (
                 <div
@@ -1533,8 +1639,8 @@ export const ExecutoresInteractiveView: React.FC<ExecutoresInteractiveViewProps>
 
               {/* Scrollable Picker List */}
               <div className="divide-y divide-slate-100 max-h-[460px] overflow-y-auto">
-                {pickerEngineeringRows.map((row) => {
-                  const isChecked = selectedRowIds.includes(row.id);
+                {pickerEngineeringRows.slice(0, pickerDisplayLimit).map((row) => {
+                  const isChecked = selectedRowIdsSet.has(row.id);
                   const currentEx = (
                     row.fields?.['EXECUTOR'] ||
                     row.fields?.['EXECUTOR WR'] ||
@@ -1702,6 +1808,18 @@ export const ExecutoresInteractiveView: React.FC<ExecutoresInteractiveViewProps>
                   );
                 })}
 
+                {pickerEngineeringRows.length > pickerDisplayLimit && (
+                  <div className="p-2.5 bg-slate-50 border-t border-slate-200 text-center">
+                    <button
+                      type="button"
+                      onClick={() => setPickerDisplayLimit((prev) => prev + 150)}
+                      className="px-4 py-1.5 text-xs font-semibold text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-100 cursor-pointer shadow-2xs"
+                    >
+                      Mostrar mais 150 linhas ({pickerDisplayLimit} de {pickerEngineeringRows.length} exibidas)
+                    </button>
+                  </div>
+                )}
+
                 {activePickerCount === 0 && (
                   <div className="p-8 text-center text-xs text-slate-400">
                     Nenhuma linha da Engenharia encontrada com os filtros selecionados.
@@ -1755,7 +1873,7 @@ export const ExecutoresInteractiveView: React.FC<ExecutoresInteractiveViewProps>
               </div>
 
               <div className="divide-y divide-slate-100 max-h-[515px] overflow-y-auto">
-                {filteredAssignedRows.map((row) => {
+                {filteredAssignedRows.slice(0, assignedDisplayLimit).map((row) => {
                   const statusEng = (row.status || row.fields?.['Status'] || row.vistoriaStatus || '').trim();
                   const isFinalizado = statusEng === 'Finalizado' || row.vistoriaStatus === 'Entregue';
                   const demandDate = (row.fields?.['Data Demanda'] || row.fields?.['Data de demanda'] || row.demanda || '').trim();
@@ -1872,6 +1990,18 @@ export const ExecutoresInteractiveView: React.FC<ExecutoresInteractiveViewProps>
                     </div>
                   );
                 })}
+
+                {filteredAssignedRows.length > assignedDisplayLimit && (
+                  <div className="p-2.5 bg-slate-50 border-t border-slate-200 text-center">
+                    <button
+                      type="button"
+                      onClick={() => setAssignedDisplayLimit((prev) => prev + 150)}
+                      className="px-4 py-1.5 text-xs font-semibold text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-100 cursor-pointer shadow-2xs"
+                    >
+                      Mostrar mais 150 demandas ({assignedDisplayLimit} de {filteredAssignedRows.length} exibidas)
+                    </button>
+                  </div>
+                )}
 
                 {activeAssignedCount === 0 && (
                   <div className="p-8 text-center text-xs text-slate-400">

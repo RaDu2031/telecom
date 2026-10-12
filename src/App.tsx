@@ -1454,19 +1454,21 @@ export default function App() {
     users.forEach((u) => {
       if (u.role === 'Executor') {
         const name = (u.name || '').trim();
-        if (name) set.add(name);
+        if (name && !isDuplaExcluded(name, excludedDuplasNokia)) set.add(name);
       }
     });
     tssrRows.forEach((r) => {
       const ex = (r.fields?.['Executor'] || '').trim();
-      if (ex && ex !== '—' && ex !== '-') set.add(ex);
+      if (ex && ex !== '—' && ex !== '-' && !isDuplaExcluded(ex, excludedDuplasNokia)) set.add(ex);
     });
     customExecutores.forEach((ex) => {
       const clean = (ex || '').trim();
-      if (clean) set.add(clean);
+      if (clean && !isDuplaExcluded(clean, excludedDuplasNokia)) set.add(clean);
     });
-    return Array.from(set).sort((a, b) => a.localeCompare(b, 'pt-BR'));
-  }, [users, tssrRows, customExecutores]);
+    return Array.from(set)
+      .filter((e) => !isDuplaExcluded(e, excludedDuplasNokia))
+      .sort((a, b) => a.localeCompare(b, 'pt-BR'));
+  }, [users, tssrRows, customExecutores, excludedDuplasNokia]);
 
   // ERICSSON ONLY Executores list (Completely isolated from Nokia)
   const listaExecutoresEricsson = useMemo<string[]>(() => {
@@ -1485,9 +1487,9 @@ export default function App() {
           if (clean.includes('/')) {
             clean.split(/[\/\&]/).forEach((part) => {
               const p = part.trim();
-              if (p && p.length >= 2) set.add(p);
+              if (p && p.length >= 2 && !isDuplaExcluded(p, excludedDuplasEricsson)) set.add(p);
             });
-          } else {
+          } else if (!isDuplaExcluded(clean, excludedDuplasEricsson)) {
             set.add(clean);
           }
         }
@@ -1496,23 +1498,79 @@ export default function App() {
     ericssonUsers.forEach((u) => {
       if (u.role === 'Executor') {
         const name = (u.name || '').trim();
-        if (name) set.add(name);
+        if (name && !isDuplaExcluded(name, excludedDuplasEricsson)) set.add(name);
       }
     });
     DEFAULT_ERICSSON_COLABORADORES.forEach((c) => {
-      if (c.nome) set.add(c.nome.trim());
+      if (c.nome) {
+        const clean = c.nome.trim();
+        if (clean && !isDuplaExcluded(clean, excludedDuplasEricsson)) set.add(clean);
+      }
     });
     customExecutoresEricsson.forEach((ex) => {
       const clean = (ex || '').trim();
-      if (clean) set.add(clean);
+      if (clean && !isDuplaExcluded(clean, excludedDuplasEricsson)) set.add(clean);
     });
-    return Array.from(set).sort((a, b) => a.localeCompare(b, 'pt-BR'));
-  }, [ericssonUsers, ericssonEngineeringRows, customExecutoresEricsson]);
+    return Array.from(set)
+      .filter((e) => !isDuplaExcluded(e, excludedDuplasEricsson))
+      .sort((a, b) => a.localeCompare(b, 'pt-BR'));
+  }, [ericssonUsers, ericssonEngineeringRows, customExecutoresEricsson, excludedDuplasEricsson]);
 
   // Active vendor Executores list
   const listaExecutores = useMemo<string[]>(() => {
     return activeVendor === 'ERICSSON' ? listaExecutoresEricsson : listaExecutoresNokia;
   }, [activeVendor, listaExecutoresEricsson, listaExecutoresNokia]);
+
+  // Memoized mapped Ericsson rows for ExecutoresInteractiveView to avoid creating thousands of objects on every render
+  const mappedEricssonRowsForExecutores = useMemo(() => {
+    return ericssonEngineeringRows.map((r) => {
+      const statusStr = r.status || r.fields?.['Status'] || '';
+      const isFinalizado =
+        statusStr === 'Finalizado' ||
+        (r.fields?.['Entregue'] || '').trim() !== '' ||
+        (r.fields?.['Data Entregue'] || '').trim() !== '';
+      return {
+        ...r,
+        vendor: 'ERICSSON' as VendorType,
+        siteId: r.intervencaoClaro || r.siteIdA || r.siteIdB || r.id,
+        fields: r.fields || {},
+        vistoriaStatus: isFinalizado ? 'Entregue' : 'Pendente',
+        vistoriaFileId: r.attachedFileId,
+        vistoriaFileName: r.attachedFileName,
+        vistoriaFileUrl: r.attachedFileUrl,
+        vistoriaDownloadUrl: r.attachedFileUrl,
+        vistoriaDeliveredAt:
+          (r.fields?.['Entregue'] || '').trim() ||
+          (r.fields?.['Data Entregue'] || '').trim() ||
+          r.attachedUploadedAt ||
+          r.updatedAt,
+        vistoriaUploadedBy: r.attachedUploadedBy,
+        vistoriaUploadedByEmail: '',
+        updatedAt: r.updatedAt,
+        rowKey: r.rowKey || r.id,
+        tabName: 'Engenharia Ericsson',
+        ocSitePre: r.intervencaoClaro || '',
+        enderecoId: r.regional || '',
+        executor:
+          r.executor ||
+          r.fields?.['EXECUTOR'] ||
+          r.fields?.['EXECUTOR WR'] ||
+          r.fields?.['EXECUTOR QRF'] ||
+          r.fields?.['EXECUTOR PPI'] ||
+          r.fields?.['Executor'] ||
+          '',
+        intervencaoClaro: r.intervencaoClaro || '',
+        regional: r.regional || r.fields?.['Regional'] || '',
+        tipoDoc: r.tipoDoc || r.fields?.['Tipo doc'] || '',
+        tipoSite: r.tipoSite || r.fields?.['TIPO SITE'] || '',
+        status: statusStr,
+        demanda: r.fields?.['Demanda'] || r.fields?.['Data Demanda'] || '',
+        comentario: r.fields?.['Comentário'] || r.fields?.['Comentários'] || '',
+        planejado: r.fields?.['Planejado'] || r.fields?.['Data Planejada'] || '',
+        entregue: r.fields?.['Entregue'] || r.fields?.['Data Entregue'] || r.attachedUploadedAt || '',
+      };
+    });
+  }, [ericssonEngineeringRows]);
 
   const saveCustomExecutores = (nextList: string[]) => {
     if (activeVendor === 'ERICSSON') {
@@ -1534,7 +1592,17 @@ export default function App() {
       showToast(`Executor "${clean}" já está na lista da Nokia.`);
       return;
     }
-    const next = [clean, ...customExecutores];
+    // Remove from excluded list if previously excluded
+    setExcludedDuplasNokia((prev) => {
+      const nextEx = prev.filter((ex) => !matchesDuplaName(ex, clean));
+      try {
+        localStorage.setItem('ameta_excluded_duplas_nokia_v1', JSON.stringify(nextEx));
+      } catch {}
+      return nextEx;
+    });
+    dataService.removerEquipeExcluida({ duplaName: clean, vendor: 'NOKIA' }).catch(() => {});
+
+    const next = [clean, ...customExecutores.filter((e) => e.toLowerCase() !== clean.toLowerCase())];
     setCustomExecutores(next);
     try {
       localStorage.setItem(STORAGE_EXECUTORES_KEY, JSON.stringify(next));
@@ -1549,7 +1617,17 @@ export default function App() {
       showToast(`Executor "${clean}" já está na lista da Ericsson.`);
       return;
     }
-    const next = [clean, ...customExecutoresEricsson];
+    // Remove from excluded list if previously excluded
+    setExcludedDuplasEricsson((prev) => {
+      const nextEx = prev.filter((ex) => !matchesDuplaName(ex, clean));
+      try {
+        localStorage.setItem('ameta_excluded_duplas_ericsson_v1', JSON.stringify(nextEx));
+      } catch {}
+      return nextEx;
+    });
+    dataService.removerEquipeExcluida({ duplaName: clean, vendor: 'ERICSSON' }).catch(() => {});
+
+    const next = [clean, ...customExecutoresEricsson.filter((e) => e.toLowerCase() !== clean.toLowerCase())];
     saveCustomExecutoresEricsson(next);
     showToast(`Executor "${clean}" adicionado para a Engenharia Ericsson!`);
   };
@@ -1632,18 +1710,22 @@ export default function App() {
     const cleanName = name.trim();
     if (!cleanName) return;
 
+    const canonTarget = getCanonicalDuplaName(cleanName) || cleanName;
     const linkedEmails = serverEricssonExecutorEmailsMap[cleanName] || serverEricssonDuplaEmailsMap[cleanName] || [];
     const demandsCount =
       ericssonEngineeringRows.filter((r) => isEricssonRowAssignedToResponsible(r, cleanName, linkedEmails)).length +
       sites.filter((s) => s.vendor === 'ERICSSON' && isSiteAssignedToResponsible(s, cleanName, linkedEmails)).length;
 
-    if (demandsCount > 0) {
-      const confirmed = await confirmar(
-        `O executor "${cleanName}" possui ${demandsCount} site(s)/demanda(s) atribuído(s) na Ericsson. Deseja realmente excluí-lo e desvincular todos os ${demandsCount} site(s)?`,
-        { title: 'Excluir Executor Ericsson', isDanger: true }
-      );
-      if (!confirmed) return;
-    }
+    const confirmMessage =
+      demandsCount > 0
+        ? `A equipe/executor "${cleanName}" possui ${demandsCount} site(s)/demanda(s) atribuído(s) na Ericsson.\n\nDeseja realmente excluí-la da Demanda para Executores e desvincular todos os ${demandsCount} site(s)?`
+        : `Deseja realmente excluir a equipe/executor "${cleanName}" da Demanda para Executores da Ericsson?`;
+
+    const confirmed = await confirmar(confirmMessage, {
+      title: 'Excluir da Demanda para Executores',
+      isDanger: true,
+    });
+    if (!confirmed) return;
 
     await handleClearEricssonExecutorRows(cleanName);
 
@@ -1679,7 +1761,25 @@ export default function App() {
       (e) => e.toLowerCase() !== cleanName.toLowerCase()
     );
     saveCustomExecutoresEricsson(next);
-    showToast(`Executor "${cleanName}" removido da lista da Ericsson.`);
+
+    // Persist to excluded list for Ericsson so it never gets resurrected by default lists or spreadsheet rows
+    setExcludedDuplasEricsson((prev) => {
+      const nextEx = Array.from(new Set([...prev, cleanName, canonTarget]));
+      try {
+        localStorage.setItem('ameta_excluded_duplas_ericsson_v1', JSON.stringify(nextEx));
+      } catch {}
+      return nextEx;
+    });
+    try {
+      await dataService.adicionarEquipeExcluida({
+        duplaName: cleanName,
+        vendor: 'ERICSSON',
+      });
+    } catch (err) {
+      console.error('Erro ao adicionar equipe excluída no Firestore:', err);
+    }
+
+    showToast(`Equipe/executor "${cleanName}" excluído com sucesso.`);
   };
 
   const handleAssignEricssonRowsToExecutor = async (
@@ -1843,18 +1943,22 @@ export default function App() {
     const cleanName = name.trim();
     if (!cleanName) return;
 
+    const canonTarget = getCanonicalDuplaName(cleanName) || cleanName;
     const linkedEmails = serverExecutorEmailsMap[cleanName] || serverDuplaEmailsMap[cleanName] || [];
     const demandsCount =
       tssrRows.filter((r) => isTssrRowAssignedToResponsible(r, cleanName, linkedEmails)).length +
       sites.filter((s) => s.vendor === 'NOKIA' && isSiteAssignedToResponsible(s, cleanName, linkedEmails)).length;
 
-    if (demandsCount > 0) {
-      const confirmed = await confirmar(
-        `O executor "${cleanName}" possui ${demandsCount} site(s)/demanda(s) atribuído(s). Deseja realmente excluí-lo e desvincular todos os ${demandsCount} site(s)?`,
-        { title: 'Excluir Executor', isDanger: true }
-      );
-      if (!confirmed) return;
-    }
+    const confirmMessage =
+      demandsCount > 0
+        ? `O executor "${cleanName}" possui ${demandsCount} site(s)/demanda(s) atribuído(s).\n\nDeseja realmente excluí-lo e desvincular todos os ${demandsCount} site(s)?`
+        : `Deseja realmente remover o executor "${cleanName}" da lista da Nokia?`;
+
+    const confirmed = await confirmar(confirmMessage, {
+      title: 'Excluir Executor',
+      isDanger: true,
+    });
+    if (!confirmed) return;
 
     await handleClearAllExecutorRows(cleanName);
 
@@ -1890,6 +1994,23 @@ export default function App() {
       (e) => e.toLowerCase() !== cleanName.toLowerCase()
     );
     saveCustomExecutores(next);
+
+    setExcludedDuplasNokia((prev) => {
+      const nextEx = Array.from(new Set([...prev, cleanName, canonTarget]));
+      try {
+        localStorage.setItem('ameta_excluded_duplas_nokia_v1', JSON.stringify(nextEx));
+      } catch {}
+      return nextEx;
+    });
+    try {
+      await dataService.adicionarEquipeExcluida({
+        duplaName: cleanName,
+        vendor: 'NOKIA',
+      });
+    } catch (err) {
+      console.error('Erro ao adicionar equipe excluída no Firestore:', err);
+    }
+
     showToast(`Executor "${cleanName}" removido com sucesso.`);
   };
 
@@ -6720,55 +6841,7 @@ export default function App() {
                   activeVendor={activeVendor}
                   tssrRows={tssrRows}
                   ericssonRows={
-                    activeVendor === 'ERICSSON'
-                      ? ericssonEngineeringRows.map((r) => {
-                          const statusStr = r.status || r.fields?.['Status'] || '';
-                          const isFinalizado =
-                            statusStr === 'Finalizado' ||
-                            (r.fields?.['Entregue'] || '').trim() !== '' ||
-                            (r.fields?.['Data Entregue'] || '').trim() !== '';
-                          return {
-                            ...r,
-                            vendor: 'ERICSSON' as VendorType,
-                            siteId: r.intervencaoClaro || r.siteIdA || r.siteIdB || r.id,
-                            fields: r.fields || {},
-                            vistoriaStatus: isFinalizado ? 'Entregue' : 'Pendente',
-                            vistoriaFileId: r.attachedFileId,
-                            vistoriaFileName: r.attachedFileName,
-                            vistoriaFileUrl: r.attachedFileUrl,
-                            vistoriaDownloadUrl: r.attachedFileUrl,
-                            vistoriaDeliveredAt:
-                              (r.fields?.['Entregue'] || '').trim() ||
-                              (r.fields?.['Data Entregue'] || '').trim() ||
-                              r.attachedUploadedAt ||
-                              r.updatedAt,
-                            vistoriaUploadedBy: r.attachedUploadedBy,
-                            vistoriaUploadedByEmail: '',
-                            updatedAt: r.updatedAt,
-                            rowKey: r.rowKey || r.id,
-                            tabName: 'Engenharia Ericsson',
-                            ocSitePre: r.intervencaoClaro || '',
-                            enderecoId: r.regional || '',
-                            executor:
-                              r.executor ||
-                              r.fields?.['EXECUTOR'] ||
-                              r.fields?.['EXECUTOR WR'] ||
-                              r.fields?.['EXECUTOR QRF'] ||
-                              r.fields?.['EXECUTOR PPI'] ||
-                              r.fields?.['Executor'] ||
-                              '',
-                            intervencaoClaro: r.intervencaoClaro || '',
-                            regional: r.regional || r.fields?.['Regional'] || '',
-                            tipoDoc: r.tipoDoc || r.fields?.['Tipo doc'] || '',
-                            tipoSite: r.tipoSite || r.fields?.['TIPO SITE'] || '',
-                            status: statusStr,
-                            demanda: r.fields?.['Demanda'] || r.fields?.['Data Demanda'] || '',
-                            comentario: r.fields?.['Comentário'] || r.fields?.['Comentários'] || '',
-                            planejado: r.fields?.['Planejado'] || r.fields?.['Data Planejada'] || '',
-                            entregue: r.fields?.['Entregue'] || r.fields?.['Data Entregue'] || r.attachedUploadedAt || '',
-                          };
-                        })
-                      : []
+                    activeVendor === 'ERICSSON' ? mappedEricssonRowsForExecutores : []
                   }
                   users={users}
                   ericssonUsers={ericssonUsers}
