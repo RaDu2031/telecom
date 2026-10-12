@@ -209,7 +209,7 @@ export type UserRole =
 
 export type AssignedPlatformScope = 'NOKIA' | 'ERICSSON' | 'BOTH' | 'AMBAS';
 
-export type UserSituacao = 'dono' | 'aguardando' | 'ativo' | 'bloqueado';
+export type UserSituacao = 'dono' | 'aguardando' | 'ativo' | 'bloqueado' | 'recusado';
 
 export const OWNER_ADM_EMAILS = [
   'rafael.araujo@ametaservicos.com.br',
@@ -230,12 +230,9 @@ export function isUserDono(user?: AmetaUser | null): boolean {
 
 export function isUserAguardando(user?: AmetaUser | null): boolean {
   if (!user) return false;
-  if (isUserDono(user)) return false;
-  return (
-    user.situacao === 'aguardando' ||
-    user.situacao === 'bloqueado' ||
-    user.accessReleased === false
-  );
+  if (isUserDono(user) || user.situacao === 'dono' || user.situacao === 'ativo') return false;
+  if (user.situacao === 'bloqueado' || user.situacao === 'recusado') return false;
+  return user.situacao === 'aguardando' || (user.accessReleased === false && user.situacao !== 'ativo');
 }
 
 export function normalizeUserRole(raw?: string, email?: string): UserRole {

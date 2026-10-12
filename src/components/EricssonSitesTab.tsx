@@ -447,6 +447,42 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
       .slice(0, 15);
   }, [filteredRows]);
 
+  const chartDataByDocType = useMemo(() => {
+    const map = new Map<
+      string,
+      { docType: string; total: number; entregues: number; pendentes: number }
+    >();
+    filteredRows.forEach((r) => {
+      const docType = (
+        r.registro ||
+        r.fields?.['Tipo doc'] ||
+        r.fields?.['TIPO DOC'] ||
+        r.fields?.['Escopo'] ||
+        r.servico ||
+        'Outros'
+      ).trim() || 'Outros';
+
+      const entry = map.get(docType) || { docType, total: 0, entregues: 0, pendentes: 0 };
+      entry.total++;
+
+      const rowStatus = String(r.statusA || r.fields?.['Status'] || (r as any).status || '');
+      const isEntregue =
+        r.siteAVistoriaStatus === 'Entregue' ||
+        r.statusA === 'Entregue' ||
+        rowStatus.toLowerCase().includes('entregue') ||
+        rowStatus.toLowerCase().includes('conclu') ||
+        rowStatus.toLowerCase().includes('aprovad');
+
+      if (isEntregue) {
+        entry.entregues++;
+      } else {
+        entry.pendentes++;
+      }
+      map.set(docType, entry);
+    });
+    return Array.from(map.values()).sort((a, b) => b.total - a.total);
+  }, [filteredRows]);
+
   // Toggle Finalizado / Pendente directly on A, B, LOS, SMART, or SDC in the normal spreadsheet
   const handleToggleFinalizado = async (
     row: EricssonRow,
@@ -1880,6 +1916,52 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
                       />
                     </div>
                   </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Status dos Documentos por Tipo Card */}
+          <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-2xs lg:col-span-2 space-y-4">
+            <div>
+              <h3 className="text-sm font-bold text-slate-900">
+                Status dos Documentos por Tipo (Sites Demandados)
+              </h3>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Status dos documentos (WR, QRF, PPI, SDC, SMART, Vistoria, LOS) calculados exclusivamente sobre os sites demandados ({filteredRows.length} linhas / {siteCounters.totalSites} sites)
+              </p>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+              {chartDataByDocType.map((item) => {
+                const finPct = item.total > 0 ? Math.round((item.entregues / item.total) * 100) : 0;
+                return (
+                  <div
+                    key={item.docType}
+                    className="p-3.5 rounded-xl border border-slate-200 bg-slate-50/80 space-y-2"
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-bold text-slate-900 text-xs px-2.5 py-0.5 bg-white border border-slate-200 rounded-md">
+                        {item.docType}
+                      </span>
+                      <span className="font-mono text-xs font-extrabold text-[#223585]">
+                        {item.total} {item.total === 1 ? 'documento' : 'documentos'}
+                      </span>
+                    </div>
+                    <div className="w-full h-2 bg-slate-200 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-emerald-500 rounded-full"
+                        style={{ width: `${finPct}%` }}
+                      />
+                    </div>
+                    <div className="flex items-center justify-between text-[11px] font-mono">
+                      <span className="text-emerald-700 font-bold">
+                        {item.entregues} entregues ({finPct}%)
+                      </span>
+                      <span className="text-red-600 font-bold">
+                        {item.pendentes} pendentes
+                      </span>
+                    </div>
+                  </div>
                 );
               })}
             </div>

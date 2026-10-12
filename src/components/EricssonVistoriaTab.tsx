@@ -268,14 +268,6 @@ export const EricssonVistoriaTab: React.FC<EricssonVistoriaTabProps> = ({
     const myEquipe = (user.equipe || '').trim().toLowerCase();
 
     return (engineeringRows || []).filter((r) => {
-      // If user is Executor, do not show finalized sites/rows
-      const rawStatus = r.status || r.fields?.['Status'] || '';
-      const isFinalizado =
-        classifyEricssonStatus(rawStatus) === 'Finalizado' ||
-        rawStatus.toLowerCase().includes('finaliz') ||
-        rawStatus.toLowerCase().trim() === 'finalizado';
-      if (isFinalizado) return false;
-
       const rowEx = (
         r.executor ||
         r.fields?.['EXECUTOR'] ||
@@ -303,11 +295,11 @@ export const EricssonVistoriaTab: React.FC<EricssonVistoriaTabProps> = ({
     });
   }, [isExecutor, engineeringRows, user]);
 
-  const hasExecutorEricssonDemands = isExecutor && executorAssignedEngRows.length > 0;
+  const hasExecutorEricssonDemands = isExecutor && (executorAssignedEngRows.length > 0 || responsibleRows.length > 0);
 
   // Sub-tab inside PROJETO CLARO for Executor
   const [activeProjetoClaroSubTab, setActiveProjetoClaroSubTab] = useState<'pastas' | 'planilha'>(
-    () => (isExecutor ? 'planilha' : 'pastas')
+    () => (isExecutor && executorAssignedEngRows.length > 0 ? 'planilha' : 'pastas')
   );
 
   // Executor Mirrored Table Filter States
@@ -1250,6 +1242,17 @@ export const EricssonVistoriaTab: React.FC<EricssonVistoriaTabProps> = ({
             <p className="text-xs text-slate-500 leading-relaxed">
               Quando a coordenação demandar intervenções ou sites para a sua equipe, eles aparecerão automaticamente nesta lista em tempo real.
             </p>
+            {onOpenSitesTab && (
+              <div className="pt-2">
+                <button
+                  type="button"
+                  onClick={onOpenSitesTab}
+                  className="px-4 py-2 bg-[#1E8E8D] text-white rounded-xl font-bold text-xs shadow-xs hover:bg-[#166E6D] transition-colors cursor-pointer"
+                >
+                  Ver Meus Sites Demandados
+                </button>
+              </div>
+            )}
           </div>
         </div>
       ) : isVistoriador && responsibleRows.length === 0 && ericssonFiles.length === 0 ? (

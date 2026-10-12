@@ -1299,6 +1299,28 @@ class FirebaseDataService implements IDataService {
       id: docId,
       uploadedAt: file.uploadedAt || new Date().toISOString(),
     }), { merge: true });
+
+    if (file.fileName) {
+      try {
+        const notifRef = doc(collection(db, FIRESTORE_COLLECTIONS.NOTIFICACOES));
+        await setDoc(notifRef, sanitizeFirestoreData({
+          id: notifRef.id,
+          type: 'ARQUIVO_ASSOCIADO_SITE_VISTORIADOR',
+          vendor: 'NOKIA',
+          title: `Novo Arquivo: ${file.fileName}`,
+          message: `Arquivo ${file.fileName} disponibilizado no site/pasta ${file.siteId || ''}.`,
+          siteId: file.siteId || '',
+          fileName: file.fileName,
+          actorName: file.uploadedByName || 'Engenharia',
+          actorEmail: file.uploadedByEmail || '',
+          targetRoles: ['Vistoriador', 'Executor', 'Coordenador Engenharia', 'Coordenador Geral', 'ADM'],
+          readByEmails: [],
+          createdAt: new Date().toISOString(),
+        }));
+      } catch (err) {
+        console.warn('Erro ao criar notificacao de arquivo Nokia:', err);
+      }
+    }
   }
 
   async excluirArquivoNokia(fileId: string): Promise<void> {
@@ -1329,6 +1351,28 @@ class FirebaseDataService implements IDataService {
       id: docId,
       uploadedAt: file.uploadedAt || new Date().toISOString(),
     }), { merge: true });
+
+    if (file.fileName) {
+      try {
+        const notifRef = doc(collection(db, FIRESTORE_COLLECTIONS.NOTIFICACOES));
+        await setDoc(notifRef, sanitizeFirestoreData({
+          id: notifRef.id,
+          type: 'ARQUIVO_ASSOCIADO_SITE_VISTORIADOR',
+          vendor: 'ERICSSON',
+          title: `Novo Arquivo Ericsson: ${file.fileName}`,
+          message: `Arquivo ${file.fileName} disponibilizado no site/pasta ${file.siteId || ''}.`,
+          siteId: file.siteId || '',
+          fileName: file.fileName,
+          actorName: file.uploadedByName || 'Engenharia Ericsson',
+          actorEmail: file.uploadedByEmail || '',
+          targetRoles: ['Vistoriador', 'Executor', 'Coordenador Engenharia', 'Coordenador Geral', 'ADM'],
+          readByEmails: [],
+          createdAt: new Date().toISOString(),
+        }));
+      } catch (err) {
+        console.warn('Erro ao criar notificacao de arquivo Ericsson:', err);
+      }
+    }
   }
 
   async excluirArquivoEricsson(fileId: string): Promise<void> {
@@ -1575,16 +1619,36 @@ class FirebaseDataService implements IDataService {
   }
 
   async marcarNotificacaoLida(notificationId?: string, markAll = false, userEmail?: string): Promise<void> {
-    if (markAll && userEmail) {
-      const q = query(collection(db, FIRESTORE_COLLECTIONS.NOTIFICACOES), where('targetEmail', '==', userEmail.toLowerCase()));
-      const snap = await getDocs(q);
+    const cleanEmail = (userEmail || '').trim().toLowerCase();
+    if (markAll && cleanEmail) {
+      const snap = await getDocs(collection(db, FIRESTORE_COLLECTIONS.NOTIFICACOES));
       const batch = writeBatch(db);
       snap.docs.forEach((d) => {
-        batch.update(d.ref, { read: true });
+        const data = d.data();
+        const currentRead = Array.isArray(data.readByEmails) ? [...data.readByEmails] : [];
+        if (!currentRead.includes(cleanEmail)) {
+          currentRead.push(cleanEmail);
+          batch.update(d.ref, {
+            read: true,
+            readByEmails: currentRead,
+          });
+        }
       });
       await batch.commit();
     } else if (notificationId) {
-      await updateDoc(doc(db, FIRESTORE_COLLECTIONS.NOTIFICACOES, notificationId), sanitizeFirestoreData({ read: true }));
+      const notifRef = doc(db, FIRESTORE_COLLECTIONS.NOTIFICACOES, notificationId);
+      const snap = await getDoc(notifRef);
+      if (snap.exists()) {
+        const data = snap.data();
+        const currentRead = Array.isArray(data.readByEmails) ? [...data.readByEmails] : [];
+        if (cleanEmail && !currentRead.includes(cleanEmail)) {
+          currentRead.push(cleanEmail);
+        }
+        await updateDoc(notifRef, sanitizeFirestoreData({
+          read: true,
+          readByEmails: currentRead,
+        }));
+      }
     }
   }
 
@@ -1854,15 +1918,18 @@ class FirebaseDataService implements IDataService {
         const notifRef = doc(collection(db, FIRESTORE_COLLECTIONS.NOTIFICACOES));
         await setDoc(notifRef, sanitizeFirestoreData({
           id: notifRef.id,
-          title: `Nova Demanda: ${count} item(ns) Ericsson`,
-          message: `${count} item(ns) colocados na demanda da equipe "${params.responsibleName}".`,
-          type: 'demanda',
+          title: `Nova Demanda: ${count} site(s) Ericsson`,
+          message: `${count} site(s) atribuído(s) à demanda da equipe "${params.responsibleName}".`,
+          type: 'SITE_DEMANDADO_EXECUTOR',
+          vendor: 'ERICSSON',
           read: false,
+          readByEmails: [],
           createdAt: new Date().toISOString(),
-          targetRole: isExecutor ? 'Executor' : 'Equipe',
-          targetPlatform: 'ERICSSON',
-          targetResponsible: params.responsibleName,
+          targetRoles: ['Executor', 'Vistoriador', 'Coordenador Engenharia', 'Coordenador Geral', 'ADM'],
+          targetEquipes: [params.responsibleName],
+          targetEmails: params.linkedEmails || [],
           actorEmail: params.actorEmail || '',
+          actorName: params.actorName || 'Engenharia Ericsson',
         }));
       }
       return { updatedCount: count };
@@ -1945,15 +2012,18 @@ class FirebaseDataService implements IDataService {
       const notifRef = doc(collection(db, FIRESTORE_COLLECTIONS.NOTIFICACOES));
       await setDoc(notifRef, sanitizeFirestoreData({
         id: notifRef.id,
-        title: `Nova Demanda: ${count} item(ns) TIM/Nokia`,
-        message: `${count} item(ns) colocados na demanda da equipe "${params.responsibleName}".`,
-        type: 'demanda',
+        title: `Nova Demanda: ${count} site(s) TIM/Nokia`,
+        message: `${count} site(s) atribuído(s) à demanda da equipe "${params.responsibleName}".`,
+        type: 'SITE_DEMANDADO_EXECUTOR',
+        vendor: params.vendor || 'NOKIA',
         read: false,
+        readByEmails: [],
         createdAt: new Date().toISOString(),
-        targetRole: 'Executor',
-        targetPlatform: params.vendor,
-        targetResponsible: params.responsibleName,
+        targetRoles: ['Executor', 'Vistoriador', 'Coordenador Engenharia', 'Coordenador Geral', 'ADM'],
+        targetEquipes: [params.responsibleName],
+        targetEmails: params.linkedEmails || [],
         actorEmail: params.actorEmail || '',
+        actorName: params.actorName || 'Engenharia TIM/Nokia',
       }));
     }
 
@@ -2614,7 +2684,7 @@ class FirebaseDataService implements IDataService {
       const batch = writeBatch(db);
       for (const u of seed.users) {
         const email = (u.email || '').toLowerCase().trim();
-        if (email && (!existingEmails.has(email) || email === 'teste.liberacao@ametaservicos.com.br')) {
+        if (email && !existingEmails.has(email)) {
           const uid = u.uid || u.id;
           if (uid) {
             const { cpf, initialPasswordHash, passwordHash, ...cleanU } = u as any;

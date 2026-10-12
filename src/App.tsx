@@ -828,9 +828,97 @@ export default function App() {
     return ericssonEngineeringRows;
   }, [ericssonEngineeringRows, activeTargetUser, canSeeFullSpreadsheets, isEngCoordinator]);
 
+  const mappedExecutorEricssonRows = useMemo(() => {
+    if (canSeeFullSpreadsheets || isEngCoordinator) {
+      return vendorEricssonRows;
+    }
+
+    const engRowsMapped: EricssonRow[] = vendorEricssonEngineeringRows.map((eng) => {
+      const siteId = (
+        eng.intervencaoClaro ||
+        eng.siteIdA ||
+        eng.siteIdB ||
+        eng.fields?.['Intervencao Claro'] ||
+        eng.fields?.['Intervenção Claro'] ||
+        eng.id
+      ).trim();
+
+      const ex = (
+        eng.executor ||
+        eng.fields?.['EXECUTOR'] ||
+        eng.fields?.['EXECUTOR WR'] ||
+        eng.fields?.['EXECUTOR QRF'] ||
+        eng.fields?.['EXECUTOR PPI'] ||
+        eng.fields?.['Executor'] ||
+        eng.equipe ||
+        ''
+      ).trim();
+
+      const statusStr = eng.status || eng.fields?.['Status'] || 'Pendente';
+      const regionalStr = eng.regional || eng.fields?.['Regional'] || eng.fields?.['REGIONAL'] || '';
+      const tipoDocStr = eng.tipoDoc || eng.fields?.['Tipo doc'] || eng.fields?.['TIPO DOC'] || 'WR';
+      const tipoSiteStr = eng.tipoSite || eng.fields?.['TIPO SITE'] || eng.fields?.['Tipo site'] || '';
+      const demandaStr = eng.fields?.['Demanda'] || eng.fields?.['Data Demanda'] || '';
+      const planejadoStr = eng.fields?.['Planejado'] || eng.fields?.['Data Planejada'] || '';
+      const entregueStr = eng.fields?.['Entregue'] || eng.fields?.['Data Entregue'] || eng.attachedUploadedAt || '';
+      const comentarioStr = eng.fields?.['Comentário'] || eng.fields?.['Comentários'] || '';
+
+      return {
+        id: eng.id,
+        rowKey: eng.rowKey || eng.id,
+        chaves: siteId,
+        registro: tipoDocStr,
+        state: regionalStr,
+        meta: tipoSiteStr,
+        siteIdA: siteId,
+        idDetentoraA: '',
+        siteIdB: eng.siteIdB || '',
+        idDetentoraB: '',
+        siteName: eng.fields?.['Site Name'] || siteId,
+        statusA: statusStr,
+        statusB: '',
+        cidadeA: regionalStr,
+        cidadeB: '',
+        equipe: ex,
+        responsavelDemand: ex,
+        servico: tipoDocStr ? `Engenharia (${tipoDocStr})` : 'Engenharia',
+        fields: {
+          '01.00. Chaves': siteId,
+          '01.21.Site ID A': siteId,
+          '00.03.State': regionalStr,
+          'Meta': tipoSiteStr,
+          'Status A': statusStr,
+          'CIDADE A': regionalStr,
+          'EQUIPE': ex,
+          'Serviço': tipoDocStr ? `Engenharia (${tipoDocStr})` : 'Engenharia',
+          'Tipo doc': tipoDocStr,
+          'Regional': regionalStr,
+          'TIPO SITE': tipoSiteStr,
+          'Status': statusStr,
+          'Demanda': demandaStr,
+          'Planejado': planejadoStr,
+          'Entregue': entregueStr,
+          'Comentário': comentarioStr,
+          ...(eng.fields || {}),
+        },
+        siteAVistoriaStatus: eng.siteAVistoriaStatus || 'Pendente',
+        siteAVistoriaFileId: eng.attachedFileId,
+        siteAVistoriaFileName: eng.attachedFileName,
+        siteAVistoriaFileUrl: eng.attachedFileUrl,
+        siteBVistoriaStatus: 'Pendente',
+        updatedAt: eng.updatedAt || new Date().toISOString(),
+      };
+    });
+
+    const engIds = new Set(engRowsMapped.map((r) => r.id));
+    const motherRowsMapped = vendorEricssonRows.filter((r) => !engIds.has(r.id));
+
+    return [...engRowsMapped, ...motherRowsMapped];
+  }, [vendorEricssonRows, vendorEricssonEngineeringRows, canSeeFullSpreadsheets, isEngCoordinator]);
+
   const ericssonSiteCounters = useMemo(
-    () => computeEricssonSiteCounters(vendorEricssonRows),
-    [vendorEricssonRows]
+    () => computeEricssonSiteCounters(mappedExecutorEricssonRows),
+    [mappedExecutorEricssonRows]
   );
   const isGestorEngenharia =
     effectiveRole === 'ADM' ||
@@ -841,8 +929,7 @@ export default function App() {
   const canSeeEngenhariaTab =
     effectiveRole === 'ADM' ||
     effectiveRole === 'Coordenador Geral' ||
-    effectiveRole === 'Coordenador Engenharia' ||
-    (activeVendor === 'NOKIA' && effectiveRole === 'Executor');
+    effectiveRole === 'Coordenador Engenharia';
 
   // "essa opção aparece somente para os gestores engenharia e para gestor geral para todo resto é oculta"
   const canAccessDemandaExecutores =
@@ -892,11 +979,7 @@ export default function App() {
   }, [users]);
 
   const pendingReleaseCount = useMemo<number>(() => {
-    return users.filter(
-      (u) =>
-        !isOwnerAdmUser(u.email, u.situacao) &&
-        (u.situacao === 'aguardando' || u.situacao === 'bloqueado' || u.accessReleased === false)
-    ).length;
+    return users.filter((u) => isUserAguardando(u)).length;
   }, [users]);
 
   // 1. Custom duplas for Ericsson (isolated storage)
@@ -1574,7 +1657,7 @@ export default function App() {
 
   // Memoized mapped Ericsson rows for ExecutoresInteractiveView to avoid creating thousands of objects on every render
   const mappedEricssonRowsForExecutores = useMemo(() => {
-    return ericssonEngineeringRows.map((r) => {
+    const engRowsMapped = ericssonEngineeringRows.map((r) => {
       const statusStr = r.status || r.fields?.['Status'] || '';
       const isFinalizado =
         statusStr === 'Finalizado' ||
@@ -1621,7 +1704,37 @@ export default function App() {
         entregue: r.fields?.['Entregue'] || r.fields?.['Data Entregue'] || r.attachedUploadedAt || '',
       };
     });
-  }, [ericssonEngineeringRows]);
+
+    const motherRowsMapped = ericssonRows.map((r) => {
+      const eq = r.equipe || r.responsavelDemand || r.fields?.['EQUIPE'] || r.fields?.['EXECUTOR'] || '';
+      return {
+        id: `mother-${r.id}`,
+        vendor: 'ERICSSON' as VendorType,
+        siteId: r.siteIdA || r.siteIdB || r.rowKey || r.id,
+        fields: r.fields || {},
+        vistoriaStatus: r.siteAVistoriaStatus || 'Pendente',
+        vistoriaFileId: r.siteAVistoriaFileId,
+        vistoriaFileName: r.siteAVistoriaFileName,
+        vistoriaFileUrl: r.siteAVistoriaFileUrl,
+        vistoriaDownloadUrl: r.siteAVistoriaFileUrl,
+        updatedAt: r.updatedAt || new Date().toISOString(),
+        rowKey: r.rowKey || r.id,
+        tabName: 'Sites Ericsson (Mãe)',
+        ocSitePre: r.siteIdA || '',
+        enderecoId: r.siteIdB || '',
+        executor: eq,
+        equipe: eq,
+        responsavelDemand: r.responsavelDemand || eq,
+        regional: r.state || r.fields?.['00.03.State'] || '',
+        tipoDoc: 'Planilha Mãe',
+        tipoSite: r.servico || '',
+        status: r.statusA || 'Pendente',
+        demanda: r.fields?.['Data de demanda'] || r.fields?.['Data Demanda'] || '',
+      };
+    });
+
+    return [...engRowsMapped, ...motherRowsMapped];
+  }, [ericssonEngineeringRows, ericssonRows]);
 
   const saveCustomExecutores = (nextList: string[]) => {
     if (activeVendor === 'ERICSSON') {
@@ -2169,9 +2282,8 @@ export default function App() {
     if (isEngCoordinator && activeTopTab === 'sites') {
       return 'engenharia';
     }
-    // Executor sees ONLY Meus Sites Demandados (for Nokia) or PROJETO CLARO (for Ericsson)
+    // Executor sees Meus Sites Demandados ('sites'), Projeto Claro ('vistoria')
     if (effectiveRole === 'Executor') {
-      if (activeVendor === 'ERICSSON') return 'vistoria';
       if (activeTopTab === 'vistoria') return 'vistoria';
       return 'sites';
     }
@@ -5381,7 +5493,7 @@ export default function App() {
               <EricssonSitesTab
                 user={activeTargetUser || user}
                 effectiveRole={effectiveRole}
-                rows={vendorEricssonRows}
+                rows={mappedExecutorEricssonRows}
                 sheetMeta={ericssonSheetMeta || null}
                 ericssonUsers={ericssonUsers}
                 onUpdated={(nextRows, nextMeta, toastMsg, nextFiles) => {

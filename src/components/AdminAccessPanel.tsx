@@ -29,6 +29,7 @@ import {
   normalizeUserRole,
   isOwnerAdmUser,
   isUserDono,
+  isUserAguardando,
   MandatoryDocType,
   UserMandatoryDocument,
   MANDATORY_USER_DOCUMENTS,
@@ -291,12 +292,44 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
   }, [usersWithDocEval]);
 
   const pendingApprovalUsers = useMemo(() => {
-    return users.filter(
-      (u) =>
-        !isOwnerAdmUser(u.email, u.situacao) &&
-        (u.situacao === 'aguardando' || u.situacao === 'bloqueado' || u.accessReleased === false)
-    );
+    return users.filter((u) => isUserAguardando(u));
   }, [users]);
+
+  const handleRejectPendingUser = async (target: AmetaUser) => {
+    setUpdatingUserId(target.id);
+    setError(null);
+    try {
+      await dataService.atualizarPermissoesUsuario(target.uid || target.id, {
+        email: target.email,
+        name: target.name,
+        situacao: 'bloqueado',
+        role: target.role || 'Vistoriador',
+        plataforma: target.plataforma || target.assignedPlatform || 'NOKIA',
+        equipe: target.equipe || '',
+      });
+
+      const updatedList = users.map((u) =>
+        u.id === target.id || (u.email && target.email && u.email.toLowerCase() === target.email.toLowerCase())
+          ? {
+              ...u,
+              situacao: 'bloqueado' as UserSituacao,
+              accessReleased: false,
+            }
+          : u
+      );
+
+      setFirestoreUsers(updatedList);
+      if (onUsersUpdated) {
+        onUsersUpdated(updatedList, `Solicitação de ${target.name} recusada (acesso bloqueado).`);
+      }
+      showToast(`Solicitação de ${target.name} recusada (acesso bloqueado).`);
+    } catch (err: any) {
+      console.error('Erro ao recusar usuário:', err);
+      setError(`Erro ao recusar solicitação no Firestore: ${err?.message || err}`);
+    } finally {
+      setUpdatingUserId(null);
+    }
+  };
 
   const [pendingDrafts, setPendingDrafts] = useState<
     Record<
@@ -311,7 +344,7 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
   const [confirmedApprovals, setConfirmedApprovals] = useState<Record<string, boolean>>({});
 
   const getPendingDraft = (u: AmetaUser) => {
-    const key = u.email.toLowerCase();
+    const key = (u.email || u.id).toLowerCase();
     return (
       pendingDrafts[key] || {
         role: normalizeUserRole(u.role, u.email),
@@ -325,7 +358,7 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
     u: AmetaUser,
     patch: Partial<{ role: UserRole; plataforma: AssignedPlatformScope; equipe: string }>
   ) => {
-    const key = u.email.toLowerCase();
+    const key = (u.email || u.id).toLowerCase();
     const cur = getPendingDraft(u);
     setPendingDrafts((prev) => ({
       ...prev,
@@ -339,6 +372,7 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
       setError(`Obrigatório confirmar a Função e a Plataforma antes de liberar o acesso de ${target.name}.`);
       return;
     }
+    setError(null);
     const draft = getPendingDraft(target);
     const resolvedEquipe =
       draft.equipe.trim() ||
@@ -353,24 +387,58 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
         plataforma: draft.plataforma,
         equipe: resolvedEquipe,
       });
+
+      try {
+        await dataService.criarNotificacao({
+          id: `notif_appr_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+          type: 'PERMISSAO_LIBERADA_ADM',
+          vendor: draft.plataforma === 'ERICSSON' ? 'ERICSSON' : 'NOKIA',
+          title: 'Acesso Liberado!',
+          message: `Seu acesso foi liberado como ${draft.role} (${draft.plataforma})!`,
+          actorName: currentUser.name || 'Administrador',
+          actorEmail: currentUser.email,
+          targetRoles: [draft.role],
+          targetEmails: [target.email],
+          readByEmails: [],
+          createdAt: new Date().toISOString(),
+        });
+      } catch (nErr) {
+        console.warn('Erro ao criar notificacao de aprovacao:', nErr);
+      }
+
+      const updatedList = users.map((u) =>
+        u.id === target.id || (u.email && target.email && u.email.toLowerCase() === target.email.toLowerCase())
+          ? {
+              ...u,
+              role: draft.role,
+              plataforma: draft.plataforma,
+              assignedPlatform: draft.plataforma,
+              equipe: resolvedEquipe,
+              situacao: 'ativo' as UserSituacao,
+              accessReleased: true,
+            }
+          : u
+      );
+
+      setFirestoreUsers(updatedList);
+      setConfirmedApprovals((prev) => {
+        const next = { ...prev };
+        delete next[userKey];
+        return next;
+      });
+      setPendingDrafts((prev) => {
+        const next = { ...prev };
+        delete next[userKey];
+        return next;
+      });
+
       if (onUsersUpdated) {
         onUsersUpdated(
-          users.map((u) =>
-            u.id === target.id || (u.email && target.email && u.email.toLowerCase() === target.email.toLowerCase())
-              ? {
-                  ...u,
-                  role: draft.role,
-                  plataforma: draft.plataforma,
-                  assignedPlatform: draft.plataforma,
-                  equipe: resolvedEquipe,
-                  situacao: 'ativo',
-                  accessReleased: true,
-                }
-              : u
-          ),
+          updatedList,
           `Acesso de ${target.name} liberado como ${draft.role} (Plataforma: ${draft.plataforma} · Dupla/Equipe: ${resolvedEquipe})!`
         );
       }
+      showToast(`Acesso de ${target.name} liberado com sucesso!`);
     } catch (err: any) {
       console.error('Erro ao aprovar usuário:', err);
       setError(`Erro ao liberar acesso no Firestore: ${err?.message || err}`);
@@ -1312,9 +1380,9 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
                     <button
                       type="button"
                       disabled={isBusy}
-                      onClick={() => handleDeleteResource(u)}
+                      onClick={() => handleRejectPendingUser(u)}
                       className="px-2.5 py-2 rounded-lg bg-red-50 hover:bg-red-100 border border-red-200 text-red-700 text-xs font-bold flex items-center gap-1 cursor-pointer"
-                      title="Recusar e remover solicitação"
+                      title="Recusar e bloquear solicitação"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                       <span>Recusar</span>
