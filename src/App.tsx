@@ -552,7 +552,16 @@ export default function App() {
       },
       onEricssonSites: (fetched) => {
         if (fetched.length > 0) {
-          setEricssonRows(fetched);
+          const validFetched = fetched.filter((r) => {
+            if (!r) return false;
+            const a = (r.siteIdA || r.fields?.['01.21.Site ID A'] || r.fields?.['Site ID A'] || '').trim().toUpperCase();
+            const b = (r.siteIdB || r.fields?.['01.21.Site ID B'] || r.fields?.['Site ID B'] || '').trim().toUpperCase();
+            const isPlaceholder = (s: string) => !s || s === '—' || s === '-' || s === '--' || s === 'N/A' || s === '#N/A' || s === 'TOTAL' || s === 'TOTAL GERAL' || s === 'SOMA' || s === '0';
+            return !isPlaceholder(a) || !isPlaceholder(b);
+          });
+          if (validFetched.length > 0) {
+            setEricssonRows(validFetched);
+          }
         }
       },
       onEricssonEngineering: (fetched) => {
@@ -2988,10 +2997,17 @@ export default function App() {
         );
         setActiveVendor(params.vendor);
         if (params.sheetName) setActiveSheetName(params.sheetName);
+        const validImported = (params.sites as any[]).filter((r) => {
+          if (!r) return false;
+          const a = (r.siteIdA || r.fields?.['01.21.Site ID A'] || r.fields?.['Site ID A'] || '').trim().toUpperCase();
+          const b = (r.siteIdB || r.fields?.['01.21.Site ID B'] || r.fields?.['Site ID B'] || '').trim().toUpperCase();
+          const isPlaceholder = (s: string) => !s || s === '—' || s === '-' || s === '--' || s === 'N/A' || s === '#N/A' || s === 'TOTAL' || s === '0';
+          return !isPlaceholder(a) || !isPlaceholder(b);
+        });
         setEricssonRows((prev) => {
-          const importedIds = new Set((params.sites as any[]).map((s) => s.id));
+          const importedIds = new Set(validImported.map((s) => s.id));
           const filtered = prev.filter((s) => !importedIds.has(s.id));
-          return [...(params.sites as any[]), ...filtered];
+          return [...validImported, ...filtered];
         });
         showToast(
           `Planilha "${params.sheetName}" processada (+${res.novas} novos sites Ericsson gravados, ${res.jaExistiam} já existiam mantidos)`

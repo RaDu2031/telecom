@@ -814,6 +814,14 @@ class FirebaseDataService implements IDataService {
       const docsToWrite: Array<{ id: string; data: any }> = [];
 
       for (const row of rows) {
+        const cleanA = (row.siteIdA || row.fields?.['01.21.Site ID A'] || row.fields?.['Site ID A'] || '').trim().toUpperCase();
+        const cleanB = (row.siteIdB || row.fields?.['01.21.Site ID B'] || row.fields?.['Site ID B'] || '').trim().toUpperCase();
+        const isPlaceholder = (s: string) => !s || s === '—' || s === '-' || s === '--' || s === 'N/A' || s === '#N/A' || s === 'TOTAL' || s === 'TOTAL GERAL' || s === 'SOMA' || s === 'SUBTOTAL' || s === '0' || s === 'LEGENDA';
+        if (isPlaceholder(cleanA) && isPlaceholder(cleanB)) {
+          // Skip blank / invalid rows completely
+          continue;
+        }
+
         const docId = sanitizeEricssonDocId(row);
         if (!docId) {
           comErro++;
@@ -824,27 +832,35 @@ class FirebaseDataService implements IDataService {
 
         if (existingData) {
           jaExistiam++;
-          if (mode === 'fill_empty') {
+          if (mode === 'fill_empty' || mode === 'append_only') {
             const merged = { ...existingData };
             const cleanIncoming = sanitizeFirestoreData(row);
+            // Merge non-empty fields from incoming row where existing is empty or missing
             Object.keys(cleanIncoming).forEach((k) => {
+              if (k === 'id') return;
+              // Never overwrite existing team or vistoria status with empty values
+              if ((k === 'equipe' || k === 'responsavelDemand') && !cleanIncoming[k]) return;
+              if (k.toLowerCase().includes('vistoria') && existingData[k] && existingData[k] !== 'Pendente') return;
+
               const cur = merged[k];
               const newVal = cleanIncoming[k];
-              if ((cur === undefined || cur === null || cur === '') && newVal !== undefined && newVal !== null && newVal !== '') {
+              if ((cur === undefined || cur === null || cur === '' || cur === '—') && newVal !== undefined && newVal !== null && newVal !== '' && newVal !== '—') {
                 merged[k] = newVal;
               }
             });
+
+            // Merge nested fields object
             if (row.fields && typeof row.fields === 'object') {
               merged.fields = { ...(merged.fields || {}) };
               Object.keys(row.fields).forEach((fk) => {
                 const curF = merged.fields[fk];
                 const newF = row.fields![fk];
-                if ((curF === undefined || curF === null || curF === '') && newF) {
+                if ((curF === undefined || curF === null || curF === '' || curF === '—') && newF && newF !== '—') {
                   merged.fields[fk] = newF;
                 }
               });
             }
-            docsToWrite.push({ id: docId, data: merged });
+            docsToWrite.push({ id: docId, data: sanitizeFirestoreData(merged) });
           }
         } else {
           novas++;

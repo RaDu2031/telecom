@@ -892,6 +892,7 @@ export interface EricssonRow {
   cidadeA: string;
   cidadeB: string;
   equipe: string;
+  responsavelDemand?: string;
   servico: string;
   fields: Record<string, string>; // All 106 original Ericsson columns
   // System columns for Site A (preserved across spreadsheet reloads)

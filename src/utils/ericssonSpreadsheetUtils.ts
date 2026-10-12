@@ -53,6 +53,67 @@ export function buildEricssonRowKey(
   return `${c}__${r}__${a}__${b}`;
 }
 
+function cleanHeaderKey(h: unknown): string {
+  return String(h || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-zA-Z0-9]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .toLowerCase()
+    .trim();
+}
+
+function scoreRowAsHeader(row: unknown[]): number {
+  if (!Array.isArray(row) || row.length === 0) return 0;
+  let score = 0;
+  let nonEmpty = 0;
+  for (const cell of row) {
+    if (cell === null || cell === undefined || cell === '') continue;
+    nonEmpty++;
+    const k = cleanHeaderKey(cell);
+    if (!k) continue;
+
+    if (k.includes('site id a') || k === 'site a' || k.includes('01 21 site id a')) score += 8;
+    else if (k.includes('site id b') || k === 'site b' || k.includes('01 21 site id b')) score += 8;
+    else if (k === 'site id' || k.includes('site id')) score += 4;
+    else if (k.includes('chaves') || k === 'chave' || k.includes('01 00 chaves')) score += 6;
+    else if (k.includes('registro') || k === 'reg') score += 4;
+    else if (k === 'meta') score += 3;
+    else if (k === 'state' || k === 'uf' || k === 'estado' || k.includes('00 03 state')) score += 4;
+    else if (k === 'status a' || k === 'status b' || k.includes('status')) score += 4;
+    else if (k.includes('cidade a') || k.includes('cidade b') || k.includes('municipio')) score += 4;
+    else if (k.includes('equipe') || k.includes('equipe executante')) score += 4;
+    else if (k.includes('servico') || k.includes('scope') || k.includes('escopo')) score += 4;
+    else if (k.includes('detentora')) score += 4;
+    else if (k.includes('site survey') || k.includes('vistoria') || k.includes('tssr') || k.includes('los')) score += 3;
+  }
+  return nonEmpty >= 3 ? score : 0;
+}
+
+function isBlankOrPlaceholder(val?: string | null): boolean {
+  if (!val) return true;
+  const s = val.trim().toUpperCase();
+  return (
+    !s ||
+    s === '—' ||
+    s === '-' ||
+    s === '--' ||
+    s === 'N/A' ||
+    s === '#N/A' ||
+    s === 'TOTAL' ||
+    s === 'TOTAL GERAL' ||
+    s === 'SOMA' ||
+    s === 'SUBTOTAL' ||
+    s === '0' ||
+    s === 'NULL' ||
+    s === 'UNDEFINED' ||
+    s === 'LEGENDA' ||
+    s === 'OBS' ||
+    s === 'OBSERVAÇÕES' ||
+    s === 'OBSERVACOES'
+  );
+}
+
 export function parseEricssonWorkbookBuffer(buffer: ArrayBuffer): {
   tabName: string;
   columns: string[];
@@ -60,58 +121,78 @@ export function parseEricssonWorkbookBuffer(buffer: ArrayBuffer): {
 } {
   const workbook = XLSX.read(buffer, { type: 'array', cellDates: true });
 
-  const targetSheetName =
-    workbook.SheetNames.find(
-      (n) =>
-        n.trim().toUpperCase() === 'ERICSSON CLARO TX' ||
-        n.toUpperCase().includes('ERICSSON')
-    ) ||
-    workbook.SheetNames.find(
-      (n) =>
-        !['REPORT', 'EQUIPES', 'ESCOPO'].includes(n.trim().toUpperCase()) &&
-        !n.toUpperCase().includes('APOIO')
-    ) ||
-    workbook.SheetNames[0];
-
-  if (!targetSheetName) {
+  if (!workbook.SheetNames || workbook.SheetNames.length === 0) {
     return { tabName: 'ERICSSON CLARO TX', columns: ERICSSON_ORIGINAL_COLUMNS, rows: [] };
   }
 
-  const sheet = workbook.Sheets[targetSheetName];
-  const rawRows = XLSX.utils.sheet_to_json<unknown[]>(sheet, {
-    header: 1,
-    defval: '',
-    raw: false,
-  });
+  // Find the best worksheet by scoring header detection across sheets
+  let bestSheetName = workbook.SheetNames[0];
+  let bestSheetScore = -1;
+  let bestSheetHeaderRow = 0;
+  let bestSheetRawRows: unknown[][] = [];
 
-  if (rawRows.length === 0) {
-    return { tabName: targetSheetName, columns: ERICSSON_ORIGINAL_COLUMNS, rows: [] };
-  }
+  for (const sheetName of workbook.SheetNames) {
+    const sheet = workbook.Sheets[sheetName];
+    if (!sheet) continue;
+    const rawRows = XLSX.utils.sheet_to_json<unknown[]>(sheet, {
+      header: 1,
+      defval: '',
+      raw: false,
+    });
+    if (!rawRows || rawRows.length === 0) continue;
 
-  // Locate header row (usually row index 2 in ERICSSON CLARO TX where "01.00. Chaves" and "01.21.Site ID A" appear, or row 1 in Site list)
-  let headerRowIndex = 0;
-  for (let i = 0; i < Math.min(12, rawRows.length); i++) {
-    const rowCells = (rawRows[i] || []).map((c) => normalizeHeader(c).toLowerCase());
-    const hasSiteIdA = rowCells.some(
-      (c) => c.includes('site id a') || c === '01.21.site id a'
-    );
-    const hasChaves = rowCells.some((c) => c.includes('chaves'));
-    const hasIntervencao = rowCells.some((c) => c === 'asp' || c.includes('intervencao') || c.includes('tipo doc'));
-    if (hasSiteIdA || hasChaves || hasIntervencao) {
-      headerRowIndex = i;
-      break;
+    // Scan up to 25 rows for header candidates
+    let maxScore = 0;
+    let bestRowIdx = 0;
+    const limit = Math.min(25, rawRows.length);
+    for (let r = 0; r < limit; r++) {
+      const score = scoreRowAsHeader(rawRows[r] || []);
+      if (score > maxScore) {
+        maxScore = score;
+        bestRowIdx = r;
+      }
+    }
+
+    // Boost score if sheet name strongly indicates Ericsson Claro TX
+    const upperName = sheetName.trim().toUpperCase();
+    let bonus = 0;
+    if (upperName.includes('ERICSSON CLARO TX')) bonus += 15;
+    else if (upperName.includes('ERICSSON') && upperName.includes('TX')) bonus += 12;
+    else if (upperName.includes('ERICSSON')) bonus += 8;
+    else if (upperName.includes('TX') || upperName.includes('SITES')) bonus += 5;
+    else if (['REPORT', 'EQUIPES', 'ESCOPO', 'APOIO'].includes(upperName)) bonus -= 30;
+
+    const totalSheetScore = maxScore + bonus;
+    if (totalSheetScore > bestSheetScore) {
+      bestSheetScore = totalSheetScore;
+      bestSheetName = sheetName;
+      bestSheetHeaderRow = bestRowIdx;
+      bestSheetRawRows = rawRows;
     }
   }
 
+  const rawRows = bestSheetRawRows.length > 0
+    ? bestSheetRawRows
+    : XLSX.utils.sheet_to_json<unknown[]>(workbook.Sheets[bestSheetName], {
+        header: 1,
+        defval: '',
+        raw: false,
+      });
+
+  if (rawRows.length === 0) {
+    return { tabName: bestSheetName, columns: ERICSSON_ORIGINAL_COLUMNS, rows: [] };
+  }
+
+  const headerRowIndex = bestSheetHeaderRow;
   const headerCells = (rawRows[headerRowIndex] || []).map((c) => normalizeHeader(c));
-  // Preserve exact columns from the spreadsheet in order (filtering trailing completely blank header cells)
+
+  // Determine last non-empty header cell
   let lastNonEmptyIdx = headerCells.length - 1;
   while (lastNonEmptyIdx >= 0 && !headerCells[lastNonEmptyIdx]) {
     lastNonEmptyIdx--;
   }
 
   const detectedColumns: string[] = [];
-  const colIndexMap = new Map<number, string>();
   const usedNames = new Set<string>();
 
   for (let cIdx = 0; cIdx <= lastNonEmptyIdx; cIdx++) {
@@ -125,11 +206,66 @@ export function parseEricssonWorkbookBuffer(buffer: ArrayBuffer): {
     }
     usedNames.add(colName);
     detectedColumns.push(colName);
-    colIndexMap.set(cIdx, colName);
   }
 
   const columns =
     detectedColumns.length > 0 ? detectedColumns : [...ERICSSON_ORIGINAL_COLUMNS];
+
+  // Map each column index to canonical fields
+  const colRoleMap = new Map<number, string>();
+  columns.forEach((colName, cIdx) => {
+    const k = cleanHeaderKey(colName);
+    if (!k) return;
+
+    if (
+      !k.includes('detentora') &&
+      !k.includes('status') &&
+      !k.includes('cidade') &&
+      !k.includes('vistoria') &&
+      !k.includes('tssr') &&
+      !k.includes('smart') &&
+      !k.includes('sdc') &&
+      !k.includes('ppi') &&
+      !k.includes('altura')
+    ) {
+      if (k.includes('site id a') || k === 'site a' || k.includes('01 21 site id a') || k === 'siteida' || k === 'id site a') {
+        colRoleMap.set(cIdx, 'siteIdA');
+        return;
+      }
+      if (k.includes('site id b') || k === 'site b' || k.includes('01 21 site id b') || k === 'siteidb' || k === 'id site b') {
+        colRoleMap.set(cIdx, 'siteIdB');
+        return;
+      }
+    }
+
+    if (k.includes('chaves') || k === 'chave' || k.includes('01 00 chaves')) {
+      colRoleMap.set(cIdx, 'chaves');
+    } else if (k.includes('registro') || k === 'reg' || k.includes('n registro')) {
+      colRoleMap.set(cIdx, 'registro');
+    } else if (k === 'state' || k === 'uf' || k === 'estado' || k.includes('00 03 state')) {
+      colRoleMap.set(cIdx, 'state');
+    } else if (k === 'meta') {
+      colRoleMap.set(cIdx, 'meta');
+    } else if (k.includes('detentora a') || k.includes('id detentora a')) {
+      colRoleMap.set(cIdx, 'idDetentoraA');
+    } else if (k.includes('detentora b') || k.includes('id detentora b')) {
+      colRoleMap.set(cIdx, 'idDetentoraB');
+    } else if (k === 'status a' || k === 'status site a') {
+      colRoleMap.set(cIdx, 'statusA');
+    } else if (k === 'status b' || k === 'status site b') {
+      colRoleMap.set(cIdx, 'statusB');
+    } else if (k.includes('cidade a') || k.includes('municipio a')) {
+      colRoleMap.set(cIdx, 'cidadeA');
+    } else if (k.includes('cidade b') || k.includes('municipio b')) {
+      colRoleMap.set(cIdx, 'cidadeB');
+    } else if (k === 'equipe' || k.includes('equipe executante') || k === 'equipe demandada') {
+      colRoleMap.set(cIdx, 'equipe');
+    } else if (k.includes('servico') || k.includes('scope') || k.includes('escopo') || k.includes('02 00 scope')) {
+      colRoleMap.set(cIdx, 'servico');
+    } else if (k.includes('site name') || k.includes('00 04 site name') || k === 'nome site') {
+      colRoleMap.set(cIdx, 'siteName');
+    }
+  });
 
   const now = new Date().toISOString();
   const parsedRows: EricssonRow[] = [];
@@ -140,56 +276,112 @@ export function parseEricssonWorkbookBuffer(buffer: ArrayBuffer): {
 
     const fields: Record<string, string> = {};
     let hasAnyValue = false;
+    let extractedSiteIdA = '';
+    let extractedSiteIdB = '';
+    let extractedChaves = '';
+    let extractedRegistro = '';
+    let extractedState = '';
+    let extractedMeta = '';
+    let extractedIdDetentoraA = '';
+    let extractedIdDetentoraB = '';
+    let extractedStatusA = '';
+    let extractedStatusB = '';
+    let extractedCidadeA = '';
+    let extractedCidadeB = '';
+    let extractedEquipe = '';
+    let extractedServico = '';
+    let extractedSiteName = '';
 
     columns.forEach((colName, cIdx) => {
       const val = formatEricssonCellValue(row[cIdx]);
       if (val) hasAnyValue = true;
       fields[colName] = val;
+
+      const role = colRoleMap.get(cIdx);
+      if (role && val) {
+        if (role === 'siteIdA' && !extractedSiteIdA) extractedSiteIdA = val.trim().toUpperCase();
+        else if (role === 'siteIdB' && !extractedSiteIdB) extractedSiteIdB = val.trim().toUpperCase();
+        else if (role === 'chaves' && !extractedChaves) extractedChaves = val.trim();
+        else if (role === 'registro' && !extractedRegistro) extractedRegistro = val.trim();
+        else if (role === 'state' && !extractedState) extractedState = val.trim();
+        else if (role === 'meta' && !extractedMeta) extractedMeta = val.trim();
+        else if (role === 'idDetentoraA' && !extractedIdDetentoraA) extractedIdDetentoraA = val.trim();
+        else if (role === 'idDetentoraB' && !extractedIdDetentoraB) extractedIdDetentoraB = val.trim();
+        else if (role === 'statusA' && !extractedStatusA) extractedStatusA = val.trim();
+        else if (role === 'statusB' && !extractedStatusB) extractedStatusB = val.trim();
+        else if (role === 'cidadeA' && !extractedCidadeA) extractedCidadeA = val.trim();
+        else if (role === 'cidadeB' && !extractedCidadeB) extractedCidadeB = val.trim();
+        else if (role === 'equipe' && !extractedEquipe) extractedEquipe = val.trim();
+        else if (role === 'servico' && !extractedServico) extractedServico = val.trim();
+        else if (role === 'siteName' && !extractedSiteName) extractedSiteName = val.trim();
+      }
     });
 
     if (!hasAnyValue) continue;
 
-    const chaves = fields['01.00. Chaves'] || fields['Chaves'] || '';
-    const registro = fields['Registro'] || '';
-    const state = fields['00.03.State'] || fields['State'] || fields['UF'] || '';
-    const meta = fields['Meta'] || '';
-    const siteIdA = (
-      fields['01.21.Site ID A'] ||
-      fields['Site ID A'] ||
-      ''
-    )
-      .trim()
-      .toUpperCase();
-    const idDetentoraA = fields['ID Detentora A'] || '';
-    const siteIdB = (
-      fields['01.21.Site ID B'] ||
-      fields['Site ID B'] ||
-      ''
-    )
-      .trim()
-      .toUpperCase();
-    const idDetentoraB = fields['ID Detentora B'] || '';
+    // Direct fallbacks from common column name variations in fields
+    const chaves = extractedChaves || fields['01.00. Chaves'] || fields['Chaves'] || fields['CHAVES'] || '';
+    const registro = extractedRegistro || fields['Registro'] || fields['REGISTRO'] || '';
+    const state = extractedState || fields['00.03.State'] || fields['State'] || fields['STATE'] || fields['UF'] || fields['ESTADO'] || '';
+    const meta = extractedMeta || fields['Meta'] || fields['META'] || '';
+    const siteIdA = (extractedSiteIdA || fields['01.21.Site ID A'] || fields['Site ID A'] || fields['SITE ID A'] || fields['Site A'] || '').trim().toUpperCase();
+    const siteIdB = (extractedSiteIdB || fields['01.21.Site ID B'] || fields['Site ID B'] || fields['SITE ID B'] || fields['Site B'] || '').trim().toUpperCase();
+    const idDetentoraA = extractedIdDetentoraA || fields['ID Detentora A'] || fields['Detentora A'] || '';
+    const idDetentoraB = extractedIdDetentoraB || fields['ID Detentora B'] || fields['Detentora B'] || '';
+    const statusA = extractedStatusA || fields['Status A'] || fields['STATUS A'] || '';
+    const statusB = extractedStatusB || fields['Status B'] || fields['STATUS B'] || '';
+    const cidadeA = extractedCidadeA || fields['CIDADE A'] || fields['Cidade A'] || fields['MUNICÍPIO A'] || fields['Municipio A'] || '';
+    const cidadeB = extractedCidadeB || fields['CIDADE B'] || fields['Cidade B'] || fields['MUNICÍPIO B'] || fields['Municipio B'] || '';
+    const equipe = extractedEquipe || fields['EQUIPE'] || fields['Equipe'] || fields['EQUIPE EXECUTANTE'] || '';
+    const servico = extractedServico || fields['Serviço'] || fields['SERVIÇO'] || fields['Servico'] || fields['02.00.Scope'] || '';
 
-    if (!chaves && !siteIdA && !siteIdB) continue;
+    // STRICT CHECK: Eliminate blank lines ("linhas brancas") and summary / header rows
+    // A valid site row MUST have at least one valid Site ID (Site ID A or Site ID B)
+    if (isBlankOrPlaceholder(siteIdA) && isBlankOrPlaceholder(siteIdB)) {
+      // Both Site A and Site B are empty or invalid placeholder -> Skip completely!
+      continue;
+    }
 
+    // Ensure all standard and canonical keys are populated in fields for fast table lookup
+    fields['01.00. Chaves'] = chaves;
+    fields['Chaves'] = chaves;
+    fields['00.03.State'] = state;
+    fields['State'] = state;
+    fields['UF'] = state;
+    fields['Meta'] = meta;
     fields['01.21.Site ID A'] = siteIdA;
+    fields['Site ID A'] = siteIdA;
     fields['01.21.Site ID B'] = siteIdB;
+    fields['Site ID B'] = siteIdB;
+    fields['Status A'] = statusA;
+    fields['Status B'] = statusB;
+    fields['CIDADE A'] = cidadeA;
+    fields['CIDADE B'] = cidadeB;
+    fields['EQUIPE'] = equipe;
+    fields['Serviço'] = servico;
+    fields['ID Detentora A'] = idDetentoraA;
+    fields['ID Detentora B'] = idDetentoraB;
 
     const siteName =
+      extractedSiteName ||
       fields['00.04.Site Name'] ||
       (siteIdA && siteIdB ? `${siteIdA}-${siteIdB}` : siteIdA || siteIdB);
-
-    const statusA = fields['Status A'] || '';
-    const statusB = fields['Status B'] || '';
-    const cidadeA = fields['CIDADE A'] || '';
-    const cidadeB = fields['CIDADE B'] || '';
-    const equipe = fields['EQUIPE'] || '';
-    const servico = fields['Serviço'] || '';
+    fields['00.04.Site Name'] = siteName;
 
     const rowKey = buildEricssonRowKey(chaves, registro, siteIdA, siteIdB);
 
+    // Build a unique, reliable ID based on Site IDs + Chaves
+    const safeA = siteIdA.replace(/[^A-Z0-9_-]/g, '_');
+    const safeB = siteIdB.replace(/[^A-Z0-9_-]/g, '_');
+    const safeChaves = chaves.toUpperCase().replace(/[^A-Z0-9_-]/g, '_');
+    const rowId = safeA && safeB
+      ? `${safeA}__${safeB}`
+      : safeA
+      ? `${safeA}__${safeChaves || 'A'}`
+      : `${safeB}__${safeChaves || 'B'}`;
+
     parsedRows.push({
-      id: `eric-row-${rIdx - headerRowIndex}`,
+      id: rowId,
       rowKey,
       chaves,
       registro,
@@ -215,7 +407,7 @@ export function parseEricssonWorkbookBuffer(buffer: ArrayBuffer): {
   }
 
   return {
-    tabName: targetSheetName,
+    tabName: bestSheetName,
     columns,
     rows: parsedRows,
   };
@@ -366,9 +558,19 @@ export function mergeEricssonRowsPreservingVistoria(
     if (resolvedStatusB === 'Entregue') preservedVistoriasCount++;
     if (matched?.losStatus === 'Entregue') preservedVistoriasCount++;
 
+    const preservedEquipe = inc.equipe || matched?.equipe || '';
+    const preservedResponsavel = inc.responsavelDemand || matched?.responsavelDemand || '';
+
     return {
       ...inc,
       id: matched ? matched.id : inc.id || `eric-row-${Date.now()}-${index}`,
+      equipe: preservedEquipe,
+      responsavelDemand: preservedResponsavel,
+      fields: {
+        ...(matched?.fields || {}),
+        ...(inc.fields || {}),
+        EQUIPE: preservedEquipe,
+      },
       siteAVistoriaStatus: resolvedStatusA,
       siteAVistoriaFileId: snapAFromRow?.fileId,
       siteAVistoriaFolderId: snapAFromRow?.folderId,

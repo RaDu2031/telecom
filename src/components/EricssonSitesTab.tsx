@@ -38,6 +38,7 @@ import {
 import {
   parseEricssonWorkbookBuffer,
   computeEricssonSiteCounters,
+  mergeEricssonRowsPreservingVistoria,
 } from '../utils/ericssonSpreadsheetUtils';
 import { getCanonicalDuplaName, normalizeAccents, doesEricssonRowMatchResponsible } from '../utils/spreadsheetUtils';
 import { dataService } from '../services/dataService';
@@ -174,16 +175,52 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
   const hasFullAccess =
     effectiveRole === 'ADM' || effectiveRole === 'Coordenador Geral';
 
+  // Filter out any blank, empty or invalid lines ("linhas brancas")
+  const validRows = useMemo(() => {
+    return rows.filter((r) => {
+      if (!r) return false;
+      const a = (r.siteIdA || r.fields?.['01.21.Site ID A'] || r.fields?.['Site ID A'] || '').trim().toUpperCase();
+      const b = (r.siteIdB || r.fields?.['01.21.Site ID B'] || r.fields?.['Site ID B'] || '').trim().toUpperCase();
+      const isPlaceholder = (s: string) =>
+        !s || s === '—' || s === '-' || s === '--' || s === 'N/A' || s === '#N/A' || s === 'TOTAL' || s === 'TOTAL GERAL' || s === 'SOMA' || s === 'SUBTOTAL' || s === '0' || s === 'UNDEFINED';
+      return !isPlaceholder(a) || !isPlaceholder(b);
+    });
+  }, [rows]);
+
+  // Safe row field accessor supporting all column variations
+  const getRowFieldValue = (row: EricssonRow, col: string): string => {
+    if (row.fields && row.fields[col] !== undefined && row.fields[col] !== '' && row.fields[col] !== '—') {
+      return row.fields[col];
+    }
+    const clean = col.trim().toUpperCase();
+    if (clean === '01.21.SITE ID A' || clean === 'SITE ID A' || clean === 'SITE A') return row.siteIdA || '';
+    if (clean === '01.21.SITE ID B' || clean === 'SITE ID B' || clean === 'SITE B') return row.siteIdB || '';
+    if (clean === '01.00. CHAVES' || clean === 'CHAVES' || clean === 'CHAVE') return row.chaves || '';
+    if (clean === 'REGISTRO') return row.registro || '';
+    if (clean === '00.03.STATE' || clean === 'STATE' || clean === 'UF' || clean === 'ESTADO') return row.state || '';
+    if (clean === 'META') return row.meta || '';
+    if (clean === 'STATUS A' || clean === 'STATUS SITE A') return row.statusA || '';
+    if (clean === 'STATUS B' || clean === 'STATUS SITE B') return row.statusB || '';
+    if (clean === 'CIDADE A' || clean === 'MUNICÍPIO A') return row.cidadeA || '';
+    if (clean === 'CIDADE B' || clean === 'MUNICÍPIO B') return row.cidadeB || '';
+    if (clean === 'EQUIPE' || clean === 'EQUIPE EXECUTANTE') return row.equipe || '';
+    if (clean === 'SERVIÇO' || clean === 'SERVICO' || clean === '02.00.SCOPE' || clean === 'ESCOPO') return row.servico || '';
+    if (clean === 'ID DETENTORA A' || clean === 'DETENTORA A') return row.idDetentoraA || '';
+    if (clean === 'ID DETENTORA B' || clean === 'DETENTORA B') return row.idDetentoraB || '';
+    if (clean === '00.04.SITE NAME' || clean === 'SITE NAME') return row.siteName || '';
+    return '';
+  };
+
   // Executors and Vistoriadores only see rows demanded/assigned to their Equipe, Name, or Linked Email
   const roleScopedRows = useMemo(() => {
     if (
       hasFullAccess ||
       effectiveRole === 'Coordenador Engenharia'
     ) {
-      return rows;
+      return validRows;
     }
-    return rows.filter((r) => doesEricssonRowMatchResponsible(r, user));
-  }, [rows, hasFullAccess, effectiveRole, user]);
+    return validRows.filter((r) => doesEricssonRowMatchResponsible(r, user));
+  }, [validRows, hasFullAccess, effectiveRole, user]);
 
   const distinctStates = useMemo(() => {
     const set = new Set<string>();
@@ -481,7 +518,7 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
     }
   };
 
-  // Upload new version of .xlsx spreadsheet from computer (append-only protection)
+  // Upload new version of .xlsx spreadsheet from computer (append/update protection)
   const handleUploadLocalExcel = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -492,23 +529,36 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
       const arrayBuffer = await file.arrayBuffer();
       const parsed = parseEricssonWorkbookBuffer(arrayBuffer);
       if (parsed.rows.length === 0) {
-        setSyncError('Nenhuma linha válida encontrada na planilha selecionada.');
+        setSyncError('Nenhuma linha de site válida encontrada na planilha. Verifique se as colunas Site ID e Chaves estão presentes.');
         setSyncLoading(false);
         return;
       }
 
-      const res = await dataService.importarSitesEricssonEmLote(parsed.rows as any, ericssonUsers, undefined, {
-        mode: 'append_only',
+      // Merge newly parsed rows with existing rows, preserving any assigned teams, responsibles, and delivered vistorias
+      const merged = mergeEricssonRowsPreservingVistoria(rows, parsed.rows, 'upsert');
+
+      // Persist in Firestore
+      const res = await dataService.importarSitesEricssonEmLote(merged.rows as any, ericssonUsers, undefined, {
+        mode: 'fill_empty',
       });
+
+      const updatedMeta: EricssonSheetMeta = {
+        id: sheetMeta?.id || 'ericsson_main_sheet',
+        tabName: parsed.tabName,
+        columns: parsed.columns && parsed.columns.length > 0 ? parsed.columns : (sheetMeta?.columns || [...ERICSSON_ORIGINAL_COLUMNS]),
+        lastSyncAt: new Date().toISOString(),
+        totalRows: merged.rows.length,
+        totalSites: merged.rows.length * 2,
+      };
 
       setImportSummary(res);
       if (res.errorMessage) {
         setSyncError(res.errorMessage);
       } else {
         onUpdated(
-          parsed.rows as any,
-          sheetMeta,
-          `Planilha "${file.name}" importada com sucesso (+${res.novas} novos registros gravados, ${res.jaExistiam} já existiam mantidos).`
+          merged.rows as any,
+          updatedMeta,
+          `Planilha "${file.name}" importada com sucesso: ${parsed.rows.length} linhas de sites lidas (+${res.novas} novos registros gravados, ${res.jaExistiam} sincronizados).`
         );
       }
     } catch (err: any) {
@@ -1479,10 +1529,10 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
                       className="hover:bg-blue-50/40 transition-colors cursor-pointer"
                     >
                       <td className={`${cellPad} font-mono font-bold text-slate-800 whitespace-nowrap`}>
-                        {row.chaves || row.fields?.['01.00. Chaves'] || '—'}
+                        {row.chaves || row.fields?.['01.00. Chaves'] || row.fields?.['Chaves'] || '—'}
                       </td>
                       <td className={`${cellPad} font-mono font-semibold text-slate-700`}>
-                        {row.state || row.fields?.['00.03.State'] || '—'}
+                        {row.state || row.fields?.['00.03.State'] || row.fields?.['State'] || row.fields?.['UF'] || '—'}
                       </td>
                       <td className={`${cellPad} text-slate-600 whitespace-nowrap`}>
                         {row.meta || row.fields?.['Meta'] || '—'}
@@ -1492,33 +1542,33 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
                       <td
                         className={`${cellPad} font-mono font-bold text-[#223585] bg-blue-50/20 border-l border-slate-200 whitespace-nowrap`}
                       >
-                        {row.siteIdA || '—'}
+                        {row.siteIdA || row.fields?.['01.21.Site ID A'] || row.fields?.['Site ID A'] || '—'}
                       </td>
                       <td className={`${cellPad} bg-blue-50/20`}>
-                        {renderSheetStatusBadge(sA)}
+                        {renderSheetStatusBadge(sA || row.fields?.['Status A'] || '')}
                       </td>
                       <td className={`${cellPad} text-slate-700 bg-blue-50/20 max-w-[140px] truncate`}>
-                        {row.cidadeA || row.fields?.['CIDADE A'] || '—'}
+                        {row.cidadeA || row.fields?.['CIDADE A'] || row.fields?.['Cidade A'] || '—'}
                       </td>
 
                       {/* SITE B */}
                       <td
                         className={`${cellPad} font-mono font-bold text-[#1E8E8D] bg-teal-50/20 border-l border-slate-200 whitespace-nowrap`}
                       >
-                        {row.siteIdB || '—'}
+                        {row.siteIdB || row.fields?.['01.21.Site ID B'] || row.fields?.['Site ID B'] || '—'}
                       </td>
                       <td className={`${cellPad} bg-teal-50/20`}>
-                        {renderSheetStatusBadge(sB)}
+                        {renderSheetStatusBadge(sB || row.fields?.['Status B'] || '')}
                       </td>
                       <td className={`${cellPad} text-slate-700 bg-teal-50/20 max-w-[140px] truncate`}>
-                        {row.cidadeB || row.fields?.['CIDADE B'] || '—'}
+                        {row.cidadeB || row.fields?.['CIDADE B'] || row.fields?.['Cidade B'] || '—'}
                       </td>
 
                       <td className={`${cellPad} font-semibold text-slate-800 border-l border-slate-200 whitespace-nowrap`}>
-                        {row.equipe || row.fields?.['EQUIPE'] || '—'}
+                        {row.equipe || row.fields?.['EQUIPE'] || row.fields?.['Equipe'] || '—'}
                       </td>
                       <td className={`${cellPad} text-slate-600 whitespace-nowrap`}>
-                        {row.servico || row.fields?.['Serviço'] || '—'}
+                        {row.servico || row.fields?.['Serviço'] || row.fields?.['Servico'] || row.fields?.['02.00.Scope'] || '—'}
                       </td>
 
                       {/* VISTORIA A */}
@@ -1651,11 +1701,12 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
                     className="hover:bg-blue-50/40 transition-colors cursor-pointer"
                   >
                     {originalColumns.map((col, idx) => {
-                      const val = row.fields?.[col] ?? '';
-                      const isSiteIdA = col === '01.21.Site ID A';
-                      const isSiteIdB = col === '01.21.Site ID B';
-                      const isStatusA = col === 'Status A';
-                      const isStatusB = col === 'Status B';
+                      const val = getRowFieldValue(row, col);
+                      const cleanCol = col.trim().toUpperCase();
+                      const isSiteIdA = cleanCol === '01.21.SITE ID A' || cleanCol === 'SITE ID A' || cleanCol === 'SITE A';
+                      const isSiteIdB = cleanCol === '01.21.SITE ID B' || cleanCol === 'SITE ID B' || cleanCol === 'SITE B';
+                      const isStatusA = cleanCol === 'STATUS A' || cleanCol === 'STATUS SITE A';
+                      const isStatusB = cleanCol === 'STATUS B' || cleanCol === 'STATUS SITE B';
 
                       return (
                         <td
@@ -1670,13 +1721,13 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
                         >
                           {isSiteIdA ? (
                             <div className="flex items-center justify-between gap-2">
-                              <span>{val || '—'}</span>
-                              {val && renderVistoriaOrLosCell(row, 'A')}
+                              <span>{val || row.siteIdA || '—'}</span>
+                              {(val || row.siteIdA) && renderVistoriaOrLosCell(row, 'A')}
                             </div>
                           ) : isSiteIdB ? (
                             <div className="flex items-center justify-between gap-2">
-                              <span>{val || '—'}</span>
-                              {val && renderVistoriaOrLosCell(row, 'B')}
+                              <span>{val || row.siteIdB || '—'}</span>
+                              {(val || row.siteIdB) && renderVistoriaOrLosCell(row, 'B')}
                             </div>
                           ) : isStatusA || isStatusB ? (
                             renderSheetStatusBadge(val)
