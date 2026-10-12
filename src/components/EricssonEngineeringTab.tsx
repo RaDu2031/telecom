@@ -146,8 +146,18 @@ export const EricssonEngineeringTab: React.FC<EricssonEngineeringTabProps> = ({
   }>({});
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
-  const isExecutor = effectiveRole === 'Executor';
-  const isVistoriador = effectiveRole === 'Vistoriador';
+  const isExecutor =
+    effectiveRole === 'Executor' ||
+    effectiveRole?.toLowerCase() === 'executor' ||
+    user?.role === 'Executor' ||
+    user?.role?.toLowerCase() === 'executor';
+
+  const isVistoriador =
+    effectiveRole === 'Vistoriador' ||
+    effectiveRole?.toLowerCase() === 'vistoriador' ||
+    user?.role === 'Vistoriador' ||
+    user?.role?.toLowerCase() === 'vistoriador';
+
   const isUserRestricted = isExecutor || isVistoriador;
 
   // Filters state
@@ -305,33 +315,98 @@ export const EricssonEngineeringTab: React.FC<EricssonEngineeringTabProps> = ({
     }
   };
 
-  // Compute live stats for WR, QRF, PPI, BOQ, SMART, SDC
-  const consolidatedStats: EricssonConsolidatedStats = useMemo(() => {
-    return computeEricssonConsolidatedStats(rows);
-  }, [rows]);
+  // Compute all assigned rows for this specific executor/user (including finalized for graph stats)
+  const assignedRowsForUser = useMemo(() => {
+    if (!isUserRestricted) return rows;
+    const myEmail = (user?.email || '').trim().toLowerCase();
+    const myName = (user?.name || '').trim().toLowerCase();
+    const myEquipe = (user?.equipe || '').trim().toLowerCase();
 
-  // Distinct filter options
+    return rows.filter((r) => {
+      if (doesEricssonRowMatchResponsible(r as any, user)) return true;
+
+      const rowEx = (
+        r.executor ||
+        r.fields?.['EXECUTOR'] ||
+        r.fields?.['EXECUTOR WR'] ||
+        r.fields?.['EXECUTOR QRF'] ||
+        r.fields?.['EXECUTOR PPI'] ||
+        r.fields?.['EXECUTOR SDC'] ||
+        r.fields?.['EXECUTOR SMART'] ||
+        r.fields?.['EXECUTOR BOQ'] ||
+        r.fields?.['EXECUTOR TSSR'] ||
+        r.fields?.['EXECUTOR SD'] ||
+        r.fields?.['Executor'] ||
+        ''
+      ).trim().toLowerCase();
+
+      const rowEq = (
+        r.equipe ||
+        r.fields?.['EQUIPE'] ||
+        r.fields?.['EQUIPE EXECUTANTE'] ||
+        r.fields?.['DUPLA'] ||
+        ''
+      ).trim().toLowerCase();
+
+      const matchesEmail = Boolean(myEmail && rowEx && rowEx.includes(myEmail));
+      const matchesName = Boolean(myName && rowEx && (rowEx.includes(myName) || myName.includes(rowEx)));
+      const matchesEquipe = Boolean(
+        myEquipe &&
+          ((rowEq && (rowEq.includes(myEquipe) || myEquipe.includes(rowEq))) ||
+            (rowEx && (rowEx.includes(myEquipe) || myEquipe.includes(rowEx))))
+      );
+
+      return matchesEmail || matchesName || matchesEquipe;
+    });
+  }, [rows, isUserRestricted, user]);
+
+  // Compute active executor-scoped rows (excluding finalized for executor table view)
+  const executorScopedRows = useMemo(() => {
+    if (!isUserRestricted) return rows;
+    return assignedRowsForUser.filter((r) => {
+      if (isExecutor) {
+        const rawStatus = r.status || r.fields?.['Status'] || '';
+        const isFinalizado =
+          classifyEricssonStatus(rawStatus) === 'Finalizado' ||
+          rawStatus.toLowerCase().includes('finaliz') ||
+          rawStatus.toLowerCase().trim() === 'finalizado';
+        if (isFinalizado) return false;
+      }
+      return true;
+    });
+  }, [assignedRowsForUser, isUserRestricted, isExecutor]);
+
+  // Compute live stats for WR, QRF, PPI, BOQ, SMART, SDC exclusively from assigned sites when user is restricted
+  const consolidatedStats: EricssonConsolidatedStats = useMemo(() => {
+    const targetRows = isUserRestricted ? assignedRowsForUser : rows;
+    return computeEricssonConsolidatedStats(targetRows);
+  }, [rows, assignedRowsForUser, isUserRestricted]);
+
+  // Distinct filter options scoped to assigned rows if restricted
   const distinctRegionais = useMemo(() => {
     const s = new Set<string>();
-    rows.forEach((r) => {
+    const pool = isUserRestricted ? assignedRowsForUser : rows;
+    pool.forEach((r) => {
       const reg = r.regional || r.fields?.['Regional'];
       if (reg) s.add(reg);
     });
     return Array.from(s).sort();
-  }, [rows]);
+  }, [rows, assignedRowsForUser, isUserRestricted]);
 
   const distinctTipoSites = useMemo(() => {
     const s = new Set<string>();
-    rows.forEach((r) => {
+    const pool = isUserRestricted ? assignedRowsForUser : rows;
+    pool.forEach((r) => {
       const ts = r.tipoSite || r.fields?.['TIPO SITE'];
       if (ts) s.add(ts);
     });
     return Array.from(s).sort();
-  }, [rows]);
+  }, [rows, assignedRowsForUser, isUserRestricted]);
 
   const distinctExecutores = useMemo(() => {
     const s = new Set<string>();
-    rows.forEach((r) => {
+    const pool = isUserRestricted ? assignedRowsForUser : rows;
+    pool.forEach((r) => {
       const ex =
         r.executor ||
         r.fields?.['EXECUTOR'] ||
@@ -344,7 +419,7 @@ export const EricssonEngineeringTab: React.FC<EricssonEngineeringTabProps> = ({
       }
     });
     return Array.from(s).sort();
-  }, [rows]);
+  }, [rows, assignedRowsForUser, isUserRestricted]);
 
   // Real statuses available based on currently selected doc group
   const availableRealStatuses = useMemo(() => {
@@ -380,46 +455,9 @@ export const EricssonEngineeringTab: React.FC<EricssonEngineeringTabProps> = ({
   // Filtered rows
   const filteredRows = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
-    return rows.filter((r) => {
-      // 0. User permission restriction: Executor / Vistoriador sees only permitted rows
-      if (isUserRestricted) {
-        const myEmail = (user?.email || '').trim().toLowerCase();
-        const myName = (user?.name || '').trim().toLowerCase();
-        const myEquipe = (user?.equipe || '').trim().toLowerCase();
+    const sourcePool = isUserRestricted ? executorScopedRows : rows;
 
-        const rowEx = (
-          r.executor ||
-          r.fields?.['EXECUTOR'] ||
-          r.fields?.['EXECUTOR WR'] ||
-          r.fields?.['EXECUTOR QRF'] ||
-          r.fields?.['EXECUTOR PPI'] ||
-          r.fields?.['Executor'] ||
-          ''
-        ).trim();
-
-        const rowEq = (r.fields?.['EQUIPE'] || r.equipe || '').trim();
-
-        const cleanEx = rowEx.toLowerCase();
-        const cleanEq = rowEq.toLowerCase();
-
-        const matchesEmail = Boolean(myEmail && cleanEx && cleanEx.includes(myEmail));
-        const matchesName = Boolean(myName && cleanEx && (cleanEx.includes(myName) || myName.includes(cleanEx)));
-        const matchesEquipe = Boolean(myEquipe && ((cleanEq && (cleanEq.includes(myEquipe) || myEquipe.includes(cleanEq))) || (cleanEx && (cleanEx.includes(myEquipe) || myEquipe.includes(cleanEx)))));
-
-        const matchesEx = matchesEmail || matchesName || matchesEquipe || doesEricssonRowMatchResponsible(r as any, user);
-
-        if (!matchesEx) return false;
-
-        // If user is Executor, do not show finalized sites/rows
-        if (isExecutor) {
-          const rawStatus = r.status || r.fields?.['Status'] || '';
-          const isFinalizado =
-            classifyEricssonStatus(rawStatus) === 'Finalizado' ||
-            rawStatus.toLowerCase().includes('finaliz') ||
-            rawStatus.toLowerCase().trim() === 'finalizado';
-          if (isFinalizado) return false;
-        }
-      }
+    return sourcePool.filter((r) => {
       // 0. Weekly Deliveries filter (sites delivered in the selected week, optionally matching selectedDeliveryDocGroup)
       if (selectedDeliveryWeek) {
         const rawStatus = r.status || r.fields?.['Status'] || '';
@@ -1069,25 +1107,25 @@ export const EricssonEngineeringTab: React.FC<EricssonEngineeringTabProps> = ({
         )}
       </div>
 
+      {/* =====================================================================
+          2. CONSOLIDATED TOP PANEL (WR, QRF, PPI, BOQ, SMART, SDC - STATUS REAIS)
+         ===================================================================== */}
+      <EricssonConsolidatedTopPanel
+        stats={consolidatedStats}
+        selectedDocGroup={selectedDocGroup}
+        selectedRealStatus={selectedRealStatus}
+        onSelectFilter={(docGroup, realStatus) => {
+          setSelectedDocGroup(docGroup);
+          setSelectedRealStatus(realStatus);
+        }}
+        onClearFilter={() => {
+          setSelectedDocGroup(null);
+          setSelectedRealStatus(null);
+        }}
+      />
+
       {!isUserRestricted && (
         <>
-          {/* =====================================================================
-              2. CONSOLIDATED TOP PANEL (WR, QRF, PPI, BOQ, SMART, SDC - STATUS REAIS)
-             ===================================================================== */}
-          <EricssonConsolidatedTopPanel
-            stats={consolidatedStats}
-            selectedDocGroup={selectedDocGroup}
-            selectedRealStatus={selectedRealStatus}
-            onSelectFilter={(docGroup, realStatus) => {
-              setSelectedDocGroup(docGroup);
-              setSelectedRealStatus(realStatus);
-            }}
-            onClearFilter={() => {
-              setSelectedDocGroup(null);
-              setSelectedRealStatus(null);
-            }}
-          />
-
           {/* =====================================================================
               2.5. PAINEL DE ENTREGAS POR SEMANA (ÚLTIMOS 30 DIAS EMPILHADO POR TIPO)
              ===================================================================== */}
@@ -1400,7 +1438,7 @@ export const EricssonEngineeringTab: React.FC<EricssonEngineeringTabProps> = ({
           <span>
             Exibindo <strong>{filteredRows.length.toLocaleString('pt-BR')}</strong> de{' '}
             <strong className="text-slate-900 font-mono">
-              {rows.length.toLocaleString('pt-BR')}
+              {(isUserRestricted ? assignedRowsForUser.length : rows.length).toLocaleString('pt-BR')}
             </strong>{' '}
             linhas da planilha Ericsson.
           </span>

@@ -5490,30 +5490,45 @@ export default function App() {
         {activeVendor === 'ERICSSON' && (
           <>
             {canSeeSitesTab && resolvedTopTab === 'sites' && (
-              <EricssonSitesTab
-                user={activeTargetUser || user}
-                effectiveRole={effectiveRole}
-                rows={mappedExecutorEricssonRows}
-                sheetMeta={ericssonSheetMeta || null}
-                ericssonUsers={ericssonUsers}
-                onUpdated={(nextRows, nextMeta, toastMsg, nextFiles) => {
-                  setEricssonRows(nextRows);
-                  if (nextMeta) setEricssonSheetMeta(nextMeta);
-                  if (Array.isArray(nextFiles)) setEricssonFiles(nextFiles);
-                  if (toastMsg) showToast(toastMsg);
-                }}
-                onEricssonUsersUpdated={(nextUsers, toastMsg) => {
-                  setEricssonUsers(nextUsers);
-                  if (toastMsg) showToast(toastMsg);
-                }}
-                onOpenFileInVistoriaFolder={(folderId, fileId, fileName) => {
-                  setEricssonVistoriaFocus({ folderId, fileId, fileName });
-                  setActiveTopTab('vistoria');
-                }}
-                onOpenDuplasDemanda={
-                  isRealAdmin ? () => setActiveTopTab('duplas') : undefined
-                }
-              />
+              !canSeeFullSpreadsheets && !isEngCoordinator ? (
+                <EricssonEngineeringTab
+                  user={activeTargetUser || user}
+                  effectiveRole={effectiveRole}
+                  activeVendor={activeVendor}
+                  onNavigateToVistoria={(siteId) => {
+                    if (siteId) {
+                      setEricssonVistoriaFocus({ fileName: siteId });
+                    }
+                    setActiveTopTab('vistoria');
+                  }}
+                  showToast={showToast}
+                />
+              ) : (
+                <EricssonSitesTab
+                  user={activeTargetUser || user}
+                  effectiveRole={effectiveRole}
+                  rows={mappedExecutorEricssonRows}
+                  sheetMeta={ericssonSheetMeta || null}
+                  ericssonUsers={ericssonUsers}
+                  onUpdated={(nextRows, nextMeta, toastMsg, nextFiles) => {
+                    setEricssonRows(nextRows);
+                    if (nextMeta) setEricssonSheetMeta(nextMeta);
+                    if (Array.isArray(nextFiles)) setEricssonFiles(nextFiles);
+                    if (toastMsg) showToast(toastMsg);
+                  }}
+                  onEricssonUsersUpdated={(nextUsers, toastMsg) => {
+                    setEricssonUsers(nextUsers);
+                    if (toastMsg) showToast(toastMsg);
+                  }}
+                  onOpenFileInVistoriaFolder={(folderId, fileId, fileName) => {
+                    setEricssonVistoriaFocus({ folderId, fileId, fileName });
+                    setActiveTopTab('vistoria');
+                  }}
+                  onOpenDuplasDemanda={
+                    isRealAdmin ? () => setActiveTopTab('duplas') : undefined
+                  }
+                />
+              )
             )}
 
             {resolvedTopTab === 'engenharia' && canSeeEngenhariaTab && (
