@@ -18,6 +18,7 @@ import {
   UserCheck,
   Link2,
   AlertCircle,
+  Loader2,
 } from 'lucide-react';
 import { TelecomSite, AmetaUser, VendorType, EricssonRow } from '../types/telecom';
 import {
@@ -611,6 +612,8 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = ({
         allowTransfer
       );
       setSelectedSiteIds((prev) => prev.filter((id) => !siteIdsToAssign.includes(id)));
+    } catch (err) {
+      console.error('Falha ao demandar linhas para a dupla:', err);
     } finally {
       setIsAssigning(false);
     }
@@ -685,6 +688,8 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = ({
       await onClearDuplaSites(selectedDupla, tokensToClear, activeVendor);
       setAssignedSearch('');
       setSelectedSiteIds([]);
+    } catch (err) {
+      console.error('Falha ao limpar demandas da dupla:', err);
     } finally {
       setIsClearing(false);
     }
@@ -1363,13 +1368,22 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = ({
                   type="button"
                   disabled={selectedSiteIds.length === 0 || isAssigning || !selectedDupla}
                   onClick={handleConfirmAssignSelected}
-                  className="w-full sm:w-auto justify-center px-4 py-3 sm:py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white text-xs font-black uppercase tracking-wide rounded-xl flex items-center gap-1.5 cursor-pointer shadow-sm"
+                  className="w-full sm:w-auto justify-center px-4 py-3 sm:py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white text-xs font-black uppercase tracking-wide rounded-xl flex items-center gap-1.5 cursor-pointer shadow-sm transition-all"
                 >
-                  <span>
-                    Demandar {selectedSiteIds.length > 0 ? `${selectedSiteIds.length} ` : ''}linha(s)
-                    para {selectedDupla}
-                  </span>
-                  <ArrowRight className="w-4 h-4 shrink-0" />
+                  {isAssigning ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin shrink-0" />
+                      <span>Demandando...</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>
+                        Demandar {selectedSiteIds.length > 0 ? `${selectedSiteIds.length} ` : ''}linha(s)
+                        para {selectedDupla}
+                      </span>
+                      <ArrowRight className="w-4 h-4 shrink-0" />
+                    </>
+                  )}
                 </button>
               </div>
             </div>
@@ -1697,13 +1711,17 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = ({
                           </button>
                           <button
                             type="button"
-                            onClick={() =>
-                              onUnassignSitesFromDupla(
-                                [site.id, site.siteId],
-                                selectedDupla,
-                                'NOKIA'
-                              )
-                            }
+                            onClick={async () => {
+                              try {
+                                await onUnassignSitesFromDupla(
+                                  [site.id, site.siteId],
+                                  selectedDupla,
+                                  'NOKIA'
+                                );
+                              } catch (err) {
+                                console.error('Erro ao desvincular site Nokia da dupla:', err);
+                              }
+                            }}
                             className="p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-md cursor-pointer"
                             title="Remover este site da dupla"
                           >
@@ -1769,9 +1787,13 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = ({
                         <div className="flex items-center gap-1 shrink-0">
                           <button
                             type="button"
-                            onClick={() =>
-                              onUnassignSitesFromDupla([row.id], selectedDupla, 'ERICSSON')
-                            }
+                            onClick={async () => {
+                              try {
+                                await onUnassignSitesFromDupla([row.id], selectedDupla, 'ERICSSON');
+                              } catch (err) {
+                                console.error('Erro ao desvincular site da dupla:', err);
+                              }
+                            }}
                             className="p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-md cursor-pointer"
                             title="Remover este site da dupla"
                           >
@@ -1858,26 +1880,30 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = ({
               {batchTransferModal.freeItemIds.length > 0 && (
                 <button
                   type="button"
+                  disabled={isAssigning}
                   onClick={async () => {
                     const freeIds = batchTransferModal.freeItemIds;
                     setBatchTransferModal(null);
                     await executeAssign(freeIds, false);
                   }}
-                  className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold cursor-pointer"
+                  className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-xl text-xs font-bold cursor-pointer flex items-center gap-1.5"
                 >
-                  Demandar apenas livres ({batchTransferModal.freeItemIds.length})
+                  {isAssigning && <Loader2 className="w-3.5 h-3.5 animate-spin shrink-0" />}
+                  <span>Demandar apenas livres ({batchTransferModal.freeItemIds.length})</span>
                 </button>
               )}
               <button
                 type="button"
+                disabled={isAssigning}
                 onClick={async () => {
                   const allIds = batchTransferModal.allItemIds;
                   setBatchTransferModal(null);
                   await executeAssign(allIds, true);
                 }}
-                className="px-3.5 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold cursor-pointer"
+                className="px-3.5 py-2 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white rounded-xl text-xs font-bold cursor-pointer flex items-center gap-1.5"
               >
-                Transferir todos ({batchTransferModal.allItemIds.length})
+                {isAssigning && <Loader2 className="w-3.5 h-3.5 animate-spin shrink-0" />}
+                <span>Transferir todos ({batchTransferModal.allItemIds.length})</span>
               </button>
             </div>
           </div>

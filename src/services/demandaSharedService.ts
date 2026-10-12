@@ -4,11 +4,14 @@ import {
   EricssonEngineeringRow,
   VendorType,
   AmetaUser,
+  EricssonRow,
 } from '../types/telecom';
 import {
   getCanonicalDuplaName,
   getCanonicalExecutorName,
   normalizeAccents,
+  matchesDuplaName,
+  doesEricssonRowMatchResponsible,
 } from '../utils/spreadsheetUtils';
 import { dataService } from './dataService';
 
@@ -16,6 +19,7 @@ export interface DemandaResult {
   updatedSites: TelecomSite[];
   updatedTssrRows: TssrRow[];
   updatedEricssonEngRows: EricssonEngineeringRow[];
+  updatedEricssonRows?: EricssonRow[];
   affectedTokens: string[];
   count: number;
 }
@@ -676,9 +680,11 @@ export const demandaSharedService = {
     currentSites: TelecomSite[];
     currentTssrRows?: TssrRow[];
     currentEricssonEngRows?: EricssonEngineeringRow[];
+    currentEricssonRows?: EricssonRow[];
     actorEmail?: string;
     actorName?: string;
     allowTransfer?: boolean;
+    targetScope?: 'equipe' | 'executor';
   }): Promise<DemandaResult> {
     const cleanResponsible = params.responsibleName.trim();
     const cleanEmails = Array.isArray(params.linkedEmails)
@@ -779,7 +785,7 @@ export const demandaSharedService = {
       };
     });
 
-    // 4. Update EricssonEngineeringRow list (Ericsson)
+    // 4. Update EricssonEngineeringRow list (Ericsson Executor)
     let updatedEricssonCount = 0;
     const nextEricssonEngRows = (params.currentEricssonEngRows || []).map((row) => {
       if (params.vendor !== 'ERICSSON') return row;
@@ -818,7 +824,40 @@ export const demandaSharedService = {
       };
     });
 
-    // 5. Update localStorage caches
+    // 5. Update EricssonRow list (Ericsson Vistoria / Duplas)
+    let updatedEricssonSitesCount = 0;
+    const nextEricssonRows = (params.currentEricssonRows || []).map((row) => {
+      if (params.vendor !== 'ERICSSON') return row;
+
+      const rId = String(row.id || '').trim();
+      const isMatch = params.siteTokens.some((tk) => String(tk).trim() === rId);
+      if (!isMatch) return row;
+
+      const currentResp = (row.equipe || row.fields?.['EQUIPE'] || '').trim();
+      const isOtherActive =
+        hasActiveResponsible(currentResp) &&
+        currentResp.toLowerCase() !== cleanResponsible.toLowerCase();
+
+      if (isOtherActive && !params.allowTransfer) {
+        return row;
+      }
+
+      updatedEricssonSitesCount++;
+      return {
+        ...row,
+        equipe: cleanResponsible,
+        fields: {
+          ...(row.fields || {}),
+          EQUIPE: cleanResponsible,
+          'EQUIPE EXECUTANTE': cleanResponsible,
+          ...(emailStr ? { 'E-MAIL DUPLA': emailStr } : {}),
+          'Data de demanda': targetDate,
+          'Data Demanda': targetDate,
+        },
+      };
+    });
+
+    // 6. Update localStorage caches
     try {
       localStorage.setItem('ameta_cached_sites', JSON.stringify(nextSites));
     } catch {}
@@ -835,8 +874,17 @@ export const demandaSharedService = {
       } catch {}
     }
 
-    // 6. Asynchronously persist to Firestore via dataService
-    const rawTokens = Array.from(tokensSet);
+    if (params.vendor === 'ERICSSON' && nextEricssonRows.length > 0) {
+      try {
+        localStorage.setItem('ameta_cached_ericsson_sites', JSON.stringify(nextEricssonRows));
+      } catch {}
+    }
+
+    // 7. Persist to Firestore via dataService
+    const rawTokens = params.vendor === 'ERICSSON' && params.targetScope !== 'executor'
+      ? params.siteTokens
+      : Array.from(tokensSet);
+
     try {
       await dataService.atribuirDemandaSites({
         siteTokens: rawTokens,
@@ -846,20 +894,23 @@ export const demandaSharedService = {
         actorEmail: params.actorEmail,
         actorName: params.actorName,
         allowTransfer: params.allowTransfer,
+        targetScope: params.targetScope,
       });
     } catch (err) {
-      console.warn('[demandaSharedService] Erro ao persistir no Firestore (estado local atualizado):', err);
+      console.error('[demandaSharedService] Erro ao persistir no Firestore:', err);
+      throw err;
     }
 
     const totalCount =
       params.vendor === 'NOKIA'
         ? Math.max(updatedSitesCount, updatedTssrCount, params.siteTokens.length)
-        : Math.max(updatedSitesCount, updatedEricssonCount, params.siteTokens.length);
+        : Math.max(updatedSitesCount, updatedEricssonCount, updatedEricssonSitesCount, params.siteTokens.length);
 
     return {
       updatedSites: nextSites,
       updatedTssrRows: nextTssrRows,
       updatedEricssonEngRows: nextEricssonEngRows,
+      updatedEricssonRows: nextEricssonRows,
       affectedTokens: rawTokens,
       count: totalCount,
     };
@@ -874,6 +925,8 @@ export const demandaSharedService = {
     currentSites: TelecomSite[];
     currentTssrRows?: TssrRow[];
     currentEricssonEngRows?: EricssonEngineeringRow[];
+    currentEricssonRows?: EricssonRow[];
+    targetScope?: 'equipe' | 'executor';
   }): Promise<DemandaResult> {
     const tokensSet = resolveExpandedSiteTokens(
       params.siteTokens,
@@ -975,6 +1028,31 @@ export const demandaSharedService = {
       };
     });
 
+    let updatedEricssonSitesCount = 0;
+    const nextEricssonRows = (params.currentEricssonRows || []).map((row) => {
+      if (params.vendor !== 'ERICSSON') return row;
+
+      const rId = String(row.id || '').trim();
+      const isMatch = params.siteTokens.some((tk) => String(tk).trim() === rId);
+      if (!isMatch) return row;
+
+      updatedEricssonSitesCount++;
+      return {
+        ...row,
+        responsavelDemand: '',
+        equipe: '',
+        fields: {
+          ...(row.fields || {}),
+          EQUIPE: '',
+          'EQUIPE EXECUTANTE': '',
+          'E-MAIL DUPLA': '',
+          'Data de demanda': '',
+          'Data Demanda': '',
+        },
+        updatedAt: nowIso,
+      };
+    });
+
     // LocalStorage caches
     try {
       localStorage.setItem('ameta_cached_sites', JSON.stringify(nextSites));
@@ -989,23 +1067,37 @@ export const demandaSharedService = {
         localStorage.setItem('ameta_cached_ericsson_eng', JSON.stringify(nextEricssonEngRows));
       } catch {}
     }
+    if (params.vendor === 'ERICSSON' && nextEricssonRows.length > 0) {
+      try {
+        localStorage.setItem('ameta_cached_ericsson_sites', JSON.stringify(nextEricssonRows));
+      } catch {}
+    }
 
-    const rawTokens = Array.from(tokensSet);
+    const rawTokens = params.vendor === 'ERICSSON' && params.targetScope !== 'executor'
+      ? params.siteTokens
+      : Array.from(tokensSet);
+
     try {
       await dataService.desvincularDemandaSites({
         siteTokens: rawTokens,
         vendor: params.vendor,
+        targetScope: params.targetScope,
       });
     } catch (err) {
-      console.warn('[demandaSharedService] Erro ao desvincular no Firestore (estado local atualizado):', err);
+      console.error('[demandaSharedService] Erro ao desvincular no Firestore:', err);
+      throw err;
     }
 
     return {
       updatedSites: nextSites,
       updatedTssrRows: nextTssrRows,
       updatedEricssonEngRows: nextEricssonEngRows,
+      updatedEricssonRows: nextEricssonRows,
       affectedTokens: rawTokens,
-      count: Math.max(updatedSitesCount, updatedTssrCount, updatedEricssonCount, params.siteTokens.length),
+      count:
+        params.vendor === 'NOKIA'
+          ? Math.max(updatedSitesCount, updatedTssrCount, params.siteTokens.length)
+          : Math.max(updatedSitesCount, updatedEricssonCount, updatedEricssonSitesCount, params.siteTokens.length),
     };
   },
 
@@ -1018,8 +1110,10 @@ export const demandaSharedService = {
     currentSites: TelecomSite[];
     currentTssrRows?: TssrRow[];
     currentEricssonEngRows?: EricssonEngineeringRow[];
+    currentEricssonRows?: EricssonRow[];
     siteTokensToClear?: string[];
     linkedEmails?: string[];
+    targetScope?: 'equipe' | 'executor';
   }): Promise<DemandaResult> {
     const cleanResponsible = params.responsibleName.trim();
     const explicitTokens = new Set(
@@ -1127,6 +1221,37 @@ export const demandaSharedService = {
       };
     });
 
+    const nextEricssonRows = (params.currentEricssonRows || []).map((row) => {
+      if (params.vendor !== 'ERICSSON') return row;
+
+      const rId = String(row.id || '').trim();
+      const isDirectMatch =
+        matchesDuplaName(row.equipe, cleanResponsible) ||
+        matchesDuplaName(row.fields?.['EQUIPE'], cleanResponsible) ||
+        matchesDuplaName(row.fields?.['EQUIPE EXECUTANTE'], cleanResponsible) ||
+        doesEricssonRowMatchResponsible(row, cleanResponsible);
+      const isTokenMatch =
+        explicitTokens.size > 0 &&
+        explicitTokens.has(rId.toUpperCase());
+
+      if (!isDirectMatch && !isTokenMatch) return row;
+
+      affectedTokens.push(row.id);
+      return {
+        ...row,
+        responsavelDemand: '',
+        equipe: '',
+        fields: {
+          ...(row.fields || {}),
+          EQUIPE: '',
+          'EQUIPE EXECUTANTE': '',
+          'E-MAIL DUPLA': '',
+          'Data de demanda': '',
+          'Data Demanda': '',
+        },
+      };
+    });
+
     // LocalStorage caches
     try {
       localStorage.setItem('ameta_cached_sites', JSON.stringify(nextSites));
@@ -1141,15 +1266,29 @@ export const demandaSharedService = {
         localStorage.setItem('ameta_cached_ericsson_eng', JSON.stringify(nextEricssonEngRows));
       } catch {}
     }
+    if (params.vendor === 'ERICSSON' && nextEricssonRows.length > 0) {
+      try {
+        localStorage.setItem('ameta_cached_ericsson_sites', JSON.stringify(nextEricssonRows));
+      } catch {}
+    }
+
+    const rawTokensToClear =
+      params.siteTokensToClear && params.siteTokensToClear.length > 0
+        ? params.siteTokensToClear
+        : params.vendor === 'ERICSSON' && params.targetScope !== 'executor'
+        ? affectedTokens
+        : undefined;
 
     try {
       await dataService.limparTodosSitesDemanda({
         responsibleName: cleanResponsible,
         vendor: params.vendor,
-        siteTokens: params.siteTokensToClear,
+        siteTokens: rawTokensToClear,
+        targetScope: params.targetScope,
       });
     } catch (err) {
-      console.warn('[demandaSharedService] Erro ao limpar no Firestore (estado local atualizado):', err);
+      console.error('[demandaSharedService] Erro ao limpar no Firestore:', err);
+      throw err;
     }
 
     const uniqueAffected = Array.from(new Set(affectedTokens));
@@ -1157,6 +1296,7 @@ export const demandaSharedService = {
       updatedSites: nextSites,
       updatedTssrRows: nextTssrRows,
       updatedEricssonEngRows: nextEricssonEngRows,
+      updatedEricssonRows: nextEricssonRows,
       affectedTokens: uniqueAffected,
       count: uniqueAffected.length,
     };

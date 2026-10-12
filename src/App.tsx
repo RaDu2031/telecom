@@ -433,6 +433,33 @@ export default function App() {
     }, 4000);
   }, []);
 
+  const getFirebaseErrorMessage = useCallback((err: any): string => {
+    const code = (err?.code || '').toLowerCase();
+    const msg = (err?.message || '').toLowerCase();
+    if (
+      code.includes('resource-exhausted') ||
+      msg.includes('resource-exhausted') ||
+      code.includes('quota') ||
+      msg.includes('quota') ||
+      msg.includes('limite')
+    ) {
+      return 'Erro: limite de uso do Firebase atingido (resource-exhausted).';
+    }
+    if (code.includes('permission-denied') || msg.includes('permission-denied')) {
+      return 'Erro: permissão negada no Firestore (permission-denied).';
+    }
+    if (code.includes('unavailable') || msg.includes('unavailable')) {
+      return 'Erro: serviço do Firestore temporariamente indisponível (unavailable).';
+    }
+    if (err?.code) {
+      return `Erro no Firebase (${err.code}): ${err.message || 'Falha na gravação'}`;
+    }
+    if (err?.message) {
+      return `Erro ao salvar demanda: ${err.message}`;
+    }
+    return 'Erro ao persistir demanda no Firebase.';
+  }, []);
+
   useEffect(() => {
     return subscribeToast((msg) => {
       setLiveToast(msg);
@@ -1376,9 +1403,21 @@ export default function App() {
         );
       }
 
+      const affectedEricssonSiteIds = isEricsson
+        ? ericssonRows
+            .filter((r) =>
+              matchesDuplaName(r.equipe, cleanTarget) ||
+              matchesDuplaName(r.fields?.['EQUIPE'], cleanTarget) ||
+              matchesDuplaName(r.fields?.['EQUIPE EXECUTANTE'], cleanTarget) ||
+              doesEricssonRowMatchResponsible(r, cleanTarget)
+            )
+            .map((r) => r.id)
+        : undefined;
+
       await dataService.limparTodasLinhasEquipeDupla({
         duplaName: cleanTarget,
         vendor: isEricsson ? 'ERICSSON' : 'NOKIA',
+        siteIds: affectedEricssonSiteIds,
       });
 
       try {
@@ -1388,6 +1427,9 @@ export default function App() {
           currentSites: sites,
           currentTssrRows: tssrRows,
           currentEricssonEngRows: ericssonEngineeringRows,
+          currentEricssonRows: ericssonRows,
+          siteTokensToClear: affectedEricssonSiteIds,
+          targetScope: 'equipe',
         });
       } catch {}
 
@@ -6715,63 +6757,219 @@ export default function App() {
                   onDeleteDupla={(name) => handleDeleteDupla(name)}
                   onAssignSitesToDupla={async (siteIds, duplaName, linkedEmails, targetVendor, allowTransfer) => {
                     const vendor = targetVendor || activeVendor;
-                    const res = await demandaSharedService.atribuirDemanda({
-                      siteTokens: siteIds,
-                      responsibleName: duplaName,
-                      linkedEmails,
-                      vendor,
-                      currentSites: sites,
-                      currentTssrRows: tssrRows,
-                      currentEricssonEngRows: ericssonEngineeringRows,
-                      actorEmail: user?.email,
-                      actorName: user?.name,
-                      allowTransfer,
-                    });
-                    setSites(res.updatedSites);
-                    setTssrRows(res.updatedTssrRows);
-                    setEricssonEngineeringRows(res.updatedEricssonEngRows);
-                    showToast(
-                      `${res.count} site(s) ${
-                        vendor === 'ERICSSON' ? 'Ericsson' : 'TIM/Nokia'
-                      } enviados para a dupla "${duplaName}"!`
-                    );
+                    const cleanDupla = duplaName.trim();
+                    const cleanEmails = Array.isArray(linkedEmails)
+                      ? Array.from(new Set(linkedEmails.map((e) => e.trim().toLowerCase()).filter(Boolean)))
+                      : [];
+                    const emailStr = cleanEmails.join(', ');
+                    const targetDate = new Date().toLocaleDateString('pt-BR');
+                    const nowIso = new Date().toISOString();
+
+                    const previousEricssonRows = ericssonRows;
+                    const previousSites = sites;
+                    const previousTssrRows = tssrRows;
+                    const previousEricssonEngRows = ericssonEngineeringRows;
+
+                    // 1. Atualizar a tela primeiro (otimista)
+                    if (vendor === 'ERICSSON') {
+                      const idsSet = new Set(siteIds.map((id) => String(id).trim()));
+                      setEricssonRows((prev) =>
+                        prev.map((r) => {
+                          if (!idsSet.has(String(r.id).trim())) return r;
+                          return {
+                            ...r,
+                            responsavelDemand: cleanDupla,
+                            equipe: cleanDupla,
+                            fields: {
+                              ...(r.fields || {}),
+                              EQUIPE: cleanDupla,
+                              'EQUIPE EXECUTANTE': cleanDupla,
+                              ...(emailStr ? { 'E-MAIL DUPLA': emailStr } : {}),
+                              'Data de demanda': targetDate,
+                              'Data Demanda': targetDate,
+                            },
+                            updatedAt: nowIso,
+                          };
+                        })
+                      );
+                    }
+
+                    try {
+                      const res = await demandaSharedService.atribuirDemanda({
+                        siteTokens: siteIds,
+                        responsibleName: cleanDupla,
+                        linkedEmails: cleanEmails,
+                        vendor,
+                        demandDate: targetDate,
+                        currentSites: sites,
+                        currentTssrRows: tssrRows,
+                        currentEricssonEngRows: ericssonEngineeringRows,
+                        currentEricssonRows: ericssonRows,
+                        actorEmail: user?.email,
+                        actorName: user?.name,
+                        allowTransfer,
+                        targetScope: 'equipe',
+                      });
+                      setSites(res.updatedSites);
+                      setTssrRows(res.updatedTssrRows);
+                      setEricssonEngineeringRows(res.updatedEricssonEngRows);
+                      if (res.updatedEricssonRows && res.updatedEricssonRows.length > 0) {
+                        setEricssonRows(res.updatedEricssonRows);
+                      }
+                      showToast(
+                        `${res.count} site(s) ${
+                          vendor === 'ERICSSON' ? 'Ericsson' : 'TIM/Nokia'
+                        } enviados para a dupla "${duplaName}"!`
+                      );
+                    } catch (err: any) {
+                      if (vendor === 'ERICSSON') {
+                        setEricssonRows(previousEricssonRows);
+                      }
+                      setSites(previousSites);
+                      setTssrRows(previousTssrRows);
+                      setEricssonEngineeringRows(previousEricssonEngRows);
+                      showToast(getFirebaseErrorMessage(err));
+                      throw err;
+                    }
                   }}
                   onUnassignSitesFromDupla={async (siteIds, duplaName, targetVendor) => {
                     const vendor = targetVendor || activeVendor;
-                    const res = await demandaSharedService.removerDemanda({
-                      siteTokens: siteIds,
-                      vendor,
-                      currentSites: sites,
-                      currentTssrRows: tssrRows,
-                      currentEricssonEngRows: ericssonEngineeringRows,
-                    });
-                    setSites(res.updatedSites);
-                    setTssrRows(res.updatedTssrRows);
-                    setEricssonEngineeringRows(res.updatedEricssonEngRows);
-                    showToast(
-                      `Site ${
-                        vendor === 'ERICSSON' ? 'Ericsson' : 'TIM/Nokia'
-                      } removido da demanda de "${duplaName}".`
-                    );
+                    const previousEricssonRows = ericssonRows;
+                    const previousSites = sites;
+                    const previousTssrRows = tssrRows;
+                    const previousEricssonEngRows = ericssonEngineeringRows;
+                    const nowIso = new Date().toISOString();
+
+                    // 1. Atualizar a tela primeiro (otimista)
+                    if (vendor === 'ERICSSON') {
+                      const idsSet = new Set(siteIds.map((id) => String(id).trim()));
+                      setEricssonRows((prev) =>
+                        prev.map((r) => {
+                          if (!idsSet.has(String(r.id).trim())) return r;
+                          return {
+                            ...r,
+                            responsavelDemand: '',
+                            equipe: '',
+                            fields: {
+                              ...(r.fields || {}),
+                              EQUIPE: '',
+                              'EQUIPE EXECUTANTE': '',
+                              'E-MAIL DUPLA': '',
+                              'Data de demanda': '',
+                              'Data Demanda': '',
+                            },
+                            updatedAt: nowIso,
+                          };
+                        })
+                      );
+                    }
+
+                    try {
+                      const res = await demandaSharedService.removerDemanda({
+                        siteTokens: siteIds,
+                        vendor,
+                        currentSites: sites,
+                        currentTssrRows: tssrRows,
+                        currentEricssonEngRows: ericssonEngineeringRows,
+                        currentEricssonRows: ericssonRows,
+                        targetScope: 'equipe',
+                      });
+                      setSites(res.updatedSites);
+                      setTssrRows(res.updatedTssrRows);
+                      setEricssonEngineeringRows(res.updatedEricssonEngRows);
+                      if (res.updatedEricssonRows && res.updatedEricssonRows.length > 0) {
+                        setEricssonRows(res.updatedEricssonRows);
+                      }
+                      showToast(
+                        `Site ${
+                          vendor === 'ERICSSON' ? 'Ericsson' : 'TIM/Nokia'
+                        } removido da demanda de "${duplaName}".`
+                      );
+                    } catch (err: any) {
+                      if (vendor === 'ERICSSON') {
+                        setEricssonRows(previousEricssonRows);
+                      }
+                      setSites(previousSites);
+                      setTssrRows(previousTssrRows);
+                      setEricssonEngineeringRows(previousEricssonEngRows);
+                      showToast(getFirebaseErrorMessage(err));
+                      throw err;
+                    }
                   }}
                   onClearDuplaSites={async (duplaName, siteIdsToClear, targetVendor) => {
                     const vendor = targetVendor || activeVendor;
-                    const res = await demandaSharedService.limparTodasDemandas({
-                      responsibleName: duplaName,
-                      vendor,
-                      currentSites: sites,
-                      currentTssrRows: tssrRows,
-                      currentEricssonEngRows: ericssonEngineeringRows,
-                      siteTokensToClear: siteIdsToClear,
-                    });
-                    setSites(res.updatedSites);
-                    setTssrRows(res.updatedTssrRows);
-                    setEricssonEngineeringRows(res.updatedEricssonEngRows);
-                    showToast(
-                      `Todos os sites ${
-                        vendor === 'ERICSSON' ? 'Ericsson' : 'TIM/Nokia'
-                      } de "${duplaName}" foram desvinculados.`
-                    );
+                    const cleanDupla = duplaName.trim();
+                    const previousEricssonRows = ericssonRows;
+                    const previousSites = sites;
+                    const previousTssrRows = tssrRows;
+                    const previousEricssonEngRows = ericssonEngineeringRows;
+                    const nowIso = new Date().toISOString();
+
+                    // 1. Atualizar a tela primeiro (otimista)
+                    if (vendor === 'ERICSSON') {
+                      const idsSet =
+                        siteIdsToClear && siteIdsToClear.length > 0
+                          ? new Set(siteIdsToClear.map((id) => String(id).trim()))
+                          : null;
+                      setEricssonRows((prev) =>
+                        prev.map((r) => {
+                          const match = idsSet
+                            ? idsSet.has(String(r.id).trim())
+                            : (matchesDuplaName(r.equipe, cleanDupla) ||
+                               matchesDuplaName(r.fields?.['EQUIPE'], cleanDupla) ||
+                               matchesDuplaName(r.fields?.['EQUIPE EXECUTANTE'], cleanDupla) ||
+                               doesEricssonRowMatchResponsible(r, cleanDupla));
+                          if (!match) return r;
+                          return {
+                            ...r,
+                            responsavelDemand: '',
+                            equipe: '',
+                            fields: {
+                              ...(r.fields || {}),
+                              EQUIPE: '',
+                              'EQUIPE EXECUTANTE': '',
+                              'E-MAIL DUPLA': '',
+                              'Data de demanda': '',
+                              'Data Demanda': '',
+                            },
+                            updatedAt: nowIso,
+                          };
+                        })
+                      );
+                    }
+
+                    try {
+                      const res = await demandaSharedService.limparTodasDemandas({
+                        responsibleName: cleanDupla,
+                        vendor,
+                        currentSites: sites,
+                        currentTssrRows: tssrRows,
+                        currentEricssonEngRows: ericssonEngineeringRows,
+                        currentEricssonRows: ericssonRows,
+                        siteTokensToClear: siteIdsToClear,
+                        targetScope: 'equipe',
+                      });
+                      setSites(res.updatedSites);
+                      setTssrRows(res.updatedTssrRows);
+                      setEricssonEngineeringRows(res.updatedEricssonEngRows);
+                      if (res.updatedEricssonRows && res.updatedEricssonRows.length > 0) {
+                        setEricssonRows(res.updatedEricssonRows);
+                      }
+                      showToast(
+                        `Todos os sites ${
+                          vendor === 'ERICSSON' ? 'Ericsson' : 'TIM/Nokia'
+                        } de "${duplaName}" foram desvinculados.`
+                      );
+                    } catch (err: any) {
+                      if (vendor === 'ERICSSON') {
+                        setEricssonRows(previousEricssonRows);
+                      }
+                      setSites(previousSites);
+                      setTssrRows(previousTssrRows);
+                      setEricssonEngineeringRows(previousEricssonEngRows);
+                      showToast(getFirebaseErrorMessage(err));
+                      throw err;
+                    }
                   }}
                   onLinkEmailsToDupla={async (duplaName, emails, targetVendor) => {
                     const vendor = targetVendor || activeVendor;
