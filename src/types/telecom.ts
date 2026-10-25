@@ -1301,6 +1301,7 @@ export type AcionamentoStatus =
   | 'Em deslocamento'
   | 'No local'
   | 'Em atendimento'
+  | 'Pausado'
   | 'Concluído'
   | 'Cancelado';
 
@@ -1309,8 +1310,11 @@ export interface AcionamentoHistorico {
   autor?: string;
   email?: string;
   acao: string;
-  status?: AcionamentoStatus;
+  status?: AcionamentoStatus | string;
   detalhes?: string;
+  timestamp?: string;
+  usuario?: string;
+  descricao?: string;
 }
 
 export interface Acionamento {
@@ -1328,7 +1332,8 @@ export interface Acionamento {
   destinatariosEmails: string[];
   demandadoPorNome: string;
   demandadoPorEmail: string;
-  demandadoEm: string;
+  demandadoEm: string; // Sempre ISO completo (new Date().toISOString())
+  dataDemanda?: string; // Data escolhida (targetDate, formato dd/mm/aaaa)
   observacao?: string;
   atualizadoEm: string;
   historico: AcionamentoHistorico[];

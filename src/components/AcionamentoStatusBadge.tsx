@@ -20,20 +20,66 @@ interface AcionamentoStatusBadgeProps {
   className?: string;
 }
 
-export function formatAcionamentoDate(rawDate?: string): string {
+export function formatAcionamentoDate(rawDate?: any): string {
   if (!rawDate) return '';
+
+  // Firestore Timestamp ou objeto com toDate() / seconds
+  if (typeof rawDate === 'object') {
+    if (typeof rawDate.toDate === 'function') {
+      try {
+        const d = rawDate.toDate();
+        if (d instanceof Date && !isNaN(d.getTime())) {
+          return d.toLocaleString('pt-BR', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+          });
+        }
+      } catch {}
+    }
+    if (typeof rawDate.seconds === 'number') {
+      try {
+        const d = new Date(rawDate.seconds * 1000);
+        if (!isNaN(d.getTime())) {
+          return d.toLocaleString('pt-BR', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+          });
+        }
+      } catch {}
+    }
+    // NUNCA renderizar um objeto no JSX
+    return '';
+  }
+
+  const str = String(rawDate).trim();
+  if (!str) return '';
+
+  // Se já estiver no formato dd/mm/aaaa ou dd/mm/aaaa hh:mm
+  if (/^\d{1,2}\/\d{1,2}\/\d{2,4}/.test(str)) {
+    return str;
+  }
+
+  // Texto ISO ou data padrão parseável
   try {
-    const d = new Date(rawDate);
-    if (isNaN(d.getTime())) return rawDate;
-    return d.toLocaleString('pt-BR', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
+    const d = new Date(str);
+    if (!isNaN(d.getTime())) {
+      return d.toLocaleString('pt-BR', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      });
+    }
+    return str;
   } catch {
-    return rawDate;
+    return str;
   }
 }
 
@@ -93,6 +139,13 @@ export const AcionamentoStatusBadge: React.FC<AcionamentoStatusBadgeProps> = ({
           label: 'Em atendimento',
           bg: 'bg-sky-50 text-sky-800 border-sky-200 hover:bg-sky-100',
           dot: 'bg-sky-600',
+        };
+      case 'Pausado':
+        return {
+          icon: <Clock className="w-3 h-3 text-amber-700" />,
+          label: 'Pausado',
+          bg: 'bg-amber-100 text-amber-900 border-amber-300 hover:bg-amber-200',
+          dot: 'bg-amber-600',
         };
       case 'Concluído':
         return {
@@ -177,6 +230,13 @@ export const AcionamentoStatusBadge: React.FC<AcionamentoStatusBadgeProps> = ({
                 {acionamento.equipe}
               </span>
             </div>
+
+            {acionamento.dataDemanda && (
+              <div className="flex items-center justify-between text-[10px]">
+                <span className="text-slate-400">Data Demanda:</span>
+                <span className="font-mono text-slate-200">{formatAcionamentoDate(acionamento.dataDemanda)}</span>
+              </div>
+            )}
 
             {/* Aceite detalhes */}
             {acionamento.aceitoEm && (

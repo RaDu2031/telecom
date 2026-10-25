@@ -598,6 +598,15 @@ export const SiteDetailDrawer: React.FC<SiteDetailDrawerProps> = ({
                   </span>
                 </div>
 
+                {acionamento.dataDemanda && (
+                  <div>
+                    <span className="text-slate-500 text-[11px] block">Data da Demanda:</span>
+                    <span className="font-mono font-medium text-slate-800">
+                      {formatAcionamentoDate(acionamento.dataDemanda)}
+                    </span>
+                  </div>
+                )}
+
                 {acionamento.aceitoEm && (
                   <div className="sm:col-span-2 p-2 bg-blue-50/80 rounded-lg border border-blue-200 text-blue-900">
                     <span className="font-bold">Aceite Confirmado:</span> por{' '}
@@ -621,6 +630,51 @@ export const SiteDetailDrawer: React.FC<SiteDetailDrawerProps> = ({
                         Motivo: "{acionamento.motivoRecusa}"
                       </div>
                     )}
+                  </div>
+                )}
+
+                {/* Histórico do Acionamento */}
+                {Array.isArray(acionamento.historico) && acionamento.historico.length > 0 && (
+                  <div className="sm:col-span-2 pt-2 border-t border-slate-100 space-y-1.5">
+                    <span className="text-[11px] font-bold text-slate-600 uppercase tracking-wider block">
+                      Histórico ({acionamento.historico.length})
+                    </span>
+                    <div className="space-y-1.5 max-h-44 overflow-y-auto pr-1">
+                      {acionamento.historico.map((h: any, idx: number) => {
+                        const hData = formatAcionamentoDate(h?.data || h?.timestamp);
+                        const hAutor = typeof h?.autor === 'string' ? h.autor : (typeof h?.usuario === 'string' ? h.usuario : '');
+                        const hEmail = typeof h?.email === 'string' ? h.email : '';
+                        const hAcao = typeof h?.acao === 'string' ? h.acao : (typeof h?.descricao === 'string' ? h.descricao : 'Atualização');
+                        const hStatus = typeof h?.status === 'string' ? h.status : '';
+                        const hDetalhes = typeof h?.detalhes === 'string' ? h.detalhes : '';
+
+                        return (
+                          <div
+                            key={idx}
+                            className="p-2 rounded bg-slate-50 border border-slate-200 text-[11px] space-y-0.5"
+                          >
+                            <div className="flex items-center justify-between text-slate-500 text-[10px]">
+                              <span>{hData || 'Data não informada'}</span>
+                              {hStatus && (
+                                <span className="font-semibold text-slate-700 bg-white px-1.5 py-0.2 rounded border text-[9px]">
+                                  {hStatus}
+                                </span>
+                              )}
+                            </div>
+                            <div className="font-medium text-slate-800">
+                              {hAcao}
+                              {hAutor ? ` · ${hAutor}` : ''}
+                              {hEmail ? ` (${hEmail})` : ''}
+                            </div>
+                            {hDetalhes && (
+                              <div className="text-[10px] text-slate-500 italic">
+                                {hDetalhes}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
                 )}
               </div>

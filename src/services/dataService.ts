@@ -77,6 +77,7 @@ INITIAL_ERICSSON_ENGINEERING_ROWS.forEach((r) => {
 });
 
 export type Unsubscribe = () => void;
+let hasShownPermissionAcionamentosToast = false;
 
 export const FIRESTORE_COLLECTIONS = {
   USUARIOS: 'usuarios',
@@ -400,7 +401,7 @@ export interface IDataService {
     allowTransfer?: boolean;
     demandDate?: string;
     targetScope?: 'equipe' | 'executor';
-  }): Promise<{ updatedCount: number }>;
+  }): Promise<{ updatedCount: number; sitesWithoutEmailCount?: number }>;
   desvincularDemandaSites(params: {
     siteTokens: string[];
     vendor: 'NOKIA' | 'ERICSSON';
@@ -526,15 +527,21 @@ export interface IDataService {
       vendor: VendorType;
       tipoDestinatario: 'EXECUTOR' | 'VISTORIA';
       equipe: string;
+      dataDemanda?: string;
     }
-  ): Promise<Acionamento>;
+  ): Promise<Acionamento & { hasNoEmail: boolean }>;
   cancelarAcionamento(
     acionamentoId: string,
     actor?: { nome?: string; email?: string; motivo?: string }
   ): Promise<void>;
   obterAcionamentoPorId(id: string): Promise<Acionamento | null>;
   observarAcionamentos(
-    params: { role: UserRole; email: string; isSimulating?: boolean },
+    params: {
+      role: UserRole;
+      email: string;
+      isSimulating?: boolean;
+      onErrorToast?: (msg: string) => void;
+    },
     callback: (acionamentos: Acionamento[]) => void
   ): Unsubscribe;
   resolverDestinatariosEmails(params: {
@@ -1884,7 +1891,7 @@ class FirebaseDataService implements IDataService {
     allowTransfer?: boolean;
     demandDate?: string;
     targetScope?: 'equipe' | 'executor';
-  }): Promise<{ updatedCount: number }> {
+  }): Promise<{ updatedCount: number; sitesWithoutEmailCount?: number }> {
     const targetDate = params.demandDate || new Date().toLocaleDateString('pt-BR');
     const nowIso = new Date().toISOString();
     const emailStr = params.linkedEmails && params.linkedEmails.length > 0 ? params.linkedEmails.join(', ') : '';
@@ -1978,7 +1985,8 @@ class FirebaseDataService implements IDataService {
               destinatariosEmails,
               demandadoPorNome: params.actorName || 'Engenharia Ericsson',
               demandadoPorEmail: params.actorEmail || '',
-              demandadoEm: targetDate,
+              demandadoEm: nowIso,
+              dataDemanda: targetDate,
             });
           } catch (acErr) {
             console.warn('Erro ao sincronizar acionamento Ericsson:', acErr);
@@ -2003,7 +2011,10 @@ class FirebaseDataService implements IDataService {
           actorName: params.actorName || 'Engenharia Ericsson',
         }));
       }
-      return { updatedCount: count };
+      return {
+        updatedCount: count,
+        sitesWithoutEmailCount: destinatariosEmails.length === 0 ? count : 0,
+      };
     } else {
       // NOKIA
       const tokens = new Set(params.siteTokens.map((t) => t.trim().toUpperCase()).filter(Boolean));
@@ -2149,7 +2160,8 @@ class FirebaseDataService implements IDataService {
             destinatariosEmails,
             demandadoPorNome: params.actorName || 'Engenharia TIM/Nokia',
             demandadoPorEmail: params.actorEmail || '',
-            demandadoEm: targetDate,
+            demandadoEm: nowIso,
+            dataDemanda: targetDate,
           });
         } catch (acErr) {
           console.warn('Erro ao sincronizar acionamento Nokia:', acErr);
@@ -2176,7 +2188,10 @@ class FirebaseDataService implements IDataService {
       }));
     }
 
-    return { updatedCount: count };
+    return {
+      updatedCount: count,
+      sitesWithoutEmailCount: destinatariosEmails.length === 0 ? count : 0,
+    };
   }
 
   async desvincularDemandaSites(params: {
@@ -3137,8 +3152,9 @@ class FirebaseDataService implements IDataService {
       vendor: VendorType;
       tipoDestinatario: 'EXECUTOR' | 'VISTORIA';
       equipe: string;
+      dataDemanda?: string;
     }
-  ): Promise<Acionamento> {
+  ): Promise<Acionamento & { hasNoEmail: boolean }> {
     const docId = payload.id || buildAcionamentoId(payload.vendor, payload.siteId, payload.tipoDestinatario);
     const nowIso = new Date().toISOString();
     const docRef = doc(db, FIRESTORE_COLLECTIONS.ACIONAMENTOS, docId);
@@ -3160,46 +3176,152 @@ class FirebaseDataService implements IDataService {
           .filter(Boolean)
       )
     );
+    const hasNoEmail = cleanEmails.length === 0;
 
     const cleanEquipe = (payload.equipe || '').trim();
+    const autorNome = payload.demandadoPorNome || 'Coordenação Telecom';
+    const autorEmail = (payload.demandadoPorEmail || '').trim().toLowerCase();
+    const targetDataDemanda = payload.dataDemanda || existing?.dataDemanda;
 
-    // Se já existir acionamento ativo para o mesmo site e destinatário, não duplicar nem alterar status
+    // Se já existir acionamento não cancelado
     if (existing && existing.status !== 'Cancelado') {
+      const existingStatus = existing.status;
       const sameEquipe = existing.equipe.trim().toLowerCase() === cleanEquipe.toLowerCase();
-      const existingEmails = new Set(existing.destinatariosEmails || []);
+      const existingEmailsList = (existing.destinatariosEmails || []).map((e) => String(e || '').trim().toLowerCase());
+      const existingEmailsSet = new Set(existingEmailsList);
       const sameEmails =
-        cleanEmails.length === existingEmails.size &&
-        cleanEmails.every((e) => existingEmails.has(e));
+        cleanEmails.length === existingEmailsSet.size &&
+        cleanEmails.every((e) => existingEmailsSet.has(e));
 
-      if (sameEquipe || sameEmails) {
+      // 2.a) se o status for 'Recusado': voltar para 'Aguardando aceite', limpar recusadoPorEmail, recusadoPorNome, recusadoEm e motivoRecusa, atualizar destinatariosEmails e equipe, e adicionar ao historico "Demanda reenviada após recusa"
+      if (existingStatus === 'Recusado') {
+        const historicoAtualizado: AcionamentoHistorico[] = [
+          ...(existing.historico || []),
+          {
+            data: nowIso,
+            autor: autorNome,
+            email: autorEmail,
+            acao: 'Demanda reenviada após recusa',
+            status: 'Aguardando aceite',
+            detalhes: payload.observacao || `Demanda reenviada para a equipe "${cleanEquipe}"`,
+          },
+        ];
+
+        const updated: Acionamento = {
+          ...existing,
+          equipe: cleanEquipe,
+          destinatariosEmails: cleanEmails,
+          demandadoEm: nowIso,
+          dataDemanda: targetDataDemanda,
+          demandadoPorNome: autorNome,
+          demandadoPorEmail: autorEmail,
+          status: 'Aguardando aceite',
+          recusadoPorEmail: '',
+          recusadoPorNome: '',
+          recusadoEm: '',
+          motivoRecusa: '',
+          atualizadoEm: nowIso,
+          historico: historicoAtualizado,
+          observacao: payload.observacao !== undefined ? payload.observacao : existing.observacao,
+        };
+
+        await setDoc(docRef, sanitizeFirestoreData(updated), { merge: true });
+        return { ...updated, hasNoEmail };
+      }
+
+      // 2.b) se a equipe for a mesma mas destinatariosEmails mudou: atualizar destinatariosEmails (substituir pela lista nova) sem alterar o status, e registrar no historico "Destinatários atualizados"
+      if (sameEquipe && !sameEmails) {
+        const historicoAtualizado: AcionamentoHistorico[] = [
+          ...(existing.historico || []),
+          {
+            data: nowIso,
+            autor: autorNome,
+            email: autorEmail,
+            acao: 'Destinatários atualizados',
+            status: existingStatus,
+            detalhes: `Destinatários atualizados para: ${cleanEmails.join(', ') || 'nenhum e-mail'}`,
+          },
+        ];
+
+        const updated: Acionamento = {
+          ...existing,
+          destinatariosEmails: cleanEmails,
+          dataDemanda: targetDataDemanda,
+          atualizadoEm: nowIso,
+          historico: historicoAtualizado,
+          observacao: payload.observacao !== undefined ? payload.observacao : existing.observacao,
+        };
+
+        await setDoc(docRef, sanitizeFirestoreData(updated), { merge: true });
+        return { ...updated, hasNoEmail };
+      }
+
+      // 2.c) status Aceito, Em deslocamento, No local, Em atendimento, Pausado e Concluído continuam sem mudar de status (se for mesma equipe e mesmos e-mails)
+      if (sameEquipe && sameEmails) {
         const merged: Acionamento = {
           ...existing,
           siteNome: payload.siteNome || existing.siteNome,
           endereco: payload.endereco || existing.endereco,
           cidade: payload.cidade || existing.cidade,
           uf: payload.uf || existing.uf,
+          dataDemanda: targetDataDemanda,
           observacao: payload.observacao !== undefined ? payload.observacao : existing.observacao,
           atualizadoEm: nowIso,
         };
         await setDoc(docRef, sanitizeFirestoreData(merged), { merge: true });
-        return merged;
+        return { ...merged, hasNoEmail };
       }
+
+      // Reatribuição para uma equipe diferente
+      const historicoAtualizado: AcionamentoHistorico[] = [
+        ...(existing.historico || []),
+        {
+          data: nowIso,
+          autor: autorNome,
+          email: autorEmail,
+          acao: `Demanda reatribuída para "${cleanEquipe}"`,
+          status: 'Aguardando aceite',
+          detalhes: payload.observacao || `Reatribuído de "${existing.equipe}" para "${cleanEquipe}"`,
+        },
+      ];
+
+      const updated: Acionamento = {
+        ...existing,
+        equipe: cleanEquipe,
+        destinatariosEmails: cleanEmails,
+        demandadoEm: nowIso,
+        dataDemanda: targetDataDemanda,
+        demandadoPorNome: autorNome,
+        demandadoPorEmail: autorEmail,
+        status: 'Aguardando aceite',
+        aceitoPorEmail: '',
+        aceitoPorNome: '',
+        aceitoEm: '',
+        recusadoPorEmail: '',
+        recusadoPorNome: '',
+        recusadoEm: '',
+        motivoRecusa: '',
+        atualizadoEm: nowIso,
+        historico: historicoAtualizado,
+        observacao: payload.observacao !== undefined ? payload.observacao : existing.observacao,
+      };
+
+      await setDoc(docRef, sanitizeFirestoreData(updated), { merge: true });
+      return { ...updated, hasNoEmail };
     }
 
+    // NOVO ACIONAMENTO (não existia ou estava cancelado)
     const vPrefix = payload.vendor === 'ERICSSON' ? 'ERI' : 'NOK';
     const sClean = normalizeSiteIdForDoc(payload.siteId);
     const protoRandom = Math.floor(1000 + Math.random() * 9000);
     const protocolo = existing?.protocolo || `AC-${vPrefix}-${sClean.slice(-8)}-${protoRandom}`;
 
-    const autorNome = payload.demandadoPorNome || 'Coordenação Telecom';
-    const autorEmail = (payload.demandadoPorEmail || '').trim().toLowerCase();
-
     const novoEvento: AcionamentoHistorico = {
       data: nowIso,
       autor: autorNome,
       email: autorEmail,
-      acao: existing
-        ? `Demanda reatribuída para "${cleanEquipe}"`
+      acao: existing?.status === 'Cancelado'
+        ? `Demanda reativada para "${cleanEquipe}"`
         : `Demanda criada e enviada ao acionamento (${payload.tipoDestinatario})`,
       status: 'Aguardando aceite',
       detalhes: payload.observacao || '',
@@ -3225,7 +3347,8 @@ class FirebaseDataService implements IDataService {
       destinatariosEmails: cleanEmails,
       demandadoPorNome: autorNome,
       demandadoPorEmail: autorEmail,
-      demandadoEm: payload.demandadoEm || nowIso,
+      demandadoEm: nowIso,
+      dataDemanda: targetDataDemanda,
       observacao: payload.observacao || '',
       atualizadoEm: nowIso,
       status: 'Aguardando aceite',
@@ -3240,7 +3363,7 @@ class FirebaseDataService implements IDataService {
     };
 
     await setDoc(docRef, sanitizeFirestoreData(novoAcionamento), { merge: true });
-    return novoAcionamento;
+    return { ...novoAcionamento, hasNoEmail };
   }
 
   async cancelarAcionamento(
@@ -3294,7 +3417,12 @@ class FirebaseDataService implements IDataService {
   }
 
   observarAcionamentos(
-    params: { role: UserRole; email: string; isSimulating?: boolean },
+    params: {
+      role: UserRole;
+      email: string;
+      isSimulating?: boolean;
+      onErrorToast?: (msg: string) => void;
+    },
     callback: (acionamentos: Acionamento[]) => void
   ): Unsubscribe {
     const isCoordOrAdmin =
@@ -3323,6 +3451,12 @@ class FirebaseDataService implements IDataService {
       (err) => {
         console.error('Erro no snapshot de acionamentos:', err);
         callback([]);
+        if (!hasShownPermissionAcionamentosToast) {
+          hasShownPermissionAcionamentosToast = true;
+          if (typeof params.onErrorToast === 'function') {
+            params.onErrorToast('Sem permissão para ler acionamentos');
+          }
+        }
       }
     );
   }

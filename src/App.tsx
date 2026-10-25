@@ -922,6 +922,7 @@ export default function App() {
         role: effectiveRole,
         email: activeTargetUser.email,
         isSimulating: Boolean(simulatedTargetUser),
+        onErrorToast: (msg) => showToast(msg),
       },
       (list) => {
         setAcionamentos(list);
@@ -2182,6 +2183,13 @@ export default function App() {
     showToast(
       `${res.count} demanda(s) da Engenharia Ericsson atribuídas para "${executorName}"!`
     );
+    if (res.sitesWithoutEmailCount && res.sitesWithoutEmailCount > 0) {
+      setTimeout(() => {
+        showToast(
+          `${res.sitesWithoutEmailCount} site(s) sem e-mail de destinatário cadastrado: ninguém será avisado. Cadastre o e-mail da dupla/executor.`
+        );
+      }, 800);
+    }
   };
 
   const handleUnassignEricssonRowsFromExecutor = async (
@@ -2424,6 +2432,13 @@ export default function App() {
     showToast(
       `${res.count} site(s) da Engenharia demandados para o Executor "${executorName}"!`
     );
+    if (res.sitesWithoutEmailCount && res.sitesWithoutEmailCount > 0) {
+      setTimeout(() => {
+        showToast(
+          `${res.sitesWithoutEmailCount} site(s) sem e-mail de destinatário cadastrado: ninguém será avisado. Cadastre o e-mail da dupla/executor.`
+        );
+      }, 800);
+    }
   };
 
   const handleUnassignRowsFromExecutor = async (
@@ -7020,6 +7035,13 @@ export default function App() {
                           vendor === 'ERICSSON' ? 'Ericsson' : 'TIM/Nokia'
                         } enviados para a dupla "${duplaName}"!`
                       );
+                      if (res.sitesWithoutEmailCount && res.sitesWithoutEmailCount > 0) {
+                        setTimeout(() => {
+                          showToast(
+                            `${res.sitesWithoutEmailCount} site(s) sem e-mail de destinatário cadastrado: ninguém será avisado. Cadastre o e-mail da dupla/executor.`
+                          );
+                        }, 800);
+                      }
                     } catch (err: any) {
                       if (vendor === 'ERICSSON') {
                         setEricssonRows(previousEricssonRows);

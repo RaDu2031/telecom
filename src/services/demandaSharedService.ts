@@ -26,6 +26,7 @@ export interface DemandaResult {
   updatedEricssonRows?: EricssonRow[];
   affectedTokens: string[];
   count: number;
+  sitesWithoutEmailCount?: number;
 }
 
 export interface ReconcileResult {
@@ -919,17 +920,22 @@ export const demandaSharedService = {
       ? params.siteTokens
       : Array.from(tokensSet);
 
+    let sitesWithoutEmailCount = 0;
     try {
-      await dataService.atribuirDemandaSites({
+      const persistRes = await dataService.atribuirDemandaSites({
         siteTokens: rawTokens,
         responsibleName: cleanResponsible,
         linkedEmails: cleanEmails,
         vendor: params.vendor,
+        demandDate: targetDate,
         actorEmail: params.actorEmail,
         actorName: params.actorName,
         allowTransfer: params.allowTransfer,
         targetScope: params.targetScope,
       });
+      if (persistRes && typeof persistRes.sitesWithoutEmailCount === 'number') {
+        sitesWithoutEmailCount = persistRes.sitesWithoutEmailCount;
+      }
     } catch (err) {
       console.error('[demandaSharedService] Erro ao persistir no Firestore:', err);
       throw err;
@@ -947,6 +953,7 @@ export const demandaSharedService = {
       updatedEricssonRows: nextEricssonRows,
       affectedTokens: rawTokens,
       count: totalCount,
+      sitesWithoutEmailCount,
     };
   },
 
