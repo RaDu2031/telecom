@@ -27,15 +27,18 @@ import {
   Filter,
   MessageSquare,
 } from 'lucide-react';
-import { TssrRow, AmetaUser, VendorType } from '../types/telecom';
+import { TssrRow, AmetaUser, VendorType, Acionamento } from '../types/telecom';
 import { normalizeAccents } from '../utils/spreadsheetUtils';
 import {
   isTssrRowAssignedToResponsible,
   isEricssonRowAssignedToResponsible,
   hasActiveResponsible,
   getRegisteredUsersForDemanda,
+  getCurrentTssrRowResponsible,
+  getCurrentEricssonRowResponsible,
 } from '../services/demandaSharedService';
 import { confirmar } from '../hooks/useConfirm';
+import { AcionamentoStatusBadge } from './AcionamentoStatusBadge';
 
 const STORAGE_EXECUTOR_EMAILS_KEY = 'ameta_executor_emails_map_v1';
 
@@ -137,6 +140,11 @@ interface ExecutoresInteractiveViewProps {
   ericssonUsers?: AmetaUser[];
   serverExecutorEmailsMap?: Record<string, string[]>;
   executoresList: string[];
+  getAcionamentoForSite?: (
+    vendor: VendorType,
+    siteId?: string,
+    tipoDestinatario?: 'EXECUTOR' | 'VISTORIA'
+  ) => Acionamento | undefined;
   onAddExecutor: (name: string) => void;
   onRenameExecutor: (oldName: string, newName: string) => Promise<void>;
   onDeleteExecutor: (name: string) => void | Promise<void>;
@@ -163,6 +171,7 @@ export const ExecutoresInteractiveView: React.FC<ExecutoresInteractiveViewProps>
   ericssonUsers = [],
   serverExecutorEmailsMap,
   executoresList,
+  getAcionamentoForSite,
   onAddExecutor,
   onRenameExecutor,
   onDeleteExecutor,
@@ -646,15 +655,10 @@ export const ExecutoresInteractiveView: React.FC<ExecutoresInteractiveViewProps>
         }
       }
 
-      const ex = (
-        row.fields?.['EXECUTOR'] ||
-        row.fields?.['EXECUTOR WR'] ||
-        row.fields?.['EXECUTOR QRF'] ||
-        row.fields?.['EXECUTOR PPI'] ||
-        row.fields?.['Executor'] ||
-        row.executor ||
-        ''
-      ).trim();
+      const ex =
+        activeVendor === 'ERICSSON'
+          ? getCurrentEricssonRowResponsible(row)
+          : getCurrentTssrRowResponsible(row as any);
       const hasExecutor = hasActiveResponsible(ex);
       const statusEng = (row.fields?.['STATUS Engenharia'] || row.fields?.['Status'] || row.vistoriaStatus || row.status || '').trim();
       const statusLower = statusEng.toLowerCase();
@@ -709,30 +713,20 @@ export const ExecutoresInteractiveView: React.FC<ExecutoresInteractiveViewProps>
 
   const unassignedVisibleCount = useMemo(() => {
     return pickerEngineeringRows.filter((r) => {
-      const cur = (
-        r.fields?.['EXECUTOR'] ||
-        r.fields?.['EXECUTOR WR'] ||
-        r.fields?.['EXECUTOR QRF'] ||
-        r.fields?.['EXECUTOR PPI'] ||
-        r.fields?.['Executor'] ||
-        r.executor ||
-        ''
-      ).trim();
+      const cur =
+        activeVendor === 'ERICSSON'
+          ? getCurrentEricssonRowResponsible(r)
+          : getCurrentTssrRowResponsible(r as any);
       return !hasActiveResponsible(cur);
     }).length;
-  }, [pickerEngineeringRows]);
+  }, [pickerEngineeringRows, activeVendor]);
 
   const handleSelectAllVisiblePicker = () => {
     const visibleUnassigned = pickerEngineeringRows.filter((r) => {
-      const cur = (
-        r.fields?.['EXECUTOR'] ||
-        r.fields?.['EXECUTOR WR'] ||
-        r.fields?.['EXECUTOR QRF'] ||
-        r.fields?.['EXECUTOR PPI'] ||
-        r.fields?.['Executor'] ||
-        r.executor ||
-        ''
-      ).trim();
+      const cur =
+        activeVendor === 'ERICSSON'
+          ? getCurrentEricssonRowResponsible(r)
+          : getCurrentTssrRowResponsible(r as any);
       return !hasActiveResponsible(cur);
     });
     const visibleUnassignedIds = visibleUnassigned.map((r) => r.id);
@@ -777,15 +771,10 @@ export const ExecutoresInteractiveView: React.FC<ExecutoresInteractiveViewProps>
     const freeRowIds: string[] = [];
 
     selectedRows.forEach((r) => {
-      const cur = (
-        r.fields?.['EXECUTOR'] ||
-        r.fields?.['EXECUTOR WR'] ||
-        r.fields?.['EXECUTOR QRF'] ||
-        r.fields?.['EXECUTOR PPI'] ||
-        r.fields?.['Executor'] ||
-        r.executor ||
-        ''
-      ).trim();
+      const cur =
+        activeVendor === 'ERICSSON'
+          ? getCurrentEricssonRowResponsible(r)
+          : getCurrentTssrRowResponsible(r as any);
       if (hasActiveResponsible(cur) && cur.toLowerCase() !== selectedExecutor.toLowerCase()) {
         ownedRows.push({
           id: r.id,
@@ -1884,11 +1873,21 @@ export const ExecutoresInteractiveView: React.FC<ExecutoresInteractiveViewProps>
                   const comentario = row.comentario || row.fields?.['Comentário'] || row.fields?.['Comentários'] || '';
                   const planejado = row.planejado || row.fields?.['Planejado'] || row.fields?.['Data Planejada'] || '';
                   const entregue = row.entregue || row.fields?.['Entregue'] || row.fields?.['Data Entregue'] || '';
+                  const acionamento = getAcionamentoForSite?.(
+                    activeVendor,
+                    row.siteId || row.intervencaoClaro || row.id,
+                    'EXECUTOR'
+                  );
+                  const isRecusado = acionamento?.status === 'Recusado';
 
                   return (
                     <div
                       key={row.id}
-                      className="px-3.5 py-2.5 hover:bg-slate-50 flex items-center justify-between gap-2 text-xs"
+                      className={`px-3.5 py-2.5 flex items-center justify-between gap-2 text-xs transition-colors ${
+                        isRecusado
+                          ? 'bg-rose-50/90 border-l-4 border-l-rose-600 border-b border-rose-200'
+                          : 'hover:bg-slate-50 border-b border-slate-100'
+                      }`}
                     >
                       <div className="min-w-0 space-y-1">
                         <div className="flex flex-wrap items-center gap-1.5">
@@ -1929,6 +1928,10 @@ export const ExecutoresInteractiveView: React.FC<ExecutoresInteractiveViewProps>
                             <span>{statusEng || 'Pendente'}</span>
                           </span>
 
+                          {acionamento && (
+                            <AcionamentoStatusBadge acionamento={acionamento} compact />
+                          )}
+
                           {row.isUnlinked && (
                             <span className="px-1.5 py-0.5 bg-red-100 text-red-800 border border-red-300 rounded text-[10px] font-bold">
                               sem vínculo
@@ -1941,6 +1944,16 @@ export const ExecutoresInteractiveView: React.FC<ExecutoresInteractiveViewProps>
                             </span>
                           )}
                         </div>
+
+                        {isRecusado && (
+                          <div className="text-[11px] text-rose-700 font-semibold flex items-center gap-1">
+                            <AlertCircle className="w-3 h-3 text-rose-600 shrink-0" />
+                            <span>
+                              Demanda recusada por {acionamento.recusadoPorNome || 'executor'}.
+                              Reatribua para outro executor.
+                            </span>
+                          </div>
+                        )}
 
                         <div className="text-[11px] text-slate-600 space-y-0.5">
                           {(planejado || entregue || demandDate) && (

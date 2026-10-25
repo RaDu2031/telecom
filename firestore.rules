@@ -183,6 +183,22 @@ service cloud.firestore {
       allow write: if isCorporateEmail() && isCoordinatorOrAdmin();
     }
 
+    match /acionamentos/{acionamentoId} {
+      allow read: if isCorporateEmail() && isEmailVerified() && (
+        isCoordinatorOrAdmin() ||
+        (isReleased() && request.auth.token.email.lower() in resource.data.get('destinatariosEmails', []))
+      );
+      allow create: if isCorporateEmail() && isEmailVerified() && isCoordinatorOrAdmin();
+      allow update: if isCorporateEmail() && isEmailVerified() && (
+        isCoordinatorOrAdmin() ||
+        (isReleased() &&
+         request.auth.token.email.lower() in resource.data.get('destinatariosEmails', []) &&
+         request.resource.data.diff(resource.data).affectedKeys().hasOnly(
+           ['status','aceitoPorEmail','aceitoPorNome','aceitoEm','atualizadoEm','historico','recusadoPorEmail','recusadoPorNome','recusadoEm','motivoRecusa','checkinEm','checkinLocal','checkoutEm','checkoutLocal','concluidoEm','resumoConclusao','pendencias']))
+      );
+      allow delete: if isAdmin();
+    }
+
     // Default deny catch-all
     match /{document=**} {
       allow read, write: if false;

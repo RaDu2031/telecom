@@ -9,25 +9,22 @@ import {
   Table2,
   LayoutList,
   CheckCircle2,
-  ExternalLink,
   X,
   Edit3,
   FileSpreadsheet,
   ArrowLeftRight,
   HardHat,
-  FolderOpen,
-  Trash2,
 } from 'lucide-react';
 import {
   AmetaUser,
   UserRole,
   EricssonRow,
   EricssonSheetMeta,
-  EngineeringFile,
   ERICSSON_ORIGINAL_COLUMNS,
 } from '../types/telecom';
 import { computeEricssonSiteCounters } from '../utils/ericssonSpreadsheetUtils';
 import { doesEricssonRowMatchResponsible } from '../utils/spreadsheetUtils';
+import { dataService } from '../services/dataService';
 import { cloudFetch } from '../lib/firebaseCloud';
 
 const fetch = cloudFetch;
@@ -40,13 +37,7 @@ export interface EricssonEngenhariaTabProps {
   onUpdated: (
     nextRows: EricssonRow[],
     nextMeta?: EricssonSheetMeta | null,
-    toastMsg?: string,
-    nextFiles?: EngineeringFile[]
-  ) => void;
-  onOpenFileInVistoriaFolder?: (
-    folderId?: string,
-    fileId?: string,
-    fileName?: string
+    toastMsg?: string
   ) => void;
 }
 
@@ -56,9 +47,7 @@ export const EricssonEngenhariaTab: React.FC<EricssonEngenhariaTabProps> = ({
   rows,
   sheetMeta,
   onUpdated,
-  onOpenFileInVistoriaFolder,
 }) => {
-  const isExecutor = effectiveRole === 'Executor';
   const [viewMode, setViewMode] = useState<'resumo' | 'planilha'>('resumo');
   const [density, setDensity] = useState<'compact' | 'normal' | 'comfortable'>('normal');
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
@@ -67,7 +56,7 @@ export const EricssonEngenhariaTab: React.FC<EricssonEngenhariaTabProps> = ({
   const [filterState, setFilterState] = useState<string>('ALL');
   const [filterEquipe, setFilterEquipe] = useState<string>('ALL');
   const [filterDelivery, setFilterDelivery] = useState<
-    'ALL' | 'COM_ARQUIVO' | 'VISTORIA_ENTREGUE' | 'LOS_ENTREGUE' | 'PENDENTE'
+    'ALL' | 'VISTORIA_ENTREGUE' | 'LOS_ENTREGUE' | 'PENDENTE'
   >('ALL');
   const [togglingRowKey, setTogglingRowKey] = useState<string | null>(null);
 
@@ -129,13 +118,7 @@ export const EricssonEngenhariaTab: React.FC<EricssonEngenhariaTabProps> = ({
       if (filterState !== 'ALL' && rState !== filterState) return false;
       if (filterEquipe !== 'ALL' && rEquipe !== filterEquipe) return false;
 
-      if (filterDelivery === 'COM_ARQUIVO') {
-        const hasAnyFile =
-          Boolean(r.siteAVistoriaFileName) ||
-          Boolean(r.siteBVistoriaFileName) ||
-          Boolean(r.losFileName);
-        if (!hasAnyFile) return false;
-      } else if (filterDelivery === 'VISTORIA_ENTREGUE') {
+      if (filterDelivery === 'VISTORIA_ENTREGUE') {
         if (r.siteAVistoriaStatus !== 'Entregue' && r.siteBVistoriaStatus !== 'Entregue') {
           return false;
         }
@@ -173,9 +156,6 @@ export const EricssonEngenhariaTab: React.FC<EricssonEngenhariaTabProps> = ({
         r.cidadeB,
         r.equipe,
         r.servico,
-        r.siteAVistoriaFileName,
-        r.siteBVistoriaFileName,
-        r.losFileName,
       ]
         .filter(Boolean)
         .join(' ')
@@ -183,7 +163,7 @@ export const EricssonEngenhariaTab: React.FC<EricssonEngenhariaTabProps> = ({
 
       return hay.includes(q);
     });
-  }, [rows, filterState, filterEquipe, filterDelivery, searchTokens, searchQuery]);
+  }, [roleScopedRows, filterState, filterEquipe, filterDelivery, searchTokens, searchQuery]);
 
   const siteCounters = useMemo(
     () => computeEricssonSiteCounters(filteredRows),
@@ -200,82 +180,59 @@ export const EricssonEngenhariaTab: React.FC<EricssonEngenhariaTabProps> = ({
     return { entregues, pendentes };
   }, [filteredRows]);
 
-  const filesReadyToDownloadCount = useMemo(() => {
-    let count = 0;
-    filteredRows.forEach((r) => {
-      if (r.siteAVistoriaFileName && r.siteAVistoriaDownloadUrl) count++;
-      if (r.siteBVistoriaFileName && r.siteBVistoriaDownloadUrl) count++;
-      if (r.losFileName && r.losDownloadUrl) count++;
-    });
-    return count;
-  }, [filteredRows]);
+  const canEditManualStatus =
+    effectiveRole === 'Vistoriador' ||
+    effectiveRole === 'Executor' ||
+    effectiveRole === 'Coordenador Engenharia' ||
+    effectiveRole === 'Coordenador Geral' ||
+    effectiveRole === 'ADM';
 
-  const handleToggleStatus = async (
+  const handleSetManualStatus = async (
     row: EricssonRow,
     side: 'A' | 'B' | 'LOS',
-    e?: React.MouseEvent
+    nextStatus: 'Entregue' | 'Pendente' | 'Dispensado',
+    e?: React.SyntheticEvent
   ) => {
     if (e) e.stopPropagation();
+    if (!canEditManualStatus) return;
     const key = `${row.id}:${side}`;
     setTogglingRowKey(key);
     try {
-      const res = await fetch(
-        `/api/ericsson/rows/${encodeURIComponent(row.id)}/toggle-finalizado`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            side,
-            actorName: user.name,
-            actorEmail: user.email,
-          }),
+      const updatedRow: EricssonRow = {
+        ...row,
+        updatedAt: new Date().toISOString(),
+      };
+      if (side === 'A') {
+        updatedRow.siteAVistoriaStatus = nextStatus;
+        if (nextStatus === 'Entregue' && (!row.siteBVistoriaStatus || row.siteBVistoriaStatus === 'Pendente')) {
+          updatedRow.siteBVistoriaStatus = 'Dispensado';
+        } else if (nextStatus === 'Pendente' && row.siteBVistoriaStatus === 'Dispensado') {
+          updatedRow.siteBVistoriaStatus = 'Pendente';
         }
-      );
-      const data = await res.json();
-      if (res.ok && Array.isArray(data.ericssonRows)) {
-        const updatedRow = data.row as EricssonRow;
-        if (selectedRow && selectedRow.id === row.id && updatedRow) {
-          setSelectedRow(updatedRow);
+      } else if (side === 'B') {
+        updatedRow.siteBVistoriaStatus = nextStatus;
+        if (nextStatus === 'Entregue' && (!row.siteAVistoriaStatus || row.siteAVistoriaStatus === 'Pendente')) {
+          updatedRow.siteAVistoriaStatus = 'Dispensado';
+        } else if (nextStatus === 'Pendente' && row.siteAVistoriaStatus === 'Dispensado') {
+          updatedRow.siteAVistoriaStatus = 'Pendente';
         }
-        onUpdated(
-          data.ericssonRows,
-          sheetMeta,
-          'Status atualizado na Planilha Mãe e na Engenharia Ericsson!'
-        );
+      } else {
+        updatedRow.losStatus = nextStatus;
       }
+
+      await dataService.salvarSiteEricsson(updatedRow);
+      if (selectedRow && selectedRow.id === row.id) {
+        setSelectedRow(updatedRow);
+      }
+      onUpdated(
+        rows.map((r) => (r.id === row.id ? updatedRow : r)),
+        sheetMeta,
+        'Status atualizado na Planilha Mãe e na Engenharia Ericsson!'
+      );
     } catch {
       // ignore
     } finally {
       setTogglingRowKey(null);
-    }
-  };
-
-  const handleDeleteRowFile = async (
-    row: EricssonRow,
-    side: 'A' | 'B' | 'LOS',
-    e?: React.MouseEvent
-  ) => {
-    if (e) e.stopPropagation();
-    try {
-      const res = await fetch(
-        `/api/ericsson/vistoria/${encodeURIComponent(row.id)}/${encodeURIComponent(side)}`,
-        { method: 'DELETE' }
-      );
-      const data = await res.json();
-      if (res.ok && Array.isArray(data.ericssonRows)) {
-        const updatedRow = data.row as EricssonRow;
-        if (selectedRow && selectedRow.id === row.id && updatedRow) {
-          setSelectedRow(updatedRow);
-        }
-        onUpdated(
-          data.ericssonRows,
-          sheetMeta,
-          `Arquivo de ${side === 'LOS' ? 'LOS' : `Vistoria ${side}`} excluído com sucesso!`,
-          data.ericssonFiles
-        );
-      }
-    } catch {
-      // ignore
     }
   };
 
@@ -325,11 +282,8 @@ export const EricssonEngenhariaTab: React.FC<EricssonEngenhariaTabProps> = ({
         rowObj[col] = r.fields?.[col] ?? '';
       });
       rowObj['Vistoria Site A'] = r.siteAVistoriaStatus || 'Pendente';
-      rowObj['Arquivo Vistoria A'] = r.siteAVistoriaFileName || '';
       rowObj['Vistoria Site B'] = r.siteBVistoriaStatus || 'Pendente';
-      rowObj['Arquivo Vistoria B'] = r.siteBVistoriaFileName || '';
       rowObj['LOS'] = r.losStatus || 'Pendente';
-      rowObj['Arquivo LOS'] = r.losFileName || '';
       return rowObj;
     });
 
@@ -374,68 +328,13 @@ export const EricssonEngenhariaTab: React.FC<EricssonEngenhariaTabProps> = ({
     );
   };
 
-  // Engineering Cell: Includes Direct Download & Open File buttons right inside the spreadsheet!
-  const renderEngineeringFileCell = (row: EricssonRow, side: 'A' | 'B' | 'LOS') => {
+  const renderVistoriaOrLosStatusCell = (row: EricssonRow, side: 'A' | 'B' | 'LOS') => {
     const status =
       side === 'A'
         ? row.siteAVistoriaStatus || 'Pendente'
         : side === 'B'
         ? row.siteBVistoriaStatus || 'Pendente'
         : row.losStatus || 'Pendente';
-
-    const fileName =
-      side === 'A'
-        ? row.siteAVistoriaFileName
-        : side === 'B'
-        ? row.siteBVistoriaFileName
-        : row.losFileName;
-
-    const fileUrl =
-      side === 'A'
-        ? row.siteAVistoriaFileUrl
-        : side === 'B'
-        ? row.siteBVistoriaFileUrl
-        : row.losFileUrl;
-
-    const downloadUrl =
-      side === 'A'
-        ? row.siteAVistoriaDownloadUrl
-        : side === 'B'
-        ? row.siteBVistoriaDownloadUrl
-        : row.losDownloadUrl;
-
-    const folderId =
-      side === 'A'
-        ? row.siteAVistoriaFolderId
-        : side === 'B'
-        ? row.siteBVistoriaFolderId
-        : row.losFolderId;
-
-    const fileId =
-      side === 'A'
-        ? row.siteAVistoriaFileId
-        : side === 'B'
-        ? row.siteBVistoriaFileId
-        : row.losFileId;
-
-    const uploadedBy =
-      side === 'A'
-        ? row.siteAVistoriaUploadedBy
-        : side === 'B'
-        ? row.siteBVistoriaUploadedBy
-        : row.losUploadedBy;
-
-    const uploadedByEmail =
-      side === 'A'
-        ? row.siteAVistoriaUploadedByEmail
-        : side === 'B'
-        ? row.siteBVistoriaUploadedByEmail
-        : row.losUploadedByEmail;
-
-    const canDeleteThisFile = !isExecutor || (
-      (Boolean(user.email) && (uploadedByEmail || '').trim().toLowerCase() === user.email.trim().toLowerCase()) ||
-      (Boolean(user.name) && (uploadedBy || '').trim().toLowerCase() === user.name.trim().toLowerCase())
-    );
 
     const isToggling = togglingRowKey === `${row.id}:${side}`;
 
@@ -444,86 +343,29 @@ export const EricssonEngenhariaTab: React.FC<EricssonEngenhariaTabProps> = ({
         className="inline-flex items-center gap-1.5 whitespace-nowrap"
         onClick={(e) => e.stopPropagation()}
       >
-        <button
-          type="button"
-          disabled={isToggling}
-          onClick={(e) => handleToggleStatus(row, side, e)}
-          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border transition-colors cursor-pointer ${
+        <select
+          disabled={isToggling || !canEditManualStatus}
+          value={status}
+          onChange={(e) =>
+            handleSetManualStatus(
+              row,
+              side,
+              e.target.value as 'Entregue' | 'Pendente' | 'Dispensado',
+              e
+            )
+          }
+          className={`px-2 py-0.5 rounded-full text-[10px] font-bold border transition-colors cursor-pointer focus:outline-none ${
             status === 'Entregue'
-              ? 'bg-emerald-50 text-emerald-700 border-emerald-300 hover:bg-emerald-100'
+              ? 'bg-emerald-50 text-emerald-700 border-emerald-300'
               : status === 'Dispensado'
-              ? 'bg-sky-50 text-sky-700 border-sky-300 hover:bg-sky-100'
-              : 'bg-red-50 text-red-700 border-red-200 hover:bg-red-100'
+              ? 'bg-sky-50 text-sky-700 border-sky-300'
+              : 'bg-red-50 text-red-700 border-red-200'
           }`}
         >
-          {status === 'Entregue' ? (
-            <>
-              <CheckCircle2 className="w-3 h-3 text-emerald-600 shrink-0" />
-              <span>
-                Entregue
-                {side === 'LOS' && row.losLinkedSiteId ? ` (${row.losLinkedSiteId})` : ''}
-              </span>
-            </>
-          ) : status === 'Dispensado' ? (
-            <>
-              <span className="w-1.5 h-1.5 rounded-full bg-sky-500 shrink-0" />
-              <span>Dispensado</span>
-            </>
-          ) : (
-            <>
-              <span className="w-1.5 h-1.5 rounded-full bg-red-500 shrink-0" />
-              <span>Pendente</span>
-            </>
-          )}
-        </button>
-
-        {/* DIRECT DOWNLOAD & OPEN IN SPREADSHEET (EXCLUSIVE FOR ENGENHARIA ERICSSON) */}
-        {fileName && downloadUrl && (
-          <a
-            href={downloadUrl}
-            download={fileName}
-            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-[#223585] hover:bg-[#182661] text-white text-[10px] font-bold shadow-2xs transition-colors"
-            title={`Baixar arquivo direto na planilha: ${fileName}`}
-          >
-            <Download className="w-3 h-3 shrink-0" />
-            <span className="max-w-[110px] truncate">Baixar ({fileName})</span>
-          </a>
-        )}
-
-        {fileName && fileUrl && (
-          <a
-            href={fileUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="p-1 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200"
-            title={`Abrir arquivo: ${fileName}`}
-          >
-            <ExternalLink className="w-3 h-3" />
-          </a>
-        )}
-
-        {fileName && onOpenFileInVistoriaFolder && (
-          <button
-            type="button"
-            onClick={() => onOpenFileInVistoriaFolder(folderId, fileId, fileName)}
-            className="p-1 rounded bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 cursor-pointer"
-            title="Ver na Pasta de Vistoria"
-          >
-            <FolderOpen className="w-3 h-3" />
-          </button>
-        )}
-
-        {fileName && canDeleteThisFile && (
-          <button
-            type="button"
-            onClick={(e) => handleDeleteRowFile(row, side, e)}
-            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 text-[10px] font-bold cursor-pointer"
-            title={`Excluir arquivo "${fileName}"`}
-          >
-            <Trash2 className="w-3 h-3 shrink-0" />
-            <span>Excluir</span>
-          </button>
-        )}
+          <option value="Pendente">Pendente</option>
+          <option value="Entregue">Entregue</option>
+          <option value="Dispensado">Dispensado</option>
+        </select>
       </div>
     );
   };
@@ -558,13 +400,13 @@ export const EricssonEngenhariaTab: React.FC<EricssonEngenhariaTabProps> = ({
                   ENGENHARIA · ERICSSON
                 </span>
                 <h1 className="text-base font-bold text-slate-900">
-                  Planilha de Engenharia Ericsson (Com Download Direto de Vistoria e LOS)
+                  Planilha de Engenharia Ericsson
                 </h1>
               </div>
               <p className="text-xs text-slate-500 mt-0.5">
                 Sincronizada automaticamente em tempo real com a{' '}
                 <strong className="text-slate-700">Planilha Mãe (Sites Ericsson)</strong> •{' '}
-                Permite <strong>baixar os arquivos de Vistoria A, Vistoria B e LOS</strong> direto na planilha.
+                Permite atualizar os status de <strong>Vistoria Site A, Vistoria Site B e LOS</strong> direto na planilha.
               </p>
             </div>
           </div>
@@ -613,29 +455,6 @@ export const EricssonEngenhariaTab: React.FC<EricssonEngenhariaTabProps> = ({
             </div>
             <div className="text-[10px] text-slate-500 mt-0.5">
               Em {siteCounters.totalPairs} enlaces (A e B)
-            </div>
-          </button>
-
-          <button
-            type="button"
-            onClick={() =>
-              setFilterDelivery((prev) => (prev === 'COM_ARQUIVO' ? 'ALL' : 'COM_ARQUIVO'))
-            }
-            className={`text-left p-3.5 rounded-xl border transition-all cursor-pointer ${
-              filterDelivery === 'COM_ARQUIVO'
-                ? 'bg-indigo-50 border-[#223585] ring-1 ring-[#223585]/20'
-                : 'bg-indigo-50/40 hover:bg-indigo-50 border-indigo-200'
-            }`}
-          >
-            <div className="text-[10px] font-bold uppercase tracking-wider text-[#223585] flex items-center justify-between">
-              <span>Arquivos p/ Download</span>
-              <Download className="w-3.5 h-3.5 text-[#223585]" />
-            </div>
-            <div className="text-2xl font-extrabold font-mono text-[#223585] mt-0.5 tabular-nums">
-              {filesReadyToDownloadCount}
-            </div>
-            <div className="text-[10px] text-slate-600 mt-0.5">
-              Prontos para baixar na planilha
             </div>
           </button>
 
@@ -727,7 +546,7 @@ export const EricssonEngenhariaTab: React.FC<EricssonEngenhariaTabProps> = ({
               }`}
             >
               <LayoutList className="w-3.5 h-3.5" />
-              <span>Planilha Engenharia — Resumo (Com Download)</span>
+              <span>Planilha Engenharia — Resumo</span>
             </button>
 
             <button
@@ -740,7 +559,7 @@ export const EricssonEngenhariaTab: React.FC<EricssonEngenhariaTabProps> = ({
               }`}
             >
               <Table2 className="w-3.5 h-3.5" />
-              <span>Planilha Completa ({originalColumns.length} col + Download A, B e LOS)</span>
+              <span>Planilha Completa ({originalColumns.length} col + Status A, B e LOS)</span>
             </button>
           </div>
 
@@ -829,7 +648,6 @@ export const EricssonEngenhariaTab: React.FC<EricssonEngenhariaTabProps> = ({
                 setFilterDelivery(
                   e.target.value as
                     | 'ALL'
-                    | 'COM_ARQUIVO'
                     | 'VISTORIA_ENTREGUE'
                     | 'LOS_ENTREGUE'
                     | 'PENDENTE'
@@ -838,7 +656,6 @@ export const EricssonEngenhariaTab: React.FC<EricssonEngenhariaTabProps> = ({
               className="w-full px-2.5 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-700 font-medium"
             >
               <option value="ALL">Filtro Engenharia: Todos</option>
-              <option value="COM_ARQUIVO">Com Arquivo para Baixar ({filesReadyToDownloadCount})</option>
               <option value="VISTORIA_ENTREGUE">Vistoria Entregue</option>
               <option value="LOS_ENTREGUE">LOS Entregue</option>
               <option value="PENDENTE">Pendentes</option>
@@ -848,7 +665,7 @@ export const EricssonEngenhariaTab: React.FC<EricssonEngenhariaTabProps> = ({
       </div>
 
       {/* =====================================================================
-          3A. RESUMO TABLE WITH DIRECT FILE DOWNLOADS
+          3A. RESUMO TABLE
          ===================================================================== */}
       {viewMode === 'resumo' && (
         <div className="bg-white border border-slate-200 rounded-xl shadow-2xs overflow-hidden">
@@ -856,10 +673,9 @@ export const EricssonEngenhariaTab: React.FC<EricssonEngenhariaTabProps> = ({
             <div className="flex items-center gap-2">
               <Filter className="w-3.5 h-3.5 text-[#223585]" />
               <span>
-                Planilha de Engenharia sincronizada com a Planilha Mãe • Clique em{' '}
-                <strong className="text-[#223585]">Baixar</strong> em{' '}
-                <strong>Vistoria A</strong>, <strong>Vistoria B</strong> ou{' '}
-                <strong>LOS</strong> para fazer o download direto do arquivo.
+                Planilha de Engenharia sincronizada com a Planilha Mãe • Status editáveis para{' '}
+                <strong>Vistoria A</strong>, <strong>Vistoria B</strong> e{' '}
+                <strong>LOS</strong>.
               </span>
             </div>
           </div>
@@ -890,13 +706,13 @@ export const EricssonEngenhariaTab: React.FC<EricssonEngenhariaTabProps> = ({
                   </th>
                   <th className="py-2.5 px-2.5 font-bold border-l border-slate-200">EQUIPE</th>
                   <th className="py-2.5 px-3 font-bold bg-blue-50 text-[#223585] border-l border-slate-200">
-                    Vistoria A (Download)
+                    Vistoria Site A
                   </th>
                   <th className="py-2.5 px-3 font-bold bg-teal-50 text-[#1E8E8D] border-l border-slate-200">
-                    Vistoria B (Download)
+                    Vistoria Site B
                   </th>
                   <th className="py-2.5 px-3 font-bold bg-amber-50 text-amber-800 border-l border-slate-200">
-                    LOS (Download)
+                    LOS
                   </th>
                 </tr>
               </thead>
@@ -942,13 +758,13 @@ export const EricssonEngenhariaTab: React.FC<EricssonEngenhariaTabProps> = ({
                         {row.equipe || row.fields?.['EQUIPE'] || '—'}
                       </td>
                       <td className={`${cellPad} bg-blue-50/15 border-l border-slate-200`}>
-                        {renderEngineeringFileCell(row, 'A')}
+                        {renderVistoriaOrLosStatusCell(row, 'A')}
                       </td>
                       <td className={`${cellPad} bg-teal-50/15 border-l border-slate-200`}>
-                        {renderEngineeringFileCell(row, 'B')}
+                        {renderVistoriaOrLosStatusCell(row, 'B')}
                       </td>
                       <td className={`${cellPad} bg-amber-50/20 border-l border-slate-200`}>
-                        {renderEngineeringFileCell(row, 'LOS')}
+                        {renderVistoriaOrLosStatusCell(row, 'LOS')}
                       </td>
                     </tr>
                   );
@@ -960,7 +776,7 @@ export const EricssonEngenhariaTab: React.FC<EricssonEngenhariaTabProps> = ({
       )}
 
       {/* =====================================================================
-          3B. FULL SPREADSHEET VIEW WITH DIRECT FILE DOWNLOADS
+          3B. FULL SPREADSHEET VIEW
          ===================================================================== */}
       {viewMode === 'planilha' && (
         <div className="bg-white border border-slate-200 rounded-xl shadow-2xs overflow-hidden">
@@ -968,7 +784,7 @@ export const EricssonEngenhariaTab: React.FC<EricssonEngenhariaTabProps> = ({
             <div className="flex items-center gap-2">
               <FileSpreadsheet className="w-4 h-4 text-[#1E8E8D]" />
               <span>
-                Planilha Completa de Engenharia ({originalColumns.length} colunas + Download de{' '}
+                Planilha Completa de Engenharia ({originalColumns.length} colunas + Status de{' '}
                 <strong>Vistoria A</strong>, <strong>Vistoria B</strong> e <strong>LOS</strong>)
               </span>
             </div>
@@ -987,13 +803,13 @@ export const EricssonEngenhariaTab: React.FC<EricssonEngenhariaTabProps> = ({
                     </th>
                   ))}
                   <th className="py-2.5 px-3 font-bold whitespace-nowrap bg-blue-50 text-[#223585] border-r border-slate-200">
-                    Vistoria A (Download)
+                    Vistoria Site A
                   </th>
                   <th className="py-2.5 px-3 font-bold whitespace-nowrap bg-teal-50 text-[#1E8E8D] border-r border-slate-200">
-                    Vistoria B (Download)
+                    Vistoria Site B
                   </th>
                   <th className="py-2.5 px-3 font-bold whitespace-nowrap bg-amber-50 text-amber-800 border-r border-slate-200">
-                    LOS (Download)
+                    LOS
                   </th>
                 </tr>
               </thead>
@@ -1019,13 +835,13 @@ export const EricssonEngenhariaTab: React.FC<EricssonEngenhariaTabProps> = ({
                       );
                     })}
                     <td className={`${cellPad} whitespace-nowrap bg-blue-50/15 border-r border-slate-200`}>
-                      {renderEngineeringFileCell(row, 'A')}
+                      {renderVistoriaOrLosStatusCell(row, 'A')}
                     </td>
                     <td className={`${cellPad} whitespace-nowrap bg-teal-50/15 border-r border-slate-200`}>
-                      {renderEngineeringFileCell(row, 'B')}
+                      {renderVistoriaOrLosStatusCell(row, 'B')}
                     </td>
                     <td className={`${cellPad} whitespace-nowrap bg-amber-50/20 border-r border-slate-200`}>
-                      {renderEngineeringFileCell(row, 'LOS')}
+                      {renderVistoriaOrLosStatusCell(row, 'LOS')}
                     </td>
                   </tr>
                 ))}
@@ -1060,7 +876,7 @@ export const EricssonEngenhariaTab: React.FC<EricssonEngenhariaTabProps> = ({
                   </span>
                 </div>
                 <p className="text-xs text-slate-500 mt-1">
-                  Engenharia Ericsson — Download direto de arquivos e edição sincronizada com a Planilha Mãe
+                  Engenharia Ericsson — Status e edição sincronizada com a Planilha Mãe
                 </p>
               </div>
               <button
@@ -1074,26 +890,26 @@ export const EricssonEngenhariaTab: React.FC<EricssonEngenhariaTabProps> = ({
 
             <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-3 text-xs">
               <div className="font-bold text-slate-900">
-                Arquivos para Download na Engenharia (Vistoria A, Vistoria B e LOS)
+                Status na Engenharia (Vistoria A, Vistoria B e LOS)
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div className="p-3 bg-white rounded-lg border border-blue-200 space-y-2">
                   <div className="text-[10px] font-bold uppercase text-[#223585]">
                     Vistoria Site A ({selectedRow.siteIdA || '—'})
                   </div>
-                  {renderEngineeringFileCell(selectedRow, 'A')}
+                  {renderVistoriaOrLosStatusCell(selectedRow, 'A')}
                 </div>
                 <div className="p-3 bg-white rounded-lg border border-teal-200 space-y-2">
                   <div className="text-[10px] font-bold uppercase text-[#1E8E8D]">
                     Vistoria Site B ({selectedRow.siteIdB || '—'})
                   </div>
-                  {renderEngineeringFileCell(selectedRow, 'B')}
+                  {renderVistoriaOrLosStatusCell(selectedRow, 'B')}
                 </div>
                 <div className="p-3 bg-white rounded-lg border border-amber-200 space-y-2">
                   <div className="text-[10px] font-bold uppercase text-amber-800">
                     Relatório LOS
                   </div>
-                  {renderEngineeringFileCell(selectedRow, 'LOS')}
+                  {renderVistoriaOrLosStatusCell(selectedRow, 'LOS')}
                 </div>
               </div>
             </div>

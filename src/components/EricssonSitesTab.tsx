@@ -34,6 +34,7 @@ import {
   EricssonSheetMeta,
   EngineeringFile,
   ERICSSON_ORIGINAL_COLUMNS,
+  Acionamento,
 } from '../types/telecom';
 import {
   parseEricssonWorkbookBuffer,
@@ -42,6 +43,7 @@ import {
 } from '../utils/ericssonSpreadsheetUtils';
 import { getCanonicalDuplaName, normalizeAccents, doesEricssonRowMatchResponsible } from '../utils/spreadsheetUtils';
 import { dataService } from '../services/dataService';
+import { AcionamentoStatusBadge } from './AcionamentoStatusBadge';
 
 export interface EricssonSitesTabProps {
   user: AmetaUser;
@@ -49,6 +51,11 @@ export interface EricssonSitesTabProps {
   rows: EricssonRow[];
   sheetMeta: EricssonSheetMeta | null;
   ericssonUsers: AmetaUser[];
+  getAcionamentoForSite?: (
+    vendor: 'NOKIA' | 'ERICSSON',
+    siteId?: string,
+    tipoDestinatario?: 'EXECUTOR' | 'VISTORIA'
+  ) => Acionamento | undefined;
   onUpdated: (
     nextRows: EricssonRow[],
     nextMeta?: EricssonSheetMeta | null,
@@ -56,11 +63,6 @@ export interface EricssonSitesTabProps {
     nextFiles?: EngineeringFile[]
   ) => void;
   onEricssonUsersUpdated: (nextUsers: AmetaUser[], toastMsg?: string) => void;
-  onOpenFileInVistoriaFolder?: (
-    folderId?: string,
-    fileId?: string,
-    fileName?: string
-  ) => void;
   onOpenDuplasDemanda?: () => void;
 }
 
@@ -81,9 +83,9 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
   rows,
   sheetMeta,
   ericssonUsers,
+  getAcionamentoForSite,
   onUpdated,
   onEricssonUsersUpdated,
-  onOpenFileInVistoriaFolder,
   onOpenDuplasDemanda,
 }) => {
   const [viewMode, setViewMode] = useState<'resumo' | 'planilha' | 'graficos' | 'equipes'>(
@@ -521,39 +523,6 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
     }
   };
 
-  // Delete Vistoria A, Vistoria B, LOS, SMART, or SDC file from an Ericsson row
-  const handleDeleteRowFile = async (
-    row: EricssonRow,
-    side: 'A' | 'B' | 'LOS' | 'SMART' | 'SDC',
-    e?: React.MouseEvent
-  ) => {
-    if (e) e.stopPropagation();
-    try {
-      const updatedRow: any = { ...row, updatedAt: new Date().toISOString() };
-      if (side === 'A') {
-        delete updatedRow.siteAFile;
-        delete updatedRow.siteAFileId;
-      } else if (side === 'B') {
-        delete updatedRow.siteBFile;
-        delete updatedRow.siteBFileId;
-      } else if (side === 'LOS') {
-        delete updatedRow.losFile;
-        delete updatedRow.losFileId;
-      }
-      await dataService.salvarSiteEricsson(updatedRow);
-      if (selectedRow && selectedRow.id === row.id) {
-        setSelectedRow(updatedRow);
-      }
-      onUpdated(
-        rows.map((r) => (r.id === row.id ? updatedRow : r)),
-        sheetMeta,
-        'Arquivo desvinculado no Firestore!'
-      );
-    } catch (err: any) {
-      console.error('Erro ao desvincular anexo no Firestore [ericsson_sites]:', err);
-    }
-  };
-
   // Upload new version of .xlsx spreadsheet from computer (append/update protection)
   const handleUploadLocalExcel = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -824,7 +793,7 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
   };
 
   // Control for Vistoria A, Vistoria B, and LOS in the Mother Spreadsheet (Sites):
-  // Displays Entregue / Dispensado / Pendente and ONLY ONE shortcut that navigates to the file in the Vistoria folder
+  // Displays Entregue / Dispensado / Pendente with manual status toggle
   const renderVistoriaOrLosCell = (row: EricssonRow, side: 'A' | 'B' | 'LOS' | 'SMART' | 'SDC') => {
     const status =
       side === 'A'
@@ -836,39 +805,6 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
         : side === 'SMART'
         ? row.smartStatus || 'Pendente'
         : row.sdcStatus || 'Pendente';
-
-    const fileId =
-      side === 'A'
-        ? row.siteAVistoriaFileId
-        : side === 'B'
-        ? row.siteBVistoriaFileId
-        : side === 'LOS'
-        ? row.losFileId
-        : side === 'SMART'
-        ? row.smartFileId
-        : row.sdcFileId;
-
-    const folderId =
-      side === 'A'
-        ? row.siteAVistoriaFolderId
-        : side === 'B'
-        ? row.siteBVistoriaFolderId
-        : side === 'LOS'
-        ? row.losFolderId
-        : side === 'SMART'
-        ? row.smartFolderId
-        : row.sdcFolderId;
-
-    const fileName =
-      side === 'A'
-        ? row.siteAVistoriaFileName
-        : side === 'B'
-        ? row.siteBVistoriaFileName
-        : side === 'LOS'
-        ? row.losFileName
-        : side === 'SMART'
-        ? row.smartFileName
-        : row.sdcFileName;
 
     const isToggling = togglingRowKey === `${row.id}:${side}`;
 
@@ -932,31 +868,6 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
             </>
           )}
         </button>
-
-        {/* SHORTCUT: Takes user directly to the file inside the Vistoria folder + Delete option */}
-        {status === 'Entregue' && fileName && onOpenFileInVistoriaFolder && (
-          <button
-            type="button"
-            onClick={() => onOpenFileInVistoriaFolder(folderId, fileId, fileName)}
-            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 text-[10px] font-semibold max-w-[135px] truncate cursor-pointer"
-            title={`Ir para o arquivo "${fileName}" na Pasta de Vistoria`}
-          >
-            <FolderOpen className="w-3 h-3 text-amber-600 shrink-0" />
-            <span className="truncate">Ver na Vistoria</span>
-          </button>
-        )}
-
-        {fileName && (
-          <button
-            type="button"
-            onClick={(e) => handleDeleteRowFile(row, side, e)}
-            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 text-[10px] font-bold cursor-pointer"
-            title={`Excluir arquivo "${fileName}"`}
-          >
-            <Trash2 className="w-2.5 h-2.5 shrink-0" />
-            <span>Excluir</span>
-          </button>
-        )}
       </div>
     );
   };
@@ -1578,7 +1489,15 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
                       <td
                         className={`${cellPad} font-mono font-bold text-[#223585] bg-blue-50/20 border-l border-slate-200 whitespace-nowrap`}
                       >
-                        {row.siteIdA || row.fields?.['01.21.Site ID A'] || row.fields?.['Site ID A'] || '—'}
+                        <div className="flex items-center gap-1.5">
+                          <span>{row.siteIdA || row.fields?.['01.21.Site ID A'] || row.fields?.['Site ID A'] || '—'}</span>
+                          {getAcionamentoForSite && (
+                            <AcionamentoStatusBadge
+                              acionamento={getAcionamentoForSite('ERICSSON', row.siteIdA || row.id, 'VISTORIA')}
+                              compact
+                            />
+                          )}
+                        </div>
                       </td>
                       <td className={`${cellPad} bg-blue-50/20`}>
                         {renderSheetStatusBadge(sA || row.fields?.['Status A'] || '')}
@@ -1591,7 +1510,15 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
                       <td
                         className={`${cellPad} font-mono font-bold text-[#1E8E8D] bg-teal-50/20 border-l border-slate-200 whitespace-nowrap`}
                       >
-                        {row.siteIdB || row.fields?.['01.21.Site ID B'] || row.fields?.['Site ID B'] || '—'}
+                        <div className="flex items-center gap-1.5">
+                          <span>{row.siteIdB || row.fields?.['01.21.Site ID B'] || row.fields?.['Site ID B'] || '—'}</span>
+                          {row.siteIdB && getAcionamentoForSite && (
+                            <AcionamentoStatusBadge
+                              acionamento={getAcionamentoForSite('ERICSSON', row.siteIdB, 'VISTORIA')}
+                              compact
+                            />
+                          )}
+                        </div>
                       </td>
                       <td className={`${cellPad} bg-teal-50/20`}>
                         {renderSheetStatusBadge(sB || row.fields?.['Status B'] || '')}

@@ -273,12 +273,54 @@ export function syncSiteColumnUpdate(
   const norm = normalizeKey(colHeader);
   const mappedField = HEADER_FIELD_MAP[norm];
 
-  // Unify Equipe Executante (Duplas) with Responsible Demand assignment
-  if (norm === 'equipeexecutante' || norm === 'equipe' || norm === 'equipeparceira') {
-    updatedCustomFields['EQUIPE EXECUTANTE'] = newValue;
-    updatedCustomFields['Executor'] = newValue;
-    updates.equipeParceira = newValue;
-    updates.responsavelCampo = newValue;
+  // Unify Equipe Executante (Duplas) and Executor with Responsible Demand assignment
+  if (
+    norm === 'equipeexecutante' ||
+    norm === 'equipe' ||
+    norm === 'equipeparceira' ||
+    norm === 'executor' ||
+    norm === 'talonviewexecutor' ||
+    norm === 'responsavelcampo' ||
+    norm === 'responsavel'
+  ) {
+    const cleanVal = newValue.trim();
+    const isClearing =
+      !cleanVal ||
+      cleanVal === '—' ||
+      cleanVal === '-' ||
+      cleanVal.toLowerCase() === 'sem dupla' ||
+      cleanVal.toLowerCase() === 'sem executor' ||
+      cleanVal.toLowerCase() === 'sem equipe' ||
+      cleanVal.toLowerCase() === 'a definir';
+
+    if (isClearing) {
+      updatedCustomFields['EQUIPE EXECUTANTE'] = '';
+      updatedCustomFields['Executor'] = '';
+      updatedCustomFields['Responsável'] = '';
+      updatedCustomFields['Data de demanda'] = '';
+      updatedCustomFields['Data Demanda'] = '';
+      updatedCustomFields['E-MAIL DUPLA'] = '';
+      updates.responsavelDemand = '';
+      updates.equipeParceira = '';
+      updates.responsavelCampo = '';
+      updates.equipe = '';
+      updates.responsaveisEmails = [];
+    } else {
+      const todayStr = new Date().toLocaleDateString('pt-BR');
+      updatedCustomFields['EQUIPE EXECUTANTE'] = cleanVal;
+      updatedCustomFields['Executor'] = cleanVal;
+      updatedCustomFields['Responsável'] = cleanVal;
+      if (!updatedCustomFields['Data de demanda']) {
+        updatedCustomFields['Data de demanda'] = todayStr;
+      }
+      if (!updatedCustomFields['Data Demanda']) {
+        updatedCustomFields['Data Demanda'] = todayStr;
+      }
+      updates.responsavelDemand = cleanVal;
+      updates.equipeParceira = cleanVal;
+      updates.responsavelCampo = cleanVal;
+      updates.equipe = cleanVal;
+    }
     return updates;
   }
 
@@ -883,62 +925,7 @@ export function matchesDuplaName(candidate: string | undefined | null, targetNam
   if (candNorm === targetNorm) return true;
   const candCanon = normalizeAccents((getCanonicalDuplaName(candTrim) || candTrim).toLowerCase());
   const targetCanon = normalizeAccents((getCanonicalDuplaName(targetTrim) || targetTrim).toLowerCase());
-  return candCanon === targetCanon || candCanon === targetNorm || candNorm === targetCanon;
-}
-
-export function doesSiteMatchEquipe(site: TelecomSite, targetEquipe: string): boolean {
-  if (!targetEquipe || targetEquipe === 'ALL') return true;
-
-  const rawSiteEq = (
-    getCellValueForColumn(site, 'EQUIPE EXECUTANTE') ||
-    getCellValueForColumn(site, 'EQUIPE') ||
-    site.equipeParceira ||
-    ''
-  ).trim();
-
-  const canonSiteEq = getCanonicalDuplaName(rawSiteEq);
-  if (targetEquipe === 'Sem Dupla') {
-    return !canonSiteEq;
-  }
-
-  const canonTarget = getCanonicalDuplaName(targetEquipe);
-  if (canonTarget && canonSiteEq) {
-    if (normalizeAccents(canonSiteEq) === normalizeAccents(canonTarget)) return true;
-  }
-
-  const normRawSite = normalizeAccents(rawSiteEq);
-  const normRawTarget = normalizeAccents(targetEquipe);
-  if (normRawSite && normRawTarget && normRawSite === normRawTarget) {
-    return true;
-  }
-
-  return false;
-}
-
-export function doesSiteMatchExecutor(site: TelecomSite, targetExecutor: string): boolean {
-  if (!targetExecutor || targetExecutor === 'ALL') return true;
-  const rawExec = (
-    site.responsavelDemand ||
-    getCellValueForColumn(site, 'Executor') ||
-    getCellValueForColumn(site, 'TalonView Executor') ||
-    site.responsavelCampo ||
-    site.equipeParceira ||
-    site.equipe ||
-    (site.customFields && site.customFields['EQUIPE EXECUTANTE']) ||
-    ''
-  ).trim();
-
-  const canonSiteExec = getCanonicalExecutorName(rawExec);
-  const canonTargetExec = getCanonicalExecutorName(targetExecutor);
-  if (canonSiteExec.toLowerCase() === canonTargetExec.toLowerCase()) return true;
-
-  const normSite = normalizeAccents(rawExec.toLowerCase());
-  const normTarget = normalizeAccents(targetExecutor.toLowerCase());
-  if (normSite === normTarget) return true;
-  if (normSite && normTarget && (normSite.includes(normTarget) || normTarget.includes(normSite))) {
-    return true;
-  }
-  return false;
+  return Boolean(candCanon && targetCanon && (candCanon === targetCanon || candCanon === targetNorm || candNorm === targetCanon));
 }
 
 export const DEFAULT_EQUIPES_DUPLAS: string[] = [];
@@ -954,90 +941,238 @@ const GENERIC_NON_DUPLA_EQUIPES = new Set([
   'campo engenharia',
   'campo / execucao',
   'campo execucao',
+  'vistoriadores / campo',
+  'vistoriadores campo',
+  'vistoriador / campo',
+  'vistoriador campo',
+  'vistoriadores',
+  'vistoriador',
+  'equipe vistoria',
   'coordenacao / adm',
   'coordenacao adm',
   'equipe de teste',
+  'n/def',
+  'ndef',
+  'a definir',
+  'sem dupla',
+  'sem equipe',
+  'sem executor',
+  'cancelado',
+  'nao liberado',
 ]);
 
-export function doesSiteMatchResponsible(
-  site: TelecomSite,
-  userOrName: { uid?: string; id?: string; name?: string; email?: string; equipe?: string } | string,
-  linkedEmails: string[] = []
-): boolean {
-  if (!site) return false;
+export function isGenericNonTeamName(raw?: string | null): boolean {
+  if (!raw) return true;
+  const trimmed = String(raw).trim();
+  if (!trimmed || trimmed === '—' || trimmed === '-') return true;
+  const norm = normalizeAccents(trimmed.toLowerCase());
+  if (!norm || GENERIC_NON_DUPLA_EQUIPES.has(norm)) return true;
+  if (/^\d+$/.test(norm)) return true;
+  return false;
+}
 
-  const rawSiteEq = (
+/**
+ * Checks if a Nokia TelecomSite was explicitly demanded in the system ("o que mandamos"),
+ * ignoring raw historical spreadsheet values that were never demanded.
+ */
+export function isNokiaSiteActivelyDemanded(site?: TelecomSite | null): boolean {
+  if (!site) return false;
+  if (site.sheetName === 'Equipes' || site.sheetName === 'Controle Cancelados') return false;
+
+  const hasDemandDate = Boolean(
+    (site.customFields?.['Data de demanda'] || site.customFields?.['Data Demanda'] || '').trim()
+  );
+  const hasDemandEmail = Boolean(
+    (site.customFields?.['E-MAIL DUPLA'] || site.customFields?.['EMAIL_DUPLA'] || '').trim() ||
+      (Array.isArray(site.responsaveisEmails) && site.responsaveisEmails.length > 0)
+  );
+  const respDemand = (site.responsavelDemand || '').trim();
+  const hasValidRespDemand = !isGenericNonTeamName(respDemand);
+
+  if (!hasValidRespDemand && !hasDemandDate && !hasDemandEmail) {
+    return false;
+  }
+
+  // Also ensure there is an actual non-empty responsible name or email on the site
+  const rawResp = (
     site.responsavelDemand ||
+    site.customFields?.['Executor'] ||
+    site.customFields?.['EQUIPE EXECUTANTE'] ||
+    site.equipeParceira ||
+    site.responsavelCampo ||
+    site.equipe ||
+    ''
+  ).trim();
+
+  return !isGenericNonTeamName(rawResp) || hasDemandEmail;
+}
+
+/**
+ * Checks if an Ericsson Mother Sheet row (EricssonRow) was explicitly demanded in the system ("o que mandamos"),
+ * ignoring raw historical spreadsheet values in EQUIPE that were never demanded.
+ */
+export function isEricssonRowActivelyDemanded(row?: EricssonRow | null): boolean {
+  if (!row) return false;
+  const rAny = row as any;
+  const hasDemandDate = Boolean(
+    (row.fields?.['Data de demanda'] || row.fields?.['Data Demanda'] || '').trim()
+  );
+  const hasDemandEmail = Boolean((row.fields?.['E-MAIL DUPLA'] || '').trim());
+  const respDemand = String(rAny.responsavelDemand || '').trim();
+  const hasValidRespDemand = !isGenericNonTeamName(respDemand);
+
+  if (!hasValidRespDemand && !hasDemandDate && !hasDemandEmail) {
+    return false;
+  }
+
+  const rawEq = String(
+    rAny.responsavelDemand ||
+      row.equipe ||
+      row.fields?.['EQUIPE'] ||
+      row.fields?.['EQUIPE EXECUTANTE'] ||
+      ''
+  ).trim();
+
+  return !isGenericNonTeamName(rawEq) || hasDemandEmail;
+}
+
+function splitEmailTokens(raw?: string | null): string[] {
+  if (!raw) return [];
+  return String(raw)
+    .split(/[,;\s]+/)
+    .map((e) => e.trim().toLowerCase())
+    .filter((e) => e.includes('@'));
+}
+
+export function doesSiteMatchEquipe(site: TelecomSite, targetEquipe: string): boolean {
+  if (!targetEquipe || targetEquipe === 'ALL') return true;
+
+  const isDemanded = isNokiaSiteActivelyDemanded(site);
+  const rawSiteEq = isDemanded
+    ? (
+        site.responsavelDemand ||
+        getCellValueForColumn(site, 'EQUIPE EXECUTANTE') ||
+        getCellValueForColumn(site, 'EQUIPE') ||
+        site.equipeParceira ||
+        site.equipe ||
+        ''
+      ).trim()
+    : '';
+
+  const canonSiteEq = getCanonicalDuplaName(rawSiteEq);
+  if (targetEquipe === 'Sem Dupla') {
+    return !isDemanded || !canonSiteEq;
+  }
+
+  if (!isDemanded || !rawSiteEq) return false;
+  return matchesDuplaName(rawSiteEq, targetEquipe);
+}
+
+export function doesSiteMatchExecutor(site: TelecomSite, targetExecutor: string): boolean {
+  if (!targetExecutor || targetExecutor === 'ALL') return true;
+  if (!isNokiaSiteActivelyDemanded(site)) return false;
+
+  const rawExec = (
+    site.responsavelDemand ||
+    getCellValueForColumn(site, 'Executor') ||
+    getCellValueForColumn(site, 'TalonView Executor') ||
     site.responsavelCampo ||
     site.equipeParceira ||
     site.equipe ||
-    getCellValueForColumn(site, 'EQUIPE EXECUTANTE') ||
-    getCellValueForColumn(site, 'EQUIPE') ||
-    getCellValueForColumn(site, 'Executor') ||
-    getCellValueForColumn(site, 'Responsável') ||
+    (site.customFields && site.customFields['EQUIPE EXECUTANTE']) ||
     ''
   ).trim();
-  const siteNorm = normalizeAccents(rawSiteEq.toLowerCase());
-  const canonSiteEq = getCanonicalDuplaName(rawSiteEq) || getCanonicalExecutorName(rawSiteEq);
 
-  const emailDuplaVal = (
-    (site.customFields &&
-      (site.customFields['E-MAIL DUPLA'] ||
-        site.customFields['EMAIL_DUPLA'])) ||
+  if (!rawExec || isGenericNonTeamName(rawExec) || isGenericNonTeamName(targetExecutor)) {
+    return false;
+  }
+
+  if (matchesDuplaName(rawExec, targetExecutor)) return true;
+
+  const canonSiteExec = getCanonicalExecutorName(rawExec);
+  const canonTargetExec = getCanonicalExecutorName(targetExecutor);
+  if (
+    canonSiteExec &&
+    canonTargetExec &&
+    canonSiteExec !== 'Sem Executor' &&
+    canonTargetExec !== 'Sem Executor' &&
+    canonSiteExec.toLowerCase() === canonTargetExec.toLowerCase()
+  ) {
+    return true;
+  }
+
+  const normSite = normalizeAccents(rawExec.toLowerCase());
+  const normTarget = normalizeAccents(targetExecutor.toLowerCase());
+  return Boolean(normSite && normTarget && normSite === normTarget);
+}
+
+export function doesSiteMatchResponsible(
+  site: TelecomSite,
+  userOrName:
+    | { uid?: string; id?: string; name?: string; email?: string; equipe?: string; linkedTeams?: string[] }
+    | string,
+  linkedEmails: string[] = []
+): boolean {
+  if (!site || !userOrName) return false;
+
+  if (typeof userOrName === 'string') {
+    const cleanStr = userOrName.trim();
+    if (!cleanStr || cleanStr === 'ALL') return true;
+  }
+
+  if (!isNokiaSiteActivelyDemanded(site)) {
+    return false;
+  }
+
+  const rawSiteEq = (
+    site.responsavelDemand ||
+    getCellValueForColumn(site, 'Executor') ||
+    getCellValueForColumn(site, 'EQUIPE EXECUTANTE') ||
+    getCellValueForColumn(site, 'EQUIPE') ||
+    getCellValueForColumn(site, 'Responsável') ||
+    site.equipeParceira ||
+    site.responsavelCampo ||
+    site.equipe ||
     ''
-  ).trim().toLowerCase();
+  ).trim();
 
-  const responsaveisEmails = Array.isArray(site.responsaveisEmails)
-    ? site.responsaveisEmails.map((e) => String(e).trim().toLowerCase())
-    : [];
+  const siteEmailTokens = new Set<string>([
+    ...splitEmailTokens(site.customFields?.['E-MAIL DUPLA']),
+    ...splitEmailTokens(site.customFields?.['EMAIL_DUPLA']),
+    ...(Array.isArray(site.responsaveisEmails)
+      ? site.responsaveisEmails.map((e) => String(e).trim().toLowerCase()).filter(Boolean)
+      : []),
+  ]);
+
   const responsaveisUids = Array.isArray(site.responsaveisUids)
-    ? site.responsaveisUids.map((u) => String(u).trim())
+    ? site.responsaveisUids.map((u) => String(u).trim()).filter(Boolean)
     : [];
 
   const emailSet = new Set(
     linkedEmails.map((e) => e.trim().toLowerCase()).filter(Boolean)
   );
 
-  // 1. If userOrName is a string (e.g. Dupla name, Executor name or filter value)
+  // 1. String argument (Dupla name, Executor name, or email)
   if (typeof userOrName === 'string') {
     const cleanStr = userOrName.trim();
     if (!cleanStr || cleanStr === 'ALL') return true;
 
     if (cleanStr.includes('@')) {
       const lower = cleanStr.toLowerCase();
-      if (emailDuplaVal.includes(lower) || responsaveisEmails.includes(lower) || emailSet.has(lower)) {
+      if (siteEmailTokens.has(lower) || emailSet.has(lower)) {
         return true;
+      }
+    }
+
+    if (emailSet.size > 0) {
+      for (const em of emailSet) {
+        if (siteEmailTokens.has(em)) return true;
       }
     }
 
     if (doesSiteMatchEquipe(site, cleanStr)) return true;
     if (doesSiteMatchExecutor(site, cleanStr)) return true;
-
-    const normTarget = normalizeAccents(cleanStr.toLowerCase());
-    if (siteNorm && normTarget && siteNorm === normTarget) return true;
-
-    const canonTarget = getCanonicalDuplaName(cleanStr) || getCanonicalExecutorName(cleanStr);
-    if (canonSiteEq && canonTarget && canonSiteEq.toLowerCase() === canonTarget.toLowerCase()) {
-      return true;
-    }
-
-    // Check linked emails
-    if (emailSet.size > 0) {
-      for (const em of emailSet) {
-        if (emailDuplaVal.includes(em) || responsaveisEmails.includes(em)) return true;
-      }
-    }
-
-    // Exact word boundary match
-    if (siteNorm && normTarget) {
-      const siteWords = siteNorm.split(/[\s/\\-]+/).filter(Boolean);
-      const targetWords = normTarget.split(/[\s/\\-]+/).filter(Boolean);
-      if (siteWords.includes(normTarget) || targetWords.includes(siteNorm)) {
-        return true;
-      }
-    }
-
-    return false;
+    return matchesDuplaName(rawSiteEq, cleanStr);
   }
 
   // 2. Direct UID Match
@@ -1046,12 +1181,12 @@ export function doesSiteMatchResponsible(
     return true;
   }
 
-  // 3. Direct Email Match (in customFields['E-MAIL DUPLA'], site.responsaveisEmails or linkedEmails)
+  // 3. Direct Email Match
   if (userOrName.email) {
     const targetEmail = userOrName.email.trim().toLowerCase();
     if (targetEmail) {
       emailSet.add(targetEmail);
-      if (emailDuplaVal.includes(targetEmail) || responsaveisEmails.includes(targetEmail)) {
+      if (siteEmailTokens.has(targetEmail)) {
         return true;
       }
     }
@@ -1059,64 +1194,36 @@ export function doesSiteMatchResponsible(
 
   if (emailSet.size > 0) {
     for (const em of emailSet) {
-      if (emailDuplaVal.includes(em) || responsaveisEmails.includes(em)) return true;
+      if (siteEmailTokens.has(em)) return true;
     }
   }
 
-  // 4. Direct Dupla / Equipe Match on user profile object
-  if (userOrName.equipe) {
-    const normUserEq = normalizeAccents(userOrName.equipe.toLowerCase());
-    if (normUserEq && !GENERIC_NON_DUPLA_EQUIPES.has(normUserEq)) {
-      if (doesSiteMatchEquipe(site, userOrName.equipe)) return true;
-      if (siteNorm && siteNorm === normUserEq) return true;
-      const cUserEq = getCanonicalDuplaName(userOrName.equipe);
-      if (canonSiteEq && cUserEq && canonSiteEq.toLowerCase() === cUserEq.toLowerCase()) return true;
-      const siteWords = siteNorm.split(/[\s/\\-]+/).filter(Boolean);
-      if (siteWords.includes(normUserEq)) return true;
+  // 4. Linked teams explicitly resolved from Duplas/Executores email maps
+  const candidateTeams = new Set<string>();
+  if (Array.isArray((userOrName as any).linkedTeams)) {
+    (userOrName as any).linkedTeams.forEach((t: string) => {
+      if (t && !isGenericNonTeamName(t)) candidateTeams.add(t.trim());
+    });
+  }
+  if (userOrName.equipe && !isGenericNonTeamName(userOrName.equipe)) {
+    candidateTeams.add(userOrName.equipe.trim());
+  }
+
+  for (const team of candidateTeams) {
+    if (doesSiteMatchEquipe(site, team) || doesSiteMatchExecutor(site, team) || matchesDuplaName(rawSiteEq, team)) {
+      return true;
     }
   }
 
-  // 5. User Name Match (as executor or part of dupla)
+  // 5. Exact User Name Match (only if not a generic placeholder)
   if (userOrName.name) {
     const cleanUserName = userOrName.name.replace(/\s*\(.*?\)\s*/g, '').trim();
-    if (cleanUserName) {
-      if (doesSiteMatchExecutor(site, cleanUserName)) return true;
-      if (doesSiteMatchEquipe(site, cleanUserName)) return true;
-
-      const normUser = normalizeAccents(cleanUserName.toLowerCase());
-      if (normUser && siteNorm && siteNorm === normUser) return true;
-
-      const cUserName = getCanonicalExecutorName(cleanUserName);
-      if (canonSiteEq && cUserName && canonSiteEq.toLowerCase() === cUserName.toLowerCase()) return true;
-
-      if (normUser && siteNorm) {
-        const siteWords = siteNorm.split(/[\s/\\-]+/).filter(Boolean);
-        const nameWords = normUser.split(/[\s/\\-]+/).filter(Boolean);
-        if (siteWords.includes(normUser) || nameWords.includes(siteNorm)) {
-          return true;
-        }
-      }
-    }
-  }
-
-  // 6. Direct responsavelDemand or customFields['Executor'] check against name or equipe
-  const siteDemandResp = (
-    site.responsavelDemand ||
-    (site.customFields && site.customFields['Executor']) ||
-    (site.customFields && site.customFields['EQUIPE EXECUTANTE']) ||
-    ''
-  ).trim();
-  if (siteDemandResp) {
-    const normResp = normalizeAccents(siteDemandResp.toLowerCase());
-    if (userOrName.name) {
-      const normName = normalizeAccents(userOrName.name.replace(/\s*\(.*?\)\s*/g, '').trim().toLowerCase());
-      if (normName && (normResp === normName || normResp.includes(normName) || normName.includes(normResp))) {
-        return true;
-      }
-    }
-    if (userOrName.equipe) {
-      const normEq = normalizeAccents(userOrName.equipe.toLowerCase());
-      if (normEq && (normResp === normEq || normResp.includes(normEq) || normEq.includes(normResp))) {
+    if (cleanUserName && !isGenericNonTeamName(cleanUserName)) {
+      if (
+        doesSiteMatchExecutor(site, cleanUserName) ||
+        doesSiteMatchEquipe(site, cleanUserName) ||
+        matchesDuplaName(rawSiteEq, cleanUserName)
+      ) {
         return true;
       }
     }
@@ -1170,119 +1277,100 @@ export function doesDocumentMatchResponsible(
 
 export function doesEricssonRowMatchResponsible(
   row: EricssonRow,
-  userOrName: { name: string; email?: string; equipe?: string } | string
+  userOrName:
+    | { name: string; email?: string; equipe?: string; linkedTeams?: string[] }
+    | string,
+  linkedEmails: string[] = []
 ): boolean {
-  if (!row) return false;
+  if (!row || !userOrName) return false;
+
+  if (typeof userOrName === 'string') {
+    const cleanStr = userOrName.trim();
+    if (!cleanStr || cleanStr === 'ALL') return true;
+  }
+
+  if (!isEricssonRowActivelyDemanded(row)) {
+    return false;
+  }
+
   const rAny = row as any;
   const rawCandidates = [
+    rAny.responsavelDemand,
     row.equipe,
     row.fields?.['EQUIPE'],
-    rAny.responsavelDemand,
-    rAny.responsavelCampo,
-    row.fields?.['Executor'],
-    row.fields?.['EXECUTOR'],
-    row.fields?.['Responsável'],
-    row.fields?.['RESPONSÁVEL'],
-    row.fields?.['RESPONSÁVEL DEMANDA'],
-    row.fields?.['RESPONSAVEL DEMANDA'],
-    row.fields?.['RESPONSÁVEL CAMPO'],
-    row.fields?.['RESPONSAVEL CAMPO'],
-    row.fields?.['RESPONSÁVEL VISTORIA'],
-    row.fields?.['VISTORIADOR'],
-    row.fields?.['Vistoriador'],
     row.fields?.['EQUIPE EXECUTANTE'],
     row.fields?.['Equipe Executante'],
     row.fields?.['DUPLA'],
     row.fields?.['Dupla'],
-    row.fields?.['EXECUTOR WR'],
-    row.fields?.['EXECUTOR QRF'],
-    row.fields?.['EXECUTOR PPI'],
-    row.fields?.['EXECUTOR SDC'],
-    row.fields?.['EXECUTOR SMART'],
-    row.fields?.['EXECUTOR BOQ'],
-    row.fields?.['EXECUTOR TSSR'],
-    row.fields?.['EXECUTOR SD'],
+    row.fields?.['Executor'],
+    row.fields?.['EXECUTOR'],
     rAny.executor,
   ]
     .filter(Boolean)
     .map((s) => String(s).trim())
-    .filter(
-      (s) =>
-        s.length > 0 &&
-        s !== '—' &&
-        s !== '-' &&
-        s.toLowerCase() !== 'a definir' &&
-        s.toLowerCase() !== 'sem executor' &&
-        s.toLowerCase() !== 'sem dupla' &&
-        s.toLowerCase() !== 'sem equipe'
-    );
+    .filter((s) => !isGenericNonTeamName(s));
 
-  const emailDuplaVal = (row.fields?.['E-MAIL DUPLA'] || '').trim().toLowerCase();
+  const rowEmailTokens = new Set<string>(splitEmailTokens(row.fields?.['E-MAIL DUPLA']));
+  const emailSet = new Set(
+    linkedEmails.map((e) => e.trim().toLowerCase()).filter(Boolean)
+  );
 
-  if (rawCandidates.length === 0 && !emailDuplaVal) {
+  if (rawCandidates.length === 0 && rowEmailTokens.size === 0) {
     return false;
   }
 
   if (typeof userOrName === 'string') {
-    const cleanTarget = getCanonicalDuplaName(userOrName) || userOrName.trim();
-    const normTarget = normalizeAccents(cleanTarget);
-    if (!normTarget) return false;
-    return rawCandidates.some((cand) => {
-      const canonRowEq = getCanonicalDuplaName(cand) || cand;
-      const normRowEq = normalizeAccents(canonRowEq);
-      return (
-        normRowEq === normTarget ||
-        normRowEq.includes(normTarget) ||
-        normTarget.includes(normRowEq)
-      );
-    });
+    const cleanTarget = userOrName.trim();
+    if (!cleanTarget || cleanTarget === 'ALL') return true;
+    if (cleanTarget.includes('@')) {
+      const lower = cleanTarget.toLowerCase();
+      if (rowEmailTokens.has(lower) || emailSet.has(lower)) return true;
+    }
+    if (emailSet.size > 0) {
+      for (const em of emailSet) {
+        if (rowEmailTokens.has(em)) return true;
+      }
+    }
+    return rawCandidates.some((cand) => matchesDuplaName(cand, cleanTarget));
   }
 
   if (userOrName.email) {
     const targetEmail = userOrName.email.trim().toLowerCase();
-    if (targetEmail && emailDuplaVal && emailDuplaVal.includes(targetEmail)) {
-      return true;
+    if (targetEmail) {
+      emailSet.add(targetEmail);
+      if (rowEmailTokens.has(targetEmail)) {
+        return true;
+      }
     }
-    if (
-      targetEmail &&
-      (row.siteAVistoriaUploadedByEmail?.trim().toLowerCase() === targetEmail ||
-        row.siteBVistoriaUploadedByEmail?.trim().toLowerCase() === targetEmail ||
-        row.losUploadedByEmail?.trim().toLowerCase() === targetEmail)
-    ) {
+  }
+
+  if (emailSet.size > 0) {
+    for (const em of emailSet) {
+      if (rowEmailTokens.has(em)) return true;
+    }
+  }
+
+  const candidateTeams = new Set<string>();
+  if (Array.isArray((userOrName as any).linkedTeams)) {
+    (userOrName as any).linkedTeams.forEach((t: string) => {
+      if (t && !isGenericNonTeamName(t)) candidateTeams.add(t.trim());
+    });
+  }
+  if (userOrName.equipe && !isGenericNonTeamName(userOrName.equipe)) {
+    candidateTeams.add(userOrName.equipe.trim());
+  }
+
+  for (const team of candidateTeams) {
+    if (rawCandidates.some((cand) => matchesDuplaName(cand, team))) {
       return true;
     }
   }
 
-  for (const cand of rawCandidates) {
-    const canonRowEq = getCanonicalDuplaName(cand) || cand;
-    const normRowEq = normalizeAccents(canonRowEq);
-    if (!normRowEq) continue;
-
-    if (userOrName.equipe) {
-      const cleanUserEq = getCanonicalDuplaName(userOrName.equipe) || userOrName.equipe.trim();
-      const normUserEq = normalizeAccents(cleanUserEq);
-      if (normUserEq && !GENERIC_NON_DUPLA_EQUIPES.has(normUserEq)) {
-        if (
-          normRowEq === normUserEq ||
-          normRowEq.includes(normUserEq) ||
-          normUserEq.includes(normRowEq)
-        ) {
-          return true;
-        }
-      }
-    }
-
-    if (userOrName.name) {
-      const cleanUserName = userOrName.name.replace(/\s*\(.*?\)\s*/g, '').trim();
-      const normUserName = normalizeAccents(cleanUserName);
-      if (normUserName) {
-        if (
-          normRowEq === normUserName ||
-          normRowEq.includes(normUserName) ||
-          normUserName.includes(normRowEq)
-        ) {
-          return true;
-        }
+  if (userOrName.name) {
+    const cleanUserName = userOrName.name.replace(/\s*\(.*?\)\s*/g, '').trim();
+    if (cleanUserName && !isGenericNonTeamName(cleanUserName)) {
+      if (rawCandidates.some((cand) => matchesDuplaName(cand, cleanUserName))) {
+        return true;
       }
     }
   }

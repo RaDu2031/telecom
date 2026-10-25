@@ -1,45 +1,31 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   X,
   FileSpreadsheet,
   Edit3,
   Save,
-  CheckCircle2,
-  Clock,
-  HelpCircle,
-  AlertTriangle,
-  Upload,
-  Download,
-  Paperclip,
   History,
-  FileText,
   User,
   MapPin,
-  Building,
-  Tag,
   Search,
-  CheckSquare,
-  ShieldCheck,
   HardHat,
   ChevronRight,
-  ChevronDown,
   Layers,
-  Sparkles,
   Lock,
 } from 'lucide-react';
 import {
   AmetaUser,
   UserRole,
   EricssonEngineeringRow,
-  EricssonAttachedFile,
   EricssonAuditLogEntry,
-  EngineeringFile,
+  EricssonVistoriaStatus,
   ERICSSON_SITE_LIST_COLUMNS,
 } from '../types/telecom';
 import {
   classifyEricssonDocGroup,
   classifyEricssonStatus,
 } from '../utils/ericssonSpreadsheetUtils';
+import { dataService } from '../services/dataService';
 
 export interface EricssonEngineeringDrawerProps {
   row: EricssonEngineeringRow | null;
@@ -48,7 +34,6 @@ export interface EricssonEngineeringDrawerProps {
   effectiveRole: UserRole;
   isOwner?: boolean;
   readOnly?: boolean;
-  files?: EngineeringFile[];
   onClose: () => void;
   onSaveRow: (updatedRow: EricssonEngineeringRow) => Promise<void>;
   showToast: (msg: string) => void;
@@ -61,17 +46,21 @@ export const EricssonEngineeringDrawer: React.FC<EricssonEngineeringDrawerProps>
   effectiveRole,
   isOwner = false,
   readOnly = false,
-  files = [],
   onClose,
   onSaveRow,
   showToast,
 }) => {
-  // Permission calculation
+  // Permission calculation (Vistoriador, Executor, Coordenador Engenharia, Coordenador Geral, ADM)
   const canEdit = useMemo(() => {
     if (readOnly) return false;
     if (isOwner) return true;
     if (user?.situacao === 'dono') return true;
-    if (effectiveRole === 'ADM' || effectiveRole === 'Coordenador Geral' || effectiveRole === 'Coordenador Engenharia') {
+    if (
+      effectiveRole === 'ADM' ||
+      effectiveRole === 'Coordenador Geral' ||
+      effectiveRole === 'Coordenador Engenharia' ||
+      effectiveRole === 'Vistoriador'
+    ) {
       return true;
     }
     if (effectiveRole === 'Executor') {
@@ -80,12 +69,12 @@ export const EricssonEngineeringDrawer: React.FC<EricssonEngineeringDrawerProps>
       return !assigned || (userName && (assigned.includes(userName) || userName.includes(assigned)));
     }
     return false;
-  }, [isOwner, user, effectiveRole, row]);
+  }, [readOnly, isOwner, user, effectiveRole, row]);
 
   // Tab & editing states
   const [isEditing, setIsEditing] = useState<boolean>(false);
   const [isSaving, setIsSaving] = useState<boolean>(false);
-  const [activeTab, setActiveTab] = useState<'geral' | 'docs' | 'campos' | 'arquivos' | 'historico'>('geral');
+  const [activeTab, setActiveTab] = useState<'geral' | 'docs' | 'campos' | 'historico'>('geral');
   const [fieldsSearch, setFieldsSearch] = useState<string>('');
 
   // Form edit states
@@ -94,16 +83,15 @@ export const EricssonEngineeringDrawer: React.FC<EricssonEngineeringDrawerProps>
   const [formSiteIdB, setFormSiteIdB] = useState<string>('');
   const [formStatusA, setFormStatusA] = useState<string>('Pendente');
   const [formStatusB, setFormStatusB] = useState<string>('Pendente');
+  const [formVistoriaA, setFormVistoriaA] = useState<EricssonVistoriaStatus>('Pendente');
+  const [formVistoriaB, setFormVistoriaB] = useState<EricssonVistoriaStatus>('Pendente');
+  const [formLosStatus, setFormLosStatus] = useState<EricssonVistoriaStatus>('Pendente');
   const [formTipoDoc, setFormTipoDoc] = useState<string>('WR');
   const [formStatus, setFormStatus] = useState<string>('Finalizado');
   const [formRegional, setFormRegional] = useState<string>('SPM');
   const [formTipoSite, setFormTipoSite] = useState<string>('REUSO');
   const [formExecutor, setFormExecutor] = useState<string>('');
   const [formFields, setFormFields] = useState<Record<string, string>>({});
-
-  // File upload state
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [isUploadingFile, setIsUploadingFile] = useState<boolean>(false);
 
   // Sync form when row changes
   useEffect(() => {
@@ -122,6 +110,9 @@ export const EricssonEngineeringDrawer: React.FC<EricssonEngineeringDrawerProps>
       setFormSiteIdB(row.siteIdB || '');
       setFormStatusA(row.statusA || row.status || row.fields?.['Status'] || 'Pendente');
       setFormStatusB(row.statusB || row.status || row.fields?.['Status'] || 'Pendente');
+      setFormVistoriaA(row.siteAVistoriaStatus || 'Pendente');
+      setFormVistoriaB(row.siteBVistoriaStatus || 'Pendente');
+      setFormLosStatus((row as any).losStatus || 'Pendente');
       setFormTipoDoc(row.tipoDoc || row.fields?.['Tipo doc'] || 'WR');
       setFormStatus(row.status || row.fields?.['Status'] || 'Finalizado');
       setFormRegional(row.regional || row.fields?.['Regional'] || 'SPM');
@@ -142,43 +133,6 @@ export const EricssonEngineeringDrawer: React.FC<EricssonEngineeringDrawerProps>
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, onClose]);
-
-  // Attached files list memo
-  const attachedFilesList: EricssonAttachedFile[] = useMemo(() => {
-    if (!row) return [];
-    const list: EricssonAttachedFile[] = Array.isArray(row.attachedFiles) ? [...row.attachedFiles] : [];
-    if (row.attachedFileName && !list.some((f) => f.id === row.attachedFileId || f.name === row.attachedFileName)) {
-      list.push({
-        id: row.attachedFileId || 'file-main',
-        name: row.attachedFileName,
-        url: row.attachedFileUrl || `/api/ericsson/engenharia/files/${row.attachedFileId}/download`,
-        uploadedBy: row.attachedUploadedBy || 'Equipe Engenharia',
-        uploadedAt: row.attachedUploadedAt || row.updatedAt || new Date().toISOString(),
-      });
-    }
-
-    // Also include files uploaded to Projeto Claro or Vistoria matching this row ID or Intervencao
-    const intervencao = (row.intervencaoClaro || row.fields?.['Intervencao Claro'] || '').trim().toLowerCase();
-    files.forEach((fl) => {
-      const flInterv = (fl.intervencaoClaro || fl.siteId || '').trim().toLowerCase();
-      const matchesRow =
-        (fl.engineeringRowId && fl.engineeringRowId === row.id) ||
-        (fl.rowId && fl.rowId === row.id) ||
-        (intervencao && flInterv && (flInterv === intervencao || flInterv.includes(intervencao)));
-
-      if (matchesRow && !list.some((existing) => existing.id === fl.id || existing.name === fl.fileName)) {
-        list.push({
-          id: fl.id,
-          name: fl.fileName,
-          url: `/api/ericsson/files/${encodeURIComponent(fl.id)}/download`,
-          uploadedBy: fl.uploadedByName || 'Equipe',
-          uploadedAt: fl.uploadedAt || new Date().toISOString(),
-        });
-      }
-    });
-
-    return list;
-  }, [row, files]);
 
   // History list memo
   const historyList: EricssonAuditLogEntry[] = useMemo(() => {
@@ -359,82 +313,59 @@ export const EricssonEngineeringDrawer: React.FC<EricssonEngineeringDrawerProps>
         }
       }
 
-      const payload: Partial<EricssonEngineeringRow> & { updaterName?: string; updaterEmail?: string } = {
+      const updatedRow: EricssonEngineeringRow = {
+        ...row,
         intervencaoClaro: formIntervencao.trim(),
         siteIdA: formSiteIdA.trim() || formIntervencao.trim(),
         siteIdB: formSiteIdB.trim(),
         statusA: formStatusA,
         statusB: formSiteIdB.trim() ? formStatusB : '',
+        siteAVistoriaStatus: formVistoriaA,
+        siteBVistoriaStatus: formSiteIdB.trim() ? formVistoriaB : undefined,
+        ...( { losStatus: formLosStatus } as any ),
         tipoDoc: formTipoDoc,
         status: formStatus,
         regional: formRegional,
         tipoSite: formTipoSite,
         executor: formExecutor.trim(),
         fields: updatedFields,
-        updaterName: user?.name || 'Usuário',
-        updaterEmail: user?.email || '',
+        updatedAt: new Date().toISOString(),
       };
 
-      const res = await fetch(`/api/ericsson/engenharia/rows/${row.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-
-      if (res.ok) {
-        const data = await res.json();
-        await onSaveRow(data.row || { ...row, ...payload, fields: updatedFields });
-        setIsEditing(false);
-        showToast(`Site ${formIntervencao || row.intervencaoClaro} atualizado com sucesso!`);
-      } else {
-        const err = await res.json().catch(() => ({}));
-        showToast(`Erro ao salvar: ${err.error || 'Falha na gravação'}`);
-      }
+      await dataService.salvarEricssonEngenhariaRow(updatedRow);
+      await onSaveRow(updatedRow);
+      setIsEditing(false);
+      showToast(`Site ${formIntervencao || row.intervencaoClaro} atualizado com sucesso!`);
     } catch (e) {
-      showToast('Erro de rede ao salvar alterações.');
+      showToast('Erro ao salvar alterações.');
     } finally {
       setIsSaving(false);
     }
   };
 
-  // Handle direct file upload from drawer
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
+  const handleQuickManualVistoriaChange = async (
+    target: 'A' | 'B' | 'LOS',
+    nextStatus: EricssonVistoriaStatus
+  ) => {
+    if (!canEdit) return;
     try {
-      setIsUploadingFile(true);
-      showToast(`Enviando arquivo "${file.name}"...`);
-      const reader = new FileReader();
-      reader.onload = async () => {
-        const base64Data = reader.result as string;
-        const res = await fetch('/api/ericsson/engenharia/upload-file', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            rowId: row.id,
-            fileName: file.name,
-            fileDataUrl: base64Data,
-            uploaderName: user?.name || 'Usuário',
-            uploaderEmail: user?.email || '',
-          }),
-        });
-
-        if (res.ok) {
-          const data = await res.json();
-          await onSaveRow(data.row);
-          showToast(`Arquivo "${file.name}" anexado com sucesso!`);
-        } else {
-          showToast('Erro ao anexar arquivo no servidor.');
-        }
-        setIsUploadingFile(false);
+      const updatedRow: EricssonEngineeringRow = {
+        ...row,
+        siteAVistoriaStatus: target === 'A' ? nextStatus : (row.siteAVistoriaStatus || 'Pendente'),
+        siteBVistoriaStatus: target === 'B' ? nextStatus : (row.siteBVistoriaStatus || 'Pendente'),
+        ...( {
+          losStatus: target === 'LOS' ? nextStatus : ((row as any).losStatus || 'Pendente'),
+        } as any ),
+        updatedAt: new Date().toISOString(),
       };
-      reader.readAsDataURL(file);
+      if (target === 'A') setFormVistoriaA(nextStatus);
+      if (target === 'B') setFormVistoriaB(nextStatus);
+      if (target === 'LOS') setFormLosStatus(nextStatus);
+      await dataService.salvarEricssonEngenhariaRow(updatedRow);
+      await onSaveRow(updatedRow);
+      showToast('Status manual atualizado!');
     } catch {
-      setIsUploadingFile(false);
-      showToast('Falha no upload do anexo.');
-    } finally {
-      if (e.target) e.target.value = '';
+      showToast('Erro ao atualizar status manual.');
     }
   };
 
@@ -609,17 +540,6 @@ export const EricssonEngineeringDrawer: React.FC<EricssonEngineeringDrawerProps>
                   }`}
                 >
                   Planilha ({allFieldEntries.length})
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setActiveTab('arquivos')}
-                  className={`px-3 py-1.5 rounded-lg transition-colors cursor-pointer ${
-                    activeTab === 'arquivos'
-                      ? 'bg-teal-500 text-white font-bold shadow-2xs'
-                      : 'text-slate-400 hover:text-white hover:bg-slate-800'
-                  }`}
-                >
-                  Arquivos ({attachedFilesList.length})
                 </button>
                 <button
                   type="button"
@@ -958,48 +878,69 @@ export const EricssonEngineeringDrawer: React.FC<EricssonEngineeringDrawerProps>
                   </div>
                 </div>
 
-                {/* Recent Attached Files Summary */}
+                {/* Manual Vistoria Site A, Site B e LOS Status Card */}
                 <div className="bg-white border border-slate-200/90 rounded-2xl p-4 sm:p-5 shadow-xs space-y-3">
                   <div className="flex items-center justify-between">
-                    <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
-                      <Paperclip className="w-4 h-4 text-teal-600" />
-                      <span>Arquivos do Site ({attachedFilesList.length})</span>
+                    <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+                      Status Manual de Vistoria e LOS
                     </h3>
-                    <button
-                      type="button"
-                      onClick={() => setActiveTab('arquivos')}
-                      className="text-xs font-bold text-teal-600 hover:text-teal-700 flex items-center gap-1 cursor-pointer"
-                    >
-                      <span>Gerenciar arquivos</span>
-                      <ChevronRight className="w-3.5 h-3.5" />
-                    </button>
                   </div>
 
-                  {attachedFilesList.length === 0 ? (
-                    <div className="text-center py-6 border border-dashed border-slate-200 rounded-xl text-slate-400 text-xs">
-                      Nenhum arquivo anexado a este site.
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+                    <div className="p-3 rounded-xl bg-blue-50/40 border border-blue-200 space-y-1.5">
+                      <label className="block text-[10px] font-bold uppercase text-[#223585]">
+                        Vistoria Site A ({siteA})
+                      </label>
+                      <select
+                        disabled={!canEdit}
+                        value={formVistoriaA}
+                        onChange={(e) =>
+                          handleQuickManualVistoriaChange('A', e.target.value as EricssonVistoriaStatus)
+                        }
+                        className="w-full px-2.5 py-1.5 rounded-lg border border-blue-200 bg-white font-bold text-xs text-slate-800 focus:outline-none"
+                      >
+                        <option value="Pendente">Pendente</option>
+                        <option value="Entregue">Entregue</option>
+                        <option value="Dispensado">Dispensado</option>
+                      </select>
                     </div>
-                  ) : (
-                    <div className="divide-y divide-slate-100">
-                      {attachedFilesList.slice(0, 3).map((f) => (
-                        <div key={f.id} className="py-2.5 flex items-center justify-between gap-3 text-xs">
-                          <div className="flex items-center gap-2 truncate">
-                            <FileText className="w-4 h-4 text-teal-600 shrink-0" />
-                            <span className="font-semibold text-slate-800 truncate">{f.name}</span>
-                          </div>
-                          <a
-                            href={f.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="px-2.5 py-1 rounded-lg bg-teal-50 text-teal-700 hover:bg-teal-100 font-bold text-[11px] flex items-center gap-1 shrink-0"
-                          >
-                            <Download className="w-3 h-3" />
-                            <span>Baixar</span>
-                          </a>
-                        </div>
-                      ))}
+
+                    <div className="p-3 rounded-xl bg-teal-50/40 border border-teal-200 space-y-1.5">
+                      <label className="block text-[10px] font-bold uppercase text-[#1E8E8D]">
+                        Vistoria Site B ({siteB || '—'})
+                      </label>
+                      <select
+                        disabled={!canEdit}
+                        value={formVistoriaB}
+                        onChange={(e) =>
+                          handleQuickManualVistoriaChange('B', e.target.value as EricssonVistoriaStatus)
+                        }
+                        className="w-full px-2.5 py-1.5 rounded-lg border border-teal-200 bg-white font-bold text-xs text-slate-800 focus:outline-none"
+                      >
+                        <option value="Pendente">Pendente</option>
+                        <option value="Entregue">Entregue</option>
+                        <option value="Dispensado">Dispensado</option>
+                      </select>
                     </div>
-                  )}
+
+                    <div className="p-3 rounded-xl bg-amber-50/40 border border-amber-200 space-y-1.5">
+                      <label className="block text-[10px] font-bold uppercase text-amber-800">
+                        Status LOS
+                      </label>
+                      <select
+                        disabled={!canEdit}
+                        value={formLosStatus}
+                        onChange={(e) =>
+                          handleQuickManualVistoriaChange('LOS', e.target.value as EricssonVistoriaStatus)
+                        }
+                        className="w-full px-2.5 py-1.5 rounded-lg border border-amber-200 bg-white font-bold text-xs text-slate-800 focus:outline-none"
+                      >
+                        <option value="Pendente">Pendente</option>
+                        <option value="Entregue">Entregue</option>
+                        <option value="Dispensado">Dispensado</option>
+                      </select>
+                    </div>
+                  </div>
                 </div>
               </div>
             )}
@@ -1218,79 +1159,6 @@ export const EricssonEngineeringDrawer: React.FC<EricssonEngineeringDrawerProps>
                     );
                   })}
                 </div>
-              </div>
-            )}
-
-            {/* TAB: ARQUIVOS */}
-            {activeTab === 'arquivos' && (
-              <div className="bg-white border border-slate-200/90 rounded-2xl p-4 sm:p-5 shadow-xs space-y-4">
-                <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                  <div>
-                    <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-                      <Paperclip className="w-4 h-4 text-teal-600" />
-                      <span>Arquivos Anexados ({attachedFilesList.length})</span>
-                    </h3>
-                    <p className="text-xs text-slate-500">
-                      Documentos e relatórios salvos diretamente neste site (sem subpastas).
-                    </p>
-                  </div>
-
-                  {/* Upload button */}
-                  {canEdit && (
-                    <label className="px-3 py-1.5 bg-[#1E8E8D] hover:bg-[#177271] text-white text-xs font-bold rounded-xl shadow-xs cursor-pointer flex items-center gap-1.5">
-                      <Upload className="w-3.5 h-3.5" />
-                      <span>{isUploadingFile ? 'Enviando...' : '+ Anexar Arquivo'}</span>
-                      <input
-                        type="file"
-                        onChange={handleFileUpload}
-                        disabled={isUploadingFile}
-                        className="hidden"
-                      />
-                    </label>
-                  )}
-                </div>
-
-                {attachedFilesList.length === 0 ? (
-                  <div className="text-center py-12 border-2 border-dashed border-slate-200 rounded-2xl space-y-2 bg-slate-50/50">
-                    <Paperclip className="w-8 h-8 text-slate-300 mx-auto" />
-                    <p className="font-bold text-slate-700 text-xs">Nenhum arquivo enviado ainda</p>
-                    <p className="text-[11px] text-slate-400 max-w-xs mx-auto">
-                      Anexe relatórios técnicos, fotos ou plantas para este site.
-                    </p>
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    {attachedFilesList.map((f) => (
-                      <div
-                        key={f.id}
-                        className="p-3 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between gap-3 hover:bg-teal-50/40 hover:border-teal-200 transition-all text-xs"
-                      >
-                        <div className="flex items-center gap-2.5 truncate">
-                          <div className="w-8 h-8 rounded-lg bg-teal-100 text-teal-800 flex items-center justify-center shrink-0">
-                            <FileText className="w-4 h-4" />
-                          </div>
-                          <div className="truncate">
-                            <p className="font-bold text-slate-900 truncate">{f.name}</p>
-                            <p className="text-[10px] text-slate-400">
-                              Enviado por {f.uploadedBy || 'Equipe'} •{' '}
-                              {new Date(f.uploadedAt).toLocaleString('pt-BR')}
-                            </p>
-                          </div>
-                        </div>
-
-                        <a
-                          href={f.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="px-3 py-1.5 rounded-lg bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs flex items-center gap-1.5 shadow-2xs shrink-0"
-                        >
-                          <Download className="w-3.5 h-3.5" />
-                          <span>Baixar</span>
-                        </a>
-                      </div>
-                    ))}
-                  </div>
-                )}
               </div>
             )}
 

@@ -235,8 +235,12 @@ export function isUserAguardando(user?: AmetaUser | null): boolean {
   return user.situacao === 'aguardando' || (user.accessReleased === false && user.situacao !== 'ativo');
 }
 
-export function normalizeUserRole(raw?: string, email?: string): UserRole {
-  if (email && isOwnerAdmUser(email)) {
+export function normalizeUserRole(
+  raw?: string,
+  email?: string,
+  ignoreOwnerOverride?: boolean
+): UserRole {
+  if (!ignoreOwnerOverride && email && isOwnerAdmUser(email)) {
     return 'ADM';
   }
   if (!raw) return 'Executor';
@@ -248,6 +252,7 @@ export function normalizeUserRole(raw?: string, email?: string): UserRole {
 
   // Only the Owner (Rafael Araújo) can be ADM; any other user previously marked ADM becomes Coordenador Geral
   if (r === 'adm' || r.includes('admin')) {
+    if (ignoreOwnerOverride) return 'Vistoriador';
     return email && !isOwnerAdmUser(email) ? 'Coordenador Geral' : 'ADM';
   }
   if (r.includes('engenharia') && (r.includes('coord') || r.includes('coordenador'))) {
@@ -1157,6 +1162,7 @@ export interface EricssonEngineeringRow {
   tipoSite: string;
   executor: string;
   equipe?: string;
+  responsavelDemand?: string;
   fields: Record<string, string>;
   siteAVistoriaStatus?: EricssonVistoriaStatus;
   siteBVistoriaStatus?: EricssonVistoriaStatus;
@@ -1287,5 +1293,79 @@ export const DEFAULT_ERICSSON_COLABORADORES: EricssonColaborador[] = [
   { nome: 'Caio Ficher Peirão', atividade: 'Vistoriador / Campo', capacidade: '5', observacoes: 'caio.ficher@ametaservicos.com.br' },
   { nome: 'Kleber Frederico de Souza', atividade: 'Vistoriador / Campo', capacidade: '5', observacoes: 'kleber.souza@ametaservicos.com.br' },
 ];
+
+export type AcionamentoStatus =
+  | 'Aguardando aceite'
+  | 'Aceito'
+  | 'Recusado'
+  | 'Em deslocamento'
+  | 'No local'
+  | 'Em atendimento'
+  | 'Concluído'
+  | 'Cancelado';
+
+export interface AcionamentoHistorico {
+  data: string;
+  autor?: string;
+  email?: string;
+  acao: string;
+  status?: AcionamentoStatus;
+  detalhes?: string;
+}
+
+export interface Acionamento {
+  id: string; // Determinístico: ${vendor}_${siteIdNormalizado}_${tipoDestinatario}
+  protocolo: string;
+  origem: 'telecom';
+  vendor: VendorType;
+  siteId: string;
+  siteNome?: string;
+  endereco?: string;
+  cidade?: string;
+  uf?: string;
+  tipoDestinatario: 'EXECUTOR' | 'VISTORIA';
+  equipe: string;
+  destinatariosEmails: string[];
+  demandadoPorNome: string;
+  demandadoPorEmail: string;
+  demandadoEm: string;
+  observacao?: string;
+  atualizadoEm: string;
+  historico: AcionamentoHistorico[];
+
+  status: AcionamentoStatus;
+  aceitoPorEmail?: string;
+  aceitoPorNome?: string;
+  aceitoEm?: string;
+  recusadoPorEmail?: string;
+  recusadoPorNome?: string;
+  recusadoEm?: string;
+  motivoRecusa?: string;
+  checkinEm?: string;
+  checkinLocal?: any;
+  checkoutEm?: string;
+  checkoutLocal?: any;
+  concluidoEm?: string;
+  resumoConclusao?: string;
+  pendencias?: string;
+}
+
+export function normalizeSiteIdForDoc(rawSiteId?: string): string {
+  return String(rawSiteId || '')
+    .trim()
+    .toUpperCase()
+    .replace(/[^A-Z0-9_-]/g, '_');
+}
+
+export function buildAcionamentoId(
+  vendor: VendorType | string,
+  siteId: string,
+  tipoDestinatario: 'EXECUTOR' | 'VISTORIA'
+): string {
+  const v = (vendor || 'NOKIA').trim().toUpperCase();
+  const s = normalizeSiteIdForDoc(siteId);
+  const t = tipoDestinatario.trim().toUpperCase();
+  return `${v}_${s}_${t}`;
+}
 
 

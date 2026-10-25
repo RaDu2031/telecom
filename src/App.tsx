@@ -75,11 +75,14 @@ import {
   hasFullSpreadsheetAccess,
   isEngineeringCoordinatorRole,
   canUserAccessVendor,
+  Acionamento,
+  normalizeSiteIdForDoc,
 } from './types/telecom';
 import { isFirebaseEnvConfigured } from './lib/firebase';
 import { db } from './lib/firebaseClient';
 import { doc, updateDoc } from 'firebase/firestore';
 import { dataService, sanitizeFirestoreData } from './services/dataService';
+import { AcionamentoStatusBadge } from './components/AcionamentoStatusBadge';
 import { INITIAL_SITES, INITIAL_SHEETS } from './data/initialSites';
 import { INITIAL_ERICSSON_SITES } from './data/initialEricssonSites';
 import { INITIAL_ERICSSON_ENGINEERING_ROWS } from './data/initialEricssonEngineering';
@@ -88,7 +91,6 @@ import { AmetaLogo } from './components/AmetaLogo';
 import { SiteDetailDrawer } from './components/SiteDetailDrawer';
 import { BulkPasteModal } from './components/BulkPasteModal';
 import { NewSiteModal } from './components/NewSiteModal';
-import { EngineeringVistoriasTab } from './components/EngineeringVistoriasTab';
 import { EngineeringControlTab } from './components/EngineeringControlTab';
 import { EricssonSitesTab } from './components/EricssonSitesTab';
 import { EricssonVistoriaTab } from './components/EricssonVistoriaTab';
@@ -120,6 +122,7 @@ import {
   isTssrRowAssignedToResponsible,
   isEricssonRowAssignedToResponsible,
   isSiteAssignedToResponsible,
+  isEricssonEngRowActivelyDemanded,
 } from './services/demandaSharedService';
 
 const fetch = cloudFetch;
@@ -134,6 +137,8 @@ import {
   doesEricssonRowMatchResponsible,
   doesSiteMatchEquipe,
   doesSiteMatchExecutor,
+  isNokiaSiteActivelyDemanded,
+  isEricssonRowActivelyDemanded,
   getCanonicalDuplaName,
   getCanonicalExecutorName,
   matchesDuplaName,
@@ -212,6 +217,14 @@ export default function App() {
 
   const [sites, setSites] = useState<TelecomSite[]>(() => {
     try {
+      // One-time cleanup of historical cached sites where responsavelDemand was polluted by old TSSR reconciliation
+      if (!localStorage.getItem('ameta_demand_cache_clean_v3')) {
+        localStorage.removeItem('ameta_cached_sites');
+        localStorage.removeItem('ameta_cached_tssr');
+        localStorage.removeItem('ameta_cached_ericsson_sites');
+        localStorage.removeItem('ameta_cached_ericsson_eng');
+        localStorage.setItem('ameta_demand_cache_clean_v3', '1');
+      }
       const cached = localStorage.getItem('ameta_cached_sites');
       if (cached) {
         const parsed = JSON.parse(cached);
@@ -230,8 +243,6 @@ export default function App() {
     } catch {}
     return INITIAL_SHEETS;
   });
-  const [engineeringFolders, setEngineeringFolders] = useState<EngineeringFolder[]>([]);
-  const [engineeringFiles, setEngineeringFiles] = useState<EngineeringFile[]>([]);
   const [tssrRows, setTssrRows] = useState<TssrRow[]>(() => {
     try {
       const cached = localStorage.getItem('ameta_cached_tssr');
@@ -243,7 +254,6 @@ export default function App() {
     return convertSitesToTssrRows(INITIAL_SITES);
   });
   const [tssrSheets, setTssrSheets] = useState<TssrSheetMeta[]>([]);
-  const [vistoriaPreselectedSiteId, setVistoriaPreselectedSiteId] = useState<string | null>(null);
   const [ericssonRows, setEricssonRows] = useState<EricssonRow[]>(() => {
     try {
       const cached = localStorage.getItem('ameta_cached_ericsson_sites');
@@ -261,8 +271,6 @@ export default function App() {
     } catch {}
     return undefined;
   });
-  const [ericssonFolders, setEricssonFolders] = useState<EngineeringFolder[]>([]);
-  const [ericssonFiles, setEricssonFiles] = useState<EngineeringFile[]>([]);
   const [ericssonUsers, setEricssonUsers] = useState<AmetaUser[]>([]);
   const [ericssonEngineeringRows, setEricssonEngineeringRows] = useState<EricssonEngineeringRow[]>(() => {
     try {
@@ -296,13 +304,9 @@ export default function App() {
   });
   const [ownerPermissionsModalOpen, setOwnerPermissionsModalOpen] = useState<boolean>(false);
   const [isAppGoogleDriveOpen, setIsAppGoogleDriveOpen] = useState<boolean>(false);
-  const [ericssonVistoriaFocus, setEricssonVistoriaFocus] = useState<{
-    folderId?: string;
-    fileId?: string;
-    fileName?: string;
-  } | null>(null);
   const [users, setUsers] = useState<AmetaUser[]>([]);
   const [activeVendor, setActiveVendor] = useState<VendorType>('NOKIA');
+  const [acionamentos, setAcionamentos] = useState<Acionamento[]>([]);
 
   // Top navigation tab ('sites', 'engenharia', or 'perfis' for ADM)
   const [activeTopTab, setActiveTopTab] = useState<WorkspaceTopTab>('sites');
@@ -524,10 +528,36 @@ export default function App() {
     const unsub = dataService.observarColecoesPlataforma(user, {
       onNokiaSites: (fetched) => {
         if (fetched.length > 0) {
-          setSites(fetched);
-          try {
-            localStorage.setItem('ameta_cached_sites', JSON.stringify(fetched));
-          } catch {}
+          setSites((prev) => {
+            const base = prev.length > 0 ? prev : INITIAL_SITES;
+            const byKey = new Map<string, TelecomSite>();
+            base.forEach((s) => {
+              const k = `${(s.sheetName || 'Controle Geral').toUpperCase()}__${(s.siteId || s.id || '').toUpperCase()}`;
+              byKey.set(k, s);
+            });
+            fetched.forEach((s) => {
+              const k = `${(s.sheetName || 'Controle Geral').toUpperCase()}__${(s.siteId || s.id || '').toUpperCase()}`;
+              const existing = byKey.get(k);
+              byKey.set(
+                k,
+                existing
+                  ? {
+                      ...existing,
+                      ...s,
+                      customFields: {
+                        ...(existing.customFields || {}),
+                        ...(s.customFields || {}),
+                      },
+                    }
+                  : s
+              );
+            });
+            const merged = Array.from(byKey.values());
+            try {
+              localStorage.setItem('ameta_cached_sites', JSON.stringify(merged));
+            } catch {}
+            return merged;
+          });
           // Descobrir abas dinamicamente para não sumir com abas adicionadas
           setSheets((prevSheets) => {
             const sheetNames = new Set(prevSheets.map((s) => s.name));
@@ -560,13 +590,53 @@ export default function App() {
             return !isPlaceholder(a) || !isPlaceholder(b);
           });
           if (validFetched.length > 0) {
-            setEricssonRows(validFetched);
+            setEricssonRows((prev) => {
+              const base = prev.length > 0 ? prev : INITIAL_ERICSSON_SITES;
+              const byId = new Map<string, EricssonRow>(base.map((r) => [r.id, r]));
+              validFetched.forEach((r) => {
+                const existing = byId.get(r.id);
+                byId.set(
+                  r.id,
+                  existing
+                    ? {
+                        ...existing,
+                        ...r,
+                        fields: {
+                          ...(existing.fields || {}),
+                          ...(r.fields || {}),
+                        },
+                      }
+                    : r
+                );
+              });
+              return Array.from(byId.values());
+            });
           }
         }
       },
       onEricssonEngineering: (fetched) => {
         if (fetched.length > 0) {
-          setEricssonEngineeringRows(fetched);
+          setEricssonEngineeringRows((prev) => {
+            const base = prev.length > 0 ? prev : INITIAL_ERICSSON_ENGINEERING_ROWS;
+            const byId = new Map<string, EricssonEngineeringRow>(base.map((r) => [r.id, r]));
+            fetched.forEach((r) => {
+              const existing = byId.get(r.id);
+              byId.set(
+                r.id,
+                existing
+                  ? {
+                      ...existing,
+                      ...r,
+                      fields: {
+                        ...(existing.fields || {}),
+                        ...(r.fields || {}),
+                      },
+                    }
+                  : r
+              );
+            });
+            return Array.from(byId.values());
+          });
         }
       },
       onUsuarios: (fetched) => {
@@ -773,13 +843,129 @@ export default function App() {
   }, [user, users, ericssonUsers]);
 
   const isRealAdmin = isOwnerAdm || realUserRole === 'ADM';
-  const activeTargetUser: AmetaUser | null = simulatedTargetUser || user;
+  const rawActiveTargetUser: AmetaUser | null = simulatedTargetUser || user;
   const effectiveRole: UserRole = simulatedTargetUser
-    ? normalizeUserRole(simulatedTargetUser.role, simulatedTargetUser.email)
+    ? normalizeUserRole(simulatedTargetUser.role, simulatedTargetUser.email, true)
     : realUserRole;
+
+  // Enrich activeTargetUser with any Duplas or Executores linked to their email so logins by email see all demands assigned to their linked team/executor
+  const activeTargetUser: (AmetaUser & { linkedTeams?: string[] }) | null = useMemo(() => {
+    if (!rawActiveTargetUser) return null;
+    const myEmail = (rawActiveTargetUser.email || '').trim().toLowerCase();
+    const linkedTeams = new Set<string>();
+    if (rawActiveTargetUser.equipe && rawActiveTargetUser.equipe.trim()) {
+      linkedTeams.add(rawActiveTargetUser.equipe.trim());
+    }
+
+    const collectTeamsFromMap = (mapObj?: Record<string, string[]>) => {
+      if (!mapObj || !myEmail) return;
+      Object.entries(mapObj).forEach(([teamName, emails]) => {
+        if (Array.isArray(emails) && emails.some((em) => (em || '').trim().toLowerCase() === myEmail)) {
+          linkedTeams.add(teamName.trim());
+        }
+      });
+    };
+
+    if (activeVendor === 'ERICSSON') {
+      collectTeamsFromMap(serverEricssonDuplaEmailsMap);
+      collectTeamsFromMap(serverEricssonExecutorEmailsMap);
+      try {
+        const savedD = localStorage.getItem('ameta_ericsson_dupla_emails_map_v2');
+        if (savedD) collectTeamsFromMap(JSON.parse(savedD));
+      } catch {}
+      try {
+        const savedE = localStorage.getItem('ameta_ericsson_executor_emails_map_v1');
+        if (savedE) collectTeamsFromMap(JSON.parse(savedE));
+      } catch {}
+    } else {
+      collectTeamsFromMap(serverDuplaEmailsMap);
+      collectTeamsFromMap(serverExecutorEmailsMap);
+      try {
+        const savedD = localStorage.getItem('ameta_dupla_emails_map_v2');
+        if (savedD) collectTeamsFromMap(JSON.parse(savedD));
+      } catch {}
+      try {
+        const savedE = localStorage.getItem('ameta_executor_emails_map_v1');
+        if (savedE) collectTeamsFromMap(JSON.parse(savedE));
+      } catch {}
+    }
+
+    const teamsArr = Array.from(linkedTeams);
+    return {
+      ...rawActiveTargetUser,
+      equipe: rawActiveTargetUser.equipe || teamsArr[0] || undefined,
+      linkedTeams: teamsArr,
+    };
+  }, [
+    rawActiveTargetUser,
+    activeVendor,
+    serverDuplaEmailsMap,
+    serverExecutorEmailsMap,
+    serverEricssonDuplaEmailsMap,
+    serverEricssonExecutorEmailsMap,
+  ]);
 
   const canSeeFullSpreadsheets = hasFullSpreadsheetAccess(effectiveRole);
   const isEngCoordinator = isEngineeringCoordinatorRole(effectiveRole);
+
+  // Observação em tempo real no Firestore para "acionamentos" (compartilhado com Ameta-acionamento)
+  // No máximo 1 onSnapshot ativo por sessão para poupar cota do Firebase.
+  // Coordenadores e ADM ouvem todos; Executor e Vistoriador ouvem somente com where('destinatariosEmails', 'array-contains', email).
+  // Ao simular outro usuário ("Ver como"), usa o e-mail dele.
+  useEffect(() => {
+    if (!user || !activeTargetUser?.email) {
+      setAcionamentos([]);
+      return;
+    }
+    const unsub = dataService.observarAcionamentos(
+      {
+        role: effectiveRole,
+        email: activeTargetUser.email,
+        isSimulating: Boolean(simulatedTargetUser),
+      },
+      (list) => {
+        setAcionamentos(list);
+      }
+    );
+    return () => unsub();
+  }, [user?.uid, activeTargetUser?.email, effectiveRole, Boolean(simulatedTargetUser)]);
+
+  const acionamentosMap = useMemo(() => {
+    const map = new Map<string, Acionamento>();
+    acionamentos.forEach((ac) => {
+      map.set(ac.id, ac);
+      const sNorm = normalizeSiteIdForDoc(ac.siteId);
+      const vNorm = ac.vendor;
+      map.set(`${vNorm}_${sNorm}_${ac.tipoDestinatario}`, ac);
+      const genericKey = `${vNorm}_${sNorm}`;
+      const existing = map.get(genericKey);
+      if (!existing || (existing.status === 'Cancelado' && ac.status !== 'Cancelado')) {
+        map.set(genericKey, ac);
+      }
+    });
+    return map;
+  }, [acionamentos]);
+
+  const getAcionamentoForSite = useCallback(
+    (
+      vendor: VendorType | string,
+      siteId?: string,
+      tipoDestinatario?: 'EXECUTOR' | 'VISTORIA'
+    ): Acionamento | undefined => {
+      if (!siteId) return undefined;
+      const v = (vendor || 'NOKIA').trim().toUpperCase();
+      const sNorm = normalizeSiteIdForDoc(siteId);
+      if (tipoDestinatario) {
+        return acionamentosMap.get(`${v}_${sNorm}_${tipoDestinatario}`);
+      }
+      return (
+        acionamentosMap.get(`${v}_${sNorm}`) ||
+        acionamentosMap.get(`${v}_${sNorm}_VISTORIA`) ||
+        acionamentosMap.get(`${v}_${sNorm}_EXECUTOR`)
+      );
+    },
+    [acionamentosMap]
+  );
 
   const vendorEricssonRows = useMemo(() => {
     if (!activeTargetUser) return ericssonRows;
@@ -795,41 +981,20 @@ export default function App() {
   const vendorEricssonEngineeringRows = useMemo(() => {
     if (!activeTargetUser) return ericssonEngineeringRows;
     if (!canSeeFullSpreadsheets && !isEngCoordinator) {
-      return ericssonEngineeringRows.filter((r) => {
-        const rowEx = (
-          r.executor ||
-          r.fields?.['EXECUTOR'] ||
-          r.fields?.['EXECUTOR WR'] ||
-          r.fields?.['EXECUTOR QRF'] ||
-          r.fields?.['EXECUTOR PPI'] ||
-          r.fields?.['Executor'] ||
-          ''
-        ).trim();
-        const rowEq = (r.fields?.['EQUIPE'] || r.equipe || '').trim();
-
-        if (!rowEx && !rowEq) {
-          return doesEricssonRowMatchResponsible(r as any, activeTargetUser);
-        }
-
-        const uEmail = (activeTargetUser.email || '').trim().toLowerCase();
-        const uName = (activeTargetUser.name || '').trim().toLowerCase();
-        const uEquipe = (activeTargetUser.equipe || '').trim().toLowerCase();
-
-        const cleanEx = rowEx.toLowerCase();
-        const cleanEq = rowEq.toLowerCase();
-
-        const matchesEmail = Boolean(uEmail && cleanEx && cleanEx.includes(uEmail));
-        const matchesName = Boolean(uName && cleanEx && (cleanEx.includes(uName) || uName.includes(cleanEx)));
-        const matchesEquipe = Boolean(uEquipe && ((cleanEq && (cleanEq.includes(uEquipe) || uEquipe.includes(cleanEq))) || (cleanEx && (cleanEx.includes(uEquipe) || uEquipe.includes(cleanEx)))));
-
-        return matchesEmail || matchesName || matchesEquipe || doesEricssonRowMatchResponsible(r as any, activeTargetUser);
-      });
+      return ericssonEngineeringRows.filter((r) =>
+        isEricssonRowAssignedToResponsible(r, activeTargetUser)
+      );
     }
     return ericssonEngineeringRows;
   }, [ericssonEngineeringRows, activeTargetUser, canSeeFullSpreadsheets, isEngCoordinator]);
 
   const mappedExecutorEricssonRows = useMemo(() => {
     if (canSeeFullSpreadsheets || isEngCoordinator) {
+      return vendorEricssonRows;
+    }
+
+    // Vistoriador (Dupla) only sees demanded Ericsson Sites (planilha mãe), never Engineering rows
+    if (effectiveRole === 'Vistoriador') {
       return vendorEricssonRows;
     }
 
@@ -844,6 +1009,7 @@ export default function App() {
       ).trim();
 
       const ex = (
+        eng.responsavelDemand ||
         eng.executor ||
         eng.fields?.['EXECUTOR'] ||
         eng.fields?.['EXECUTOR WR'] ||
@@ -858,7 +1024,7 @@ export default function App() {
       const regionalStr = eng.regional || eng.fields?.['Regional'] || eng.fields?.['REGIONAL'] || '';
       const tipoDocStr = eng.tipoDoc || eng.fields?.['Tipo doc'] || eng.fields?.['TIPO DOC'] || 'WR';
       const tipoSiteStr = eng.tipoSite || eng.fields?.['TIPO SITE'] || eng.fields?.['Tipo site'] || '';
-      const demandaStr = eng.fields?.['Demanda'] || eng.fields?.['Data Demanda'] || '';
+      const demandaStr = eng.fields?.['Demanda'] || eng.fields?.['Data Demanda'] || eng.fields?.['Data de demanda'] || '';
       const planejadoStr = eng.fields?.['Planejado'] || eng.fields?.['Data Planejada'] || '';
       const entregueStr = eng.fields?.['Entregue'] || eng.fields?.['Data Entregue'] || eng.attachedUploadedAt || '';
       const comentarioStr = eng.fields?.['Comentário'] || eng.fields?.['Comentários'] || '';
@@ -896,6 +1062,8 @@ export default function App() {
           'TIPO SITE': tipoSiteStr,
           'Status': statusStr,
           'Demanda': demandaStr,
+          'Data de demanda': demandaStr || 'Ativo',
+          'Data Demanda': demandaStr || 'Ativo',
           'Planejado': planejadoStr,
           'Entregue': entregueStr,
           'Comentário': comentarioStr,
@@ -914,7 +1082,7 @@ export default function App() {
     const motherRowsMapped = vendorEricssonRows.filter((r) => !engIds.has(r.id));
 
     return [...engRowsMapped, ...motherRowsMapped];
-  }, [vendorEricssonRows, vendorEricssonEngineeringRows, canSeeFullSpreadsheets, isEngCoordinator]);
+  }, [vendorEricssonRows, vendorEricssonEngineeringRows, canSeeFullSpreadsheets, isEngCoordinator, effectiveRole]);
 
   const ericssonSiteCounters = useMemo(
     () => computeEricssonSiteCounters(mappedExecutorEricssonRows),
@@ -936,6 +1104,12 @@ export default function App() {
     (effectiveRole === 'ADM' ||
       effectiveRole === 'Coordenador Geral' ||
       effectiveRole === 'Coordenador Engenharia');
+
+  // Na Ericsson, a aba de Demandas Engenharia é exclusiva para Executor com demandas
+  const canSeeEricssonDemandsTab =
+    activeVendor === 'ERICSSON' &&
+    effectiveRole === 'Executor' &&
+    vendorEricssonEngineeringRows.length > 0;
 
   const canAccessNokia = canUserAccessVendor(activeTargetUser, 'NOKIA');
   const canAccessEricsson = canUserAccessVendor(activeTargetUser, 'ERICSSON');
@@ -1663,11 +1837,33 @@ export default function App() {
         statusStr === 'Finalizado' ||
         (r.fields?.['Entregue'] || '').trim() !== '' ||
         (r.fields?.['Data Entregue'] || '').trim() !== '';
+      const activelyDemanded = isEricssonEngRowActivelyDemanded(r);
+      const activeEx = activelyDemanded
+        ? r.responsavelDemand ||
+          r.executor ||
+          r.fields?.['EXECUTOR'] ||
+          r.fields?.['EXECUTOR WR'] ||
+          r.fields?.['EXECUTOR QRF'] ||
+          r.fields?.['EXECUTOR PPI'] ||
+          r.fields?.['Executor'] ||
+          ''
+        : '';
       return {
         ...r,
         vendor: 'ERICSSON' as VendorType,
         siteId: r.intervencaoClaro || r.siteIdA || r.siteIdB || r.id,
-        fields: r.fields || {},
+        fields: activelyDemanded
+          ? r.fields || {}
+          : {
+              ...(r.fields || {}),
+              EXECUTOR: '',
+              'EXECUTOR WR': '',
+              'EXECUTOR QRF': '',
+              'EXECUTOR PPI': '',
+              Executor: '',
+              EQUIPE: '',
+              'EQUIPE EXECUTANTE': '',
+            },
         vistoriaStatus: isFinalizado ? 'Entregue' : 'Pendente',
         vistoriaFileId: r.attachedFileId,
         vistoriaFileName: r.attachedFileName,
@@ -1685,20 +1881,15 @@ export default function App() {
         tabName: 'Engenharia Ericsson',
         ocSitePre: r.intervencaoClaro || '',
         enderecoId: r.regional || '',
-        executor:
-          r.executor ||
-          r.fields?.['EXECUTOR'] ||
-          r.fields?.['EXECUTOR WR'] ||
-          r.fields?.['EXECUTOR QRF'] ||
-          r.fields?.['EXECUTOR PPI'] ||
-          r.fields?.['Executor'] ||
-          '',
+        responsavelDemand: activeEx,
+        executor: activeEx,
+        equipe: activelyDemanded ? r.equipe || '' : '',
         intervencaoClaro: r.intervencaoClaro || '',
         regional: r.regional || r.fields?.['Regional'] || '',
         tipoDoc: r.tipoDoc || r.fields?.['Tipo doc'] || '',
         tipoSite: r.tipoSite || r.fields?.['TIPO SITE'] || '',
         status: statusStr,
-        demanda: r.fields?.['Demanda'] || r.fields?.['Data Demanda'] || '',
+        demanda: activelyDemanded ? r.fields?.['Demanda'] || r.fields?.['Data Demanda'] || r.fields?.['Data de demanda'] || '' : '',
         comentario: r.fields?.['Comentário'] || r.fields?.['Comentários'] || '',
         planejado: r.fields?.['Planejado'] || r.fields?.['Data Planejada'] || '',
         entregue: r.fields?.['Entregue'] || r.fields?.['Data Entregue'] || r.attachedUploadedAt || '',
@@ -1706,12 +1897,23 @@ export default function App() {
     });
 
     const motherRowsMapped = ericssonRows.map((r) => {
-      const eq = r.equipe || r.responsavelDemand || r.fields?.['EQUIPE'] || r.fields?.['EXECUTOR'] || '';
+      const activelyDemanded = isEricssonRowActivelyDemanded(r);
+      const eq = activelyDemanded
+        ? r.responsavelDemand || r.equipe || r.fields?.['EQUIPE'] || r.fields?.['EXECUTOR'] || ''
+        : '';
       return {
         id: `mother-${r.id}`,
         vendor: 'ERICSSON' as VendorType,
         siteId: r.siteIdA || r.siteIdB || r.rowKey || r.id,
-        fields: r.fields || {},
+        fields: activelyDemanded
+          ? r.fields || {}
+          : {
+              ...(r.fields || {}),
+              EQUIPE: '',
+              'EQUIPE EXECUTANTE': '',
+              EXECUTOR: '',
+              Executor: '',
+            },
         vistoriaStatus: r.siteAVistoriaStatus || 'Pendente',
         vistoriaFileId: r.siteAVistoriaFileId,
         vistoriaFileName: r.siteAVistoriaFileName,
@@ -1724,12 +1926,12 @@ export default function App() {
         enderecoId: r.siteIdB || '',
         executor: eq,
         equipe: eq,
-        responsavelDemand: r.responsavelDemand || eq,
+        responsavelDemand: eq,
         regional: r.state || r.fields?.['00.03.State'] || '',
         tipoDoc: 'Planilha Mãe',
         tipoSite: r.servico || '',
         status: r.statusA || 'Pendente',
-        demanda: r.fields?.['Data de demanda'] || r.fields?.['Data Demanda'] || '',
+        demanda: activelyDemanded ? r.fields?.['Data de demanda'] || r.fields?.['Data Demanda'] || '' : '',
       };
     });
 
@@ -1952,7 +2154,10 @@ export default function App() {
     demandDate?: string,
     allowTransfer?: boolean
   ) => {
-    const linkedEmails = serverEricssonExecutorEmailsMap[executorName] || [];
+    const linkedEmails =
+      serverEricssonExecutorEmailsMap[executorName] ||
+      serverEricssonDuplaEmailsMap[executorName] ||
+      [];
     const res = await demandaSharedService.atribuirDemanda({
       siteTokens: rowIds,
       responsibleName: executorName,
@@ -1962,13 +2167,18 @@ export default function App() {
       currentSites: sites,
       currentTssrRows: tssrRows,
       currentEricssonEngRows: ericssonEngineeringRows,
+      currentEricssonRows: ericssonRows,
       actorEmail: user?.email,
       actorName: user?.name,
       allowTransfer,
+      targetScope: 'executor',
     });
     setSites(res.updatedSites);
     setTssrRows(res.updatedTssrRows);
     setEricssonEngineeringRows(res.updatedEricssonEngRows);
+    if (res.updatedEricssonRows && res.updatedEricssonRows.length > 0) {
+      setEricssonRows(res.updatedEricssonRows);
+    }
     showToast(
       `${res.count} demanda(s) da Engenharia Ericsson atribuídas para "${executorName}"!`
     );
@@ -1984,10 +2194,15 @@ export default function App() {
       currentSites: sites,
       currentTssrRows: tssrRows,
       currentEricssonEngRows: ericssonEngineeringRows,
+      currentEricssonRows: ericssonRows,
+      targetScope: 'executor',
     });
     setSites(res.updatedSites);
     setTssrRows(res.updatedTssrRows);
     setEricssonEngineeringRows(res.updatedEricssonEngRows);
+    if (res.updatedEricssonRows && res.updatedEricssonRows.length > 0) {
+      setEricssonRows(res.updatedEricssonRows);
+    }
     showToast(`Demanda(s) desvinculadas de "${executorName}" na Engenharia Ericsson.`);
   };
 
@@ -1998,10 +2213,15 @@ export default function App() {
       currentSites: sites,
       currentTssrRows: tssrRows,
       currentEricssonEngRows: ericssonEngineeringRows,
+      currentEricssonRows: ericssonRows,
+      targetScope: 'executor',
     });
     setSites(res.updatedSites);
     setTssrRows(res.updatedTssrRows);
     setEricssonEngineeringRows(res.updatedEricssonEngRows);
+    if (res.updatedEricssonRows && res.updatedEricssonRows.length > 0) {
+      setEricssonRows(res.updatedEricssonRows);
+    }
     showToast(`Todas as demandas de "${executorName}" desvinculadas na Engenharia Ericsson.`);
   };
 
@@ -2278,17 +2498,28 @@ export default function App() {
     if (isRaFunctionTab && (!isRealAdmin || simulatedTargetUser)) {
       return isEngCoordinator ? 'engenharia' : 'sites';
     }
+    // No Nokia, nunca resolver para 'vistoria'
+    if (activeVendor === 'NOKIA' && activeTopTab === 'vistoria') {
+      return 'sites';
+    }
     // Coordenador Engenharia default is 'engenharia' if 'sites' is requested
     if (isEngCoordinator && activeTopTab === 'sites') {
       return 'engenharia';
     }
-    // Executor sees Meus Sites Demandados ('sites'), Projeto Claro ('vistoria')
+    // Na Ericsson, aba 'vistoria' (Demandas Engenharia) exclusiva para Executor com demandas
+    if (activeTopTab === 'vistoria') {
+      if (canSeeEricssonDemandsTab) {
+        return 'vistoria';
+      }
+      return isEngCoordinator ? 'engenharia' : 'sites';
+    }
+    // Executor: se não for demanda autorizada, sempre 'sites' (Meus Sites Demandados)
     if (effectiveRole === 'Executor') {
-      if (activeTopTab === 'vistoria') return 'vistoria';
       return 'sites';
     }
-    if (activeTopTab === 'engenharia' && effectiveRole === 'Vistoriador') {
-      return 'vistoria';
+    // Vistoriador: sempre 'sites' (Meus Sites Demandados)
+    if (effectiveRole === 'Vistoriador') {
+      return 'sites';
     }
     return activeTopTab;
   }, [
@@ -2300,6 +2531,7 @@ export default function App() {
     effectiveRole,
     isEngCoordinator,
     activeVendor,
+    canSeeEricssonDemandsTab,
   ]);
 
   // Vendor-specific sheets and sites
@@ -2329,12 +2561,14 @@ export default function App() {
     if (!activeTargetUser) return allVendorSites;
     if (!canSeeFullSpreadsheets && !isEngCoordinator) {
       return allVendorSites.filter(
-        (s) => s.sheetName === 'Equipes' || doesSiteMatchResponsible(s, activeTargetUser)
+        (s) =>
+          s.sheetName === 'Controle Geral' &&
+          doesSiteMatchResponsible(s, activeTargetUser, (activeTargetUser as any).linkedTeams)
       );
     }
     if (responsavelDemandFilter !== 'ALL') {
       return allVendorSites.filter(
-        (s) => s.sheetName === 'Equipes' || doesSiteMatchResponsible(s, responsavelDemandFilter)
+        (s) => s.sheetName === 'Controle Geral' && doesSiteMatchResponsible(s, responsavelDemandFilter)
       );
     }
     return allVendorSites;
@@ -2349,13 +2583,10 @@ export default function App() {
   // Base pools by sheet for quick counts on the filter buttons
   const rawControleGeralPool = useMemo(
     () =>
-      vendorSites.filter((s) => {
-        if (effectiveRole === 'Executor' || (!canSeeFullSpreadsheets && !isEngCoordinator)) {
-          return true;
-        }
-        return activeVendor === 'NOKIA' ? s.sheetName === 'Controle Geral' : true;
-      }),
-    [vendorSites, activeVendor, effectiveRole, canSeeFullSpreadsheets, isEngCoordinator]
+      vendorSites.filter((s) =>
+        activeVendor === 'NOKIA' ? s.sheetName === 'Controle Geral' : true
+      ),
+    [vendorSites, activeVendor]
   );
 
   const rawCanceladosPool = useMemo(
@@ -3607,6 +3838,10 @@ export default function App() {
                                   NOVO
                                 </span>
                               )}
+                              <AcionamentoStatusBadge
+                                acionamento={getAcionamentoForSite('NOKIA', site.siteId || cellValue, 'VISTORIA')}
+                                compact
+                              />
                             </div>
                           ) : isSiExecCol ? (
                             <input
@@ -3965,6 +4200,10 @@ export default function App() {
                           NOVO
                         </span>
                       )}
+                      <AcionamentoStatusBadge
+                        acionamento={getAcionamentoForSite('NOKIA', site.siteId, 'VISTORIA')}
+                        compact
+                      />
                     </div>
                   </td>
                   <td className={`${densityPad} border-b border-slate-100 bg-white group-hover:bg-slate-50 font-mono font-medium text-slate-800 tabular-nums`}>
@@ -4269,74 +4508,6 @@ export default function App() {
     [rawControleGeralPool, isNovoSite]
   );
 
-  const vendorEngineeringFilesCount = useMemo(() => {
-    if (activeVendor === 'ERICSSON') {
-      if (!canSeeFullSpreadsheets && !isEngCoordinator && activeTargetUser) {
-        return ericssonFiles.filter(
-          (fl) =>
-            doesFileMatchUserResponsibleSites(fl, activeTargetUser, sites, vendorEricssonRows) ||
-            doesDocumentMatchResponsible(fl, undefined, activeTargetUser)
-        ).length;
-      }
-      return ericssonFiles.length;
-    }
-
-    const allFolders = engineeringFolders.filter((fd) => fd.vendor === activeVendor);
-    const allVendor = engineeringFiles.filter((f) => f.vendor === activeVendor);
-
-    if (effectiveRole === 'Vistoriador' && activeTargetUser) {
-      return allVendor.filter((fl) =>
-        doesFileMatchUserResponsibleSites(fl, activeTargetUser, sites, ericssonRows)
-      ).length;
-    }
-
-    // Exclude TSSR Entrada and TSSR project folders from Vistoria folder count for other roles
-    const blockedFolderIds = new Set(
-      allFolders
-        .filter((fd) => fd.name === 'TSSR Entrada' || fd.name === 'TSSR')
-        .map((fd) => fd.id)
-    );
-    let added = true;
-    while (added) {
-      added = false;
-      for (const fd of allFolders) {
-        if (fd.parentId && blockedFolderIds.has(fd.parentId) && !blockedFolderIds.has(fd.id)) {
-          blockedFolderIds.add(fd.id);
-          added = true;
-        }
-      }
-    }
-
-    const vistoriaScoped = allVendor.filter((f) => !blockedFolderIds.has(f.folderId));
-    if (
-      effectiveRole !== 'ADM' &&
-      effectiveRole !== 'Coordenador Geral' &&
-      effectiveRole !== 'Coordenador Engenharia' &&
-      activeTargetUser
-    ) {
-      return vistoriaScoped.filter((fl) => {
-        const folder = allFolders.find((fd) => fd.id === fl.folderId);
-        return (
-          doesFileMatchUserResponsibleSites(fl, activeTargetUser, sites, ericssonRows) ||
-          doesDocumentMatchResponsible(fl, folder, activeTargetUser)
-        );
-      }).length;
-    }
-    return vistoriaScoped.length;
-  }, [
-    engineeringFiles,
-    engineeringFolders,
-    ericssonFiles,
-    sites,
-    vendorEricssonRows,
-    ericssonRows,
-    activeVendor,
-    effectiveRole,
-    canSeeFullSpreadsheets,
-    isEngCoordinator,
-    activeTargetUser,
-  ]);
-
   // Minimalist AuthGate when not logged in (must be after all React hooks)
   if (!user) {
     return <AuthGate onAuthenticated={handleAuthenticated} />;
@@ -4554,37 +4725,23 @@ export default function App() {
                 </button>
               )}
 
-              <button
-                type="button"
-                onClick={() => setActiveTopTab('vistoria')}
-                className={`px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${
-                  resolvedTopTab === 'vistoria'
-                    ? activeVendor === 'ERICSSON'
-                      ? 'bg-amber-500/10 text-amber-700 font-bold border border-amber-500/30'
-                      : 'bg-blue-600/10 text-blue-700 font-bold border border-blue-600/30'
-                    : activeVendor === 'ERICSSON'
-                    ? 'text-slate-600 hover:text-amber-700 hover:bg-slate-50'
-                    : 'text-slate-600 hover:text-blue-700 hover:bg-slate-50'
-                }`}
-              >
-                <FolderOpen
-                  className={`w-3.5 h-3.5 shrink-0 ${
-                    activeVendor === 'ERICSSON' ? 'text-amber-600' : 'text-blue-600'
+              {canSeeEricssonDemandsTab && (
+                <button
+                  type="button"
+                  onClick={() => setActiveTopTab('vistoria')}
+                  className={`px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${
+                    resolvedTopTab === 'vistoria'
+                      ? 'bg-teal-500/10 text-teal-700 font-bold border border-teal-500/30'
+                      : 'text-slate-600 hover:text-teal-700 hover:bg-slate-50'
                   }`}
-                />
-                <span>
-                  {activeVendor === 'ERICSSON'
-                    ? 'Projeto Claro'
-                    : effectiveRole === 'Executor'
-                    ? 'Pastas TSSR'
-                    : effectiveRole === 'Coordenador Engenharia'
-                    ? 'Vistoria & TSSR'
-                    : 'Vistoria'}
-                </span>
-                <span className="font-mono text-[11px] text-slate-500 tabular-nums">
-                  ({vendorEngineeringFilesCount})
-                </span>
-              </button>
+                >
+                  <FileSpreadsheet className="w-3.5 h-3.5 shrink-0 text-teal-600" />
+                  <span>Demandas Engenharia</span>
+                  <span className="font-mono text-[11px] text-slate-500 tabular-nums">
+                    ({vendorEricssonEngineeringRows.length})
+                  </span>
+                </button>
+              )}
 
               {isRealAdmin && !simulatedTargetUser && (
                 <button
@@ -4683,25 +4840,23 @@ export default function App() {
               activeVendor={activeVendor}
               nokiaSites={sites}
               ericssonRows={ericssonRows}
-              engineeringFiles={engineeringFiles}
-              ericssonFiles={ericssonFiles}
               onNotificationsUpdated={(next) => setNotifications(next)}
               onNavigateToContext={(notif) => {
                 if (notif.vendor && canUserAccessVendor(activeTargetUser, notif.vendor)) {
                   setActiveVendor(notif.vendor);
                 }
-                if (notif.type === 'ARQUIVO_ASSOCIADO_SITE_VISTORIADOR') {
-                  setActiveTopTab('vistoria');
-                } else if (
-                  notif.type === 'VISTORIA_OK_PASTA' ||
-                  notif.type === 'TSSR_ENVIADO_EXECUTOR'
-                ) {
-                  setActiveTopTab(canSeeEngenhariaTab ? 'engenharia' : 'vistoria');
-                } else if (
-                  notif.type === 'SITE_DEMANDADO_EXECUTOR' ||
-                  notif.type === 'EXECUTOR_ATUALIZOU_EQUIPE'
-                ) {
-                  setActiveTopTab(canSeeSitesTab ? 'sites' : 'vistoria');
+                const targetVendor = (notif.vendor && canUserAccessVendor(activeTargetUser, notif.vendor)) ? notif.vendor : activeVendor;
+                if (targetVendor === 'NOKIA') {
+                  setActiveTopTab('sites');
+                } else {
+                  if (
+                    notif.type === 'SITE_DEMANDADO_EXECUTOR' ||
+                    notif.type === 'EXECUTOR_ATUALIZOU_EQUIPE'
+                  ) {
+                    setActiveTopTab(canSeeSitesTab ? 'sites' : (canSeeEricssonDemandsTab ? 'vistoria' : 'engenharia'));
+                  } else {
+                    setActiveTopTab('sites');
+                  }
                 }
               }}
             />
@@ -5201,53 +5356,37 @@ export default function App() {
               </button>
             )}
 
-            <button
-              type="button"
-              onClick={() => setActiveTopTab('vistoria')}
-              className={`p-2.5 rounded-xl border-2 text-left flex items-center justify-between gap-2 transition-all cursor-pointer ${
-                resolvedTopTab === 'vistoria'
-                  ? activeVendor === 'ERICSSON'
-                    ? 'bg-amber-600 border-amber-600 text-white shadow-sm'
-                    : effectiveRole === 'Executor'
-                    ? 'bg-purple-700 border-purple-700 text-white shadow-sm'
-                    : 'bg-blue-600 border-blue-600 text-white shadow-sm'
-                  : 'bg-white border-slate-200 text-slate-800 hover:border-blue-600'
-              }`}
-            >
-              <div className="flex items-center gap-2 min-w-0">
-                <FolderOpen
-                  className={`w-4 h-4 shrink-0 ${
-                    resolvedTopTab === 'vistoria'
-                      ? 'text-white'
-                      : activeVendor === 'ERICSSON'
-                      ? 'text-amber-600'
-                      : effectiveRole === 'Executor'
-                      ? 'text-purple-600'
-                      : 'text-blue-600'
-                  }`}
-                />
-                <span className="text-xs font-extrabold truncate">
-                  {activeVendor === 'ERICSSON'
-                    ? effectiveRole === 'Executor' || effectiveRole === 'Vistoriador'
-                      ? 'Demandas Engenharia Ericsson Claro'
-                      : 'PROJETO CLARO'
-                    : effectiveRole === 'Executor'
-                    ? 'Pastas TSSR'
-                    : effectiveRole === 'Coordenador Engenharia'
-                    ? 'Vistoria & TSSR'
-                    : 'Subir Vistoria'}
-                </span>
-              </div>
-              <span
-                className={`px-1.5 py-0.5 rounded-md font-mono text-[11px] font-bold shrink-0 ${
+            {canSeeEricssonDemandsTab && (
+              <button
+                type="button"
+                onClick={() => setActiveTopTab('vistoria')}
+                className={`p-2.5 rounded-xl border-2 text-left flex items-center justify-between gap-2 transition-all cursor-pointer ${
                   resolvedTopTab === 'vistoria'
-                    ? 'bg-white/20 text-white'
-                    : 'bg-slate-100 text-slate-700'
+                    ? 'bg-teal-700 border-teal-700 text-white shadow-sm'
+                    : 'bg-white border-slate-200 text-slate-800 hover:border-teal-700'
                 }`}
               >
-                {vendorEngineeringFilesCount}
-              </span>
-            </button>
+                <div className="flex items-center gap-2 min-w-0">
+                  <FileSpreadsheet
+                    className={`w-4 h-4 shrink-0 ${
+                      resolvedTopTab === 'vistoria' ? 'text-white' : 'text-teal-700'
+                    }`}
+                  />
+                  <span className="text-xs font-extrabold truncate">
+                    Demandas Engenharia
+                  </span>
+                </div>
+                <span
+                  className={`px-1.5 py-0.5 rounded-md font-mono text-[11px] font-bold shrink-0 ${
+                    resolvedTopTab === 'vistoria'
+                      ? 'bg-white/20 text-white'
+                      : 'bg-slate-100 text-slate-700'
+                  }`}
+                >
+                  {vendorEricssonEngineeringRows.length}
+                </span>
+              </button>
+            )}
 
             {isRealAdmin && !simulatedTargetUser && (
               <button
@@ -5395,10 +5534,14 @@ export default function App() {
             <span>
               <strong>Modo de visualização ({simulatedTargetUser.name})</strong> —{' '}
               {isEngineeringCoordinatorRole(simulatedTargetUser.role)
-                ? `Coordenação de Engenharia (${activeVendor}): Planilha Controle de Engenharia, Demandar Executores e Pastas TSSR.`
+                ? activeVendor === 'ERICSSON'
+                  ? `Coordenação de Engenharia (ERICSSON): Planilha Controle de Engenharia e Demandar Executores.`
+                  : `Coordenação de Engenharia (NOKIA): Planilha Controle de Engenharia e Demandar Executores.`
                 : effectiveRole === 'Executor'
-                ? `Executor: Meus Sites Demandados (${rawControleGeralPool.length}) e Pasta TSSR (${vendorEngineeringFilesCount} arquivo(s)).`
-                : `Exibindo apenas a demanda vinculada a esta dupla/usuário: ${rawControleGeralPool.length} Site(s) e ${vendorEngineeringFilesCount} Documento(s).`}
+                ? activeVendor === 'ERICSSON'
+                  ? `Executor: Meus Sites Demandados (${rawControleGeralPool.length})${vendorEricssonEngineeringRows.length > 0 ? ` e Demandas Engenharia (${vendorEricssonEngineeringRows.length})` : ''}.`
+                  : `Executor: Meus Sites Demandados (${rawControleGeralPool.length}).`
+                : `Exibindo apenas a demanda vinculada a esta dupla/usuário: ${rawControleGeralPool.length} Site(s).`}
             </span>
           </div>
           <div className="flex items-center gap-2">
@@ -5441,22 +5584,19 @@ export default function App() {
                 Demandar Executores ({listaExecutores.length})
               </button>
             )}
-            <button
-              type="button"
-              onClick={() => setActiveTopTab('vistoria')}
-              className={`px-2.5 py-1 rounded text-[11px] font-semibold cursor-pointer ${
-                resolvedTopTab === 'vistoria'
-                  ? 'bg-amber-600 text-white font-bold'
-                  : 'bg-slate-800 hover:bg-slate-700 text-slate-200'
-              }`}
-            >
-              {activeVendor === 'ERICSSON'
-                ? 'Projeto Claro'
-                : effectiveRole === 'Executor'
-                ? 'Pasta TSSR'
-                : 'Pasta Vistoria'}{' '}
-              ({vendorEngineeringFilesCount})
-            </button>
+            {canSeeEricssonDemandsTab && (
+              <button
+                type="button"
+                onClick={() => setActiveTopTab('vistoria')}
+                className={`px-2.5 py-1 rounded text-[11px] font-semibold cursor-pointer ${
+                  resolvedTopTab === 'vistoria'
+                    ? 'bg-teal-700 text-white font-bold'
+                    : 'bg-slate-800 hover:bg-slate-700 text-slate-200'
+                }`}
+              >
+                Demandas Engenharia ({vendorEricssonEngineeringRows.length})
+              </button>
+            )}
             <button
               type="button"
               onClick={() => setSimulatedTargetUser(null)}
@@ -5480,7 +5620,7 @@ export default function App() {
           MAIN WORKSPACE CONTENT
          ===================================================================== */}
       <main
-        className={`flex-1 w-full mx-auto px-2.5 sm:px-6 py-3 sm:py-5 pb-20 sm:pb-5 space-y-3 ${
+        className={`flex-1 w-full min-w-0 max-w-full mx-auto px-2.5 sm:px-6 py-3 sm:py-5 pb-20 sm:pb-5 space-y-3 ${
           resolvedTopTab === 'engenharia' ? 'max-w-full' : 'max-w-[1800px]'
         }`}
       >
@@ -5490,45 +5630,26 @@ export default function App() {
         {activeVendor === 'ERICSSON' && (
           <>
             {canSeeSitesTab && resolvedTopTab === 'sites' && (
-              !canSeeFullSpreadsheets && !isEngCoordinator ? (
-                <EricssonEngineeringTab
-                  user={activeTargetUser || user}
-                  effectiveRole={effectiveRole}
-                  activeVendor={activeVendor}
-                  onNavigateToVistoria={(siteId) => {
-                    if (siteId) {
-                      setEricssonVistoriaFocus({ fileName: siteId });
-                    }
-                    setActiveTopTab('vistoria');
-                  }}
-                  showToast={showToast}
-                />
-              ) : (
-                <EricssonSitesTab
-                  user={activeTargetUser || user}
-                  effectiveRole={effectiveRole}
-                  rows={mappedExecutorEricssonRows}
-                  sheetMeta={ericssonSheetMeta || null}
-                  ericssonUsers={ericssonUsers}
-                  onUpdated={(nextRows, nextMeta, toastMsg, nextFiles) => {
-                    setEricssonRows(nextRows);
-                    if (nextMeta) setEricssonSheetMeta(nextMeta);
-                    if (Array.isArray(nextFiles)) setEricssonFiles(nextFiles);
-                    if (toastMsg) showToast(toastMsg);
-                  }}
-                  onEricssonUsersUpdated={(nextUsers, toastMsg) => {
-                    setEricssonUsers(nextUsers);
-                    if (toastMsg) showToast(toastMsg);
-                  }}
-                  onOpenFileInVistoriaFolder={(folderId, fileId, fileName) => {
-                    setEricssonVistoriaFocus({ folderId, fileId, fileName });
-                    setActiveTopTab('vistoria');
-                  }}
-                  onOpenDuplasDemanda={
-                    isRealAdmin ? () => setActiveTopTab('duplas') : undefined
-                  }
-                />
-              )
+              <EricssonSitesTab
+                user={activeTargetUser || user}
+                effectiveRole={effectiveRole}
+                rows={mappedExecutorEricssonRows}
+                sheetMeta={ericssonSheetMeta || null}
+                ericssonUsers={ericssonUsers}
+                getAcionamentoForSite={getAcionamentoForSite}
+                onUpdated={(nextRows, nextMeta, toastMsg) => {
+                  setEricssonRows(nextRows);
+                  if (nextMeta) setEricssonSheetMeta(nextMeta);
+                  if (toastMsg) showToast(toastMsg);
+                }}
+                onEricssonUsersUpdated={(nextUsers, toastMsg) => {
+                  setEricssonUsers(nextUsers);
+                  if (toastMsg) showToast(toastMsg);
+                }}
+                onOpenDuplasDemanda={
+                  isRealAdmin ? () => setActiveTopTab('duplas') : undefined
+                }
+              />
             )}
 
             {resolvedTopTab === 'engenharia' && canSeeEngenhariaTab && (
@@ -5536,36 +5657,15 @@ export default function App() {
                 user={activeTargetUser || user}
                 effectiveRole={effectiveRole}
                 activeVendor={activeVendor}
-                onNavigateToVistoria={(siteId) => {
-                  if (siteId) {
-                    setEricssonVistoriaFocus({ fileName: siteId });
-                  }
-                  setActiveTopTab('vistoria');
-                }}
                 showToast={showToast}
               />
             )}
 
-            {resolvedTopTab === 'vistoria' && (
+            {resolvedTopTab === 'vistoria' && canSeeEricssonDemandsTab && (
               <EricssonVistoriaTab
                 user={activeTargetUser || user}
                 effectiveRole={effectiveRole}
-                rows={vendorEricssonRows}
-                sheetMeta={ericssonSheetMeta || null}
                 engineeringRows={vendorEricssonEngineeringRows}
-                folders={ericssonFolders}
-                files={ericssonFiles}
-                focusedFolderId={ericssonVistoriaFocus?.folderId || null}
-                focusedFileId={ericssonVistoriaFocus?.fileId || null}
-                focusedFileName={ericssonVistoriaFocus?.fileName || null}
-                onClearFocus={() => setEricssonVistoriaFocus(null)}
-                onUpdated={(nextRows, nextMeta, toastMsg, nextFolders, nextFiles) => {
-                  setEricssonRows(nextRows);
-                  if (nextMeta) setEricssonSheetMeta(nextMeta);
-                  if (Array.isArray(nextFolders)) setEricssonFolders(nextFolders);
-                  if (Array.isArray(nextFiles)) setEricssonFiles(nextFiles);
-                  if (toastMsg) showToast(toastMsg);
-                }}
                 onOpenSitesTab={
                   canSeeSitesTab ? () => setActiveTopTab('sites') : undefined
                 }
@@ -6671,23 +6771,14 @@ export default function App() {
           resolvedTopTab === 'engenharia' &&
           canSeeEngenhariaTab && (
           <EngineeringControlTab
-            user={user}
+            user={activeTargetUser || user}
             effectiveRole={effectiveRole}
-            simulatedTargetUser={simulatedTargetUser}
+            simulatedTargetUser={activeTargetUser || simulatedTargetUser}
             onToggleSimulateUser={(target) => setSimulatedTargetUser(target)}
             users={users}
             activeVendor={activeVendor}
             onSwitchVendor={handleSwitchVendor}
-            folders={engineeringFolders}
-            files={engineeringFiles}
             sites={vendorSites}
-            onFoldersAndFilesUpdated={(nextFolders, nextFiles, toastMsg, nextTssrRows, nextTssrSheets) => {
-              setEngineeringFolders(nextFolders);
-              setEngineeringFiles(nextFiles);
-              if (Array.isArray(nextTssrRows)) setTssrRows(nextTssrRows);
-              if (Array.isArray(nextTssrSheets)) setTssrSheets(nextTssrSheets);
-              if (toastMsg) showToast(toastMsg);
-            }}
             onSelectSiteId={(id) => setSelectedSiteId(id)}
             tssrRows={tssrRows}
             tssrSheets={tssrSheets}
@@ -6696,42 +6787,6 @@ export default function App() {
               if (Array.isArray(nextSheets)) setTssrSheets(nextSheets);
               if (toastMsg) showToast(toastMsg);
             }}
-            onNavigateToVistoria={(siteId) => {
-              if (siteId) setVistoriaPreselectedSiteId(siteId);
-              setActiveTopTab('vistoria');
-            }}
-          />
-        )}
-
-        {/* -------------------------------------------------------------------
-            TAB 3: VISTORIA (ITEM SEPARADO NA BARRA SUPERIOR — ENVIO COM VÍNCULO AO SITE TSSR)
-           ------------------------------------------------------------------- */}
-        {activeVendor === 'NOKIA' && resolvedTopTab === 'vistoria' && (
-          <EngineeringVistoriasTab
-            user={user}
-            effectiveRole={effectiveRole}
-            simulatedTargetUser={simulatedTargetUser}
-            onToggleSimulateUser={(target) => setSimulatedTargetUser(target)}
-            users={users}
-            activeVendor={activeVendor}
-            folders={engineeringFolders}
-            files={engineeringFiles}
-            sites={vendorSites}
-            tssrRows={tssrRows}
-            preselectedSiteId={vistoriaPreselectedSiteId}
-            onClearPreselectedSiteId={() => setVistoriaPreselectedSiteId(null)}
-            onFoldersAndFilesUpdated={(nextFolders, nextFiles, toastMsg, nextTssrRows, nextTssrSheets, nextSites) => {
-              setEngineeringFolders(nextFolders);
-              setEngineeringFiles(nextFiles);
-              if (Array.isArray(nextTssrRows)) setTssrRows(nextTssrRows);
-              if (Array.isArray(nextTssrSheets)) setTssrSheets(nextTssrSheets);
-              if (Array.isArray(nextSites)) setSites(nextSites);
-              if (toastMsg) showToast(toastMsg);
-            }}
-            onSelectSiteId={(id) => setSelectedSiteId(id)}
-            onOpenTssrTab={
-              canSeeEngenhariaTab ? () => setActiveTopTab('engenharia') : undefined
-            }
           />
         )}
 
@@ -6804,6 +6859,7 @@ export default function App() {
                   ericssonRows={ericssonRows}
                   users={users}
                   ericssonUsers={ericssonUsers}
+                  getAcionamentoForSite={getAcionamentoForSite}
                   serverDuplaEmailsMap={
                     activeVendor === 'ERICSSON'
                       ? serverEricssonDuplaEmailsMap
@@ -7186,6 +7242,7 @@ export default function App() {
                   }
                   users={users}
                   ericssonUsers={ericssonUsers}
+                  getAcionamentoForSite={getAcionamentoForSite}
                   serverExecutorEmailsMap={activeVendor === 'ERICSSON' ? serverEricssonExecutorEmailsMap : serverExecutorEmailsMap}
                   executoresList={listaExecutores}
                   onAddExecutor={activeVendor === 'ERICSSON' ? handleAddEricssonExecutor : handleAddExecutor}
@@ -7421,6 +7478,11 @@ export default function App() {
          ===================================================================== */}
       <SiteDetailDrawer
         site={selectedSite}
+        acionamento={
+          selectedSite
+            ? (getAcionamentoForSite(selectedSite.vendor, selectedSite.siteId) || null)
+            : null
+        }
         isAdmin={effectiveRole === 'ADM'}
         userRole={effectiveRole}
         duplasList={equipesDuplas}
@@ -7743,28 +7805,20 @@ export default function App() {
           </button>
         )}
 
-        <button
-          type="button"
-          onClick={() => setActiveTopTab('vistoria')}
-          className={`flex-1 py-1 px-1 rounded-lg flex flex-col items-center justify-center gap-0.5 text-[10px] font-bold transition-colors cursor-pointer ${
-            resolvedTopTab === 'vistoria'
-              ? activeVendor === 'ERICSSON'
-                ? 'text-amber-700 bg-amber-600/10'
-                : 'text-blue-700 bg-blue-600/10'
-              : 'text-slate-500 hover:text-slate-900'
-          }`}
-        >
-          <FolderOpen className="w-4 h-4" />
-          <span className="truncate max-w-[80px]">
-            {activeVendor === 'ERICSSON'
-              ? 'Projeto Claro'
-              : effectiveRole === 'Executor'
-              ? 'Pasta TSSR'
-              : effectiveRole === 'Coordenador Engenharia'
-              ? 'Vistoria/TSSR'
-              : 'Vistoria'}
-          </span>
-        </button>
+        {canSeeEricssonDemandsTab && (
+          <button
+            type="button"
+            onClick={() => setActiveTopTab('vistoria')}
+            className={`flex-1 py-1 px-1 rounded-lg flex flex-col items-center justify-center gap-0.5 text-[10px] font-bold transition-colors cursor-pointer ${
+              resolvedTopTab === 'vistoria'
+                ? 'text-teal-700 bg-teal-600/10'
+                : 'text-slate-500 hover:text-slate-900'
+            }`}
+          >
+            <FileSpreadsheet className="w-4 h-4" />
+            <span className="truncate max-w-[80px]">Demandas</span>
+          </button>
+        )}
 
         {isRealAdmin && !simulatedTargetUser && (
           <button

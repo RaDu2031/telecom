@@ -11,7 +11,11 @@ import {
   getCanonicalExecutorName,
   normalizeAccents,
   matchesDuplaName,
+  doesSiteMatchResponsible,
   doesEricssonRowMatchResponsible,
+  isNokiaSiteActivelyDemanded,
+  isEricssonRowActivelyDemanded,
+  isGenericNonTeamName,
 } from '../utils/spreadsheetUtils';
 import { dataService } from './dataService';
 
@@ -161,6 +165,85 @@ export function resolveExpandedSiteTokens(
   return result;
 }
 
+function splitEmailTokens(raw?: string | null): string[] {
+  if (!raw) return [];
+  return String(raw)
+    .split(/[,;\s]+/)
+    .map((e) => e.trim().toLowerCase())
+    .filter((e) => e.includes('@'));
+}
+
+/**
+ * Checks if a Nokia TSSR row was explicitly demanded in the system ("o que mandamos").
+ */
+export function isTssrRowActivelyDemanded(row?: TssrRow | null): boolean {
+  if (!row) return false;
+  const rAny = row as any;
+  const hasDemandDate = Boolean(
+    (row.fields?.['Data de demanda'] || row.fields?.['Data Demanda'] || '').trim()
+  );
+  const hasDemandEmail = Boolean((row.fields?.['E-MAIL DUPLA'] || '').trim());
+  const respDemand = String(rAny.responsavelDemand || '').trim();
+  const hasValidRespDemand = !isGenericNonTeamName(respDemand);
+
+  if (!hasValidRespDemand && !hasDemandDate && !hasDemandEmail) {
+    return false;
+  }
+
+  const rawResp = String(
+    rAny.responsavelDemand ||
+      row.fields?.['Executor'] ||
+      row.fields?.['EXECUTOR'] ||
+      row.executor ||
+      row.fields?.['EQUIPE EXECUTANTE'] ||
+      row.equipe ||
+      ''
+  ).trim();
+
+  return !isGenericNonTeamName(rawResp) || hasDemandEmail;
+}
+
+/**
+ * Checks if an Ericsson Engineering row was explicitly demanded in the system ("o que mandamos"),
+ * ignoring historical spreadsheet EXECUTOR values that were never demanded.
+ */
+export function isEricssonEngRowActivelyDemanded(
+  row?: EricssonEngineeringRow | { executor?: string; fields?: Record<string, string>; equipe?: string; responsavelDemand?: string; demanda?: string } | null
+): boolean {
+  if (!row) return false;
+  const rAny = row as any;
+  const hasDemandDate = Boolean(
+    (
+      row.fields?.['Data Demanda'] ||
+      row.fields?.['Data de demanda'] ||
+      rAny.demanda ||
+      ''
+    ).trim()
+  );
+  const hasDemandEmail = Boolean((row.fields?.['E-MAIL DUPLA'] || '').trim());
+  const respDemand = String(rAny.responsavelDemand || '').trim();
+  const hasValidRespDemand = !isGenericNonTeamName(respDemand);
+
+  if (!hasValidRespDemand && !hasDemandDate && !hasDemandEmail) {
+    return false;
+  }
+
+  const rawResp = String(
+    rAny.responsavelDemand ||
+      row.executor ||
+      row.fields?.['EXECUTOR'] ||
+      row.fields?.['EXECUTOR WR'] ||
+      row.fields?.['EXECUTOR QRF'] ||
+      row.fields?.['EXECUTOR PPI'] ||
+      row.fields?.['Executor'] ||
+      row.fields?.['EQUIPE'] ||
+      row.equipe ||
+      ''
+  ).trim();
+
+  return !isGenericNonTeamName(rawResp) || hasDemandEmail;
+}
+
 /**
  * Checks if a site is assigned to a responsible (dupla, executor or user)
  * Unified single source of truth for both Nokia and Ericsson, both "Demanda Executores"
@@ -168,121 +251,12 @@ export function resolveExpandedSiteTokens(
  */
 export function isSiteAssignedToResponsible(
   site: TelecomSite,
-  userOrResponsible: { uid?: string; id?: string; name?: string; email?: string; equipe?: string } | string,
+  userOrResponsible:
+    | { uid?: string; id?: string; name?: string; email?: string; equipe?: string; linkedTeams?: string[] }
+    | string,
   linkedEmails: string[] = []
 ): boolean {
-  if (!site || !userOrResponsible) return false;
-
-  const emailSet = new Set(
-    linkedEmails.map((e) => e.trim().toLowerCase()).filter(Boolean)
-  );
-
-  const siteEmail = (
-    site.customFields?.['E-MAIL DUPLA'] ||
-    site.customFields?.['EMAIL_DUPLA'] ||
-    ''
-  ).trim().toLowerCase();
-
-  const responsaveisEmails = Array.isArray(site.responsaveisEmails)
-    ? site.responsaveisEmails.map((e) => String(e).trim().toLowerCase())
-    : [];
-
-  const rawSiteResp = (
-    site.responsavelDemand ||
-    site.customFields?.['Executor'] ||
-    site.customFields?.['EQUIPE EXECUTANTE'] ||
-    site.customFields?.['Responsável'] ||
-    site.responsavelCampo ||
-    site.equipeParceira ||
-    site.equipe ||
-    site.customFields?.['EQUIPE'] ||
-    ''
-  ).trim();
-  const siteNorm = normalizeAccents(rawSiteResp.toLowerCase());
-
-  // String argument: could be an email, an executor name, or a dupla name
-  if (typeof userOrResponsible === 'string') {
-    const cleanStr = userOrResponsible.trim();
-    if (!cleanStr || cleanStr === 'ALL') return true;
-
-    if (cleanStr.includes('@')) {
-      const lower = cleanStr.toLowerCase();
-      if (emailSet.has(lower) || siteEmail.includes(lower) || responsaveisEmails.includes(lower)) {
-        return true;
-      }
-    }
-
-    const targetNorm = normalizeAccents(cleanStr.toLowerCase());
-    if (siteNorm && siteNorm === targetNorm) return true;
-
-    // Canonical comparisons
-    const cSite = getCanonicalDuplaName(rawSiteResp) || getCanonicalExecutorName(rawSiteResp);
-    const cTarget = getCanonicalDuplaName(cleanStr) || getCanonicalExecutorName(cleanStr);
-    if (cSite && cTarget && cSite.toLowerCase() === cTarget.toLowerCase()) return true;
-
-    // Check linked emails
-    if (emailSet.size > 0) {
-      for (const em of emailSet) {
-        if (siteEmail.includes(em) || responsaveisEmails.includes(em)) return true;
-      }
-    }
-
-    // Exact word or boundary match (e.g. "teste" in "Usuário Teste", avoiding "teste" in "teste 2")
-    if (siteNorm && targetNorm) {
-      const siteWords = siteNorm.split(/[\s/\\-]+/).filter(Boolean);
-      const targetWords = targetNorm.split(/[\s/\\-]+/).filter(Boolean);
-      if (siteWords.includes(targetNorm) || targetWords.includes(siteNorm)) return true;
-    }
-
-    return false;
-  }
-
-  // Object argument (AmetaUser)
-  if (userOrResponsible.email) {
-    const targetEmail = userOrResponsible.email.trim().toLowerCase();
-    if (targetEmail) {
-      emailSet.add(targetEmail);
-      if (siteEmail.includes(targetEmail) || responsaveisEmails.includes(targetEmail)) {
-        return true;
-      }
-    }
-  }
-
-  // Linked emails check
-  if (emailSet.size > 0) {
-    for (const em of emailSet) {
-      if (siteEmail.includes(em) || responsaveisEmails.includes(em)) return true;
-    }
-  }
-
-  // Equipe / Dupla check
-  if (userOrResponsible.equipe) {
-    const eqNorm = normalizeAccents(userOrResponsible.equipe.trim().toLowerCase());
-    if (eqNorm && eqNorm === siteNorm) return true;
-    const cEq = getCanonicalDuplaName(userOrResponsible.equipe);
-    const cSite = getCanonicalDuplaName(rawSiteResp);
-    if (cEq && cSite && cEq.toLowerCase() === cSite.toLowerCase()) return true;
-    if (eqNorm) {
-      const siteWords = siteNorm.split(/[\s/\\-]+/).filter(Boolean);
-      if (siteWords.includes(eqNorm)) return true;
-    }
-  }
-
-  // Name check
-  if (userOrResponsible.name) {
-    const nameNorm = normalizeAccents(userOrResponsible.name.replace(/\s*\(.*?\)\s*/g, '').trim().toLowerCase());
-    if (nameNorm && nameNorm === siteNorm) return true;
-    const cName = getCanonicalExecutorName(userOrResponsible.name);
-    const cSite = getCanonicalExecutorName(rawSiteResp);
-    if (cName && cSite && cName.toLowerCase() === cSite.toLowerCase()) return true;
-    if (nameNorm) {
-      const siteWords = siteNorm.split(/[\s/\\-]+/).filter(Boolean);
-      const nameWords = nameNorm.split(/[\s/\\-]+/).filter(Boolean);
-      if (siteWords.includes(nameNorm) || nameWords.includes(siteNorm)) return true;
-    }
-  }
-
-  return false;
+  return doesSiteMatchResponsible(site, userOrResponsible, linkedEmails);
 }
 
 /**
@@ -290,21 +264,35 @@ export function isSiteAssignedToResponsible(
  */
 export function isTssrRowAssignedToResponsible(
   row: TssrRow,
-  userOrResponsible: { uid?: string; id?: string; name?: string; email?: string; equipe?: string } | string,
+  userOrResponsible:
+    | { uid?: string; id?: string; name?: string; email?: string; equipe?: string; linkedTeams?: string[] }
+    | string,
   linkedEmails: string[] = []
 ): boolean {
   if (!row || !userOrResponsible) return false;
 
-  const rawRowResp = (
-    row.fields?.['Executor'] ||
-    row.fields?.['EXECUTOR'] ||
-    row.fields?.['Equipe'] ||
-    row.fields?.['EQUIPE EXECUTANTE'] ||
-    row.executor ||
-    ''
-  ).trim();
-  const rowNorm = normalizeAccents(rawRowResp.toLowerCase());
+  if (typeof userOrResponsible === 'string') {
+    const cleanStr = userOrResponsible.trim();
+    if (!cleanStr || cleanStr === 'ALL') return true;
+  }
 
+  if (!isTssrRowActivelyDemanded(row)) {
+    return false;
+  }
+
+  const rAny = row as any;
+  const rawRowResp = String(
+    rAny.responsavelDemand ||
+      row.fields?.['Executor'] ||
+      row.fields?.['EXECUTOR'] ||
+      row.fields?.['Equipe'] ||
+      row.fields?.['EQUIPE EXECUTANTE'] ||
+      row.executor ||
+      row.equipe ||
+      ''
+  ).trim();
+
+  const rowEmailTokens = new Set<string>(splitEmailTokens(row.fields?.['E-MAIL DUPLA']));
   const emailSet = new Set(
     linkedEmails.map((e) => e.trim().toLowerCase()).filter(Boolean)
   );
@@ -313,48 +301,55 @@ export function isTssrRowAssignedToResponsible(
     const cleanStr = userOrResponsible.trim();
     if (!cleanStr || cleanStr === 'ALL') return true;
 
-    if (cleanStr.includes('@') && emailSet.size > 0) {
-      if (emailSet.has(cleanStr.toLowerCase())) return true;
+    if (cleanStr.includes('@')) {
+      const lower = cleanStr.toLowerCase();
+      if (rowEmailTokens.has(lower) || emailSet.has(lower)) return true;
     }
 
-    const targetNorm = normalizeAccents(cleanStr.toLowerCase());
-    if (rowNorm && rowNorm === targetNorm) return true;
-
-    const cRow = getCanonicalExecutorName(rawRowResp) || getCanonicalDuplaName(rawRowResp);
-    const cTarget = getCanonicalExecutorName(cleanStr) || getCanonicalDuplaName(cleanStr);
-    if (cRow && cTarget && cRow.toLowerCase() === cTarget.toLowerCase()) return true;
-
-    if (rowNorm && targetNorm) {
-      const rowWords = rowNorm.split(/[\s/\\-]+/).filter(Boolean);
-      const targetWords = targetNorm.split(/[\s/\\-]+/).filter(Boolean);
-      if (rowWords.includes(targetNorm) || targetWords.includes(rowNorm)) return true;
+    if (emailSet.size > 0) {
+      for (const em of emailSet) {
+        if (rowEmailTokens.has(em)) return true;
+      }
     }
-    return false;
+
+    return matchesDuplaName(rawRowResp, cleanStr);
   }
 
   if (userOrResponsible.email) {
     const targetEmail = userOrResponsible.email.trim().toLowerCase();
-    if (emailSet.has(targetEmail)) {
-      return true;
+    if (targetEmail) {
+      emailSet.add(targetEmail);
+      if (rowEmailTokens.has(targetEmail)) {
+        return true;
+      }
     }
+  }
+
+  if (emailSet.size > 0) {
+    for (const em of emailSet) {
+      if (rowEmailTokens.has(em)) return true;
+    }
+  }
+
+  const candidateTeams = new Set<string>();
+  if (Array.isArray((userOrResponsible as any).linkedTeams)) {
+    (userOrResponsible as any).linkedTeams.forEach((t: string) => {
+      if (t && !isGenericNonTeamName(t)) candidateTeams.add(t.trim());
+    });
+  }
+  if (userOrResponsible.equipe && !isGenericNonTeamName(userOrResponsible.equipe)) {
+    candidateTeams.add(userOrResponsible.equipe.trim());
+  }
+
+  for (const team of candidateTeams) {
+    if (matchesDuplaName(rawRowResp, team)) return true;
   }
 
   if (userOrResponsible.name) {
-    const nameNorm = normalizeAccents(userOrResponsible.name.replace(/\s*\(.*?\)\s*/g, '').trim().toLowerCase());
-    if (nameNorm && nameNorm === rowNorm) return true;
-    const cName = getCanonicalExecutorName(userOrResponsible.name);
-    const cRow = getCanonicalExecutorName(rawRowResp);
-    if (cName && cRow && cName.toLowerCase() === cRow.toLowerCase()) return true;
-    if (nameNorm) {
-      const rowWords = rowNorm.split(/[\s/\\-]+/).filter(Boolean);
-      const nameWords = nameNorm.split(/[\s/\\-]+/).filter(Boolean);
-      if (rowWords.includes(nameNorm) || nameWords.includes(rowNorm)) return true;
+    const cleanName = userOrResponsible.name.replace(/\s*\(.*?\)\s*/g, '').trim();
+    if (cleanName && !isGenericNonTeamName(cleanName)) {
+      if (matchesDuplaName(rawRowResp, cleanName)) return true;
     }
-  }
-
-  if (userOrResponsible.equipe) {
-    const eqNorm = normalizeAccents(userOrResponsible.equipe.trim().toLowerCase());
-    if (eqNorm && eqNorm === rowNorm) return true;
   }
 
   return false;
@@ -364,25 +359,38 @@ export function isTssrRowAssignedToResponsible(
  * Checks if an Ericsson row is assigned to a responsible (dupla, executor or user)
  */
 export function isEricssonRowAssignedToResponsible(
-  row: EricssonEngineeringRow | { executor?: string; fields?: Record<string, string>; equipe?: string },
-  userOrResponsible: { uid?: string; id?: string; name?: string; email?: string; equipe?: string } | string,
+  row: EricssonEngineeringRow | { executor?: string; fields?: Record<string, string>; equipe?: string; responsavelDemand?: string; demanda?: string },
+  userOrResponsible:
+    | { uid?: string; id?: string; name?: string; email?: string; equipe?: string; linkedTeams?: string[] }
+    | string,
   linkedEmails: string[] = []
 ): boolean {
   if (!row || !userOrResponsible) return false;
 
-  const rawRowResp = (
-    row.executor ||
-    row.fields?.['EXECUTOR'] ||
-    row.fields?.['EXECUTOR WR'] ||
-    row.fields?.['EXECUTOR QRF'] ||
-    row.fields?.['EXECUTOR PPI'] ||
-    row.fields?.['Executor'] ||
-    row.fields?.['EQUIPE'] ||
-    row.equipe ||
-    ''
-  ).trim();
-  const rowNorm = normalizeAccents(rawRowResp.toLowerCase());
+  if (typeof userOrResponsible === 'string') {
+    const cleanStr = userOrResponsible.trim();
+    if (!cleanStr || cleanStr === 'ALL') return true;
+  }
 
+  if (!isEricssonEngRowActivelyDemanded(row) && !isEricssonRowActivelyDemanded(row as any)) {
+    return false;
+  }
+
+  const rAny = row as any;
+  const rawRowResp = String(
+    rAny.responsavelDemand ||
+      row.executor ||
+      row.fields?.['EXECUTOR'] ||
+      row.fields?.['EXECUTOR WR'] ||
+      row.fields?.['EXECUTOR QRF'] ||
+      row.fields?.['EXECUTOR PPI'] ||
+      row.fields?.['Executor'] ||
+      row.fields?.['EQUIPE'] ||
+      row.equipe ||
+      ''
+  ).trim();
+
+  const rowEmailTokens = new Set<string>(splitEmailTokens(row.fields?.['E-MAIL DUPLA']));
   const emailSet = new Set(
     linkedEmails.map((e) => e.trim().toLowerCase()).filter(Boolean)
   );
@@ -391,48 +399,55 @@ export function isEricssonRowAssignedToResponsible(
     const cleanStr = userOrResponsible.trim();
     if (!cleanStr || cleanStr === 'ALL') return true;
 
-    if (cleanStr.includes('@') && emailSet.size > 0) {
-      if (emailSet.has(cleanStr.toLowerCase())) return true;
+    if (cleanStr.includes('@')) {
+      const lower = cleanStr.toLowerCase();
+      if (rowEmailTokens.has(lower) || emailSet.has(lower)) return true;
     }
 
-    const targetNorm = normalizeAccents(cleanStr.toLowerCase());
-    if (rowNorm && rowNorm === targetNorm) return true;
-
-    const cRow = getCanonicalExecutorName(rawRowResp) || getCanonicalDuplaName(rawRowResp);
-    const cTarget = getCanonicalExecutorName(cleanStr) || getCanonicalDuplaName(cleanStr);
-    if (cRow && cTarget && cRow.toLowerCase() === cTarget.toLowerCase()) return true;
-
-    if (rowNorm && targetNorm) {
-      const rowWords = rowNorm.split(/[\s/\\-]+/).filter(Boolean);
-      const targetWords = targetNorm.split(/[\s/\\-]+/).filter(Boolean);
-      if (rowWords.includes(targetNorm) || targetWords.includes(rowNorm)) return true;
+    if (emailSet.size > 0) {
+      for (const em of emailSet) {
+        if (rowEmailTokens.has(em)) return true;
+      }
     }
-    return false;
+
+    return matchesDuplaName(rawRowResp, cleanStr);
   }
 
   if (userOrResponsible.email) {
     const targetEmail = userOrResponsible.email.trim().toLowerCase();
-    if (emailSet.has(targetEmail)) {
-      return true;
+    if (targetEmail) {
+      emailSet.add(targetEmail);
+      if (rowEmailTokens.has(targetEmail)) {
+        return true;
+      }
     }
+  }
+
+  if (emailSet.size > 0) {
+    for (const em of emailSet) {
+      if (rowEmailTokens.has(em)) return true;
+    }
+  }
+
+  const candidateTeams = new Set<string>();
+  if (Array.isArray((userOrResponsible as any).linkedTeams)) {
+    (userOrResponsible as any).linkedTeams.forEach((t: string) => {
+      if (t && !isGenericNonTeamName(t)) candidateTeams.add(t.trim());
+    });
+  }
+  if (userOrResponsible.equipe && !isGenericNonTeamName(userOrResponsible.equipe)) {
+    candidateTeams.add(userOrResponsible.equipe.trim());
+  }
+
+  for (const team of candidateTeams) {
+    if (matchesDuplaName(rawRowResp, team)) return true;
   }
 
   if (userOrResponsible.name) {
-    const nameNorm = normalizeAccents(userOrResponsible.name.replace(/\s*\(.*?\)\s*/g, '').trim().toLowerCase());
-    if (nameNorm && nameNorm === rowNorm) return true;
-    const cName = getCanonicalExecutorName(userOrResponsible.name);
-    const cRow = getCanonicalExecutorName(rawRowResp);
-    if (cName && cRow && cName.toLowerCase() === cRow.toLowerCase()) return true;
-    if (nameNorm) {
-      const rowWords = rowNorm.split(/[\s/\\-]+/).filter(Boolean);
-      const nameWords = nameNorm.split(/[\s/\\-]+/).filter(Boolean);
-      if (rowWords.includes(nameNorm) || nameWords.includes(rowNorm)) return true;
+    const cleanName = userOrResponsible.name.replace(/\s*\(.*?\)\s*/g, '').trim();
+    if (cleanName && !isGenericNonTeamName(cleanName)) {
+      if (matchesDuplaName(rawRowResp, cleanName)) return true;
     }
-  }
-
-  if (userOrResponsible.equipe) {
-    const eqNorm = normalizeAccents(userOrResponsible.equipe.trim().toLowerCase());
-    if (eqNorm && eqNorm === rowNorm) return true;
   }
 
   return false;
@@ -443,23 +458,26 @@ export function isEricssonRowAssignedToResponsible(
  */
 export function isItemAssignedToResponsible(
   item: any,
-  userOrResponsible: { uid?: string; id?: string; name?: string; email?: string; equipe?: string } | string,
+  userOrResponsible:
+    | { uid?: string; id?: string; name?: string; email?: string; equipe?: string; linkedTeams?: string[] }
+    | string,
   linkedEmails: string[] = []
 ): boolean {
   if (!item) return false;
-  if ('sheetName' in item || 'siteId' in item && 'customFields' in item) {
+  if ('sheetName' in item || ('siteId' in item && 'customFields' in item)) {
     return isSiteAssignedToResponsible(item as TelecomSite, userOrResponsible, linkedEmails);
   }
-  if ('tabName' in item || ('fields' in item && 'rowKey' in item)) {
+  if (item.vendor === 'NOKIA' && ('tabName' in item || ('fields' in item && 'rowKey' in item))) {
     return isTssrRowAssignedToResponsible(item as TssrRow, userOrResponsible, linkedEmails);
   }
   return isEricssonRowAssignedToResponsible(item, userOrResponsible, linkedEmails);
 }
 
 /**
- * Gets the current responsible name assigned to a site or row, if any
+ * Gets the current responsible name assigned to a site or row, ONLY if actively demanded
  */
 export function getCurrentSiteResponsible(site: TelecomSite): string {
+  if (!isNokiaSiteActivelyDemanded(site)) return '';
   return (
     site.responsavelDemand ||
     site.customFields?.['Executor'] ||
@@ -472,36 +490,39 @@ export function getCurrentSiteResponsible(site: TelecomSite): string {
 }
 
 export function getCurrentTssrRowResponsible(row: TssrRow): string {
-  return (row.fields?.['Executor'] || row.fields?.['EXECUTOR'] || row.executor || '').trim();
+  if (!isTssrRowActivelyDemanded(row)) return '';
+  return (
+    (row as any).responsavelDemand ||
+    row.fields?.['Executor'] ||
+    row.fields?.['EXECUTOR'] ||
+    row.executor ||
+    ''
+  ).trim();
 }
 
-export function getCurrentEricssonRowResponsible(row: EricssonEngineeringRow): string {
+export function getCurrentEricssonRowResponsible(
+  row: EricssonEngineeringRow | { executor?: string; fields?: Record<string, string>; equipe?: string; responsavelDemand?: string; demanda?: string }
+): string {
+  if (!isEricssonEngRowActivelyDemanded(row) && !isEricssonRowActivelyDemanded(row as any)) {
+    return '';
+  }
   return (
+    (row as any).responsavelDemand ||
     row.executor ||
     row.fields?.['EXECUTOR'] ||
     row.fields?.['EXECUTOR WR'] ||
     row.fields?.['EXECUTOR QRF'] ||
     row.fields?.['EXECUTOR PPI'] ||
     row.fields?.['Executor'] ||
+    row.equipe ||
+    row.fields?.['EQUIPE'] ||
     ''
   ).trim();
 }
 
 export function hasActiveResponsible(resp?: string): boolean {
   if (!resp) return false;
-  const clean = resp.trim();
-  if (
-    !clean ||
-    clean === '—' ||
-    clean === '-' ||
-    clean.toLowerCase() === 'a definir' ||
-    clean.toLowerCase() === 'sem executor' ||
-    clean.toLowerCase() === 'sem dupla' ||
-    clean.toLowerCase() === 'sem equipe'
-  ) {
-    return false;
-  }
-  return true;
+  return !isGenericNonTeamName(resp);
 }
 
 export function getItemCurrentResponsible(item: any): string {
@@ -509,7 +530,7 @@ export function getItemCurrentResponsible(item: any): string {
   if ('sheetName' in item || ('siteId' in item && 'customFields' in item)) {
     return getCurrentSiteResponsible(item as TelecomSite);
   }
-  if ('tabName' in item || ('fields' in item && 'rowKey' in item)) {
+  if (item.vendor === 'NOKIA' && ('tabName' in item || ('fields' in item && 'rowKey' in item))) {
     return getCurrentTssrRowResponsible(item as TssrRow);
   }
   return getCurrentEricssonRowResponsible(item);
@@ -773,11 +794,14 @@ export const demandaSharedService = {
       updatedTssrCount++;
       return {
         ...row,
+        responsavelDemand: cleanResponsible,
         executor: cleanResponsible,
+        equipe: cleanResponsible,
         fields: {
           ...(row.fields || {}),
           Executor: cleanResponsible,
           'EQUIPE EXECUTANTE': cleanResponsible,
+          ...(emailStr ? { 'E-MAIL DUPLA': emailStr } : {}),
           'Data de demanda': targetDate,
           'Data Demanda': targetDate,
         },
@@ -809,7 +833,9 @@ export const demandaSharedService = {
       updatedEricssonCount++;
       return {
         ...row,
+        responsavelDemand: cleanResponsible,
         executor: cleanResponsible,
+        equipe: cleanResponsible,
         fields: {
           ...(row.fields || {}),
           EXECUTOR: cleanResponsible,
@@ -817,6 +843,7 @@ export const demandaSharedService = {
           'EXECUTOR QRF': cleanResponsible,
           'EXECUTOR PPI': cleanResponsible,
           Executor: cleanResponsible,
+          ...(emailStr ? { 'E-MAIL DUPLA': emailStr } : {}),
           'Data Demanda': targetDate,
           'Data de demanda': targetDate,
         },
@@ -824,16 +851,21 @@ export const demandaSharedService = {
       };
     });
 
-    // 5. Update EricssonRow list (Ericsson Vistoria / Duplas)
+    // 5. Update EricssonRow list (Ericsson Vistoria / Duplas & Mother Sheet rows)
     let updatedEricssonSitesCount = 0;
     const nextEricssonRows = (params.currentEricssonRows || []).map((row) => {
       if (params.vendor !== 'ERICSSON') return row;
 
       const rId = String(row.id || '').trim();
-      const isMatch = params.siteTokens.some((tk) => String(tk).trim() === rId);
+      const isMatch = params.siteTokens.some((tk) => {
+        const cleanTk = String(tk).trim().replace(/^mother-/i, '');
+        return cleanTk === rId;
+      });
       if (!isMatch) return row;
 
-      const currentResp = (row.equipe || row.fields?.['EQUIPE'] || '').trim();
+      const currentResp = isEricssonRowActivelyDemanded(row)
+        ? ((row as any).responsavelDemand || row.equipe || row.fields?.['EQUIPE'] || '').trim()
+        : '';
       const isOtherActive =
         hasActiveResponsible(currentResp) &&
         currentResp.toLowerCase() !== cleanResponsible.toLowerCase();
@@ -845,6 +877,7 @@ export const demandaSharedService = {
       updatedEricssonSitesCount++;
       return {
         ...row,
+        responsavelDemand: cleanResponsible,
         equipe: cleanResponsible,
         fields: {
           ...(row.fields || {}),
@@ -854,6 +887,7 @@ export const demandaSharedService = {
           'Data de demanda': targetDate,
           'Data Demanda': targetDate,
         },
+        updatedAt: nowIso,
       };
     });
 
@@ -987,11 +1021,14 @@ export const demandaSharedService = {
       updatedTssrCount++;
       return {
         ...row,
+        responsavelDemand: '',
         executor: '',
+        equipe: '',
         fields: {
           ...(row.fields || {}),
           Executor: '',
           'EQUIPE EXECUTANTE': '',
+          'E-MAIL DUPLA': '',
           'Data de demanda': '',
           'Data Demanda': '',
         },
@@ -1013,7 +1050,9 @@ export const demandaSharedService = {
       updatedEricssonCount++;
       return {
         ...row,
+        responsavelDemand: '',
         executor: '',
+        equipe: '',
         fields: {
           ...(row.fields || {}),
           EXECUTOR: '',
@@ -1021,6 +1060,7 @@ export const demandaSharedService = {
           'EXECUTOR QRF': '',
           'EXECUTOR PPI': '',
           Executor: '',
+          'E-MAIL DUPLA': '',
           'Data Demanda': '',
           'Data de demanda': '',
         },
@@ -1033,7 +1073,10 @@ export const demandaSharedService = {
       if (params.vendor !== 'ERICSSON') return row;
 
       const rId = String(row.id || '').trim();
-      const isMatch = params.siteTokens.some((tk) => String(tk).trim() === rId);
+      const isMatch = params.siteTokens.some((tk) => {
+        const cleanTk = String(tk).trim().replace(/^mother-/i, '');
+        return cleanTk === rId;
+      });
       if (!isMatch) return row;
 
       updatedEricssonSitesCount++;
@@ -1178,11 +1221,14 @@ export const demandaSharedService = {
       affectedTokens.push(row.siteId);
       return {
         ...row,
+        responsavelDemand: '',
         executor: '',
+        equipe: '',
         fields: {
           ...(row.fields || {}),
           Executor: '',
           'EQUIPE EXECUTANTE': '',
+          'E-MAIL DUPLA': '',
           'Data de demanda': '',
           'Data Demanda': '',
         },
@@ -1206,7 +1252,9 @@ export const demandaSharedService = {
       affectedTokens.push(row.id);
       return {
         ...row,
+        responsavelDemand: '',
         executor: '',
+        equipe: '',
         fields: {
           ...(row.fields || {}),
           EXECUTOR: '',
@@ -1214,6 +1262,7 @@ export const demandaSharedService = {
           'EXECUTOR QRF': '',
           'EXECUTOR PPI': '',
           Executor: '',
+          'E-MAIL DUPLA': '',
           'Data Demanda': '',
           'Data de demanda': '',
         },
@@ -1225,14 +1274,10 @@ export const demandaSharedService = {
       if (params.vendor !== 'ERICSSON') return row;
 
       const rId = String(row.id || '').trim();
-      const isDirectMatch =
-        matchesDuplaName(row.equipe, cleanResponsible) ||
-        matchesDuplaName(row.fields?.['EQUIPE'], cleanResponsible) ||
-        matchesDuplaName(row.fields?.['EQUIPE EXECUTANTE'], cleanResponsible) ||
-        doesEricssonRowMatchResponsible(row, cleanResponsible);
+      const isDirectMatch = doesEricssonRowMatchResponsible(row, cleanResponsible, linkedEmails);
       const isTokenMatch =
         explicitTokens.size > 0 &&
-        explicitTokens.has(rId.toUpperCase());
+        (explicitTokens.has(rId.toUpperCase()) || explicitTokens.has(`MOTHER-${rId.toUpperCase()}`));
 
       if (!isDirectMatch && !isTokenMatch) return row;
 
@@ -1249,6 +1294,7 @@ export const demandaSharedService = {
           'Data de demanda': '',
           'Data Demanda': '',
         },
+        updatedAt: nowIso,
       };
     });
 
@@ -1275,7 +1321,7 @@ export const demandaSharedService = {
     const rawTokensToClear =
       params.siteTokensToClear && params.siteTokensToClear.length > 0
         ? params.siteTokensToClear
-        : params.vendor === 'ERICSSON' && params.targetScope !== 'executor'
+        : affectedTokens.length > 0
         ? affectedTokens
         : undefined;
 
@@ -1304,7 +1350,8 @@ export const demandaSharedService = {
 
   /**
    * RECONCILIAÇÃO E MIGRAÇÃO AUTOMÁTICA DE VÍNCULOS INCONSISTENTES
-   * Ensures bidirectional consistency between TelecomSite[], TssrRow[], and EricssonEngineeringRow[].
+   * Ensures bidirectional consistency ONLY for actively demanded rows ("o que mandamos"),
+   * and cleans any historical spreadsheet rows that were accidentally marked as demanded without a demand date/email.
    */
   reconciliarDemandasInconsistentes(params: {
     sites: TelecomSite[];
@@ -1314,9 +1361,10 @@ export const demandaSharedService = {
     let reconciledCount = 0;
     const nowIso = new Date().toISOString();
 
-    // 1. Build map of demands from TssrRows (Nokia): Site ID -> { executor, date }
+    // 1. Build map of demands from actively demanded TssrRows (Nokia): Site ID -> { executor, date }
     const tssrDemandMap = new Map<string, { executor: string; date?: string }>();
     for (const r of params.tssrRows) {
+      if (!isTssrRowActivelyDemanded(r)) continue;
       const ex = (r.fields?.['Executor'] || r.fields?.['EXECUTOR'] || r.executor || '').trim();
       const sid = (r.siteId || '').trim().toUpperCase();
       if (ex && sid) {
@@ -1327,9 +1375,10 @@ export const demandaSharedService = {
       }
     }
 
-    // 2. Build map of demands from EricssonEngineeringRows: Site ID / Intervencao -> { executor, date }
+    // 2. Build map of demands from actively demanded EricssonEngineeringRows
     const ericssonDemandMap = new Map<string, { executor: string; date?: string }>();
     for (const r of params.ericssonEngRows) {
+      if (!isEricssonEngRowActivelyDemanded(r)) continue;
       const ex = (
         r.executor ||
         r.fields?.['EXECUTOR'] ||
@@ -1391,13 +1440,33 @@ export const demandaSharedService = {
             updatedAt: nowIso,
           };
         }
+        return site;
+      }
+
+      // Clean sites that had responsavelDemand polluted from historical EQUIPE EXECUTANTE without demand date or email
+      const hasDemandDate = Boolean(
+        (site.customFields?.['Data de demanda'] || site.customFields?.['Data Demanda'] || '').trim()
+      );
+      const hasDemandEmail = Boolean(
+        (site.customFields?.['E-MAIL DUPLA'] || site.customFields?.['EMAIL_DUPLA'] || '').trim() ||
+          (Array.isArray(site.responsaveisEmails) && site.responsaveisEmails.length > 0)
+      );
+      if (site.responsavelDemand && !hasDemandDate && !hasDemandEmail) {
+        reconciledCount++;
+        const nextCustom = { ...(site.customFields || {}) };
+        delete nextCustom['Executor'];
+        return {
+          ...site,
+          responsavelDemand: '',
+          customFields: nextCustom,
+        };
       }
 
       // Check TSSR demand map (Nokia)
       if (site.vendor === 'NOKIA' && sid && tssrDemandMap.has(sid)) {
         const tssrInfo = tssrDemandMap.get(sid)!;
-        const currentEx = (site.customFields?.['Executor'] || site.responsavelDemand || '').trim();
-        if (!currentEx) {
+        const currentEx = (site.responsavelDemand || '').trim();
+        if (!currentEx && tssrInfo.date) {
           reconciledCount++;
           return {
             ...site,
@@ -1410,52 +1479,27 @@ export const demandaSharedService = {
               'EQUIPE EXECUTANTE': tssrInfo.executor,
               Executor: tssrInfo.executor,
               Responsável: tssrInfo.executor,
-              ...(tssrInfo.date ? { 'Data de demanda': tssrInfo.date, 'Data Demanda': tssrInfo.date } : {}),
+              'Data de demanda': tssrInfo.date,
+              'Data Demanda': tssrInfo.date,
             },
             updatedAt: nowIso,
           };
         }
       }
 
-      // Check Ericsson demand map
-      if (site.vendor === 'ERICSSON') {
-        const tokens = extractSiteTokens(site);
-        for (const tok of tokens) {
-          if (ericssonDemandMap.has(tok)) {
-            const errInfo = ericssonDemandMap.get(tok)!;
-            const currentEx = (site.customFields?.['Executor'] || site.responsavelDemand || '').trim();
-            if (!currentEx) {
-              reconciledCount++;
-              return {
-                ...site,
-                responsavelDemand: errInfo.executor,
-                responsavelCampo: errInfo.executor,
-                equipe: errInfo.executor,
-                customFields: {
-                  ...(site.customFields || {}),
-                  'EQUIPE EXECUTANTE': errInfo.executor,
-                  Executor: errInfo.executor,
-                  ...(errInfo.date ? { 'Data Demanda': errInfo.date, 'Data de demanda': errInfo.date } : {}),
-                },
-                updatedAt: nowIso,
-              };
-            }
-            break;
-          }
-        }
-      }
-
       return site;
     });
 
-    // Apply reconciliation to TssrRow[]: ensure the 6 sites for 'teste' exist in tssrRows and have Executor: 'teste'
+    // Apply reconciliation to TssrRow[]: ensure the 6 sites for 'teste' have Executor: 'teste', and clean un-demanded rows
     const reconciledTssrRows = params.tssrRows.map((r) => {
       const sid = (r.siteId || '').trim().toUpperCase();
       if (testeSites.has(sid)) {
         const currentEx = (r.fields?.['Executor'] || r.executor || '').trim().toLowerCase();
         if (currentEx !== 'teste') {
+          reconciledCount++;
           return {
             ...r,
+            responsavelDemand: 'teste',
             executor: 'teste',
             fields: {
               ...(r.fields || {}),
@@ -1467,6 +1511,21 @@ export const demandaSharedService = {
             updatedAt: nowIso,
           };
         }
+        return r;
+      }
+
+      if (!isTssrRowActivelyDemanded(r) && (r.executor || r.fields?.['Executor'])) {
+        reconciledCount++;
+        return {
+          ...r,
+          executor: '',
+          equipe: '',
+          fields: {
+            ...(r.fields || {}),
+            Executor: '',
+            'EQUIPE EXECUTANTE': '',
+          },
+        };
       }
       return r;
     });

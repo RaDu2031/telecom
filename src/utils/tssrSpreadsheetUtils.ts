@@ -397,7 +397,12 @@ export function convertSitesToTssrRows(
 ): TssrRow[] {
   const now = new Date().toISOString();
   return sites
-    .filter((s) => s.vendor === vendor)
+    .filter(
+      (s) =>
+        s.vendor === vendor &&
+        s.sheetName !== 'Equipes' &&
+        s.sheetName !== 'Controle Cancelados'
+    )
     .map((s, idx) => {
       const siteId = (s.siteId || '').trim().toUpperCase();
       const ocSitePre = (
@@ -417,6 +422,19 @@ export function convertSitesToTssrRows(
         fields[col] = '';
       });
 
+      const demandDate = (
+        (s.customFields && s.customFields['Data de demanda']) ||
+        (s.customFields && s.customFields['Data Demanda']) ||
+        ''
+      ).trim();
+      const isActivelyDemanded = Boolean(
+        (s.responsavelDemand && s.responsavelDemand.trim()) ||
+          demandDate ||
+          (s.customFields &&
+            (s.customFields['E-MAIL DUPLA'] || s.customFields['EMAIL_DUPLA'] || '').trim()) ||
+          (Array.isArray(s.responsaveisEmails) && s.responsaveisEmails.length > 0)
+      );
+
       // Populate canonical fields from TelecomSite
       fields['Site Id'] = siteId;
       fields['Oc Site Pre'] = ocSitePre;
@@ -428,21 +446,20 @@ export function convertSitesToTssrRows(
       fields['Tipo doc'] = (s.tecnologias || (s.customFields && s.customFields['PROJETO']) || 'TSSR').trim();
       fields['Status'] = (s.status || (s.customFields && s.customFields['STATUS']) || '').trim();
       fields['STATUS Engenharia'] = fields['Status'];
-      fields['Executor'] = (
-        s.responsavelDemand ||
-        (s.customFields && s.customFields['Executor']) ||
-        (s.customFields && s.customFields['EQUIPE EXECUTANTE']) ||
-        s.responsavelCampo ||
-        ''
-      ).trim();
-      fields['Data de demanda'] = (
-        (s.customFields && s.customFields['Data de demanda']) ||
-        (s.customFields && s.customFields['Data Demanda']) ||
-        ''
-      ).trim();
+      fields['Executor'] = isActivelyDemanded
+        ? (
+            s.responsavelDemand ||
+            (s.customFields && s.customFields['Executor']) ||
+            (s.customFields && s.customFields['EQUIPE EXECUTANTE']) ||
+            s.responsavelCampo ||
+            ''
+          ).trim()
+        : '';
+      fields['Data de demanda'] = demandDate;
 
       if (s.customFields) {
         Object.entries(s.customFields).forEach(([k, v]) => {
+          if (k === 'Executor' || k === 'EQUIPE EXECUTANTE') return;
           if (k in fields && !fields[k]) {
             fields[k] = String(v ?? '');
           }
@@ -463,7 +480,9 @@ export function convertSitesToTssrRows(
         ocSitePre,
         enderecoId,
         executor: fields['Executor'],
-        equipe: (s.equipe || s.equipeParceira || s.customFields?.['EQUIPE EXECUTANTE'] || '').trim(),
+        equipe: isActivelyDemanded
+          ? (s.responsavelDemand || s.equipe || s.equipeParceira || s.customFields?.['EQUIPE EXECUTANTE'] || '').trim()
+          : '',
         fields,
         vistoriaStatus: isDelivered ? 'Entregue' : 'Pendente',
         vistoriaFileId: s.vistoriaFileId,

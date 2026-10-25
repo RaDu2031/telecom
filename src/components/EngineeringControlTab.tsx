@@ -36,8 +36,6 @@ import {
   UserRole,
   VendorType,
   TelecomSite,
-  EngineeringFolder,
-  EngineeringFile,
   TssrRow,
   TssrSheetMeta,
   TSSR_TIM_NOKIA_ORIGINAL_COLUMNS,
@@ -47,6 +45,7 @@ import {
   DEFAULT_ERICSSON_ENG_ONEDRIVE_URL,
 } from '../types/telecom';
 import { dataService } from '../services/dataService';
+import { isTssrRowAssignedToResponsible } from '../services/demandaSharedService';
 import {
   parseTssrWorkbookBuffer,
   getTssrColumnValue,
@@ -59,7 +58,6 @@ import {
   getEngenhariaCategory,
 } from './EngineeringInteractiveChart';
 import { GoogleDriveModal } from './GoogleDriveModal';
-import { EngineeringVistoriasTab } from './EngineeringVistoriasTab';
 import { confirmar } from '../hooks/useConfirm';
 import { showToast } from '../utils/toast';
 
@@ -72,21 +70,11 @@ interface EngineeringControlTabProps {
   users?: AmetaUser[];
   activeVendor: VendorType;
   onSwitchVendor: (v: VendorType) => void;
-  folders: EngineeringFolder[];
-  files: EngineeringFile[];
   sites: TelecomSite[];
-  onFoldersAndFilesUpdated: (
-    nextFolders: EngineeringFolder[],
-    nextFiles: EngineeringFile[],
-    toastMsg?: string,
-    nextTssrRows?: TssrRow[],
-    nextTssrSheets?: TssrSheetMeta[]
-  ) => void;
-  onSelectSiteId: (siteId: string) => void;
+  onSelectSiteId?: (siteId: string) => void;
   tssrRows: TssrRow[];
   tssrSheets: TssrSheetMeta[];
   onTssrUpdated: (nextRows: TssrRow[], nextSheets?: TssrSheetMeta[], toastMsg?: string) => void;
-  onNavigateToVistoria?: (preselectedSiteId?: string) => void;
 }
 
 // Columns shown in "Resumo" mode (grouped by section) + the 4 system columns
@@ -135,15 +123,11 @@ export const EngineeringControlTab: React.FC<EngineeringControlTabProps> = ({
   users = [],
   activeVendor,
   onSwitchVendor,
-  folders = [],
-  files = [],
   sites = [],
-  onFoldersAndFilesUpdated,
   onSelectSiteId,
   tssrRows,
   tssrSheets,
   onTssrUpdated,
-  onNavigateToVistoria,
 }) => {
   const isAdmRole = effectiveRole === 'ADM';
   const isCoordenadorGeral = effectiveRole === 'Coordenador Geral';
@@ -156,72 +140,8 @@ export const EngineeringControlTab: React.FC<EngineeringControlTabProps> = ({
     ? DEFAULT_ERICSSON_ENG_ONEDRIVE_URL 
     : DEFAULT_ONEDRIVE_TSSR_URL);
     
-  const canUploadTssr =
-    isExecutor ||
-    isCoordenadorEngenharia ||
-    isCoordenadorGeral ||
-    isAdmRole;
-
   // Active Engineering Tab (starts on "TSSR TIM Nokia")
   const [activeSubTab, setActiveSubTab] = useState<'TSSR TIM Nokia'>('TSSR TIM Nokia');
-
-  // State for opening "TSSR Entrada" or "TSSR" project folders in a dedicated full-page view
-  const [openProjectFolderType, setOpenProjectFolderType] = useState<'TSSR Entrada' | 'TSSR' | null>(null);
-
-  const vendorFolders = useMemo(
-    () => folders.filter((f) => f.vendor === activeVendor),
-    [folders, activeVendor]
-  );
-
-  const vendorFiles = useMemo(
-    () => files.filter((fl) => fl.vendor === activeVendor),
-    [files, activeVendor]
-  );
-
-  const tssrEntradaFolder = useMemo(
-    () =>
-      vendorFolders.find((f) => f.name === 'TSSR Entrada') || {
-        id: `folder-${activeVendor.toLowerCase()}-tssr-entrada`,
-        name: 'TSSR Entrada',
-      },
-    [vendorFolders, activeVendor]
-  );
-
-  const tssrFinalFolder = useMemo(
-    () =>
-      vendorFolders.find((f) => f.name === 'TSSR') || {
-        id: `folder-${activeVendor.toLowerCase()}-tssr-final`,
-        name: 'TSSR',
-      },
-    [vendorFolders, activeVendor]
-  );
-
-  const getProjectFolderStats = (folderId: string) => {
-    const descendantIds = new Set<string>([folderId]);
-    let added = true;
-    while (added) {
-      added = false;
-      for (const f of vendorFolders) {
-        if (f.parentId && descendantIds.has(f.parentId) && !descendantIds.has(f.id)) {
-          descendantIds.add(f.id);
-          added = true;
-        }
-      }
-    }
-    const directSubfolders = vendorFolders.filter((f) => f.parentId === folderId).length;
-    const totalFiles = vendorFiles.filter((fl) => descendantIds.has(fl.folderId)).length;
-    return { directSubfolders, totalFiles };
-  };
-
-  const tssrEntradaStats = useMemo(
-    () => getProjectFolderStats(tssrEntradaFolder.id),
-    [tssrEntradaFolder.id, vendorFolders, vendorFiles]
-  );
-
-  const tssrFinalStats = useMemo(
-    () => getProjectFolderStats(tssrFinalFolder.id),
-    [tssrFinalFolder.id, vendorFolders, vendorFiles]
-  );
 
   // Table Density & View Mode ("Resumo" vs "Planilha (41 col)") & Fullscreen
   const [tableDensity, setTableDensity] = useState<'comfortable' | 'compact' | 'ultra'>('compact');
@@ -279,68 +199,90 @@ export const EngineeringControlTab: React.FC<EngineeringControlTabProps> = ({
   const [drawerDraftFields, setDrawerDraftFields] = useState<Record<string, string>>({});
   const [savingDrawer, setSavingDrawer] = useState<boolean>(false);
 
-  // Vistoria File Deletion state (Gestor da Engenharia pode apagar, executor apenas os seus)
-  const [vistoriaToDelete, setVistoriaToDelete] = useState<TssrRow | null>(null);
-  const [deletingVistoria, setDeletingVistoria] = useState<boolean>(false);
+  // Who can edit Vistoria Status: Vistoriador, Executor (responsible or unassigned), Coordenadores, ADM
+  const canEditVistoriaStatus = (row: TssrRow): boolean => {
+    if (isAdmRole || isCoordenadorGeral || isCoordenadorEngenharia) return true;
+    if (effectiveRole === 'Vistoriador') return true;
+    if (isExecutor) {
+      const myName = (user.name || '').trim().toLowerCase();
+      const myEmail = (user.email || '').trim().toLowerCase();
+      const rowExec = (row.fields?.['Executor'] || '').trim().toLowerCase();
+      return !rowExec || rowExec === myName || rowExec === myEmail || isGestorEngenharia;
+    }
+    return false;
+  };
 
-  const canDeleteRowVistoria = (row: TssrRow): boolean => {
+  // Who can edit STATUS Engenharia: Gestores or Executor on their own lines
+  const canEditStatusEng = (row: TssrRow): boolean => {
     if (isGestorEngenharia) return true;
     if (isExecutor) {
       const myName = (user.name || '').trim().toLowerCase();
       const myEmail = (user.email || '').trim().toLowerCase();
       const rowExec = (row.fields?.['Executor'] || '').trim().toLowerCase();
-      const rowUploader = (row.vistoriaUploadedBy || '').trim().toLowerCase();
-      const rowEmail = (row.vistoriaUploadedByEmail || '').trim().toLowerCase();
-      return Boolean(
-        (rowExec && rowExec === myName) ||
-          (rowUploader && rowUploader === myName) ||
-          (rowEmail && rowEmail === myEmail)
-      );
+      return !rowExec || rowExec === myName || rowExec === myEmail;
     }
     return false;
   };
 
-  const handleConfirmDeleteVistoria = async () => {
-    if (!vistoriaToDelete || !vistoriaToDelete.vistoriaFileId) return;
-    setDeletingVistoria(true);
+  // Manual status update: Vistoria Entregue / Não disponível
+  const handleUpdateVistoriaStatus = async (
+    row: TssrRow,
+    newStatus: 'Entregue' | 'NAO_DISPONIVEL'
+  ) => {
     try {
-      await dataService.excluirArquivoNokia(vistoriaToDelete.vistoriaFileId);
-      const nextRows = tssrRows.map((r) => {
-        if (r.id === vistoriaToDelete.id) {
-          const nextFields = { ...(r.fields || {}) };
-          delete nextFields['Vistoria'];
-          delete nextFields['Arquivo Vistoria'];
-          return {
-            ...r,
-            fields: nextFields,
-            attachedFileId: undefined,
-            attachedFileName: undefined,
-            attachedFileUrl: undefined,
-            attachedDownloadUrl: undefined,
-            attachedUploadedAt: undefined,
-            attachedUploadedBy: undefined,
-          };
-        }
-        return r;
-      });
-      const targetRow = nextRows.find((r) => r.id === vistoriaToDelete.id);
-      if (targetRow) {
-        await dataService.salvarTssrNokia(targetRow);
-      }
+      const isEntregue = newStatus === 'Entregue';
+      const updatedRow: TssrRow = {
+        ...row,
+        vistoriaStatus: isEntregue ? 'Entregue' : 'Pendente',
+        vistoriaDeliveredAt: isEntregue ? (row.vistoriaDeliveredAt || new Date().toLocaleString('pt-BR')) : undefined,
+        vistoriaUploadedBy: isEntregue ? (row.vistoriaUploadedBy || user.name || 'Usuário') : undefined,
+        updatedAt: new Date().toISOString(),
+      };
+      await dataService.salvarTssrNokia(updatedRow);
       onTssrUpdated(
-        nextRows,
+        tssrRows.map((r) => (r.id === row.id ? updatedRow : r)),
         tssrSheets,
-        `Arquivo de vistoria do site ${vistoriaToDelete.siteId} apagado com sucesso!`
+        `Status da vistoria do site ${row.siteId} atualizado para ${isEntregue ? 'Entregue' : 'Não disponível'}.`
       );
-      if (selectedRowId === vistoriaToDelete.id) {
-        setSelectedRowId(vistoriaToDelete.id);
+      if (selectedRowId === row.id) {
+        setSelectedRowId(row.id);
       }
-      setVistoriaToDelete(null);
     } catch (err: any) {
-      console.error('Erro ao excluir anexo de vistoria [nokia_tssr]:', err);
-      showToast(`Erro no Firestore ao apagar arquivo: ${err?.code || err?.message || err}`);
-    } finally {
-      setDeletingVistoria(false);
+      console.error('Erro ao atualizar status da vistoria no Firestore [nokia_tssr]:', err);
+      showToast(`Erro ao atualizar vistoria: ${err?.code || err?.message || err}`);
+    }
+  };
+
+  // Manual status update: STATUS Engenharia (A Fazer, TSSR Aguardando aprovação, TSSR Aprovado, etc.)
+  const handleUpdateStatusEngenharia = async (
+    row: TssrRow,
+    nextStatusEng: string
+  ) => {
+    try {
+      const updatedFields = {
+        ...(row.fields || {}),
+        'STATUS Engenharia': nextStatusEng,
+      };
+      const updatedRow: TssrRow = {
+        ...row,
+        fields: updatedFields,
+        updatedAt: new Date().toISOString(),
+      };
+      await dataService.salvarTssrNokia(updatedRow);
+      onTssrUpdated(
+        tssrRows.map((r) => (r.id === row.id ? updatedRow : r)),
+        tssrSheets,
+        `STATUS Engenharia do site ${row.siteId} atualizado para "${nextStatusEng}".`
+      );
+      if (selectedRowId === row.id) {
+        setDrawerDraftFields((prev) => ({
+          ...prev,
+          'STATUS Engenharia': nextStatusEng,
+        }));
+      }
+    } catch (err: any) {
+      console.error('Erro ao atualizar STATUS Engenharia no Firestore [nokia_tssr]:', err);
+      showToast(`Erro ao atualizar status: ${err?.code || err?.message || err}`);
     }
   };
 
@@ -357,8 +299,13 @@ export const EngineeringControlTab: React.FC<EngineeringControlTabProps> = ({
 
   // Rows belonging to the active tab ("TSSR TIM Nokia")
   const tabRows = useMemo(() => {
-    return tssrRows.filter((r) => r.tabName === activeSubTab);
-  }, [tssrRows, activeSubTab]);
+    const base = tssrRows.filter((r) => r.tabName === activeSubTab);
+    if (!isAdmin) {
+      const targetUser = simulatedTargetUser || user;
+      return base.filter((r) => isTssrRowAssignedToResponsible(r, targetUser));
+    }
+    return base;
+  }, [tssrRows, activeSubTab, isAdmin, simulatedTargetUser, user]);
 
   const activeSheetMeta = useMemo(() => {
     return tssrSheets.find((m) => m.tabName === activeSubTab) || tssrSheets[0];
@@ -811,75 +758,23 @@ export const EngineeringControlTab: React.FC<EngineeringControlTabProps> = ({
     );
   };
 
-  // Render the system column "Arquivo da vistoria" with direct Open & Download links
+  // Render the system column "Arquivo da vistoria" (text only, without file download/open/delete)
   const renderArquivoVistoriaCell = (row: TssrRow) => {
-    if (row.vistoriaStatus === 'Entregue' && (row.vistoriaFileId || row.vistoriaFileUrl)) {
-      const viewHref =
-        row.vistoriaFileUrl ||
-        `/api/engineering/files/${encodeURIComponent(row.vistoriaFileId!)}/view`;
-      const downloadHref =
-        row.vistoriaDownloadUrl ||
-        `/api/engineering/files/${encodeURIComponent(row.vistoriaFileId!)}/download`;
-
+    if (row.vistoriaFileName) {
       return (
-        <div
-          className="inline-flex items-center gap-1.5"
-          onClick={(e) => e.stopPropagation()}
+        <span
+          className="text-slate-600 text-[11px] truncate max-w-[190px] inline-block font-mono"
+          title={row.vistoriaFileName}
         >
-          <a
-            href={viewHref}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 font-semibold text-[11px] transition-colors max-w-[190px] truncate"
-            title={`Abrir arquivo: ${row.vistoriaFileName || 'Arquivo da vistoria'}`}
-          >
-            <ExternalLink className="w-3 h-3 shrink-0" />
-            <span className="truncate">{row.vistoriaFileName || 'Abrir Arquivo'}</span>
-          </a>
-          <a
-            href={downloadHref}
-            download={row.vistoriaFileName || true}
-            className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 font-semibold text-[11px] transition-colors"
-            title={`Baixar arquivo: ${row.vistoriaFileName || ''}`}
-          >
-            <Download className="w-3 h-3 shrink-0" />
-            <span>Baixar</span>
-          </a>
-          {canDeleteRowVistoria(row) && (
-            <button
-              type="button"
-              onClick={() => setVistoriaToDelete(row)}
-              className="p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors cursor-pointer"
-              title={
-                isGestorEngenharia
-                  ? 'Apagar arquivo de vistoria (Gestor da Engenharia)'
-                  : 'Apagar seu arquivo de vistoria'
-              }
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-            </button>
-          )}
-        </div>
+          {row.vistoriaFileName}
+        </span>
       );
     }
 
     return (
-      <div
-        className="inline-flex items-center gap-2 text-slate-400 text-[11px]"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <span>Nenhum arquivo</span>
-        {!isExecutor && onNavigateToVistoria && (
-          <button
-            type="button"
-            onClick={() => onNavigateToVistoria(row.siteId)}
-            className="px-1.5 py-0.5 rounded bg-slate-100 hover:bg-blue-50 text-slate-600 hover:text-blue-700 border border-slate-200 text-[10px] font-semibold cursor-pointer transition-colors"
-            title="Enviar arquivo de vistoria para este site"
-          >
-            Enviar
-          </button>
-        )}
-      </div>
+      <span className="text-slate-400 text-[11px]">
+        —
+      </span>
     );
   };
 
@@ -897,7 +792,7 @@ export const EngineeringControlTab: React.FC<EngineeringControlTabProps> = ({
     ? TSSR_TIM_NOKIA_ORIGINAL_COLUMNS
     : RESUMO_ORIGINAL_COLUMNS;
 
-  const activeSystemColumns = isExecutor ? [] : TSSR_SYSTEM_COLUMNS;
+  const activeSystemColumns = isExecutor ? ['Status da vistoria'] : TSSR_SYSTEM_COLUMNS;
 
   // Group rows by section when in "Resumo" mode (Entregues vs Pendentes)
   const groupedSections = useMemo(() => {
@@ -927,221 +822,12 @@ export const EngineeringControlTab: React.FC<EngineeringControlTabProps> = ({
   }, [filteredRows, viewMode, vistoriaStatusFilter]);
 
   return (
-    <div className="space-y-3">
-      {/* =====================================================================
-          FULL-PAGE VIEW FOR "TSSR ENTRADA" & "TSSR" PROJECT FOLDERS
-          ("quando abrir ela quero que abra em uma nova pagina inteira dentro delas o mesmo sistema de antes carregar documentos etc")
-         ===================================================================== */}
-      {openProjectFolderType && (
-        <div className="fixed inset-0 z-50 bg-[#F8FAFC] flex flex-col w-screen h-screen overflow-y-auto">
-          {/* Top Full-Page Navigation Bar */}
-          <div className="sticky top-0 z-30 bg-[#0F172A] text-white border-b border-slate-800 px-6 py-3 flex flex-wrap items-center justify-between gap-4 shadow-md shrink-0">
-            <div className="flex flex-wrap items-center gap-3">
-              <button
-                type="button"
-                onClick={() => setOpenProjectFolderType(null)}
-                className="px-3.5 py-1.5 bg-white/10 hover:bg-white/20 border border-white/15 rounded-lg text-xs font-bold text-white flex items-center gap-2 transition-colors cursor-pointer"
-              >
-                <ArrowLeft className="w-4 h-4" />
-                <span>Voltar para Planilha Controle de Engenharia</span>
-              </button>
-
-              <div className="h-5 w-px bg-slate-700 hidden sm:block" />
-
-              <div className="flex items-center gap-2">
-                <FolderOpen className="w-5 h-5 text-amber-400 fill-amber-400/80" />
-                <div>
-                  <div className="text-xs font-bold text-white flex items-center gap-2">
-                    <span>Pastas de Projetos de Engenharia ({activeVendor})</span>
-                    <span className="px-2 py-0.5 rounded bg-amber-500/20 border border-amber-400/30 text-amber-300 font-mono text-[10px]">
-                      PÁGINA INTEIRA
-                    </span>
-                  </div>
-                  <div className="text-[11px] text-slate-400">
-                    Carregamento de pacotes .ZIP, WinRAR (.RAR), planilhas e documentos de projetos TSSR
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Center/Right Switcher between TSSR Entrada and TSSR + Vendor Switcher */}
-            <div className="flex flex-wrap items-center gap-2.5">
-              <div className="flex items-center bg-slate-800/90 p-1 rounded-xl border border-slate-700 gap-1">
-                <button
-                  type="button"
-                  onClick={() => setOpenProjectFolderType('TSSR Entrada')}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-2 transition-all cursor-pointer ${
-                    openProjectFolderType === 'TSSR Entrada'
-                      ? 'bg-amber-500 text-slate-950 shadow-2xs'
-                      : 'text-slate-300 hover:text-white hover:bg-slate-700/60'
-                  }`}
-                >
-                  <Folder
-                    className={`w-3.5 h-3.5 ${
-                      openProjectFolderType === 'TSSR Entrada'
-                        ? 'text-slate-950 fill-slate-950'
-                        : 'text-amber-400 fill-amber-400'
-                    }`}
-                  />
-                  <span>TSSR Entrada</span>
-                  <span
-                    className={`font-mono text-[10px] px-1.5 py-0.5 rounded ${
-                      openProjectFolderType === 'TSSR Entrada'
-                        ? 'bg-slate-950/15 text-slate-950'
-                        : 'bg-slate-700 text-slate-300'
-                    }`}
-                  >
-                    {tssrEntradaStats.directSubfolders}p · {tssrEntradaStats.totalFiles} arq
-                  </span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setOpenProjectFolderType('TSSR')}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-2 transition-all cursor-pointer ${
-                    openProjectFolderType === 'TSSR'
-                      ? 'bg-amber-500 text-slate-950 shadow-2xs'
-                      : 'text-slate-300 hover:text-white hover:bg-slate-700/60'
-                  }`}
-                >
-                  <Folder
-                    className={`w-3.5 h-3.5 ${
-                      openProjectFolderType === 'TSSR'
-                        ? 'text-slate-950 fill-slate-950'
-                        : 'text-amber-400 fill-amber-400'
-                    }`}
-                  />
-                  <span>TSSR</span>
-                  <span
-                    className={`font-mono text-[10px] px-1.5 py-0.5 rounded ${
-                      openProjectFolderType === 'TSSR'
-                        ? 'bg-slate-950/15 text-slate-950'
-                        : 'bg-slate-700 text-slate-300'
-                    }`}
-                  >
-                    {tssrFinalStats.directSubfolders}p · {tssrFinalStats.totalFiles} arq
-                  </span>
-                </button>
-              </div>
-
-              {/* NOKIA / ERICSSON Switcher */}
-              <div className="flex items-center p-0.5 bg-slate-800 border border-slate-700 rounded-lg">
-                {(['NOKIA', 'ERICSSON'] as VendorType[]).map((v) => (
-                  <button
-                    key={v}
-                    type="button"
-                    onClick={() => onSwitchVendor(v)}
-                    className={`px-2.5 py-1 text-[11px] font-bold rounded-md transition-colors cursor-pointer ${
-                      activeVendor === v
-                        ? 'bg-blue-600 text-white shadow-2xs'
-                        : 'text-slate-400 hover:text-white'
-                    }`}
-                  >
-                    {v}
-                  </button>
-                ))}
-              </div>
-
-              <button
-                type="button"
-                onClick={() => setOpenProjectFolderType(null)}
-                className="px-3 py-1.5 bg-red-500/20 hover:bg-red-500/30 border border-red-400/30 text-red-200 rounded-lg text-xs font-semibold flex items-center gap-1.5 cursor-pointer"
-                title="Fechar página de pastas e voltar para planilha"
-              >
-                <X className="w-3.5 h-3.5" />
-                <span>Fechar Página</span>
-              </button>
-            </div>
-          </div>
-
-          {/* Full-Page Body with the exact same Folder & Document Upload System as before */}
-          <div className="flex-1 max-w-[1600px] w-full mx-auto p-6">
-            <EngineeringVistoriasTab
-              user={user}
-              effectiveRole={effectiveRole}
-              simulatedTargetUser={simulatedTargetUser}
-              onToggleSimulateUser={onToggleSimulateUser}
-              users={users}
-              activeVendor={activeVendor}
-              folders={folders}
-              files={files}
-              sites={sites}
-              tssrRows={tssrRows}
-              onFoldersAndFilesUpdated={onFoldersAndFilesUpdated}
-              onSelectSiteId={onSelectSiteId}
-              mode="tssr-projects"
-              initialFolderId={
-                openProjectFolderType === 'TSSR Entrada'
-                  ? tssrEntradaFolder.id
-                  : tssrFinalFolder.id
-              }
-              onBackToEngineeringControl={() => setOpenProjectFolderType(null)}
-            />
-          </div>
-        </div>
-      )}
+    <div className="w-full min-w-0 max-w-full space-y-3">
 
       {/* =====================================================================
-          MAIN LAYOUT WITH LEFT LATERAL FOLDER PANEL ("NA LATERAL ONDE ESTÁ A PRINT")
-          + RIGHT MAIN CONTROLE DE ENGENHARIA SPREADSHEET
+          MAIN CONTROLE DE ENGENHARIA SPREADSHEET
          ===================================================================== */}
-      <div className="flex flex-col lg:flex-row items-start gap-4 w-full">
-        {/* LEFT LATERAL SIDEBAR: PASTAS DE PROJETOS (TSSR ENTRADA & TSSR) */}
-        <aside className="w-full lg:w-56 xl:w-60 shrink-0 lg:sticky lg:top-20">
-          <div className="p-3.5 bg-amber-50/90 border border-amber-200/90 rounded-2xl shadow-2xs space-y-2.5">
-            <div className="px-1 flex items-center gap-1.5 text-xs font-bold text-amber-900">
-              <FolderOpen className="w-4 h-4 text-amber-600 shrink-0" />
-              <span>Pastas de Projetos:</span>
-            </div>
-
-            <div className="flex flex-col gap-2">
-              <button
-                type="button"
-                onClick={() => setOpenProjectFolderType('TSSR Entrada')}
-                className="w-full px-3 py-2.5 bg-white hover:bg-amber-100/70 border border-amber-300 rounded-xl text-xs font-bold text-slate-900 flex items-center justify-between gap-2 shadow-2xs transition-all cursor-pointer group"
-                title="Abrir pasta TSSR Entrada em uma nova página inteira para carregar projetos e documentos"
-              >
-                <div className="flex items-center gap-2 min-w-0">
-                  <div className="relative flex items-center justify-center shrink-0">
-                    <Folder className="w-4 h-4 text-amber-500 fill-amber-400 group-hover:scale-105 transition-transform" />
-                    <Users className="w-2.5 h-2.5 text-slate-800 absolute -bottom-0.5 -right-0.5" />
-                  </div>
-                  <span className="truncate">TSSR Entrada</span>
-                </div>
-                <div className="flex items-center gap-1.5 shrink-0">
-                  <span className="px-1.5 py-0.5 rounded bg-amber-100 text-amber-900 font-mono text-[10px] font-bold tabular-nums">
-                    {tssrEntradaStats.totalFiles} arq
-                  </span>
-                  <ExternalLink className="w-3.5 h-3.5 text-amber-700 opacity-75 group-hover:opacity-100" />
-                </div>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setOpenProjectFolderType('TSSR')}
-                className="w-full px-3 py-2.5 bg-white hover:bg-amber-100/70 border border-amber-300 rounded-xl text-xs font-bold text-slate-900 flex items-center justify-between gap-2 shadow-2xs transition-all cursor-pointer group"
-                title="Abrir pasta TSSR em uma nova página inteira para carregar projetos e documentos"
-              >
-                <div className="flex items-center gap-2 min-w-0">
-                  <div className="relative flex items-center justify-center shrink-0">
-                    <Folder className="w-4 h-4 text-amber-500 fill-amber-400 group-hover:scale-105 transition-transform" />
-                    <Users className="w-2.5 h-2.5 text-slate-800 absolute -bottom-0.5 -right-0.5" />
-                  </div>
-                  <span className="truncate">TSSR</span>
-                </div>
-                <div className="flex items-center gap-1.5 shrink-0">
-                  <span className="px-1.5 py-0.5 rounded bg-amber-100 text-amber-900 font-mono text-[10px] font-bold tabular-nums">
-                    {tssrFinalStats.totalFiles} arq
-                  </span>
-                  <ExternalLink className="w-3.5 h-3.5 text-amber-700 opacity-75 group-hover:opacity-100" />
-                </div>
-              </button>
-            </div>
-          </div>
-        </aside>
-
-        {/* RIGHT MAIN WORKSPACE: CONTROLE DE ENGENHARIA HEADER + SPREADSHEET */}
-        <div className="flex-1 min-w-0 w-full space-y-3">
+      <div className="w-full min-w-0 max-w-full space-y-3">
       {/* =====================================================================
           1. TOP HEADER & COUNTERS BAR (MESMO ESTILO DOS CONTADORES DA TELA DE SITES)
          ===================================================================== */}
@@ -1196,20 +882,6 @@ export const EngineeringControlTab: React.FC<EngineeringControlTabProps> = ({
               <Plus className="w-3.5 h-3.5 text-blue-600" />
               <span>+ Nova Linha</span>
             </button>
-
-            {canUploadTssr && (
-              <button
-                type="button"
-                onClick={() => {
-                  setOpenProjectFolderType('TSSR');
-                }}
-                className="px-3.5 py-1.5 bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold rounded-lg transition-colors flex items-center gap-1.5 shadow-2xs cursor-pointer"
-                title="Abrir pasta TSSR da Engenharia para carregar projetos e pacotes"
-              >
-                <Upload className="w-3.5 h-3.5" />
-                <span>Subir TSSR (Engenharia)</span>
-              </button>
-            )}
 
             <button
               type="button"
@@ -1474,7 +1146,7 @@ export const EngineeringControlTab: React.FC<EngineeringControlTabProps> = ({
         className={
           isFullscreen
             ? 'fixed inset-0 z-40 bg-white flex flex-col w-screen h-screen overflow-hidden'
-            : 'bg-white border border-slate-200 rounded-xl shadow-2xs overflow-hidden'
+            : 'bg-white border border-slate-200 rounded-xl shadow-2xs overflow-hidden w-full min-w-0 max-w-full'
         }
       >
         {/* Folder Header + Density & View Controls + Fullscreen Toggle */}
@@ -1628,7 +1300,7 @@ export const EngineeringControlTab: React.FC<EngineeringControlTabProps> = ({
         </div>
 
         {(isFolderOpen || isFullscreen) && (
-          <div className={isFullscreen ? 'flex-1 flex flex-col min-h-0 overflow-hidden' : ''}>
+          <div className={isFullscreen ? 'flex-1 flex flex-col min-h-0 overflow-hidden' : 'w-full min-w-0 max-w-full overflow-hidden'}>
             {/* Smart Search Bar + "+ Adicionar Filtro" */}
             <div className="px-5 py-3 bg-[#F3F4F6]/80 border-b border-slate-200 space-y-2.5">
               <div className="flex flex-wrap items-center gap-2">
@@ -2037,7 +1709,7 @@ export const EngineeringControlTab: React.FC<EngineeringControlTabProps> = ({
               className={
                 isFullscreen
                   ? 'flex-1 overflow-auto'
-                  : 'overflow-x-auto max-h-[72vh] overflow-y-auto'
+                  : 'overflow-x-auto max-h-[72vh] overflow-y-auto w-full min-w-0 max-w-full'
               }
             >
               <table className="w-full text-left border-collapse">
@@ -2157,12 +1829,42 @@ export const EngineeringControlTab: React.FC<EngineeringControlTabProps> = ({
                             }
 
                             if (colName === 'STATUS Engenharia') {
+                              const canEditThis = canEditStatusEng(row);
                               return (
                                 <td
                                   key={colName}
                                   className={`${densityPad} border-r border-slate-100`}
+                                  onClick={(e) => canEditThis && e.stopPropagation()}
                                 >
-                                  {renderEngenhariaStatusBadge(val)}
+                                  {canEditThis ? (
+                                    <select
+                                      value={val || (isExecutor ? 'TSSR Em Execução' : '')}
+                                      onChange={(e) => handleUpdateStatusEngenharia(row, e.target.value)}
+                                      className="px-2 py-0.5 rounded-md text-[11px] font-bold border border-slate-300 bg-white text-slate-800 cursor-pointer focus:outline-none focus:border-blue-600"
+                                    >
+                                      {isExecutor ? (
+                                        <>
+                                          {val && val !== 'TSSR Aguardando aprovação' && val !== 'TSSR Em Execução' && (
+                                            <option value={val}>{val}</option>
+                                          )}
+                                          <option value="TSSR Em Execução">TSSR Em Execução</option>
+                                          <option value="TSSR Aguardando aprovação">TSSR Aguardando aprovação</option>
+                                        </>
+                                      ) : (
+                                        <>
+                                          {!['TSSR Em Execução', 'TSSR Aguardando aprovação', 'TSSR Aprovado', 'TSSR Cancelado'].includes(val) && val && (
+                                            <option value={val}>{val}</option>
+                                          )}
+                                          <option value="TSSR Em Execução">TSSR Em Execução</option>
+                                          <option value="TSSR Aguardando aprovação">TSSR Aguardando aprovação</option>
+                                          <option value="TSSR Aprovado">TSSR Aprovado</option>
+                                          <option value="TSSR Cancelado">TSSR Cancelado</option>
+                                        </>
+                                      )}
+                                    </select>
+                                  ) : (
+                                    renderEngenhariaStatusBadge(val)
+                                  )}
                                 </td>
                               );
                             }
@@ -2178,19 +1880,35 @@ export const EngineeringControlTab: React.FC<EngineeringControlTabProps> = ({
                             );
                           })}
 
-                          {/* 4 System Columns (hidden for Executor as Executor only visualizes specified columns) */}
+                          {/* System Col 1: Status da vistoria (manual selector) */}
+                          <td
+                            className={`${densityPad} bg-slate-50/50 group-hover:bg-blue-50/40 border-r border-slate-100`}
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            {canEditVistoriaStatus(row) ? (
+                              <select
+                                value={row.vistoriaStatus === 'Entregue' ? 'Entregue' : 'NAO_DISPONIVEL'}
+                                onChange={(e) => handleUpdateVistoriaStatus(row, e.target.value as any)}
+                                className={`px-2 py-0.5 rounded-full text-[11px] font-bold border cursor-pointer focus:outline-none ${
+                                  row.vistoriaStatus === 'Entregue'
+                                    ? 'bg-emerald-50 text-emerald-700 border-emerald-300'
+                                    : 'bg-slate-100 text-slate-700 border-slate-300'
+                                }`}
+                              >
+                                <option value="Entregue">Entregue</option>
+                                <option value="NAO_DISPONIVEL">Não disponível</option>
+                              </select>
+                            ) : (
+                              renderVistoriaStatusBadge(
+                                row.vistoriaStatus === 'Entregue' ? 'Entregue' : 'NAO_DISPONIVEL'
+                              )
+                            )}
+                          </td>
+
+                          {/* Additional System Columns for managers */}
                           {!isExecutor && (
                             <>
-                              {/* System Col 1: Status da vistoria (automático) */}
-                              <td
-                                className={`${densityPad} bg-slate-50/50 group-hover:bg-blue-50/40 border-r border-slate-100`}
-                              >
-                                {renderVistoriaStatusBadge(
-                                  row.vistoriaStatus === 'Entregue' ? 'Entregue' : 'NAO_DISPONIVEL'
-                                )}
-                              </td>
-
-                              {/* System Col 2: Arquivo da vistoria (link para abrir/baixar) */}
+                              {/* System Col 2: Arquivo da vistoria */}
                               <td
                                 className={`${densityPad} bg-slate-50/50 group-hover:bg-blue-50/40 border-r border-slate-100`}
                               >
@@ -2247,8 +1965,7 @@ export const EngineeringControlTab: React.FC<EngineeringControlTabProps> = ({
           </div>
         )}
       </div>
-        </div>
-      </div>
+    </div>
 
       {/* =====================================================================
           PER-COLUMN FILTER POPOVER MENU
@@ -2708,51 +2425,32 @@ export const EngineeringControlTab: React.FC<EngineeringControlTabProps> = ({
               <div className="p-4 rounded-xl bg-slate-50 border border-blue-200 space-y-2.5">
                 <div className="flex items-center justify-between">
                   <span className="text-[11px] font-bold uppercase tracking-wider text-[#223585]">
-                    Colunas Automáticas do Sistema (Vistoria)
+                    Colunas do Sistema (Vistoria)
                   </span>
-                  <div className="flex items-center gap-2">
-                    {canUploadTssr && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const sid = selectedRow.siteId;
-                          setSelectedRowId(null);
-                          if (onNavigateToVistoria) {
-                            onNavigateToVistoria(sid);
-                          } else {
-                            setOpenProjectFolderType('TSSR');
-                          }
-                        }}
-                        className="px-2.5 py-1 bg-purple-600 hover:bg-purple-700 text-white rounded-md text-[11px] font-bold flex items-center gap-1.5 cursor-pointer shadow-2xs"
-                        title="Subir TSSR vinculado a este site/projeto (vai direto para a pasta do executor)"
-                      >
-                        <Upload className="w-3 h-3" />
-                        <span>Subir TSSR</span>
-                      </button>
-                    )}
-                    {onNavigateToVistoria && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const sid = selectedRow.siteId;
-                          setSelectedRowId(null);
-                          onNavigateToVistoria(sid);
-                        }}
-                        className="px-2.5 py-1 bg-[#223585] hover:bg-[#1b2a6b] text-white rounded-md text-[11px] font-semibold cursor-pointer"
-                      >
-                        Vistoria do Site
-                      </button>
-                    )}
-                  </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-2.5 pt-1">
                   <div>
                     <div className="text-[10px] text-slate-500 font-semibold">
-                      Status da vistoria (automático)
+                      Status da vistoria
                     </div>
                     <div className="mt-0.5">
-                      {renderVistoriaStatusBadge(selectedRow.vistoriaStatus)}
+                      {canEditVistoriaStatus(selectedRow) ? (
+                        <select
+                          value={selectedRow.vistoriaStatus === 'Entregue' ? 'Entregue' : 'NAO_DISPONIVEL'}
+                          onChange={(e) => handleUpdateVistoriaStatus(selectedRow, e.target.value as any)}
+                          className={`px-2.5 py-1 rounded-lg text-xs font-bold border cursor-pointer focus:outline-none ${
+                            selectedRow.vistoriaStatus === 'Entregue'
+                              ? 'bg-emerald-50 text-emerald-700 border-emerald-300'
+                              : 'bg-slate-100 text-slate-700 border-slate-300'
+                          }`}
+                        >
+                          <option value="Entregue">Entregue</option>
+                          <option value="NAO_DISPONIVEL">Não disponível</option>
+                        </select>
+                      ) : (
+                        renderVistoriaStatusBadge(selectedRow.vistoriaStatus)
+                      )}
                     </div>
                   </div>
                   <div>
@@ -2793,17 +2491,37 @@ export const EngineeringControlTab: React.FC<EngineeringControlTabProps> = ({
                       <label className="block text-[11px] font-semibold text-slate-600 mb-1">
                         {colName}
                       </label>
-                      <input
-                        type="text"
-                        value={drawerDraftFields[colName] ?? ''}
-                        onChange={(e) =>
-                          setDrawerDraftFields((prev) => ({
-                            ...prev,
-                            [colName]: e.target.value,
-                          }))
-                        }
-                        className="w-full px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs text-slate-900 focus:outline-none focus:border-blue-600"
-                      />
+                      {colName === 'STATUS Engenharia' ? (
+                        <select
+                          value={drawerDraftFields[colName] ?? ''}
+                          onChange={(e) =>
+                            setDrawerDraftFields((prev) => ({
+                              ...prev,
+                              [colName]: e.target.value,
+                            }))
+                          }
+                          className="w-full px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-900 focus:outline-none focus:border-blue-600"
+                        >
+                          <option value="">— Selecionar Status —</option>
+                          <option value="TSSR Aguardando aprovação">TSSR Aguardando aprovação</option>
+                          <option value="TSSR Entregue">TSSR Entregue</option>
+                          <option value="Em andamento">Em andamento</option>
+                          <option value="Reprovado">Reprovado</option>
+                          <option value="Cancelado">Cancelado</option>
+                        </select>
+                      ) : (
+                        <input
+                          type="text"
+                          value={drawerDraftFields[colName] ?? ''}
+                          onChange={(e) =>
+                            setDrawerDraftFields((prev) => ({
+                              ...prev,
+                              [colName]: e.target.value,
+                            }))
+                          }
+                          className="w-full px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs text-slate-900 focus:outline-none focus:border-blue-600"
+                        />
+                      )}
                     </div>
                   ))}
                 </div>
@@ -2830,77 +2548,7 @@ export const EngineeringControlTab: React.FC<EngineeringControlTabProps> = ({
         </div>
       )}
 
-      {/* Modal de Confirmação de Exclusão de Arquivo de Vistoria */}
-      {vistoriaToDelete && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-[2px] animate-in fade-in duration-150"
-          onClick={() => !deletingVistoria && setVistoriaToDelete(null)}
-        >
-          <div
-            className="w-full max-w-md bg-white border border-slate-200 rounded-2xl shadow-2xl overflow-hidden"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="px-5 py-4 bg-red-50/80 border-b border-red-100 flex items-center justify-between">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-xl bg-red-100 text-red-600 flex items-center justify-center">
-                  <Trash2 className="w-4 h-4" />
-                </div>
-                <div>
-                  <h3 className="text-sm font-bold text-red-950">
-                    Apagar Arquivo de Vistoria
-                  </h3>
-                  <p className="text-[11px] text-red-700">
-                    Site: {vistoriaToDelete.siteId} · {vistoriaToDelete.vistoriaFileName}
-                  </p>
-                </div>
-              </div>
-              <button
-                type="button"
-                disabled={deletingVistoria}
-                onClick={() => setVistoriaToDelete(null)}
-                className="p-1 text-slate-400 hover:text-slate-700 rounded-lg cursor-pointer"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
 
-            <div className="p-5 space-y-4">
-              <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-1 text-xs">
-                <div className="font-semibold text-slate-800">
-                  Arquivo: {vistoriaToDelete.vistoriaFileName}
-                </div>
-                <div className="text-[11px] text-slate-500">
-                  Enviado por: {vistoriaToDelete.vistoriaUploadedBy || '—'} · Em: {vistoriaToDelete.vistoriaDeliveredAt || '—'}
-                </div>
-              </div>
-
-              <p className="text-xs text-slate-600">
-                Tem certeza que deseja apagar o arquivo de vistoria deste site? O status da vistoria voltará para <strong>"Vistoria Não Disponível"</strong> e o arquivo será removido do repositório.
-              </p>
-
-              <div className="pt-2 flex items-center justify-end gap-2">
-                <button
-                  type="button"
-                  disabled={deletingVistoria}
-                  onClick={() => setVistoriaToDelete(null)}
-                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg cursor-pointer"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="button"
-                  disabled={deletingVistoria}
-                  onClick={handleConfirmDeleteVistoria}
-                  className="px-4 py-2 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white text-xs font-bold rounded-lg cursor-pointer flex items-center gap-1.5 shadow-sm"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                  <span>{deletingVistoria ? 'Apagando...' : 'Sim, Apagar Arquivo'}</span>
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Google Drive Integration Modal */}
       <GoogleDriveModal

@@ -70,6 +70,27 @@
         "usuarioEmail": { "type": "string" }
       },
       "required": ["id", "protocolo", "titulo", "descricao", "usuarioEmail"]
+    },
+    "Acionamento": {
+      "title": "Acionamento",
+      "description": "Acionamento compartilhado com Ameta-acionamento para demandas de campo de vistoria e execução",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "protocolo": { "type": "string" },
+        "origem": { "type": "string" },
+        "vendor": { "type": "string" },
+        "siteId": { "type": "string" },
+        "tipoDestinatario": { "type": "string" },
+        "equipe": { "type": "string" },
+        "destinatariosEmails": { "type": "array" },
+        "status": { "type": "string" },
+        "demandadoPorNome": { "type": "string" },
+        "demandadoPorEmail": { "type": "string" },
+        "demandadoEm": { "type": "string" },
+        "atualizadoEm": { "type": "string" }
+      },
+      "required": ["id", "protocolo", "origem", "vendor", "siteId", "tipoDestinatario", "equipe", "status"]
     }
   },
   "firestore": {
@@ -84,6 +105,10 @@
     "/chamados/{chamadoId}": {
       "schema": { "$ref": "#/entities/Chamado" },
       "description": "Coleção de chamados de suporte em tempo real"
+    },
+    "/acionamentos/{acionamentoId}": {
+      "schema": { "$ref": "#/entities/Acionamento" },
+      "description": "Coleção de acionamentos e demandas em tempo real compartilhada com o sistema Ameta-acionamento"
     },
     "/nokia_sites/{siteId}": {
       "schema": { "$ref": "#/entities/TelecomSite" },

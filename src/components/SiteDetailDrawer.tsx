@@ -27,6 +27,7 @@ import {
   CONTROLE_GERAL_COLUMNS,
   CONTROLE_CANCELADOS_COLUMNS,
   EQUIPES_COLUMNS,
+  Acionamento,
 } from '../types/telecom';
 import {
   getExcelColumnLetter,
@@ -36,6 +37,7 @@ import {
   DEFAULT_EQUIPES_DUPLAS,
 } from '../utils/spreadsheetUtils';
 import { AmetaLogo } from './AmetaLogo';
+import { AcionamentoStatusBadge, formatAcionamentoDate } from './AcionamentoStatusBadge';
 
 interface SiteDetailDrawerProps {
   site: TelecomSite | null;
@@ -43,6 +45,7 @@ interface SiteDetailDrawerProps {
   userRole?: UserRole;
   sheetColumns?: string[];
   duplasList?: string[];
+  acionamento?: Acionamento | null;
   onOpenManageDuplas?: () => void;
   onClose: () => void;
   onSaveSite: (siteId: string, updates: Partial<TelecomSite>) => Promise<void>;
@@ -105,6 +108,7 @@ export const SiteDetailDrawer: React.FC<SiteDetailDrawerProps> = ({
   userRole,
   sheetColumns,
   duplasList = DEFAULT_EQUIPES_DUPLAS,
+  acionamento,
   onOpenManageDuplas,
   onClose,
   onSaveSite,
@@ -494,6 +498,9 @@ export const SiteDetailDrawer: React.FC<SiteDetailDrawerProps> = ({
                   {getStatusIcon(formData.status)}
                   <span>{formData.status}</span>
                 </span>
+                {acionamento && (
+                  <AcionamentoStatusBadge acionamento={acionamento} />
+                )}
               </div>
             </div>
           </div>
@@ -550,6 +557,75 @@ export const SiteDetailDrawer: React.FC<SiteDetailDrawerProps> = ({
 
         {/* Scrollable Drawer Content */}
         <div className="flex-1 overflow-y-auto p-5 bg-slate-50/70 space-y-4">
+          {/* Card Acionamento Ameta integrado em tempo real */}
+          {acionamento && (
+            <div
+              className={`p-4 rounded-xl border space-y-2.5 shadow-2xs ${
+                acionamento.status === 'Recusado'
+                  ? 'bg-rose-50 border-rose-300 ring-1 ring-rose-400'
+                  : 'bg-white border-slate-200'
+              }`}
+            >
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b pb-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] uppercase font-bold tracking-wider text-slate-500">
+                    Acionamento Integrado ({acionamento.origem})
+                  </span>
+                  <span className="font-mono text-xs font-bold text-blue-700">
+                    {acionamento.protocolo}
+                  </span>
+                  <span className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-slate-100 text-slate-600 font-bold">
+                    {acionamento.tipoDestinatario}
+                  </span>
+                </div>
+                <AcionamentoStatusBadge acionamento={acionamento} />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                <div>
+                  <span className="text-slate-500 text-[11px] block">Equipe Destinatária:</span>
+                  <span className="font-semibold text-slate-900">{acionamento.equipe}</span>
+                </div>
+                <div>
+                  <span className="text-slate-500 text-[11px] block">Demandado por:</span>
+                  <span className="font-medium text-slate-800">
+                    {acionamento.demandadoPorNome}{' '}
+                    {acionamento.demandadoEm && (
+                      <span className="text-slate-400 font-mono text-[10px]">
+                        ({formatAcionamentoDate(acionamento.demandadoEm)})
+                      </span>
+                    )}
+                  </span>
+                </div>
+
+                {acionamento.aceitoEm && (
+                  <div className="sm:col-span-2 p-2 bg-blue-50/80 rounded-lg border border-blue-200 text-blue-900">
+                    <span className="font-bold">Aceite Confirmado:</span> por{' '}
+                    <strong>{acionamento.aceitoPorNome || acionamento.aceitoPorEmail}</strong> em{' '}
+                    {formatAcionamentoDate(acionamento.aceitoEm)}
+                  </div>
+                )}
+
+                {acionamento.status === 'Recusado' && (
+                  <div className="sm:col-span-2 p-2.5 bg-rose-100 rounded-lg border border-rose-300 text-rose-950 space-y-1">
+                    <div className="font-bold flex items-center gap-1.5 text-rose-900">
+                      <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
+                      <span>Demanda Recusada pelo Destinatário! Reatribuição recomendada.</span>
+                    </div>
+                    <div className="text-[11px]">
+                      Recusado por <strong>{acionamento.recusadoPorNome || acionamento.recusadoPorEmail || 'Destinatário'}</strong>
+                      {acionamento.recusadoEm ? ` em ${formatAcionamentoDate(acionamento.recusadoEm)}` : ''}
+                    </div>
+                    {acionamento.motivoRecusa && (
+                      <div className="text-xs bg-white/70 p-1.5 rounded italic border border-rose-200">
+                        Motivo: "{acionamento.motivoRecusa}"
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
           {/* Quick Vistoria Status & SI Executed Date Bar for Demanded Users */}
           {!isAdmin && (
             <div className="p-4 bg-white border border-slate-200 rounded-xl space-y-3.5 shadow-2xs">
