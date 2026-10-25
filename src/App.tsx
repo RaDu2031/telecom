@@ -80,9 +80,9 @@ import {
 } from './types/telecom';
 import { isFirebaseEnvConfigured } from './lib/firebase';
 import { db } from './lib/firebaseClient';
-import { doc, updateDoc } from 'firebase/firestore';
-import { dataService, sanitizeFirestoreData } from './services/dataService';
-import { AcionamentoStatusBadge } from './components/AcionamentoStatusBadge';
+import { doc, updateDoc, runTransaction } from 'firebase/firestore';
+import { dataService, sanitizeFirestoreData, FIRESTORE_COLLECTIONS } from './services/dataService';
+import { AcionamentoStatusBadge, formatAcionamentoDate } from './components/AcionamentoStatusBadge';
 import { INITIAL_SITES, INITIAL_SHEETS } from './data/initialSites';
 import { INITIAL_ERICSSON_SITES } from './data/initialEricssonSites';
 import { INITIAL_ERICSSON_ENGINEERING_ROWS } from './data/initialEricssonEngineering';
@@ -930,6 +930,267 @@ export default function App() {
     );
     return () => unsub();
   }, [user?.uid, activeTargetUser?.email, effectiveRole, Boolean(simulatedTargetUser)]);
+
+  const processedConcluidosRef = useRef<Set<string>>(new Set());
+  const sitesRef = useRef(sites);
+  useEffect(() => {
+    sitesRef.current = sites;
+  }, [sites]);
+
+  const ericssonRowsRef = useRef(ericssonRows);
+  useEffect(() => {
+    ericssonRowsRef.current = ericssonRows;
+  }, [ericssonRows]);
+
+  // Automatic spreadsheet update when an Acionamento is marked as 'Concluído'
+  // SOMENTE para Coordenador Geral, Coordenador Engenharia e ADM, e NÃO quando estiver em "Ver como" (simulando)
+  useEffect(() => {
+    const isCoordOrAdmin =
+      effectiveRole === 'ADM' ||
+      effectiveRole === 'Coordenador Geral' ||
+      effectiveRole === 'Coordenador Engenharia' ||
+      isOwnerAdmUser(user?.email);
+
+    if (!user || !isCoordOrAdmin || Boolean(simulatedTargetUser)) {
+      return;
+    }
+
+    const concluidosPendentes = acionamentos.filter(
+      (ac) => ac.status === 'Concluído' && !ac.planilhaAtualizadaEm
+    );
+
+    if (concluidosPendentes.length === 0) return;
+
+    concluidosPendentes.forEach(async (ac) => {
+      if (processedConcluidosRef.current.has(ac.id)) return;
+      processedConcluidosRef.current.add(ac.id);
+
+      const loggedUser = user.name || user.email || 'Coordenador';
+      const nowIso = new Date().toISOString();
+      const rawConcluidoDate = ac.concluidoEm || ac.atualizadoEm || nowIso;
+      const formattedConcluidoDate = toBrDateDisplay(rawConcluidoDate.split('T')[0]);
+
+      if (ac.vendor === 'NOKIA') {
+        const currentSites = sitesRef.current;
+        const targetSite = currentSites.find(
+          (s) =>
+            s.siteId === ac.siteId ||
+            s.id === ac.siteId ||
+            normalizeSiteIdForDoc(s.siteId) === normalizeSiteIdForDoc(ac.siteId)
+        );
+
+        if (!targetSite) {
+          showToast(`Planilha não encontrada para o site ${ac.siteId}`);
+          return;
+        }
+
+        const currentSiExec = (getCellValueForColumn(targetSite, 'SI Executed') || targetSite.dataAtivacao || '').trim();
+        const isSiExecEmpty = !currentSiExec || currentSiExec === '—' || currentSiExec === '-';
+        const resumo = isSiExecEmpty ? 'SI Executed preenchido' : 'SI Executed já estava preenchido';
+
+        try {
+          const acDocRef = doc(db, FIRESTORE_COLLECTIONS.ACIONAMENTOS, ac.id);
+          let alreadyUpdated = false;
+
+          try {
+            await runTransaction(db, async (transaction) => {
+              const snap = await transaction.get(acDocRef);
+              if (!snap.exists()) return;
+              const data = snap.data() as Acionamento;
+              if (data.planilhaAtualizadaEm) {
+                alreadyUpdated = true;
+                return;
+              }
+              transaction.update(acDocRef, {
+                planilhaAtualizadaEm: nowIso,
+                planilhaAtualizadaPor: loggedUser,
+                planilhaResumo: resumo,
+              });
+            });
+          } catch (txErr: any) {
+            const isQuota = String(txErr?.message || txErr?.code || '').toLowerCase().includes('quota') ||
+                            String(txErr?.message || txErr?.code || '').toLowerCase().includes('resource-exhausted');
+            if (isQuota) {
+              console.warn(`Firestore quota atingida ao atualizar acionamento ${ac.id}. Atualizando estado local.`);
+              setAcionamentos((prev) =>
+                prev.map((a) =>
+                  a.id === ac.id
+                    ? { ...a, planilhaAtualizadaEm: nowIso, planilhaAtualizadaPor: loggedUser, planilhaResumo: resumo }
+                    : a
+                )
+              );
+            } else {
+              throw txErr;
+            }
+          }
+
+          if (alreadyUpdated) return;
+
+          setAcionamentos((prev) =>
+            prev.map((a) =>
+              a.id === ac.id
+                ? { ...a, planilhaAtualizadaEm: nowIso, planilhaAtualizadaPor: loggedUser, planilhaResumo: resumo }
+                : a
+            )
+          );
+
+          const historyText = `Vistoria concluída no acionamento por ${ac.aceitoPorNome || ac.aceitoPorEmail || 'Executor'} em ${formatAcionamentoDate(rawConcluidoDate)}`;
+
+          let syncedUpdates: Partial<TelecomSite> = {};
+          if (isSiExecEmpty) {
+            syncedUpdates = syncSiteColumnUpdate(targetSite, 'SI Executed', formattedConcluidoDate);
+          }
+
+          const prevObs = targetSite.observacoes || targetSite.customFields?.['Observações/Motivo'] || targetSite.customFields?.['Histórico de Alterações'] || '';
+          const newObs = prevObs ? `${prevObs} | ${historyText}` : historyText;
+
+          const finalSiteUpdates: Partial<TelecomSite> = {
+            ...syncedUpdates,
+            observacoes: newObs,
+            customFields: {
+              ...(targetSite.customFields || {}),
+              ...(syncedUpdates.customFields || {}),
+              'Histórico de Alterações': newObs,
+              'Observações/Motivo': newObs,
+            },
+          };
+
+          await handleSaveSite(targetSite.id, finalSiteUpdates);
+        } catch (err: any) {
+          console.error(`Erro ao atualizar planilha para acionamento ${ac.id}:`, err);
+          const isQuota = String(err?.message || err?.code || '').toLowerCase().includes('quota') ||
+                          String(err?.message || err?.code || '').toLowerCase().includes('resource-exhausted');
+          if (isQuota) {
+            showToast(`Limite do Firebase atingido. Planilha de ${ac.siteId} atualizada localmente.`);
+          } else {
+            showToast(`Erro ao atualizar planilha para o site ${ac.siteId}`);
+          }
+        }
+      } else if (ac.vendor === 'ERICSSON') {
+        if (ac.tipoDestinatario === 'VISTORIA') {
+          const currentEricssonRows = ericssonRowsRef.current;
+          const targetRow = currentEricssonRows.find(
+            (r) =>
+              r.id === ac.siteId ||
+              r.siteIdA === ac.siteId ||
+              r.rowKey === ac.siteId ||
+              normalizeSiteIdForDoc(r.id) === normalizeSiteIdForDoc(ac.siteId) ||
+              normalizeSiteIdForDoc(r.siteIdA) === normalizeSiteIdForDoc(ac.siteId)
+          );
+
+          if (!targetRow) {
+            showToast(`Planilha não encontrada para o site ${ac.siteId}`);
+            return;
+          }
+
+          const isPlaceholder = (s?: string) => !s || s === '—' || s === '-' || s === '--' || s === 'N/A' || s === '#N/A' || s === 'TOTAL' || s === '0';
+          const hasSiteB = Boolean(targetRow.siteIdB && !isPlaceholder(targetRow.siteIdB.trim()));
+          const resumo = hasSiteB ? 'Vistoria Site A e B entregues' : 'Vistoria Site A entregue';
+
+          try {
+            const acDocRef = doc(db, FIRESTORE_COLLECTIONS.ACIONAMENTOS, ac.id);
+            let alreadyUpdated = false;
+
+            try {
+              await runTransaction(db, async (transaction) => {
+                const snap = await transaction.get(acDocRef);
+                if (!snap.exists()) return;
+                const data = snap.data() as Acionamento;
+                if (data.planilhaAtualizadaEm) {
+                  alreadyUpdated = true;
+                  return;
+                }
+                transaction.update(acDocRef, {
+                  planilhaAtualizadaEm: nowIso,
+                  planilhaAtualizadaPor: loggedUser,
+                  planilhaResumo: resumo,
+                });
+              });
+            } catch (txErr: any) {
+              const isQuota = String(txErr?.message || txErr?.code || '').toLowerCase().includes('quota') ||
+                              String(txErr?.message || txErr?.code || '').toLowerCase().includes('resource-exhausted');
+              if (isQuota) {
+                console.warn(`Firestore quota atingida ao atualizar acionamento ${ac.id}. Atualizando estado local.`);
+                setAcionamentos((prev) =>
+                  prev.map((a) =>
+                    a.id === ac.id
+                      ? { ...a, planilhaAtualizadaEm: nowIso, planilhaAtualizadaPor: loggedUser, planilhaResumo: resumo }
+                      : a
+                  )
+                );
+              } else {
+                throw txErr;
+              }
+            }
+
+            if (alreadyUpdated) return;
+
+            setAcionamentos((prev) =>
+              prev.map((a) =>
+                a.id === ac.id
+                  ? { ...a, planilhaAtualizadaEm: nowIso, planilhaAtualizadaPor: loggedUser, planilhaResumo: resumo }
+                  : a
+              )
+            );
+
+            const historyText = `Vistoria concluída no acionamento por ${ac.aceitoPorNome || ac.aceitoPorEmail || 'Executor'} em ${formatAcionamentoDate(rawConcluidoDate)}`;
+            const prevObs = targetRow.fields?.['Observação'] || targetRow.fields?.['Observações'] || targetRow.fields?.['Histórico de Alterações'] || '';
+            const newObs = prevObs ? `${prevObs} | ${historyText}` : historyText;
+
+            const updatedRow: EricssonRow = {
+              ...targetRow,
+              siteAVistoriaStatus: 'Entregue',
+              siteBVistoriaStatus: hasSiteB ? 'Entregue' : targetRow.siteBVistoriaStatus,
+              fields: {
+                ...(targetRow.fields || {}),
+                'Histórico de Alterações': newObs,
+                'Observação': newObs,
+              },
+            };
+
+            await dataService.salvarSiteEricsson(updatedRow);
+            setEricssonRows((prev) => prev.map((r) => (r.id === updatedRow.id ? updatedRow : r)));
+          } catch (err: any) {
+            console.error(`Erro ao atualizar planilha Ericsson para acionamento ${ac.id}:`, err);
+            const isQuota = String(err?.message || err?.code || '').toLowerCase().includes('quota') ||
+                            String(err?.message || err?.code || '').toLowerCase().includes('resource-exhausted');
+            if (isQuota) {
+              showToast(`Limite do Firebase atingido. Planilha de ${ac.siteId} atualizada localmente.`);
+            } else {
+              showToast(`Erro ao atualizar planilha para o site ${ac.siteId}`);
+            }
+          }
+        } else if (ac.tipoDestinatario === 'EXECUTOR') {
+          const resumo = 'Sem coluna a atualizar para este tipo';
+
+          try {
+            const acDocRef = doc(db, FIRESTORE_COLLECTIONS.ACIONAMENTOS, ac.id);
+            await runTransaction(db, async (transaction) => {
+              const snap = await transaction.get(acDocRef);
+              if (!snap.exists()) return;
+              const data = snap.data() as Acionamento;
+              if (data.planilhaAtualizadaEm) return;
+              transaction.update(acDocRef, {
+                planilhaAtualizadaEm: nowIso,
+                planilhaAtualizadaPor: loggedUser,
+                planilhaResumo: resumo,
+              });
+            });
+
+            setAcionamentos((prev) =>
+              prev.map((a) =>
+                a.id === ac.id
+                  ? { ...a, planilhaAtualizadaEm: nowIso, planilhaAtualizadaPor: loggedUser, planilhaResumo: resumo }
+                  : a
+              )
+            );
+          } catch (err: any) {
+            console.error(`Erro ao atualizar acionamento executor Ericsson ${ac.id}:`, err);
+          }
+        }
+      }
+    });
+  }, [acionamentos, effectiveRole, simulatedTargetUser, user]);
 
   const acionamentosMap = useMemo(() => {
     const map = new Map<string, Acionamento>();

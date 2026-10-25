@@ -3220,6 +3220,9 @@ class FirebaseDataService implements IDataService {
           recusadoPorNome: '',
           recusadoEm: '',
           motivoRecusa: '',
+          planilhaAtualizadaEm: '',
+          planilhaAtualizadaPor: '',
+          planilhaResumo: '',
           atualizadoEm: nowIso,
           historico: historicoAtualizado,
           observacao: payload.observacao !== undefined ? payload.observacao : existing.observacao,
@@ -3301,6 +3304,9 @@ class FirebaseDataService implements IDataService {
         recusadoPorNome: '',
         recusadoEm: '',
         motivoRecusa: '',
+        planilhaAtualizadaEm: '',
+        planilhaAtualizadaPor: '',
+        planilhaResumo: '',
         atualizadoEm: nowIso,
         historico: historicoAtualizado,
         observacao: payload.observacao !== undefined ? payload.observacao : existing.observacao,
@@ -3360,6 +3366,9 @@ class FirebaseDataService implements IDataService {
       recusadoPorNome: '',
       recusadoEm: '',
       motivoRecusa: '',
+      planilhaAtualizadaEm: '',
+      planilhaAtualizadaPor: '',
+      planilhaResumo: '',
     };
 
     await setDoc(docRef, sanitizeFirestoreData(novoAcionamento), { merge: true });

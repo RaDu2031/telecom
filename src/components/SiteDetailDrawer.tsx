@@ -615,6 +615,14 @@ export const SiteDetailDrawer: React.FC<SiteDetailDrawerProps> = ({
                   </div>
                 )}
 
+                {acionamento.planilhaAtualizadaEm && (
+                  <div className="sm:col-span-2 p-2 bg-emerald-50/90 rounded-lg border border-emerald-200 text-emerald-950 text-xs">
+                    <span className="font-bold text-emerald-800">Planilha atualizada em:</span>{' '}
+                    {formatAcionamentoDate(acionamento.planilhaAtualizadaEm)}
+                    {acionamento.planilhaResumo ? ` · ${acionamento.planilhaResumo}` : ''}
+                  </div>
+                )}
+
                 {acionamento.status === 'Recusado' && (
                   <div className="sm:col-span-2 p-2.5 bg-rose-100 rounded-lg border border-rose-300 text-rose-950 space-y-1">
                     <div className="font-bold flex items-center gap-1.5 text-rose-900">

@@ -1353,6 +1353,9 @@ export interface Acionamento {
   concluidoEm?: string;
   resumoConclusao?: string;
   pendencias?: string;
+  planilhaAtualizadaEm?: string;
+  planilhaAtualizadaPor?: string;
+  planilhaResumo?: string;
 }
 
 export function normalizeSiteIdForDoc(rawSiteId?: string): string {

@@ -275,6 +275,15 @@ export const AcionamentoStatusBadge: React.FC<AcionamentoStatusBadgeProps> = ({
               </div>
             )}
 
+            {/* Planilha atualizada */}
+            {acionamento.planilhaAtualizadaEm && (
+              <div className="bg-slate-800/90 p-1.5 rounded border border-slate-700 text-[10px] text-slate-300">
+                <span className="font-semibold text-emerald-400">Planilha atualizada em:</span>{' '}
+                {formatAcionamentoDate(acionamento.planilhaAtualizadaEm)}
+                {acionamento.planilhaResumo ? ` · ${acionamento.planilhaResumo}` : ''}
+              </div>
+            )}
+
             {/* Demandado por */}
             <div className="text-[10px] text-slate-400 pt-1 border-t border-slate-800/80 flex items-center justify-between">
               <span>Demandado por:</span>
