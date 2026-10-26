@@ -210,7 +210,7 @@ export interface CollaboratorExpiredDocSummary {
   overallStatus: 'VALIDADO' | 'A VENCER' | 'VENCIDO' | 'DISPENSADO';
 }
 
-export const InteractiveSpreadsheetChart: React.FC<InteractiveSpreadsheetChartProps> = ({
+export const InteractiveSpreadsheetChart: React.FC<InteractiveSpreadsheetChartProps> = React.memo(({
   sites,
   users = [],
   activeVendor,
@@ -1757,4 +1757,6 @@ export const InteractiveSpreadsheetChart: React.FC<InteractiveSpreadsheetChartPr
       )}
     </div>
   );
-};
+});
+
+InteractiveSpreadsheetChart.displayName = 'InteractiveSpreadsheetChart';

@@ -117,7 +117,7 @@ function isEricssonRowNotaPendente(row: EricssonRow): boolean {
   return fatLos.includes('PEND') || fatTssr.includes('PEND');
 }
 
-export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = ({
+export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = React.memo(({
   sites,
   ericssonRows = [],
   users,
@@ -1996,4 +1996,6 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = ({
       )}
     </div>
   );
-};
+});
+
+DuplasInteractiveView.displayName = 'DuplasInteractiveView';

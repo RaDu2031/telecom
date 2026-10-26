@@ -572,7 +572,11 @@ export function buildAmetaUserProfile(params: {
     ? 'BOTH'
     : params.plataforma || 'NOKIA';
   const legacyPlat: 'NOKIA' | 'ERICSSON' | 'AMBAS' =
-    assignedScope === 'BOTH' ? 'AMBAS' : assignedScope;
+    assignedScope === 'BOTH' || assignedScope === 'AMBAS'
+      ? 'AMBAS'
+      : assignedScope === 'ERICSSON'
+      ? 'ERICSSON'
+      : 'NOKIA';
 
   return {
     id: params.uid,

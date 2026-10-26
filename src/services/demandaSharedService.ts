@@ -926,7 +926,7 @@ export const demandaSharedService = {
         siteTokens: rawTokens,
         responsibleName: cleanResponsible,
         linkedEmails: cleanEmails,
-        vendor: params.vendor,
+        vendor: params.vendor === 'ERICSSON' ? 'ERICSSON' : 'NOKIA',
         demandDate: targetDate,
         actorEmail: params.actorEmail,
         actorName: params.actorName,
@@ -1130,7 +1130,7 @@ export const demandaSharedService = {
     try {
       await dataService.desvincularDemandaSites({
         siteTokens: rawTokens,
-        vendor: params.vendor,
+        vendor: params.vendor === 'ERICSSON' ? 'ERICSSON' : 'NOKIA',
         targetScope: params.targetScope,
       });
     } catch (err) {
@@ -1335,7 +1335,7 @@ export const demandaSharedService = {
     try {
       await dataService.limparTodosSitesDemanda({
         responsibleName: cleanResponsible,
-        vendor: params.vendor,
+        vendor: params.vendor === 'ERICSSON' ? 'ERICSSON' : 'NOKIA',
         siteTokens: rawTokensToClear,
         targetScope: params.targetScope,
       });

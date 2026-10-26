@@ -1,4 +1,4 @@
-export type VendorType = 'NOKIA' | 'ERICSSON';
+export type VendorType = 'NOKIA' | 'ERICSSON' | 'CLARO_TIM';
 
 export const DEFAULT_ONEDRIVE_TSSR_URL = 'https://onedrive.live.com/:x:/g/personal/d82e752e01e5afdd/IQDgA-L4WLPYSbYY7rdSiedCAY39Y72Mn2s6Vn9Ijm0Tq-k?rtime=i_gLDa-r3kg&redeem=aHR0cHM6Ly8xZHJ2Lm1zL3gvYy9kODJlNzUyZTAxZTVhZmRkL0lRRGdBLUw0V0xQWVNiWVk3cmRTaWVkQ0FZMzlZNzJNbjJzNlZuOUlqbTBUcS1rP2U9WEV0d0F4';
 export const DEFAULT_ERICSSON_ENG_ONEDRIVE_URL = 'https://onedrive.live.com/:x:/g/personal/d82e752e01e5afdd/IQBkdW7amR5BQLwUz3WVNtySAWRS0ZetSRS24kMBQIjwE4E?rtime=bHml02143kg&redeem=aHR0cHM6Ly8xZHJ2Lm1zL3gvYy9kODJlNzUyZTAxZTVhZmRkL0lRQmtkVzdhbVI1QlFMd1V6M1dWTnR5U0FXUlMwWmV0U1JTMjRrTUJRSWp3RTRFP2U9cjhQT3B5';
@@ -207,7 +207,7 @@ export type UserRole =
   | 'Executor'
   | 'Vistoriador';
 
-export type AssignedPlatformScope = 'NOKIA' | 'ERICSSON' | 'BOTH' | 'AMBAS';
+export type AssignedPlatformScope = 'NOKIA' | 'ERICSSON' | 'BOTH' | 'AMBAS' | 'CLARO_TIM';
 
 export type UserSituacao = 'dono' | 'aguardando' | 'ativo' | 'bloqueado' | 'recusado';
 
@@ -280,6 +280,7 @@ export function canUserAccessVendor(
   vendor: VendorType
 ): boolean {
   if (!user) return false;
+  if (vendor === 'CLARO_TIM') return true;
   if (isUserDono(user) || isOwnerAdmUser(user.email, user.situacao) || user.role === 'ADM') return true;
   if (isUserAguardando(user)) return false;
   const scope = user.plataforma === 'AMBAS' ? 'BOTH' : user.plataforma || user.assignedPlatform || user.preferredVendor || 'NOKIA';

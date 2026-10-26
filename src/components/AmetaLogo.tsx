@@ -5,6 +5,7 @@ interface AmetaLogoProps {
   showSubtitle?: boolean;
   subtitle?: string;
   theme?: 'light' | 'dark';
+  iconOnly?: boolean;
 }
 
 export const AmetaLogo: React.FC<AmetaLogoProps> = ({
@@ -12,6 +13,7 @@ export const AmetaLogo: React.FC<AmetaLogoProps> = ({
   showSubtitle = false,
   subtitle = 'Engenharia & Telecom',
   theme = 'light',
+  iconOnly = false,
 }) => {
   const uid = useId().replace(/:/g, '');
 
@@ -151,25 +153,27 @@ export const AmetaLogo: React.FC<AmetaLogoProps> = ({
       </div>
 
       {/* Brand Typography: "Ameta" + "SERVIÇOS" */}
-      <div className="flex flex-col leading-none">
-        <span
-          className={`font-extrabold tracking-tight ${titleSize} leading-[0.95]`}
-          style={{ color: navyColor }}
-        >
-          Ameta
-        </span>
-        <span
-          className={`font-bold uppercase ${servicosSize} mt-1 leading-none`}
-          style={{ color: tealColor }}
-        >
-          SERVIÇOS
-        </span>
-        {showSubtitle && subtitle && (
-          <span className={`text-[10px] font-medium ${subColor} mt-1 tracking-normal`}>
-            {subtitle}
+      {!iconOnly && (
+        <div className="flex flex-col leading-none">
+          <span
+            className={`font-extrabold tracking-tight ${titleSize} leading-[0.95]`}
+            style={{ color: navyColor }}
+          >
+            Ameta
           </span>
-        )}
-      </div>
+          <span
+            className={`font-bold uppercase ${servicosSize} mt-1 leading-none`}
+            style={{ color: tealColor }}
+          >
+            SERVIÇOS
+          </span>
+          {showSubtitle && subtitle && (
+            <span className={`text-[10px] font-medium ${subColor} mt-1 tracking-normal`}>
+              {subtitle}
+            </span>
+          )}
+        </div>
+      )}
     </div>
   );
 };

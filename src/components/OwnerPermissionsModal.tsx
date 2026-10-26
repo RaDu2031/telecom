@@ -276,7 +276,11 @@ export const OwnerPermissionsModal: React.FC<OwnerPermissionsModalProps> = ({
       const nextSituacao: UserSituacao =
         params.situacao || (params.accessReleased ? 'ativo' : 'bloqueado');
       const platForFirestore: 'NOKIA' | 'ERICSSON' | 'AMBAS' =
-        params.assignedPlatform === 'BOTH' ? 'AMBAS' : params.assignedPlatform;
+        params.assignedPlatform === 'BOTH' || params.assignedPlatform === 'AMBAS'
+          ? 'AMBAS'
+          : params.assignedPlatform === 'ERICSSON'
+          ? 'ERICSSON'
+          : 'NOKIA';
 
       let resolvedUid = params.uid || params.userId;
       if (params.accessReleased) {

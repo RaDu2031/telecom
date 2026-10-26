@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef, useDeferredValue } from 'react';
 import {
   Search,
   ClipboardPaste,
@@ -88,6 +88,8 @@ import { INITIAL_ERICSSON_SITES } from './data/initialEricssonSites';
 import { INITIAL_ERICSSON_ENGINEERING_ROWS } from './data/initialEricssonEngineering';
 import { AuthGate } from './components/AuthGate';
 import { AmetaLogo } from './components/AmetaLogo';
+import { AmetaSidebar, SidebarTabId } from './components/AmetaSidebar';
+import { ClaroTimMaintenanceView } from './components/ClaroTimMaintenanceView';
 import { SiteDetailDrawer } from './components/SiteDetailDrawer';
 import { BulkPasteModal } from './components/BulkPasteModal';
 import { NewSiteModal } from './components/NewSiteModal';
@@ -336,6 +338,9 @@ export default function App() {
   const [quickAssignTargetName, setQuickAssignTargetName] = useState<string>('Usuário Teste');
   const [simulatedTargetUser, setSimulatedTargetUser] = useState<AmetaUser | null>(null);
   const [searchTerm, setSearchTerm] = useState<string>('');
+  const deferredSearchTerm = useDeferredValue(searchTerm);
+  const [tableCurrentPage, setTableCurrentPage] = useState<number>(1);
+  const [tablePageSize, setTablePageSize] = useState<number>(50);
   const [columnSearchTerm, setColumnSearchTerm] = useState<string>('');
 
   // Per-column header dropdown filters (colKey -> array of selected values)
@@ -423,6 +428,26 @@ export default function App() {
   const [bulkInitialTab, setBulkInitialTab] = useState<'paste' | 'excel'>('excel');
   const [pastedShortcutText, setPastedShortcutText] = useState<string>('');
   const [newSiteModalOpen, setNewSiteModalOpen] = useState<boolean>(false);
+  const [diagnosticoOpen, setDiagnosticoOpen] = useState<boolean>(false);
+
+  // Collapsible sidebar state (persisted)
+  const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('ameta_sidebar_collapsed') === 'true';
+    } catch {
+      return false;
+    }
+  });
+
+  const handleToggleSidebar = () => {
+    setSidebarCollapsed((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem('ameta_sidebar_collapsed', String(next));
+      } catch {}
+      return next;
+    });
+  };
 
   // Real-time notification toast
   const [liveToast, setLiveToast] = useState<string | null>(null);
@@ -473,53 +498,70 @@ export default function App() {
     });
   }, []);
 
-  // Persistent local cache sync across changes
+  const userRef = useRef(user);
   useEffect(() => {
-    if (sites && sites.length > 0) {
+    userRef.current = user;
+  }, [user]);
+
+  // Persistent local cache sync across changes (debounced by 1500ms to eliminate UI stutter)
+  useEffect(() => {
+    if (!sites || sites.length === 0) return;
+    const timer = setTimeout(() => {
       try {
         localStorage.setItem('ameta_cached_sites', JSON.stringify(sites));
       } catch {}
-    }
+    }, 1500);
+    return () => clearTimeout(timer);
   }, [sites]);
 
   useEffect(() => {
-    if (sheets && sheets.length > 0) {
+    if (!sheets || sheets.length === 0) return;
+    const timer = setTimeout(() => {
       try {
         localStorage.setItem('ameta_cached_sheets', JSON.stringify(sheets));
       } catch {}
-    }
+    }, 1500);
+    return () => clearTimeout(timer);
   }, [sheets]);
 
   useEffect(() => {
-    if (ericssonRows && ericssonRows.length > 0) {
+    if (!ericssonRows || ericssonRows.length === 0) return;
+    const timer = setTimeout(() => {
       try {
         localStorage.setItem('ameta_cached_ericsson_sites', JSON.stringify(ericssonRows));
       } catch {}
-    }
+    }, 1500);
+    return () => clearTimeout(timer);
   }, [ericssonRows]);
 
   useEffect(() => {
-    if (ericssonSheetMeta) {
+    if (!ericssonSheetMeta) return;
+    const timer = setTimeout(() => {
       try {
         localStorage.setItem('ameta_cached_ericsson_meta', JSON.stringify(ericssonSheetMeta));
       } catch {}
-    }
+    }, 1500);
+    return () => clearTimeout(timer);
   }, [ericssonSheetMeta]);
 
   useEffect(() => {
-    if (ericssonEngineeringRows && ericssonEngineeringRows.length > 0) {
+    if (!ericssonEngineeringRows || ericssonEngineeringRows.length === 0) return;
+    const timer = setTimeout(() => {
       try {
         localStorage.setItem('ameta_cached_ericsson_eng', JSON.stringify(ericssonEngineeringRows));
       } catch {}
-    }
+    }, 1500);
+    return () => clearTimeout(timer);
   }, [ericssonEngineeringRows]);
 
   useEffect(() => {
-    if (tssrRows && tssrRows.length > 0) {
+    if (!tssrRows || tssrRows.length === 0) return;
+    const timer = setTimeout(() => {
       try {
         localStorage.setItem('ameta_cached_tssr', JSON.stringify(tssrRows));
       } catch {}
-    }
+    }, 1500);
+    return () => clearTimeout(timer);
   }, [tssrRows]);
 
   // Observação em tempo real no Firestore (Nokia, Ericsson, Usuários, Duplas e Notificações)
@@ -553,9 +595,6 @@ export default function App() {
               );
             });
             const merged = Array.from(byKey.values());
-            try {
-              localStorage.setItem('ameta_cached_sites', JSON.stringify(merged));
-            } catch {}
             return merged;
           });
           // Descobrir abas dinamicamente para não sumir com abas adicionadas
@@ -658,14 +697,16 @@ export default function App() {
               return Array.from(byId.values());
             });
           }
-          const me = fetched.find((u) => u.email.toLowerCase() === user.email.toLowerCase());
+          const currentUser = userRef.current;
+          if (!currentUser) return;
+          const me = fetched.find((u) => u.email.toLowerCase() === currentUser.email.toLowerCase());
           if (
             me &&
-            (me.situacao !== user.situacao ||
-              me.role !== user.role ||
-              me.accessReleased !== user.accessReleased ||
-              me.plataforma !== user.plataforma ||
-              me.assignedPlatform !== user.assignedPlatform)
+            (me.situacao !== currentUser.situacao ||
+              me.role !== currentUser.role ||
+              me.accessReleased !== currentUser.accessReleased ||
+              me.plataforma !== currentUser.plataforma ||
+              me.assignedPlatform !== currentUser.assignedPlatform)
           ) {
             setUser((prev) => (prev ? { ...prev, ...me } : me));
           }
@@ -703,7 +744,7 @@ export default function App() {
     });
 
     return () => unsub();
-  }, [user]);
+  }, [user?.uid]);
 
   // Reconcile and synchronize any inconsistent demands across sites and engineering rows
   useEffect(() => {
@@ -804,7 +845,7 @@ export default function App() {
     setActiveVendor(vendor);
     setActiveSheetName(vendor === 'NOKIA' ? 'Controle Geral' : 'ALL');
     if (
-      vendor === 'ERICSSON' &&
+      (vendor === 'ERICSSON' || vendor === 'CLARO_TIM') &&
       (activeTopTab === 'novo_site' ||
         activeTopTab === 'importar' ||
         activeTopTab === 'colar' ||
@@ -813,7 +854,7 @@ export default function App() {
       setActiveTopTab('sites');
     }
     resetAllInternalFilters();
-    if (user) {
+    if (user && vendor !== 'CLARO_TIM') {
       try {
         const uid = user.uid || user.id;
         if (uid) {
@@ -823,6 +864,13 @@ export default function App() {
         // non-blocking
       }
     }
+  };
+
+  const handleSidebarSelectTab = (tab: SidebarTabId) => {
+    if (tab === 'sites') setActiveTopTab('sites');
+    else if (tab === 'engenharia') setActiveTopTab('engenharia');
+    else if (tab === 'duplas') setActiveTopTab('duplas');
+    else if (tab === 'executores') setActiveTopTab('executores');
   };
 
   // Sync logged-in user's role if updated in the users list (only Rafael Araújo is ADM Dono)
@@ -907,6 +955,14 @@ export default function App() {
 
   const canSeeFullSpreadsheets = hasFullSpreadsheetAccess(effectiveRole);
   const isEngCoordinator = isEngineeringCoordinatorRole(effectiveRole);
+  const isCoord = Boolean(
+    activeTargetUser &&
+      (effectiveRole === 'Coordenador Geral' ||
+        effectiveRole === 'Coordenador Engenharia' ||
+        effectiveRole === 'ADM' ||
+        activeTargetUser.situacao === 'dono' ||
+        (activeTargetUser as any).tipo === 'admin')
+  );
 
   // Observação em tempo real no Firestore para "acionamentos" (compartilhado com Ameta-acionamento)
   // No máximo 1 onSnapshot ativo por sessão para poupar cota do Firebase.
@@ -931,7 +987,26 @@ export default function App() {
     return () => unsub();
   }, [user?.uid, activeTargetUser?.email, effectiveRole, Boolean(simulatedTargetUser)]);
 
-  const processedConcluidosRef = useRef<Set<string>>(new Set());
+  const processedConcluidosRef = useRef<Set<string>>(
+    (() => {
+      try {
+        const saved = sessionStorage.getItem('ameta_processed_concluidos_ids_v1');
+        if (saved) return new Set<string>(JSON.parse(saved));
+      } catch {}
+      return new Set<string>();
+    })()
+  );
+
+  const markConcluidoProcessed = useCallback((id: string) => {
+    processedConcluidosRef.current.add(id);
+    try {
+      sessionStorage.setItem(
+        'ameta_processed_concluidos_ids_v1',
+        JSON.stringify(Array.from(processedConcluidosRef.current))
+      );
+    } catch {}
+  }, []);
+
   const sitesRef = useRef(sites);
   useEffect(() => {
     sitesRef.current = sites;
@@ -955,6 +1030,11 @@ export default function App() {
       return;
     }
 
+    // Wait until spreadsheets are loaded so we don't mistakenly fail on initial mount
+    if (sitesRef.current.length === 0 && ericssonRowsRef.current.length === 0) {
+      return;
+    }
+
     const concluidosPendentes = acionamentos.filter(
       (ac) => ac.status === 'Concluído' && !ac.planilhaAtualizadaEm
     );
@@ -963,7 +1043,7 @@ export default function App() {
 
     concluidosPendentes.forEach(async (ac) => {
       if (processedConcluidosRef.current.has(ac.id)) return;
-      processedConcluidosRef.current.add(ac.id);
+      markConcluidoProcessed(ac.id);
 
       const loggedUser = user.name || user.email || 'Coordenador';
       const nowIso = new Date().toISOString();
@@ -1190,7 +1270,7 @@ export default function App() {
         }
       }
     });
-  }, [acionamentos, effectiveRole, simulatedTargetUser, user]);
+  }, [acionamentos, effectiveRole, simulatedTargetUser, user?.uid, markConcluidoProcessed]);
 
   const acionamentosMap = useMemo(() => {
     const map = new Map<string, Acionamento>();
@@ -1633,7 +1713,7 @@ export default function App() {
       await dataService.renomearEquipeDupla({
         oldName,
         newName: clean,
-        vendor: activeVendor,
+        vendor: activeVendor === 'ERICSSON' ? 'ERICSSON' : 'NOKIA',
       });
     } catch (err: any) {
       console.error('Erro ao renomear equipe no Firestore:', err);
@@ -2686,6 +2766,7 @@ export default function App() {
       actorEmail: user?.email,
       actorName: user?.name,
       allowTransfer,
+      targetScope: 'executor',
     });
     setSites(res.updatedSites);
     setTssrRows(res.updatedTssrRows);
@@ -2712,6 +2793,7 @@ export default function App() {
       currentSites: sites,
       currentTssrRows: tssrRows,
       currentEricssonEngRows: ericssonEngineeringRows,
+      targetScope: 'executor',
     });
     setSites(res.updatedSites);
     setTssrRows(res.updatedTssrRows);
@@ -2726,6 +2808,7 @@ export default function App() {
       currentSites: sites,
       currentTssrRows: tssrRows,
       currentEricssonEngRows: ericssonEngineeringRows,
+      targetScope: 'executor',
     });
     setSites(res.updatedSites);
     setTssrRows(res.updatedTssrRows);
@@ -3059,13 +3142,13 @@ export default function App() {
 
   // Parse space/comma/newline separated site queries (e.g. "SN-OI65J2 SN-OI65J4")
   const searchTokens = useMemo(() => {
-    if (!searchTerm.trim()) return [];
-    return searchTerm
+    if (!deferredSearchTerm.trim()) return [];
+    return deferredSearchTerm
       .trim()
       .split(/[\s,;|\n\r\t]+/)
       .map((t) => t.trim())
       .filter(Boolean);
-  }, [searchTerm]);
+  }, [deferredSearchTerm]);
 
   const matchesSiteSingleTerm = useCallback((site: TelecomSite, qLower: string): boolean => {
     const matchStandard =
@@ -3227,8 +3310,8 @@ export default function App() {
         if (!matchesExactOrUf) return false;
       }
 
-      if (searchTerm.trim()) {
-        const fullQueryLower = searchTerm.trim().toLowerCase();
+      if (deferredSearchTerm.trim()) {
+        const fullQueryLower = deferredSearchTerm.trim().toLowerCase();
         // 1. Check if full phrase matches (e.g. "Mato Grosso" or "Sem Chave")
         if (matchesSiteSingleTerm(site, fullQueryLower)) {
           return true;
@@ -3258,9 +3341,28 @@ export default function App() {
     executorFilter,
     columnValueFilters,
     getSiteDisplayValueForColKey,
-    searchTerm,
+    deferredSearchTerm,
     searchTokens,
     matchesSiteSingleTerm,
+  ]);
+
+  // Reset pagination to first page when any search or filter changes
+  useEffect(() => {
+    setTableCurrentPage(1);
+  }, [
+    functionFilter,
+    chartQuickFilter,
+    prioridadeFilter,
+    projetoFilter,
+    regionalFilter,
+    ufFilter,
+    statusFilter,
+    acessoFilter,
+    financeiroFilter,
+    equipeFilter,
+    executorFilter,
+    deferredSearchTerm,
+    columnValueFilters,
   ]);
 
   const activeColumnFilterCount = useMemo(
@@ -3872,6 +3974,70 @@ export default function App() {
       );
     }
 
+    const totalSitesCount = folderSites.length;
+    const totalPages = tablePageSize === -1 ? 1 : Math.ceil(totalSitesCount / tablePageSize) || 1;
+    const safeCurrentPage = Math.min(Math.max(1, tableCurrentPage), totalPages);
+    const startIndex = tablePageSize === -1 ? 0 : (safeCurrentPage - 1) * tablePageSize;
+    const endIndex = tablePageSize === -1 ? totalSitesCount : Math.min(startIndex + tablePageSize, totalSitesCount);
+    const paginatedSites = tablePageSize === -1 ? folderSites : folderSites.slice(startIndex, endIndex);
+
+    const renderPaginationBar = () => {
+      if (totalSitesCount <= 25) return null;
+      return (
+        <div className="px-4 py-2 bg-slate-50 border-t border-slate-200 flex flex-wrap items-center justify-between gap-2.5 text-xs text-slate-600 select-none shrink-0">
+          <div className="flex items-center gap-2">
+            <span>
+              Mostrando <strong className="text-slate-900 font-semibold">{totalSitesCount === 0 ? 0 : startIndex + 1}–{endIndex}</strong> de <strong className="text-slate-900 font-semibold">{totalSitesCount}</strong> sites
+            </span>
+            <div className="flex items-center gap-1 pl-2 border-l border-slate-300">
+              <span className="text-[11px] text-slate-500">Por pág:</span>
+              {[50, 100, -1].map((size) => (
+                <button
+                  key={size}
+                  type="button"
+                  onClick={() => {
+                    setTablePageSize(size);
+                    setTableCurrentPage(1);
+                  }}
+                  className={`px-2 py-0.5 rounded text-[11px] font-semibold cursor-pointer transition-colors ${
+                    tablePageSize === size
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-100'
+                  }`}
+                >
+                  {size === -1 ? 'Todos' : size}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {totalPages > 1 && (
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                disabled={safeCurrentPage <= 1}
+                onClick={() => setTableCurrentPage((p) => Math.max(1, p - 1))}
+                className="px-2.5 py-1 rounded bg-white border border-slate-200 text-slate-700 font-medium hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+              >
+                Anterior
+              </button>
+              <span className="px-2 font-medium text-slate-700">
+                Pág. {safeCurrentPage} de {totalPages}
+              </span>
+              <button
+                type="button"
+                disabled={safeCurrentPage >= totalPages}
+                onClick={() => setTableCurrentPage((p) => Math.min(totalPages, p + 1))}
+                className="px-2.5 py-1 rounded bg-white border border-slate-200 text-slate-700 font-medium hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+              >
+                Próxima
+              </button>
+            </div>
+          )}
+        </div>
+      );
+    };
+
     // FULL SPREADSHEET MODE (Coluna A -> Observação) WITH OPAQUE STICKY COLUMNS (#, Col A, Col B)
     if (folderViewMode === 'grid') {
       const hasColA = displayedColumnsWithIndex.some((c) => c.colIdx === 0);
@@ -4031,14 +4197,14 @@ export default function App() {
                     </td>
                   </tr>
                 ) : (
-                  folderSites.map((site, idx) => (
+                  paginatedSites.map((site, idx) => (
                   <tr
                     key={site.id}
                     onClick={() => setSelectedSiteId(site.id)}
                     className="group cursor-pointer"
                   >
                     <td className={`sticky left-0 z-20 w-[44px] min-w-[44px] max-w-[44px] bg-white group-hover:bg-slate-50 ${densityPad} border-b border-r border-slate-100 text-center font-mono text-slate-400 tabular-nums`}>
-                      {idx + 1}
+                      {startIndex + idx + 1}
                     </td>
 
                     {displayedColumnsWithIndex.map(({ colHeader, colIdx, colLetter }) => {
@@ -4234,6 +4400,7 @@ export default function App() {
               </tbody>
             </table>
           </div>
+          {renderPaginationBar()}
         </div>
       );
     }
@@ -4242,15 +4409,16 @@ export default function App() {
 
     // Fluid Clean Compact Data Grid (Sticky # & SITE ID, Hover-to-Edit Cells, Subtle Status Badges, Unified Equipe Executante Duplas)
     return (
-      <div
-        className={`overflow-x-auto overflow-y-auto ${
-          isSpreadsheetFullscreen
-            ? 'flex-1 h-full max-h-none'
-            : isSitesListExpanded
-            ? 'max-h-none'
-            : 'max-h-[72vh]'
-        }`}
-      >
+      <div className={isSpreadsheetFullscreen ? 'flex-1 flex flex-col min-h-0' : 'flex flex-col'}>
+        <div
+          className={`overflow-x-auto overflow-y-auto ${
+            isSpreadsheetFullscreen
+              ? 'flex-1 h-full max-h-none'
+              : isSitesListExpanded
+              ? 'max-h-none'
+              : 'max-h-[72vh]'
+          }`}
+        >
         <table className="w-full text-left border-separate border-spacing-0 text-xs">
           <thead className="sticky top-0 z-20 bg-slate-100/90 text-slate-600 font-semibold">
             <tr className="whitespace-nowrap">
@@ -4391,10 +4559,10 @@ export default function App() {
                 (s) => getSiteExecutionSortBucket(s) === 1
               ).length;
 
-              return folderSites.map((site, idx) => {
+              return paginatedSites.map((site, idx) => {
                 const currentBucket = getSiteExecutionSortBucket(site);
                 const prevBucket =
-                  idx > 0 ? getSiteExecutionSortBucket(folderSites[idx - 1]) : -1;
+                  idx > 0 ? getSiteExecutionSortBucket(paginatedSites[idx - 1]) : -1;
                 const showGroupBanner = currentBucket !== prevBucket && currentBucket <= 1;
 
                 const endId = getCellValueForColumn(site, 'END ID') || site.siteName;
@@ -4466,7 +4634,7 @@ export default function App() {
                       className="group cursor-pointer whitespace-nowrap"
                     >
                   <td className={`sticky left-0 z-20 w-[44px] min-w-[44px] max-w-[44px] bg-white group-hover:bg-slate-50 ${densityPad} border-b border-r border-slate-100 font-mono text-slate-400 text-center tabular-nums`}>
-                    {idx + 1}
+                    {startIndex + idx + 1}
                   </td>
                   <td className={`sticky left-[44px] z-20 w-[150px] min-w-[150px] max-w-[150px] bg-white group-hover:bg-slate-50 ${densityPad} border-b border-r border-slate-200 font-mono font-semibold text-blue-600 group-hover:text-blue-700 tabular-nums overflow-hidden text-ellipsis shadow-[4px_0_6px_-2px_rgba(15,23,42,0.06)]`}>
                     <div className="flex items-center gap-1.5">
@@ -4740,8 +4908,10 @@ export default function App() {
           </tbody>
         </table>
       </div>
-    );
-  };
+      {renderPaginationBar()}
+    </div>
+  );
+};
 
   // Counts for each filter button inside Pasta Controle Geral
   const countEngenharia = useMemo(
@@ -4895,212 +5065,125 @@ export default function App() {
     : 'AM';
 
   return (
-    <div className="min-h-screen bg-[#F0F3FB] text-slate-900 flex flex-col">
-      {/* Top Official Brand Accent Bar (Ameta Navy #223585 -> Ameta Teal #1E8E8D) */}
-      <div className="h-1 w-full bg-gradient-to-r from-[#223585] via-[#206289] to-[#1E8E8D] shrink-0" />
+    <div className="min-h-screen bg-[#F0F3FB] text-slate-900 flex flex-row">
+      {/* Dark Navy Collapsible Sidebar with Smooth Transition */}
+      <AmetaSidebar
+        collapsed={sidebarCollapsed}
+        onToggleCollapse={handleToggleSidebar}
+        activeTab={resolvedTopTab}
+        onSelectTab={handleSidebarSelectTab}
+        activeVendor={activeVendor}
+        onSelectVendor={handleSwitchVendor}
+        sitesCount={
+          activeVendor === 'ERICSSON'
+            ? ericssonSiteCounters.totalSites
+            : filteredControleGeralSites.length
+        }
+        novosSitesCount={activeVendor === 'NOKIA' ? countNovos : 0}
+        engenhariaCount={
+          activeVendor === 'ERICSSON'
+            ? (ericssonEngineeringRows.length || ericssonRows.length)
+            : tssrRows.length
+        }
+        duplasCount={equipesDuplas.length}
+        executoresCount={listaExecutores.length}
+        canSeeSitesTab={canSeeSitesTab}
+        canSeeEngenhariaTab={canSeeEngenhariaTab}
+        canSeeDuplasTab={isRealAdmin && !simulatedTargetUser}
+        canAccessDemandaExecutores={canAccessDemandaExecutores}
+      />
 
-      {/* =====================================================================
-          1. HIERARQUIA VISUAL E LIMPEZA DO CABEÇALHO (HEADER SEM SOBREPOSIÇÃO)
-          - Navegação enxuta à esquerda (Logo + Vendor + Sites / Engenharia)
-          - Barra de Ações Secundária agrupada à direita + Menu completo no RA
-         ===================================================================== */}
-      <header className="sticky top-0 z-30 bg-white border-b border-slate-200 px-3 sm:px-5 py-2.5 shadow-xs space-y-2.5">
-        {/* Top Row: Logo + Desktop Vendor Switcher + Desktop Nav + Right Action Buttons */}
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2.5 sm:gap-3.5 min-w-0">
-            <button
-              type="button"
-              onClick={() => setActiveTopTab('sites')}
-              className="cursor-pointer text-left shrink-0"
-            >
-              <AmetaLogo size="sm" theme="light" />
-            </button>
+      {/* Main App Area */}
+      <div className="flex-1 min-w-0 flex flex-col min-h-screen">
+        {/* Top Official Brand Accent Bar (Ameta Navy #223585 -> Ameta Teal #1E8E8D) */}
+        <div className="h-1 w-full bg-gradient-to-r from-[#223585] via-[#206289] to-[#1E8E8D] shrink-0" />
 
-            {/* Desktop Vendor Pill Switcher */}
-            <div className="hidden lg:flex items-center p-0.5 bg-[#F0F3FB] border border-blue-200/70 rounded-lg shrink-0">
-              {canAccessNokia && (
+        {/* =====================================================================
+            1. HIERARQUIA VISUAL E LIMPEZA DO CABEÇALHO (HEADER SEM SOBREPOSIÇÃO)
+           ===================================================================== */}
+        <header className="sticky top-0 z-30 bg-white border-b border-slate-200 px-3 sm:px-5 py-2.5 shadow-xs space-y-2.5">
+          {/* Top Row: Logo (mobile) + Vendor Switcher + Breadcrumb + Right Action Buttons */}
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2.5 sm:gap-3.5 min-w-0">
+              <button
+                type="button"
+                onClick={() => setActiveTopTab('sites')}
+                className="md:hidden cursor-pointer text-left shrink-0"
+              >
+                <AmetaLogo size="sm" theme="light" />
+              </button>
+
+              {/* Desktop Vendor Pill Switcher with CLARO / TIM */}
+              <div className="flex items-center p-0.5 bg-[#F0F3FB] border border-blue-200/70 rounded-lg shrink-0">
+                {canAccessNokia && (
+                  <button
+                    type="button"
+                    onClick={() => handleSwitchVendor('NOKIA')}
+                    className={`px-2.5 py-1 text-[11px] font-bold rounded-md transition-colors cursor-pointer ${
+                      activeVendor === 'NOKIA'
+                        ? 'bg-[#223585] text-white shadow-2xs'
+                        : 'text-slate-600 hover:text-[#223585]'
+                    }`}
+                  >
+                    TIM / NOKIA
+                  </button>
+                )}
+                {canAccessEricsson && (
+                  <button
+                    type="button"
+                    onClick={() => handleSwitchVendor('ERICSSON')}
+                    className={`px-2.5 py-1 text-[11px] font-bold rounded-md transition-colors cursor-pointer ${
+                      activeVendor === 'ERICSSON'
+                        ? 'bg-[#1E8E8D] text-white shadow-2xs'
+                        : 'text-slate-600 hover:text-[#1E8E8D]'
+                    }`}
+                  >
+                    ERICSSON
+                  </button>
+                )}
                 <button
                   type="button"
-                  onClick={() => handleSwitchVendor('NOKIA')}
-                  className={`px-2.5 py-1 text-[11px] font-bold rounded-md transition-colors cursor-pointer ${
-                    activeVendor === 'NOKIA'
-                      ? 'bg-[#223585] text-white shadow-2xs'
-                      : 'text-slate-600 hover:text-[#223585]'
+                  onClick={() => handleSwitchVendor('CLARO_TIM')}
+                  className={`px-2.5 py-1 text-[11px] font-bold rounded-md transition-colors cursor-pointer flex items-center gap-1.5 ${
+                    activeVendor === 'CLARO_TIM'
+                      ? 'bg-amber-600 text-white shadow-2xs'
+                      : 'text-amber-800 hover:text-amber-900 hover:bg-amber-100/60'
                   }`}
+                  title="Claro / TIM (Módulo em manutenção)"
                 >
-                  TIM / NOKIA
+                  <span>CLARO / TIM</span>
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping" />
+                  <span className="hidden xl:inline text-[9px] uppercase px-1 py-0.2 bg-amber-200/80 text-amber-950 font-extrabold rounded">
+                    Manutenção
+                  </span>
                 </button>
-              )}
-              {canAccessEricsson && (
-                <button
-                  type="button"
-                  onClick={() => handleSwitchVendor('ERICSSON')}
-                  className={`px-2.5 py-1 text-[11px] font-bold rounded-md transition-colors cursor-pointer ${
-                    activeVendor === 'ERICSSON'
-                      ? 'bg-[#1E8E8D] text-white shadow-2xs'
-                      : 'text-slate-600 hover:text-[#1E8E8D]'
-                  }`}
-                >
-                  ERICSSON
-                </button>
-              )}
+              </div>
+
+              {/* Breadcrumb / Title of Current View */}
+              <div className="hidden lg:flex items-center gap-2 text-xs text-slate-500 font-medium pl-1 border-l border-slate-200">
+                <span className="text-slate-900 font-bold">
+                  {activeVendor === 'CLARO_TIM'
+                    ? 'Claro / TIM'
+                    : activeVendor === 'ERICSSON'
+                    ? 'Ericsson'
+                    : 'TIM / Nokia'}
+                </span>
+                <span>/</span>
+                <span className="text-slate-700">
+                  {activeVendor === 'CLARO_TIM'
+                    ? 'Manutenção'
+                    : resolvedTopTab === 'sites'
+                    ? 'Sites (Planilhas)'
+                    : resolvedTopTab === 'engenharia'
+                    ? 'Engenharia'
+                    : resolvedTopTab === 'duplas'
+                    ? 'Duplas & Demanda'
+                    : resolvedTopTab === 'executores'
+                    ? 'Demandar Executores'
+                    : resolvedTopTab}
+                </span>
+              </div>
             </div>
-
-            {/* Desktop Horizontal Navigation Tabs */}
-            <nav className="hidden lg:flex items-center gap-1 text-xs font-medium shrink-0">
-              {canSeeSitesTab && (
-                <button
-                  type="button"
-                  onClick={() => setActiveTopTab('sites')}
-                  className={`px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${
-                    resolvedTopTab === 'sites'
-                      ? 'bg-[#223585]/10 text-[#223585] font-bold border border-[#223585]/25'
-                      : 'text-slate-600 hover:text-[#223585] hover:bg-slate-50'
-                  }`}
-                >
-                  <FolderKanban className="w-3.5 h-3.5 text-[#223585] shrink-0" />
-                  <span>
-                    {activeVendor === 'ERICSSON'
-                      ? canSeeFullSpreadsheets
-                        ? 'Sites'
-                        : 'Meus Sites Demandados'
-                      : canSeeFullSpreadsheets
-                      ? 'Sites (Planilhas)'
-                      : 'Meus Sites Demandados'}
-                  </span>
-                  <span className="font-mono text-[11px] text-slate-500 tabular-nums">
-                    (
-                    {activeVendor === 'ERICSSON'
-                      ? ericssonSiteCounters.totalSites
-                      : filteredControleGeralSites.length}
-                    )
-                  </span>
-                  {activeVendor === 'NOKIA' && countNovos > 0 && (
-                    <span className="px-1.5 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-bold rounded-full tabular-nums">
-                      +{countNovos}
-                    </span>
-                  )}
-                </button>
-              )}
-
-              {canSeeEngenhariaTab && (
-                <button
-                  type="button"
-                  onClick={() => setActiveTopTab('engenharia')}
-                  className={`px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${
-                    resolvedTopTab === 'engenharia'
-                      ? 'bg-[#1E8E8D]/10 text-[#1E8E8D] font-bold border border-[#1E8E8D]/30'
-                      : 'text-slate-600 hover:text-[#1E8E8D] hover:bg-slate-50'
-                  }`}
-                >
-                  <FileSpreadsheet className="w-3.5 h-3.5 text-[#1E8E8D] shrink-0" />
-                  <span>Engenharia</span>
-                  <span className="font-mono text-[11px] text-slate-500 tabular-nums">
-                    ({activeVendor === 'ERICSSON' ? (ericssonEngineeringRows.length || ericssonRows.length) : tssrRows.length})
-                  </span>
-                </button>
-              )}
-
-              {canSeeEricssonDemandsTab && (
-                <button
-                  type="button"
-                  onClick={() => setActiveTopTab('vistoria')}
-                  className={`px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${
-                    resolvedTopTab === 'vistoria'
-                      ? 'bg-teal-500/10 text-teal-700 font-bold border border-teal-500/30'
-                      : 'text-slate-600 hover:text-teal-700 hover:bg-slate-50'
-                  }`}
-                >
-                  <FileSpreadsheet className="w-3.5 h-3.5 shrink-0 text-teal-600" />
-                  <span>Demandas Engenharia</span>
-                  <span className="font-mono text-[11px] text-slate-500 tabular-nums">
-                    ({vendorEricssonEngineeringRows.length})
-                  </span>
-                </button>
-              )}
-
-              {isRealAdmin && !simulatedTargetUser && (
-                <button
-                  type="button"
-                  onClick={() => setActiveTopTab('duplas')}
-                  className={`px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${
-                    resolvedTopTab === 'duplas'
-                      ? 'bg-slate-900 text-white font-bold shadow-2xs'
-                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-                  }`}
-                >
-                  <Users
-                    className={`w-3.5 h-3.5 shrink-0 ${
-                      resolvedTopTab === 'duplas' ? 'text-blue-400' : 'text-[#223585]'
-                    }`}
-                  />
-                  <span>Duplas & Demanda</span>
-                  <span
-                    className={`font-mono text-[11px] tabular-nums ${
-                      resolvedTopTab === 'duplas' ? 'text-slate-300' : 'text-slate-500'
-                    }`}
-                  >
-                    ({equipesDuplas.length})
-                  </span>
-                </button>
-              )}
-
-              {canAccessDemandaExecutores && (
-                <button
-                  type="button"
-                  onClick={() => setActiveTopTab('executores')}
-                  className={`px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${
-                    resolvedTopTab === 'executores'
-                      ? 'bg-amber-500 text-slate-950 font-black shadow-2xs'
-                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-                  }`}
-                  title="Demandar sites da Engenharia para Executores"
-                >
-                  <HardHat
-                    className={`w-3.5 h-3.5 shrink-0 ${
-                      resolvedTopTab === 'executores' ? 'text-slate-950' : 'text-amber-600'
-                    }`}
-                  />
-                  <span>Demandar Executores</span>
-                  <span
-                    className={`font-mono text-[11px] tabular-nums font-bold ${
-                      resolvedTopTab === 'executores' ? 'text-slate-950' : 'text-slate-500'
-                    }`}
-                  >
-                    ({listaExecutores.length})
-                  </span>
-                </button>
-              )}
-
-              {isRealAdmin &&
-                resolvedTopTab !== 'sites' &&
-                resolvedTopTab !== 'engenharia' &&
-                resolvedTopTab !== 'vistoria' && (
-                <div className="flex items-center gap-1 pl-1 ml-1 border-l border-slate-200">
-                  <span className="px-2.5 py-1.5 rounded-lg bg-slate-900 text-white font-semibold flex items-center gap-2 text-xs shadow-2xs">
-                    <span>
-                      {resolvedTopTab === 'duplas' && 'Aba: Duplas & Demanda'}
-                      {resolvedTopTab === 'executores' && 'Aba: Demandar Executores (Engenharia)'}
-                      {resolvedTopTab === 'perfis' && 'Aba: Perfis & Acessos'}
-                      {resolvedTopTab === 'novo_site' && 'Aba: + Novo Site'}
-                      {resolvedTopTab === 'importar' && 'Aba: Importar / OneDrive'}
-                      {resolvedTopTab === 'colar' && 'Aba: Colar Ctrl+V'}
-                      {resolvedTopTab === 'exportar' && 'Aba: Exportar Planilha'}
-                      {resolvedTopTab === 'simular' && 'Aba: Simular Visão'}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => setActiveTopTab('sites')}
-                      className="p-0.5 rounded hover:bg-slate-700 text-slate-300 hover:text-white cursor-pointer"
-                      title="Fechar aba e voltar para Sites"
-                    >
-                      <X className="w-3 h-3" />
-                    </button>
-                  </span>
-                </div>
-              )}
-            </nav>
-          </div>
 
           {/* Right: Role Badge + Notification Bell + ADM Dono Button + RA Menu */}
           <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
@@ -5498,6 +5581,18 @@ export default function App() {
                         type="button"
                         onClick={() => {
                           setIsRaMenuOpen(false);
+                          setDiagnosticoOpen(true);
+                        }}
+                        className="w-full px-3.5 py-2.5 sm:py-1.5 text-left flex items-center gap-2 text-slate-700 hover:bg-slate-50 cursor-pointer font-medium"
+                      >
+                        <ShieldCheck className="w-4 h-4 text-blue-600" />
+                        <span>Diagnóstico do Sistema</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsRaMenuOpen(false);
                           handleLogout();
                         }}
                         className="w-full px-3.5 py-2.5 sm:py-1.5 text-left flex items-center gap-2 text-red-600 hover:bg-red-50 cursor-pointer font-medium"
@@ -5510,18 +5605,28 @@ export default function App() {
                 )}
               </div>
             ) : (
-              <button
-                type="button"
-                onClick={handleLogout}
-                className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#F3F4F6] hover:bg-red-50 text-slate-700 hover:text-red-600 text-xs font-medium transition-colors cursor-pointer"
-                title="Sair da Conta"
-              >
-                <div className="w-7 h-7 rounded-full bg-slate-900 text-white text-[11px] font-bold flex items-center justify-center">
-                  {userInitials}
-                </div>
-                <span className="hidden sm:inline">Sair</span>
-                <LogOut className="w-3.5 h-3.5" />
-              </button>
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => setDiagnosticoOpen(true)}
+                  className="px-2 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-medium cursor-pointer"
+                  title="Diagnóstico"
+                >
+                  Diagnóstico
+                </button>
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#F3F4F6] hover:bg-red-50 text-slate-700 hover:text-red-600 text-xs font-medium transition-colors cursor-pointer"
+                  title="Sair da Conta"
+                >
+                  <div className="w-7 h-7 rounded-full bg-slate-900 text-white text-[11px] font-bold flex items-center justify-center">
+                    {userInitials}
+                  </div>
+                  <span className="hidden sm:inline">Sair</span>
+                  <LogOut className="w-3.5 h-3.5" />
+                </button>
+              </div>
             )}
           </div>
         </div>
@@ -5531,40 +5636,46 @@ export default function App() {
             - Botões grandes, legíveis e em grade 100% visível sem precisar esconder
            =================================================================== */}
         <div className="lg:hidden space-y-2 pt-1.5 border-t border-slate-100">
-          {/* 1. Seletor Grande de Sistema (TIM / NOKIA vs ERICSSON) */}
-          {(canAccessNokia && canAccessEricsson) && (
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={() => handleSwitchVendor('NOKIA')}
-                className={`py-2.5 px-3 rounded-xl text-xs font-black uppercase tracking-wide flex items-center justify-center gap-2 border-2 transition-all cursor-pointer ${
-                  activeVendor === 'NOKIA'
-                    ? 'bg-[#223585] border-[#223585] text-white shadow-sm'
-                    : 'bg-slate-50 border-slate-200 text-slate-700 hover:border-[#223585]'
-                }`}
-              >
-                <span>TIM / NOKIA</span>
-                {activeVendor === 'NOKIA' && (
-                  <span className="px-1.5 py-0.5 rounded bg-white/20 text-[10px]">ATIVO</span>
-                )}
-              </button>
+          {/* 1. Seletor Grande de Sistema (TIM / NOKIA vs ERICSSON vs CLARO / TIM) */}
+          <div className="grid grid-cols-3 gap-1.5">
+            <button
+              type="button"
+              onClick={() => handleSwitchVendor('NOKIA')}
+              className={`py-2 px-1 rounded-xl text-[11px] font-black uppercase tracking-wide flex items-center justify-center gap-1 border-2 transition-all cursor-pointer ${
+                activeVendor === 'NOKIA'
+                  ? 'bg-[#223585] border-[#223585] text-white shadow-sm'
+                  : 'bg-slate-50 border-slate-200 text-slate-700 hover:border-[#223585]'
+              }`}
+            >
+              <span>TIM</span>
+            </button>
 
-              <button
-                type="button"
-                onClick={() => handleSwitchVendor('ERICSSON')}
-                className={`py-2.5 px-3 rounded-xl text-xs font-black uppercase tracking-wide flex items-center justify-center gap-2 border-2 transition-all cursor-pointer ${
-                  activeVendor === 'ERICSSON'
-                    ? 'bg-[#1E8E8D] border-[#1E8E8D] text-white shadow-sm'
-                    : 'bg-slate-50 border-slate-200 text-slate-700 hover:border-[#1E8E8D]'
-                }`}
-              >
-                <span>ERICSSON</span>
-                {activeVendor === 'ERICSSON' && (
-                  <span className="px-1.5 py-0.5 rounded bg-white/20 text-[10px]">ATIVO</span>
-                )}
-              </button>
-            </div>
-          )}
+            <button
+              type="button"
+              onClick={() => handleSwitchVendor('ERICSSON')}
+              className={`py-2 px-1 rounded-xl text-[11px] font-black uppercase tracking-wide flex items-center justify-center gap-1 border-2 transition-all cursor-pointer ${
+                activeVendor === 'ERICSSON'
+                  ? 'bg-[#1E8E8D] border-[#1E8E8D] text-white shadow-sm'
+                  : 'bg-slate-50 border-slate-200 text-slate-700 hover:border-[#1E8E8D]'
+              }`}
+            >
+              <span>ERICSSON</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => handleSwitchVendor('CLARO_TIM')}
+              className={`py-2 px-1 rounded-xl text-[11px] font-black uppercase tracking-wide flex items-center justify-center gap-1 border-2 transition-all cursor-pointer ${
+                activeVendor === 'CLARO_TIM'
+                  ? 'bg-amber-600 border-amber-600 text-white shadow-sm'
+                  : 'bg-amber-50/70 border-amber-300 text-amber-900 hover:border-amber-500'
+              }`}
+              title="Claro / TIM (Em manutenção)"
+            >
+              <span>CLARO</span>
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-ping" />
+            </button>
+          </div>
 
           {/* 2. Grade de Opções Principais Bem Aparentes (2 colunas, botões grandes) */}
           <div className="grid grid-cols-2 gap-2">
@@ -5900,10 +6011,14 @@ export default function App() {
           resolvedTopTab === 'engenharia' ? 'max-w-full' : 'max-w-[1800px]'
         }`}
       >
-        {/* ===================================================================
-            SISTEMA INDEPENDENTE DA ERICSSON (SITES, ENGENHARIA, VISTORIA)
-           =================================================================== */}
-        {activeVendor === 'ERICSSON' && (
+        {activeVendor === 'CLARO_TIM' ? (
+          <ClaroTimMaintenanceView onSwitchVendor={handleSwitchVendor} />
+        ) : (
+          <>
+            {/* ===================================================================
+                SISTEMA INDEPENDENTE DA ERICSSON (SITES, ENGENHARIA, VISTORIA)
+               =================================================================== */}
+            {activeVendor === 'ERICSSON' && (
           <>
             {canSeeSitesTab && resolvedTopTab === 'sites' && (
               <EricssonSitesTab
@@ -7459,7 +7574,7 @@ export default function App() {
                       await dataService.vincularEmailsDupla({
                         duplaName,
                         emails,
-                        vendor,
+                        vendor: vendor === 'ERICSSON' ? 'ERICSSON' : 'NOKIA',
                       });
                       if (vendor === 'ERICSSON') {
                         setServerEricssonDuplaEmailsMap((prev) => ({
@@ -7748,6 +7863,8 @@ export default function App() {
               )}
             </div>
           )}
+          </>
+        )}
       </main>
 
       {/* Subtle Footer */}
@@ -8148,6 +8265,82 @@ export default function App() {
           </button>
         )}
       </nav>
+      </div>
+
+      {/* Diagnóstico Modal (Read-only) */}
+      {diagnosticoOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-lg w-full border border-slate-200 shadow-2xl p-6 space-y-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <h3 className="text-base font-bold text-slate-900">Diagnóstico de Perfil e Sessão</h3>
+              <button
+                type="button"
+                onClick={() => setDiagnosticoOpen(false)}
+                className="p-1 text-slate-400 hover:text-slate-700 rounded-lg cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-2 text-xs font-mono bg-slate-50 border border-slate-200 rounded-xl p-3 text-slate-800 break-all select-text">
+              <div><strong>E-mail:</strong> {user?.email || '—'}</div>
+              <div><strong>UID:</strong> {user?.uid || user?.id || '—'}</div>
+              <div><strong>Nome:</strong> {user?.name || '—'}</div>
+              <div><strong>Role (cargo real):</strong> {user?.role || '—'}</div>
+              <div><strong>Situação:</strong> {user?.situacao || '—'}</div>
+              <div><strong>Access Released:</strong> {String(user?.accessReleased ?? false)}</div>
+              <div><strong>Tipo:</strong> {(user as any)?.tipo || '—'}</div>
+              <div><strong>Plataforma:</strong> {user?.plataforma || '—'}</div>
+              <div><strong>Assigned Platform:</strong> {user?.assignedPlatform || '—'}</div>
+              <div><strong>Equipe:</strong> {user?.equipe || '—'}</div>
+              <div className="pt-2 border-t border-slate-200">
+                <strong>isCoord (coordenação):</strong> {String(isCoord)}
+              </div>
+              <div>
+                <strong>Acionamentos recebidos pelo listener:</strong> {acionamentos.length}
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  const diagText = JSON.stringify(
+                    {
+                      email: user?.email,
+                      uid: user?.uid || user?.id,
+                      name: user?.name,
+                      role: user?.role,
+                      situacao: user?.situacao,
+                      accessReleased: user?.accessReleased,
+                      tipo: (user as any)?.tipo,
+                      plataforma: user?.plataforma,
+                      assignedPlatform: user?.assignedPlatform,
+                      equipe: user?.equipe,
+                      isCoord,
+                      totalAcionamentos: acionamentos.length,
+                    },
+                    null,
+                    2
+                  );
+                  navigator.clipboard.writeText(diagText);
+                  showToast('Diagnóstico copiado para a área de transferência!');
+                }}
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold cursor-pointer"
+              >
+                Copiar diagnóstico
+              </button>
+              <button
+                type="button"
+                onClick={() => setDiagnosticoOpen(false)}
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold cursor-pointer"
+              >
+                Fechar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
