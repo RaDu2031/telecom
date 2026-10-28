@@ -2831,30 +2831,8 @@ class FirebaseDataService implements IDataService {
       }
     }
 
-    // 3. Usuários
-    if (Array.isArray(seed.users) && seed.users.length > 0) {
-      if (onProgress) onProgress(`Gravando ${seed.users.length} usuários no Firestore...`);
-      const batch = writeBatch(db);
-      for (const u of seed.users) {
-        const uid = u.uid || u.id;
-        if (uid) {
-          const { cpf, initialPasswordHash, passwordHash, ...cleanU } = u as any;
-          batch.set(doc(db, FIRESTORE_COLLECTIONS.USUARIOS, uid), sanitizeFirestoreData(cleanU), { merge: true });
-          if (cpf) {
-            batch.set(
-              doc(db, FIRESTORE_COLLECTIONS.USUARIOS, uid, 'privado', 'dados'),
-              sanitizeFirestoreData({
-                cpf: String(cpf).trim(),
-                updatedAt: new Date().toISOString(),
-              }),
-              { merge: true }
-            );
-          }
-          totalUsers++;
-        }
-      }
-      await batch.commit();
-    }
+    // 3. Usuários (desativado gravação automática de seed.users)
+    totalUsers = 0;
 
     // 4. Configuração de Duplas
     if (seed.duplaEmailsMap) {
@@ -2876,57 +2854,12 @@ class FirebaseDataService implements IDataService {
       await batch.commit();
     }
 
-    if (onProgress) onProgress(`Importação inicial concluída com sucesso! (${totalSites} Nokia, ${totalEricsson} Ericsson, ${totalUsers} Usuários)`);
+    if (onProgress) onProgress(`Importação inicial concluída com sucesso! (${totalSites} Nokia, ${totalEricsson} Ericsson)`);
     return { totalSites, totalEricsson, totalUsers };
   }
 
   async sincronizarUsuariosIniciais(): Promise<number> {
-    try {
-      const res = await window.fetch('/initial-db.json');
-      if (!res.ok) return 0;
-      const seed = await res.json();
-      if (!Array.isArray(seed.users) || seed.users.length === 0) return 0;
-
-      const snap = await getDocs(collection(db, FIRESTORE_COLLECTIONS.USUARIOS));
-      const existingEmails = new Set(
-        snap.docs.map((d) => (d.data().email || '').toLowerCase().trim())
-      );
-
-      let count = 0;
-      const batch = writeBatch(db);
-      for (const u of seed.users) {
-        const email = (u.email || '').toLowerCase().trim();
-        if (email && !existingEmails.has(email)) {
-          const uid = u.uid || u.id;
-          if (uid) {
-            const { cpf, initialPasswordHash, passwordHash, ...cleanU } = u as any;
-            batch.set(
-              doc(db, FIRESTORE_COLLECTIONS.USUARIOS, uid),
-              sanitizeFirestoreData(cleanU),
-              { merge: true }
-            );
-            if (cpf) {
-              batch.set(
-                doc(db, FIRESTORE_COLLECTIONS.USUARIOS, uid, 'privado', 'dados'),
-                sanitizeFirestoreData({
-                  cpf: String(cpf).trim(),
-                  updatedAt: new Date().toISOString(),
-                }),
-                { merge: true }
-              );
-            }
-            count++;
-          }
-        }
-      }
-      if (count > 0) {
-        await batch.commit();
-      }
-      return count;
-    } catch (err) {
-      console.error('Erro ao sincronizar usuários iniciais:', err);
-      return 0;
-    }
+    return 0;
   }
 
   observarColecoesPlataforma(

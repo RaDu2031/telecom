@@ -20,6 +20,7 @@ import {
   ChevronUp,
   UserCheck,
   RefreshCw,
+  Copy,
 } from 'lucide-react';
 import {
   AmetaUser,
@@ -44,7 +45,7 @@ import {
   addMonthsToIsoDate,
 } from '../utils/documentOcrUtils';
 import { db, firebaseConfig, handleFirestoreError, OperationType, createAuthAccountSecondary } from '../lib/firebase';
-import { collection, onSnapshot, doc, setDoc, deleteDoc, updateDoc } from 'firebase/firestore';
+import { collection, onSnapshot, doc, setDoc, deleteDoc, updateDoc, writeBatch } from 'firebase/firestore';
 import { createSaltedHash } from '../utils/authUtils';
 import { confirmar } from '../hooks/useConfirm';
 import { showToast } from '../utils/toast';
@@ -146,11 +147,6 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
     setIsLoadingUsers(true);
     setFirestoreError(null);
 
-    // Auto-sync initial users from initial-db.json if missing in Firestore
-    dataService.sincronizarUsuariosIniciais().catch((err) => {
-      console.warn('Erro na sincronização automática de usuários:', err);
-    });
-
     const usuariosCol = collection(db, 'usuarios');
     const unsubscribe = onSnapshot(
       usuariosCol,
@@ -245,6 +241,126 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [updatingUserId, setUpdatingUserId] = useState<string | null>(null);
+
+  // --- Estados e Lógicas do Modal "Zerar Cadastros" ---
+  const [zerarModalOpen, setZerarModalOpen] = useState(false);
+  const [zerarConfirmationInput, setZerarConfirmationInput] = useState('');
+  const [isExecutingZerar, setIsExecutingZerar] = useState(false);
+  const [zerarResult, setZerarResult] = useState<{
+    deletedCount: number;
+    keptCount: number;
+    keptEmails: string[];
+  } | null>(null);
+  const [copiedEmailsNotice, setCopiedEmailsNotice] = useState(false);
+
+  // Verifica se o usuário logado é Dono (situacao 'dono' ou e-mail rafael.araujo@ametaservicos.com.br)
+  const isOwnerUser = useMemo(() => {
+    if (!currentUser) return false;
+    const cleanEmail = (currentUser.email || '').trim().toLowerCase();
+    return (
+      currentUser.situacao === 'dono' ||
+      cleanEmail === 'rafael.araujo@ametaservicos.com.br' ||
+      cleanEmail === 'rafael.araujo0797@gmail.com' ||
+      isOwnerAdmUser(cleanEmail, currentUser.situacao) ||
+      isUserDono(currentUser)
+    );
+  }, [currentUser]);
+
+  // Separa usuários em "Serão MANTIDOS" e "Serão APAGADOS"
+  const { toKeepList, toDeleteList } = useMemo(() => {
+    const keep: AmetaUser[] = [];
+    const del: AmetaUser[] = [];
+
+    const curEmail = (currentUser?.email || '').trim().toLowerCase();
+    const curUid = currentUser?.uid || currentUser?.id;
+
+    // e-mails protegidos (sempre mantidos)
+    const PROTECTED_EMAILS = new Set([
+      'rafael.araujo@ametaservicos.com.br',
+      'eduardo.teruya@ametaservicos.com.br',
+    ]);
+
+    users.forEach((u) => {
+      const uEmail = (u.email || '').trim().toLowerCase();
+      const uUid = u.uid || u.id;
+
+      // 1. E-mails explicitamente protegidos: rafael.araujo@ametaservicos.com.br e eduardo.teruya@ametaservicos.com.br
+      const isProtectedEmail = PROTECTED_EMAILS.has(uEmail);
+
+      // 2. Nunca apaga o documento do usuário logado
+      const isSelf =
+        Boolean(curUid && uUid && curUid === uUid) ||
+        Boolean(curEmail && uEmail && curEmail === uEmail);
+
+      // 3. Qualquer usuário com situacao 'dono'
+      const isDono =
+        u.situacao === 'dono' ||
+        isOwnerAdmUser(u.email, u.situacao) ||
+        isUserDono(u);
+
+      if (isProtectedEmail || isSelf || isDono) {
+        keep.push(u);
+      } else {
+        del.push(u);
+      }
+    });
+
+    return { toKeepList: keep, toDeleteList: del };
+  }, [users, currentUser]);
+
+  // Executa exclusão em lote no Firestore
+  const handleExecuteZerarCadastros = async () => {
+    if (zerarConfirmationInput.trim().toUpperCase() !== 'ZERAR') return;
+    if (toDeleteList.length === 0) {
+      showToast('Nenhum cadastro a apagar.');
+      return;
+    }
+
+    setIsExecutingZerar(true);
+    try {
+      const deleteOps: Array<{ ref: any }> = [];
+      toDeleteList.forEach((u) => {
+        const uid = u.uid || u.id;
+        if (!uid) return;
+        // Subdocumento usuarios/{uid}/privado/dados
+        deleteOps.push({ ref: doc(db, 'usuarios', uid, 'privado', 'dados') });
+        // Documento usuarios/{uid}
+        deleteOps.push({ ref: doc(db, 'usuarios', uid) });
+      });
+
+      // Executa em lotes (writeBatch) de até 400 operações
+      const BATCH_LIMIT = 400;
+      let totalDeletedOps = 0;
+
+      for (let i = 0; i < deleteOps.length; i += BATCH_LIMIT) {
+        const batchChunk = deleteOps.slice(i, i + BATCH_LIMIT);
+        const batch = writeBatch(db);
+        batchChunk.forEach((op) => {
+          batch.delete(op.ref);
+        });
+        await batch.commit();
+        totalDeletedOps += batchChunk.length;
+      }
+
+      const deletedUsersCount = Math.floor(totalDeletedOps / 2);
+      const keptEmails = toKeepList
+        .map((u) => (u.email || '').trim())
+        .filter(Boolean);
+
+      setZerarResult({
+        deletedCount: deletedUsersCount,
+        keptCount: toKeepList.length,
+        keptEmails,
+      });
+
+      showToast(`${deletedUsersCount} cadastros apagados com sucesso! ${toKeepList.length} mantidos.`);
+    } catch (err: any) {
+      console.error('Erro ao zerar cadastros:', err);
+      showToast(`Erro ao zerar cadastros: ${err?.message || err}`);
+    } finally {
+      setIsExecutingZerar(false);
+    }
+  };
 
   const uniqueEquipes = useMemo(() => {
     const set = new Set<string>();
@@ -1200,12 +1316,28 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
               setAuthDefaultPassword('ameta2026');
               setBulkAuthModalOpen(true);
             }}
-            className="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-lg flex items-center gap-1.5 cursor-pointer whitespace-nowrap shadow-2xs"
             title="Criar contas de acesso no Firebase Authentication para colaboradores pendentes ou cadastrados no Firestore"
           >
             <ShieldCheck className="w-3.5 h-3.5" />
             <span>Criar Acesso de Todos os Pendentes</span>
           </button>
+
+          {isOwnerUser && (
+            <button
+              type="button"
+              onClick={() => {
+                setError(null);
+                setZerarConfirmationInput('');
+                setZerarResult(null);
+                setZerarModalOpen(true);
+              }}
+              className="px-3.5 py-2 bg-red-700 hover:bg-red-800 text-white text-xs font-bold rounded-lg flex items-center gap-1.5 cursor-pointer whitespace-nowrap shadow-2xs transition-colors"
+              title="Zerar cadastros do sistema mantendo apenas Admins, Coordenadores e o Dono"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              <span>Zerar Cadastros</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -2734,6 +2866,272 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
               >
                 Fechar Relatório
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Modal Zerar Cadastros */}
+      {zerarModalOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-4xl overflow-hidden flex flex-col max-h-[90vh]">
+            {/* Header */}
+            <div className="p-4 sm:p-5 bg-gradient-to-r from-red-900 via-rose-950 to-slate-900 text-white flex items-center justify-between shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 bg-red-800/80 rounded-xl border border-red-600/60 shadow-inner">
+                  <Trash2 className="w-5 h-5 text-red-200" />
+                </div>
+                <div>
+                  <h3 className="font-black text-base sm:text-lg tracking-wide">Zerar Cadastros do Sistema</h3>
+                  <p className="text-xs text-red-200 font-medium">
+                    Limpeza total da coleção de usuários mantendo exclusivamente Dono, Coordenadores e Admins.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  if (!isExecutingZerar) {
+                    setZerarModalOpen(false);
+                    setZerarResult(null);
+                  }
+                }}
+                className="p-1.5 text-red-200 hover:text-white hover:bg-white/10 rounded-lg cursor-pointer transition-colors"
+                title="Fechar"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="p-4 sm:p-6 overflow-y-auto space-y-5 flex-1">
+              {!zerarResult ? (
+                <>
+                  <div className="p-3.5 bg-amber-50 border border-amber-300 rounded-xl text-xs text-amber-950 flex items-start gap-2.5 shadow-2xs">
+                    <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                    <div className="space-y-1">
+                      <p className="font-bold">
+                        Atenção: Esta ação excluirá permanentemente da coleção <code className="bg-amber-100 px-1 py-0.5 rounded font-mono border border-amber-300">usuarios</code> os documentos e o subdocumento <code className="bg-amber-100 px-1 py-0.5 rounded font-mono border border-amber-300">privado/dados</code>.
+                      </p>
+                      <p className="text-amber-800">
+                        Nenhuma informação das planilhas e sites (Nokia, Ericsson, Engenharia), incluindo campos de equipe, dupla, executor e "quem fez", nem de <code>duplas_config</code> e <code>acionamentos</code> será alterada ou apagada.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Listas MANTIDOS vs APAGADOS */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Lista 1: Serão MANTIDOS */}
+                    <div className="bg-emerald-50/80 border-2 border-emerald-300 rounded-xl p-3.5 flex flex-col max-h-[320px]">
+                      <div className="flex items-center justify-between pb-2 border-b border-emerald-200 mb-2 shrink-0">
+                        <div className="flex items-center gap-2">
+                          <CheckCircle2 className="w-4 h-4 text-emerald-700" />
+                          <span className="font-black text-xs uppercase tracking-wide text-emerald-950">
+                            Serão MANTIDOS ({toKeepList.length})
+                          </span>
+                        </div>
+                        <span className="text-[10px] font-bold bg-emerald-200 text-emerald-900 px-2 py-0.5 rounded-full">
+                          Protegidos
+                        </span>
+                      </div>
+
+                      <div className="overflow-y-auto space-y-2 pr-1 flex-1">
+                        {toKeepList.length === 0 ? (
+                          <p className="text-xs text-slate-500 italic p-2">Nenhum usuário na lista de mantidos.</p>
+                        ) : (
+                          toKeepList.map((u) => (
+                            <div
+                              key={u.uid || u.id || u.email}
+                              className="bg-white p-2.5 rounded-lg border border-emerald-200 text-xs shadow-2xs space-y-0.5"
+                            >
+                              <div className="font-bold text-slate-900 truncate">
+                                {u.name || 'Sem nome'}
+                                {(u.uid === currentUser.uid || u.email === currentUser.email) && (
+                                  <span className="ml-1 text-[9px] font-black uppercase text-emerald-700 bg-emerald-100 px-1.5 py-0.2 rounded">
+                                    Você
+                                  </span>
+                                )}
+                              </div>
+                              <div className="font-mono text-[11px] text-slate-600 truncate">{u.email}</div>
+                              <div className="flex items-center gap-1.5 pt-1">
+                                <span className="text-[10px] font-bold px-1.5 py-0.2 bg-emerald-100 text-emerald-900 rounded">
+                                  {u.situacao === 'dono' ? 'DONO' : u.role || 'Sem Cargo'}
+                                </span>
+                              </div>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Lista 2: Serão APAGADOS */}
+                    <div className="bg-rose-50/80 border-2 border-rose-300 rounded-xl p-3.5 flex flex-col max-h-[320px]">
+                      <div className="flex items-center justify-between pb-2 border-b border-rose-200 mb-2 shrink-0">
+                        <div className="flex items-center gap-2">
+                          <Trash2 className="w-4 h-4 text-rose-700" />
+                          <span className="font-black text-xs uppercase tracking-wide text-rose-950">
+                            Serão APAGADOS ({toDeleteList.length})
+                          </span>
+                        </div>
+                        <span className="text-[10px] font-bold bg-rose-200 text-rose-900 px-2 py-0.5 rounded-full">
+                          Serão Removidos
+                        </span>
+                      </div>
+
+                      <div className="overflow-y-auto space-y-2 pr-1 flex-1">
+                        {toDeleteList.length === 0 ? (
+                          <p className="text-xs text-slate-500 italic p-2">Nenhum cadastro será apagado.</p>
+                        ) : (
+                          toDeleteList.map((u) => (
+                            <div
+                              key={u.uid || u.id || u.email}
+                              className="bg-white p-2.5 rounded-lg border border-rose-200 text-xs shadow-2xs space-y-0.5"
+                            >
+                              <div className="font-bold text-slate-900 truncate">{u.name || 'Sem nome'}</div>
+                              <div className="font-mono text-[11px] text-slate-600 truncate">{u.email}</div>
+                              <div className="flex items-center gap-1.5 pt-1">
+                                <span className="text-[10px] font-medium px-1.5 py-0.2 bg-rose-100 text-rose-900 rounded">
+                                  {u.role || u.situacao || 'Sem cargo / Pendente'}
+                                </span>
+                              </div>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Confirmação com palavra ZERAR */}
+                  {toDeleteList.length > 0 && (
+                    <div className="p-4 bg-slate-100 border border-slate-300 rounded-xl space-y-2 shadow-2xs">
+                      <label className="block text-xs font-bold text-slate-800">
+                        Para habilitar o botão de confirmação, digite a palavra <span className="text-red-700 font-mono font-black underline">ZERAR</span> no campo abaixo:
+                      </label>
+                      <input
+                        type="text"
+                        value={zerarConfirmationInput}
+                        onChange={(e) => setZerarConfirmationInput(e.target.value)}
+                        placeholder="Digite ZERAR"
+                        className="w-full px-3.5 py-2 bg-white border border-slate-300 rounded-lg font-mono text-sm uppercase text-slate-900 font-black focus:outline-none focus:border-red-600 shadow-2xs"
+                      />
+                    </div>
+                  )}
+                </>
+              ) : (
+                /* Resultado Final do Zerar Cadastros */
+                <div className="space-y-5">
+                  <div className="p-4 bg-emerald-50 border border-emerald-300 rounded-xl text-emerald-950 flex items-center gap-3 shadow-2xs">
+                    <CheckCircle2 className="w-6 h-6 text-emerald-600 shrink-0" />
+                    <div>
+                      <h4 className="font-black text-sm text-emerald-950">
+                        Limpeza de Cadastros Concluída!
+                      </h4>
+                      <p className="text-xs text-emerald-800">
+                        A coleção de usuários do Firestore foi atualizada em lotes de forma segura.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Cards de Resumo */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="p-4 bg-rose-50 border border-rose-200 rounded-xl text-center shadow-2xs">
+                      <div className="text-3xl font-black text-rose-700">{zerarResult.deletedCount}</div>
+                      <div className="text-xs font-bold text-rose-900 uppercase">Cadastros Apagados</div>
+                    </div>
+                    <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl text-center shadow-2xs">
+                      <div className="text-3xl font-black text-emerald-700">{zerarResult.keptCount}</div>
+                      <div className="text-xs font-bold text-emerald-900 uppercase">Cadastros Mantidos</div>
+                    </div>
+                  </div>
+
+                  {/* Lista de E-mails dos Mantidos */}
+                  <div className="space-y-2">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <label className="text-xs font-bold text-slate-800">
+                        E-mails dos usuários MANTIDOS ({zerarResult.keptEmails.length}):
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          navigator.clipboard.writeText(zerarResult.keptEmails.join('\n'));
+                          setCopiedEmailsNotice(true);
+                          showToast('E-mails copiados para a área de transferência!');
+                          setTimeout(() => setCopiedEmailsNotice(false), 3000);
+                        }}
+                        className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-lg flex items-center gap-1.5 cursor-pointer shadow-2xs transition-colors"
+                      >
+                        <Copy className="w-3.5 h-3.5" />
+                        <span>{copiedEmailsNotice ? 'Copiado com Sucesso!' : 'Copiar E-mails'}</span>
+                      </button>
+                    </div>
+
+                    <textarea
+                      readOnly
+                      value={zerarResult.keptEmails.join('\n')}
+                      rows={Math.min(10, Math.max(4, zerarResult.keptEmails.length))}
+                      className="w-full p-3 font-mono text-xs bg-slate-900 text-emerald-400 rounded-xl border border-slate-700 focus:outline-none select-all leading-relaxed shadow-inner"
+                      onClick={(e) => (e.target as HTMLTextAreaElement).select()}
+                    />
+                    <p className="text-[11px] text-slate-500">
+                      Você pode copiar a lista acima para utilizar no gerenciamento do Firebase Authentication.
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-4 bg-slate-100 border-t border-slate-200 flex flex-wrap items-center justify-between gap-2 shrink-0">
+              <span className="text-xs text-slate-500 font-medium">
+                {!zerarResult ? `${toDeleteList.length} cadastros pendentes de exclusão` : 'Operação finalizada'}
+              </span>
+
+              <div className="flex items-center gap-2">
+                {!zerarResult ? (
+                  <>
+                    <button
+                      type="button"
+                      disabled={isExecutingZerar}
+                      onClick={() => setZerarModalOpen(false)}
+                      className="px-4 py-2 bg-white border border-slate-300 text-slate-700 font-bold text-xs rounded-xl hover:bg-slate-50 cursor-pointer shadow-2xs"
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      type="button"
+                      disabled={
+                        zerarConfirmationInput.trim().toUpperCase() !== 'ZERAR' ||
+                        isExecutingZerar ||
+                        toDeleteList.length === 0
+                      }
+                      onClick={handleExecuteZerarCadastros}
+                      className="px-5 py-2 bg-red-700 hover:bg-red-800 disabled:opacity-40 disabled:cursor-not-allowed text-white font-black text-xs rounded-xl shadow-md flex items-center gap-2 cursor-pointer transition-colors"
+                    >
+                      {isExecutingZerar ? (
+                        <>
+                          <RefreshCw className="w-4 h-4 animate-spin" />
+                          <span>Apagando em Lote...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Trash2 className="w-4 h-4" />
+                          <span>Confirmar e Zerar Cadastros</span>
+                        </>
+                      )}
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setZerarModalOpen(false);
+                      setZerarResult(null);
+                    }}
+                    className="px-5 py-2 bg-slate-900 text-white font-bold text-xs rounded-xl hover:bg-slate-800 cursor-pointer shadow-md"
+                  >
+                    Fechar
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         </div>
