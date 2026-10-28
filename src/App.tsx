@@ -963,6 +963,17 @@ export default function App() {
         (activeTargetUser as any).tipo === 'admin')
   );
 
+  const isRealGestor = Boolean(
+    user &&
+      (user.situacao === 'dono' ||
+        isUserDono(user) ||
+        isOwnerAdmUser(user.email) ||
+        realUserRole === 'ADM' ||
+        realUserRole === 'Coordenador Geral' ||
+        realUserRole === 'Coordenador Engenharia' ||
+        (user as any).tipo === 'admin')
+  );
+
   const canSeeAcionamento = Boolean(
     user &&
       (user.situacao === 'dono' ||
@@ -1444,18 +1455,30 @@ export default function App() {
     effectiveRole === 'ADM' ||
     effectiveRole === 'Coordenador Geral' ||
     effectiveRole === 'Coordenador Engenharia' ||
-    isEngCoordinator;
-  const canSeeSitesTab = !isEngCoordinator;
+    isEngCoordinator ||
+    isRealGestor;
+
+  const canSeeSitesTab = true;
+
   const canSeeEngenhariaTab =
     effectiveRole === 'ADM' ||
     effectiveRole === 'Coordenador Geral' ||
-    effectiveRole === 'Coordenador Engenharia';
+    effectiveRole === 'Coordenador Engenharia' ||
+    isRealGestor;
 
   // "essa opção aparece somente para os gestores engenharia e para gestor geral para todo resto é oculta"
   const canAccessDemandaExecutores =
-    (effectiveRole === 'ADM' ||
-      effectiveRole === 'Coordenador Geral' ||
-      effectiveRole === 'Coordenador Engenharia');
+    effectiveRole === 'ADM' ||
+    effectiveRole === 'Coordenador Geral' ||
+    effectiveRole === 'Coordenador Engenharia' ||
+    isRealGestor;
+
+  // Duplas & Demanda aparece para todos os gestores (Coordenador Geral, Coordenador Engenharia, ADM, Dono)
+  const canSeeDuplasTab =
+    effectiveRole === 'ADM' ||
+    effectiveRole === 'Coordenador Geral' ||
+    effectiveRole === 'Coordenador Engenharia' ||
+    isRealGestor;
 
   // Na Ericsson, a aba de Demandas Engenharia é exclusiva para Executor com demandas
   const canSeeEricssonDemandsTab =
@@ -2854,9 +2877,17 @@ export default function App() {
     activeTopTab !== 'sites' &&
     activeTopTab !== 'engenharia' &&
     activeTopTab !== 'vistoria' &&
+    !(activeTopTab === 'duplas' && canSeeDuplasTab) &&
     !(activeTopTab === 'executores' && canAccessDemandaExecutores);
 
   const resolvedTopTab: WorkspaceTopTab = useMemo(() => {
+    // Duplas & Demanda aparece para todos os gestores
+    if (activeTopTab === 'duplas') {
+      if (!canSeeDuplasTab) {
+        return 'sites';
+      }
+      return 'duplas';
+    }
     // Demandar Executores aparece somente para os gestores engenharia e para gestor geral (para todo resto é oculta)
     if (activeTopTab === 'executores') {
       if (!canAccessDemandaExecutores) {
@@ -2893,6 +2924,7 @@ export default function App() {
     return activeTopTab;
   }, [
     isRealAdmin,
+    canSeeDuplasTab,
     canAccessDemandaExecutores,
     simulatedTargetUser,
     activeTopTab,
@@ -5102,7 +5134,7 @@ export default function App() {
         executoresCount={listaExecutores.length}
         canSeeSitesTab={canSeeSitesTab}
         canSeeEngenhariaTab={canSeeEngenhariaTab}
-        canSeeDuplasTab={isRealAdmin && !simulatedTargetUser}
+        canSeeDuplasTab={canSeeDuplasTab}
         canAccessDemandaExecutores={canAccessDemandaExecutores}
         canSeeAcionamento={canSeeAcionamento}
       />
@@ -5769,7 +5801,7 @@ export default function App() {
               </button>
             )}
 
-            {isRealAdmin && !simulatedTargetUser && (
+            {canSeeDuplasTab && (
               <button
                 type="button"
                 onClick={() => setActiveTopTab('duplas')}
