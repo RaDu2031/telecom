@@ -3150,6 +3150,9 @@ export default function App() {
   }, [deferredSearchTerm]);
 
   const matchesSiteSingleTerm = useCallback((site: TelecomSite, qLower: string): boolean => {
+    const colBSiteId = (site.customFields?.['SITE ID'] || site.siteId || '').toLowerCase();
+    if (colBSiteId.includes(qLower)) return true;
+
     const matchStandard =
       site.siteId.toLowerCase().includes(qLower) ||
       site.siteName.toLowerCase().includes(qLower) ||
@@ -3173,7 +3176,7 @@ export default function App() {
   const getSiteDisplayValueForColKey = useCallback((site: TelecomSite, colKey: string): string => {
     switch (colKey) {
       case 'FLUID_SITE_ID':
-        return (site.siteId || '—').trim();
+        return (site.customFields?.['SITE ID'] || site.siteId || '—').trim();
       case 'FLUID_END_ID':
         return (getCellValueForColumn(site, 'END ID') || site.siteName || '—').trim();
       case 'FLUID_PRIORIDADE':
@@ -3396,9 +3399,9 @@ export default function App() {
   const orderedSheetColumns = useMemo(() => {
     if (effectiveRole === 'Vistoriador') {
       return [
+        'Oc Site Pre',
         'SITE ID',
         'END ID',
-        'Oc Site Pre',
         'UF',
         'PROJETO',
         'EQUIPE EXECUTANTE',
@@ -3412,8 +3415,8 @@ export default function App() {
     if (effectiveRole === 'Executor') {
       return [
         'Oc Site Pre',
-        'END ID',
         'SITE ID',
+        'END ID',
         'REG.',
         'UF',
         'MUNICÍPIO',
@@ -4273,14 +4276,14 @@ export default function App() {
                             />
                           ) : isColB ? (
                             <div className="flex items-center gap-1.5">
-                              <span>{cellValue || site.siteId}</span>
+                              <span>{cellValue || site.customFields?.['SITE ID'] || site.siteId}</span>
                               {site.isNew && (
                                 <span className="px-1.5 py-0.5 bg-emerald-600 text-white text-[9px] font-sans font-bold rounded uppercase tracking-wide shrink-0">
                                   NOVO
                                 </span>
                               )}
                               <AcionamentoStatusBadge
-                                acionamento={getAcionamentoForSite('NOKIA', site.siteId || cellValue, 'VISTORIA')}
+                                acionamento={getAcionamentoForSite('NOKIA', cellValue || site.customFields?.['SITE ID'] || site.siteId, 'VISTORIA')}
                                 compact
                               />
                             </div>
@@ -4637,14 +4640,14 @@ export default function App() {
                   </td>
                   <td className={`sticky left-[44px] z-20 w-[150px] min-w-[150px] max-w-[150px] bg-white group-hover:bg-slate-50 ${densityPad} border-b border-r border-slate-200 font-mono font-semibold text-blue-600 group-hover:text-blue-700 tabular-nums overflow-hidden text-ellipsis shadow-[4px_0_6px_-2px_rgba(15,23,42,0.06)]`}>
                     <div className="flex items-center gap-1.5">
-                      <span>{site.siteId}</span>
+                      <span>{site.customFields?.['SITE ID'] || site.siteId}</span>
                       {site.isNew && (
                         <span className="px-1.5 py-0.5 bg-emerald-600 text-white text-[9px] font-sans font-bold rounded uppercase tracking-wide shrink-0">
                           NOVO
                         </span>
                       )}
                       <AcionamentoStatusBadge
-                        acionamento={getAcionamentoForSite('NOKIA', site.siteId, 'VISTORIA')}
+                        acionamento={getAcionamentoForSite('NOKIA', site.customFields?.['SITE ID'] || site.siteId, 'VISTORIA')}
                         compact
                       />
                     </div>

@@ -727,7 +727,7 @@ class FirebaseDataService implements IDataService {
       const docsToWrite: Array<{ id: string; data: any }> = [];
 
       for (const site of sites) {
-        const cleanSiteId = (site.siteId || site.id || '').toString().trim();
+        const cleanSiteId = (site.customFields?.['SITE ID'] || site.siteId || site.id || '').toString().trim();
         if (!cleanSiteId) {
           comErro++;
           continue;
@@ -2026,14 +2026,23 @@ class FirebaseDataService implements IDataService {
       for (const d of sitesSnap.docs) {
         const data = d.data();
         const sId = (data.siteId || data.id || '').toString().trim().toUpperCase();
+        const sColBSiteId = (data.customFields?.['SITE ID'] || '').toString().trim().toUpperCase();
         const docId = d.id.toUpperCase();
         const rowKey = (data.rowKey || '').toString().trim().toUpperCase();
-        if (tokens.has(docId) || (rowKey && tokens.has(rowKey)) || (sId && tokens.has(sId))) {
+        if (
+          tokens.has(docId) ||
+          (rowKey && tokens.has(rowKey)) ||
+          (sId && tokens.has(sId)) ||
+          (sColBSiteId && tokens.has(sColBSiteId))
+        ) {
           if (tokens.has(docId)) matchedTokens.add(docId);
           if (rowKey && tokens.has(rowKey)) matchedTokens.add(rowKey);
+          if (sColBSiteId) matchedTokens.add(sColBSiteId);
           if (sId) {
             matchedTokens.add(sId);
             distinctSiteIds.add(sId);
+          } else if (sColBSiteId) {
+            distinctSiteIds.add(sColBSiteId);
           } else {
             distinctSiteIds.add(docId);
           }

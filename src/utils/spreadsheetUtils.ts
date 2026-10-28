@@ -245,10 +245,20 @@ export function formatExcelCellValue(val: unknown): string {
 }
 
 export function getCellValueForColumn(site: TelecomSite, colHeader: string): string {
+  const norm = normalizeKey(colHeader);
+  if (norm === 'siteid' || colHeader.toUpperCase() === 'SITE ID' || colHeader === 'Coluna B') {
+    return (
+      site.customFields?.['SITE ID'] ||
+      site.customFields?.['Site ID'] ||
+      site.customFields?.['SITE_ID'] ||
+      site.customFields?.['siteId'] ||
+      site.siteId ||
+      ''
+    ).trim();
+  }
   if (site.customFields && colHeader in site.customFields) {
     return site.customFields[colHeader] ?? '';
   }
-  const norm = normalizeKey(colHeader);
   const mappedField = HEADER_FIELD_MAP[norm];
   if (mappedField && mappedField !== 'customFields') {
     const v = site[mappedField];
@@ -271,6 +281,12 @@ export function syncSiteColumnUpdate(
   };
 
   const norm = normalizeKey(colHeader);
+  if (norm === 'siteid' || colHeader.toUpperCase() === 'SITE ID' || colHeader === 'Coluna B') {
+    const cleanVal = newValue.trim();
+    updatedCustomFields['SITE ID'] = cleanVal;
+    updates.siteId = cleanVal;
+    return updates;
+  }
   const mappedField = HEADER_FIELD_MAP[norm];
 
   // Unify Equipe Executante (Duplas) and Executor with Responsible Demand assignment
@@ -385,9 +401,22 @@ export function mapRecordToSite(
     }
   }
 
-  if (!result.siteId) {
+  // Coluna B ("SITE ID") takes absolute priority for Nokia sites
+  const colBSiteId = (
+    result.customFields?.['SITE ID'] ||
+    result.customFields?.['Site ID'] ||
+    (record['SITE ID'] as string) ||
+    (record['Site ID'] as string) ||
+    (record['Coluna B'] as string) ||
+    ''
+  ).trim();
+
+  if (colBSiteId) {
+    result.siteId = colBSiteId;
+    if (!result.customFields) result.customFields = {};
+    result.customFields['SITE ID'] = colBSiteId;
+  } else if (!result.siteId) {
     const fromCustom =
-      result.customFields?.['SITE ID'] ||
       result.customFields?.['END ID'] ||
       result.customFields?.['EQUIPE'];
     if (fromCustom) {
@@ -481,6 +510,15 @@ export function detectHeaderAndSliceUpToObservacao(rows: unknown[][]): {
       .replace(/\r?\n/g, ' ')
       .replace(/\s+/g, ' ')
       .trim();
+    if (
+      colIdx === 1 &&
+      (!cleaned ||
+        normalizeKey(cleaned) === 'siteid' ||
+        normalizeKey(cleaned) === 'site' ||
+        normalizeKey(cleaned) === 'colunab')
+    ) {
+      return 'SITE ID';
+    }
     return cleaned || `Coluna ${getExcelColumnLetter(colIdx)}`;
   });
 
@@ -546,6 +584,13 @@ export function parseClipboardOrCsvText(
       headers.forEach((h, colIdx) => {
         record[h] = rowSlice[colIdx] ?? '';
       });
+      // Ensure Coluna B (index 1) is captured as SITE ID for Nokia sites
+      if (rowSlice.length > 1 && rowSlice[1] !== undefined && rowSlice[1] !== null) {
+        const valB = String(rowSlice[1]).trim();
+        if (valB && (!record['SITE ID'] || headers[1]?.toUpperCase() === 'SITE ID')) {
+          record['SITE ID'] = valB;
+        }
+      }
       sites.push(mapRecordToSite(record, defaultVendor, defaultSheetName, sites.length));
     }
 
@@ -566,6 +611,11 @@ export function parseClipboardOrCsvText(
       const headerName = positionalHeaders[colIdx] || `Coluna ${getExcelColumnLetter(colIdx)}`;
       record[headerName] = cellVal;
     });
+    // In positional fallback, index 1 is strictly Coluna B (SITE ID)
+    if (sliced.length > 1 && sliced[1] !== undefined && sliced[1] !== null) {
+      const valB = String(sliced[1]).trim();
+      if (valB) record['SITE ID'] = valB;
+    }
     sites.push(mapRecordToSite(record, defaultVendor, defaultSheetName, rowIdx));
   });
 
@@ -608,6 +658,13 @@ export function parseExcelWorkbookBuffer(
       headers.forEach((h, colIdx) => {
         record[h] = rowSlice[colIdx] ?? '';
       });
+      // Ensure Coluna B (index 1) is captured as SITE ID for Nokia sites
+      if (rowSlice.length > 1 && rowSlice[1] !== undefined && rowSlice[1] !== null) {
+        const valB = String(rowSlice[1]).trim();
+        if (valB && (!record['SITE ID'] || headers[1]?.toUpperCase() === 'SITE ID')) {
+          record['SITE ID'] = valB;
+        }
+      }
       parsedRows.push(mapRecordToSite(record, defaultVendor, sheetName, parsedRows.length));
     }
 

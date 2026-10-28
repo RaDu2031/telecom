@@ -732,10 +732,12 @@ export const demandaSharedService = {
       const sId = String(site.id || '').trim().toUpperCase();
       const sRowKey = String(site.rowKey || '').trim().toUpperCase();
       const sSiteId = String(site.siteId || '').trim().toUpperCase();
+      const sColBSiteId = String(site.customFields?.['SITE ID'] || '').trim().toUpperCase();
       const isMatch =
         (sId !== '' && tokensSet.has(sId)) ||
         (sRowKey !== '' && tokensSet.has(sRowKey)) ||
-        (sSiteId !== '' && tokensSet.has(sSiteId));
+        (sSiteId !== '' && tokensSet.has(sSiteId)) ||
+        (sColBSiteId !== '' && tokensSet.has(sColBSiteId));
       if (!isMatch) return site;
 
       const currentResp = getCurrentSiteResponsible(site);
