@@ -963,6 +963,17 @@ export default function App() {
         (activeTargetUser as any).tipo === 'admin')
   );
 
+  const canSeeAcionamento = Boolean(
+    user &&
+      (user.situacao === 'dono' ||
+        isUserDono(user) ||
+        isOwnerAdmUser(user.email) ||
+        realUserRole === 'ADM' ||
+        realUserRole === 'Coordenador Geral' ||
+        realUserRole === 'Coordenador Engenharia' ||
+        (user as any).tipo === 'admin')
+  );
+
   // Observação em tempo real no Firestore para "acionamentos" (compartilhado com Ameta-acionamento)
   // No máximo 1 onSnapshot ativo por sessão para poupar cota do Firebase.
   // Coordenadores e ADM ouvem todos; Executor e Vistoriador ouvem somente com where('destinatariosEmails', 'array-contains', email).
@@ -5093,6 +5104,7 @@ export default function App() {
         canSeeEngenhariaTab={canSeeEngenhariaTab}
         canSeeDuplasTab={isRealAdmin && !simulatedTargetUser}
         canAccessDemandaExecutores={canAccessDemandaExecutores}
+        canSeeAcionamento={canSeeAcionamento}
       />
 
       {/* Main App Area */}

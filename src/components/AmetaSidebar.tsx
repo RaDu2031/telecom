@@ -7,9 +7,12 @@ import {
   ChevronLeft,
   ChevronRight,
   Radio,
+  ExternalLink,
+  Wrench,
 } from 'lucide-react';
 import { AmetaLogo } from './AmetaLogo';
 import { VendorType } from '../types/telecom';
+import { ACIONAMENTO_URL } from '../config/links';
 
 export type SidebarTabId = 'sites' | 'engenharia' | 'duplas' | 'executores';
 
@@ -29,6 +32,7 @@ interface AmetaSidebarProps {
   canSeeEngenhariaTab: boolean;
   canSeeDuplasTab: boolean;
   canAccessDemandaExecutores: boolean;
+  canSeeAcionamento?: boolean;
 }
 
 export const AmetaSidebar: React.FC<AmetaSidebarProps> = React.memo(({
@@ -47,6 +51,7 @@ export const AmetaSidebar: React.FC<AmetaSidebarProps> = React.memo(({
   canSeeEngenhariaTab,
   canSeeDuplasTab,
   canAccessDemandaExecutores,
+  canSeeAcionamento,
 }) => {
   const isSitesActive = activeTab === 'sites';
   const isEngenhariaActive = activeTab === 'engenharia' || activeTab === 'vistoria';
@@ -278,6 +283,34 @@ export const AmetaSidebar: React.FC<AmetaSidebarProps> = React.memo(({
               </span>
             )}
           </button>
+        )}
+
+        {/* 5. Acionamento */}
+        {canSeeAcionamento && (
+          <a
+            href={ACIONAMENTO_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            title={collapsed ? 'Acionamento' : undefined}
+            className={`w-full flex items-center transition-all cursor-pointer rounded-xl group relative text-slate-300 hover:text-white hover:bg-slate-800/60 ${
+              collapsed
+                ? 'justify-center p-3'
+                : 'justify-between px-3 py-2.5 text-xs font-medium'
+            }`}
+          >
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="relative shrink-0">
+                <Wrench className="w-4 h-4 text-slate-400 group-hover:text-slate-200 transition-colors" />
+              </div>
+              {!collapsed && (
+                <span className="truncate">Acionamento</span>
+              )}
+            </div>
+
+            {!collapsed && (
+              <ExternalLink className="w-3.5 h-3.5 text-slate-400 group-hover:text-slate-200 shrink-0 ml-1.5 transition-colors" />
+            )}
+          </a>
         )}
       </div>
 
