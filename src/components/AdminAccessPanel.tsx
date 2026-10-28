@@ -253,14 +253,12 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
   } | null>(null);
   const [copiedEmailsNotice, setCopiedEmailsNotice] = useState(false);
 
-  // Verifica se o usuário logado é Dono (situacao 'dono' ou e-mail rafael.araujo@ametaservicos.com.br)
+  // Verifica se o usuário logado é Dono (situacao 'dono' ou configurado em isOwnerAdmUser)
   const isOwnerUser = useMemo(() => {
     if (!currentUser) return false;
     const cleanEmail = (currentUser.email || '').trim().toLowerCase();
     return (
       currentUser.situacao === 'dono' ||
-      cleanEmail === 'rafael.araujo@ametaservicos.com.br' ||
-      cleanEmail === 'rafael.araujo0797@gmail.com' ||
       isOwnerAdmUser(cleanEmail, currentUser.situacao) ||
       isUserDono(currentUser)
     );

@@ -10,7 +10,7 @@ import {
   ShieldCheck,
   ChevronLeft,
 } from 'lucide-react';
-import { AmetaUser, VendorType } from '../types/telecom';
+import { AmetaUser, VendorType, isOwnerAdmUser } from '../types/telecom';
 import { dataService, sanitizeFirestoreData } from '../services/dataService';
 import { AmetaLogo } from './AmetaLogo';
 import { auth, db, firebaseConfig, ALLOWED_EMAIL_DOMAIN, isAllowedCorporateEmail } from '../lib/firebase';
@@ -112,7 +112,7 @@ export const AuthGate: React.FC<AuthGateProps> = ({ onAuthenticated }) => {
       }
 
       const userData = userDocSnap.data();
-      const isOwner = cleanEmail === 'rafael.araujo@ametaservicos.com.br' || cleanEmail === 'rafael.araujo0797@gmail.com';
+      const isOwner = isOwnerAdmUser(cleanEmail);
 
       // Check if disabled or blocked
       if (userData.desativado || userData.situacao === 'bloqueado') {

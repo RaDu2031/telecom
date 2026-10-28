@@ -38,6 +38,7 @@ import {
   EngineeringFile,
   ERICSSON_SITE_LIST_COLUMNS,
   ERICSSON_REAL_STATUSES_BY_DOC,
+  isOwnerAdmUser,
 } from '../types/telecom';
 import { INITIAL_ERICSSON_ENGINEERING_ROWS } from '../data/initialEricssonEngineering';
 import { isEricssonRowAssignedToResponsible } from '../services/demandaSharedService';
@@ -1855,7 +1856,7 @@ export const EricssonEngineeringTab: React.FC<EricssonEngineeringTabProps> = ({
           isOpen={Boolean(selectedDrawerRow)}
           user={user}
           effectiveRole={effectiveRole}
-          isOwner={user?.situacao === 'dono' || (Boolean(user?.email) && Boolean(user?.email?.includes('rafael.araujo')))}
+          isOwner={isOwnerAdmUser(user?.email, user?.situacao)}
           onClose={() => setSelectedDrawerRow(null)}
           onSaveRow={async (updatedRow) => {
             setRows((prev) =>

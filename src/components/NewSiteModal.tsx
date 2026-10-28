@@ -16,6 +16,7 @@ interface NewSiteModalProps {
   activeSheetName: string;
   sheets: SpreadsheetMeta[];
   users?: AmetaUser[];
+  currentUser?: AmetaUser | null;
   onClose: () => void;
   onCreateSite: (siteData: Omit<TelecomSite, 'id' | 'updatedAt'>) => Promise<void>;
 }
@@ -27,6 +28,7 @@ export const NewSiteModal: React.FC<NewSiteModalProps> = ({
   activeSheetName,
   sheets,
   users = [],
+  currentUser,
   onClose,
   onCreateSite,
 }) => {
@@ -151,7 +153,7 @@ export const NewSiteModal: React.FC<NewSiteModalProps> = ({
           'Status Financeiro': cleanFin,
           'Observações/Motivo': observacoes.trim(),
         },
-        updatedBy: 'rafael.araujo@ametaservicos.com.br',
+        updatedBy: (currentUser?.email || '').trim() || 'usuario@ametaservicos.com.br',
       });
       onClose();
     } finally {

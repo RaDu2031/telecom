@@ -212,15 +212,14 @@ export type AssignedPlatformScope = 'NOKIA' | 'ERICSSON' | 'BOTH' | 'AMBAS' | 'C
 export type UserSituacao = 'dono' | 'aguardando' | 'ativo' | 'bloqueado' | 'recusado';
 
 export const OWNER_ADM_EMAILS = [
-  'rafael.araujo@ametaservicos.com.br',
-  'rafael.araujo0797@gmail.com',
+  'SUPORTE_EMAIL_AQUI',
 ];
 
 export function isOwnerAdmUser(email?: string | null, situacao?: UserSituacao | string | null): boolean {
   if (situacao === 'dono') return true;
   if (!email) return false;
   const clean = email.trim().toLowerCase();
-  return OWNER_ADM_EMAILS.includes(clean);
+  return OWNER_ADM_EMAILS.some((e) => e.toLowerCase() === clean) || clean === 'suporte@ametaservicos.com.br';
 }
 
 export function isUserDono(user?: AmetaUser | null): boolean {

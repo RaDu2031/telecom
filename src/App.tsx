@@ -192,8 +192,8 @@ export default function App() {
           if (isOwnerAdmUser(parsed.email)) {
             const normalizedOwner: AmetaUser = {
               ...parsed,
-              name: 'Rafael Araújo',
-              email: 'rafael.araujo@ametaservicos.com.br',
+              name: parsed.name || (parsed.email ? parsed.email.split('@')[0] : 'Usuário'),
+              email: parsed.email,
               role: 'ADM',
               situacao: 'dono',
               plataforma: 'AMBAS',
@@ -428,7 +428,6 @@ export default function App() {
   const [bulkInitialTab, setBulkInitialTab] = useState<'paste' | 'excel'>('excel');
   const [pastedShortcutText, setPastedShortcutText] = useState<string>('');
   const [newSiteModalOpen, setNewSiteModalOpen] = useState<boolean>(false);
-  const [diagnosticoOpen, setDiagnosticoOpen] = useState<boolean>(false);
 
   // Collapsible sidebar state (persisted)
   const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(() => {
@@ -5581,18 +5580,6 @@ export default function App() {
                         type="button"
                         onClick={() => {
                           setIsRaMenuOpen(false);
-                          setDiagnosticoOpen(true);
-                        }}
-                        className="w-full px-3.5 py-2.5 sm:py-1.5 text-left flex items-center gap-2 text-slate-700 hover:bg-slate-50 cursor-pointer font-medium"
-                      >
-                        <ShieldCheck className="w-4 h-4 text-blue-600" />
-                        <span>Diagnóstico do Sistema</span>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setIsRaMenuOpen(false);
                           handleLogout();
                         }}
                         className="w-full px-3.5 py-2.5 sm:py-1.5 text-left flex items-center gap-2 text-red-600 hover:bg-red-50 cursor-pointer font-medium"
@@ -5606,14 +5593,6 @@ export default function App() {
               </div>
             ) : (
               <div className="flex items-center gap-1.5">
-                <button
-                  type="button"
-                  onClick={() => setDiagnosticoOpen(true)}
-                  className="px-2 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-medium cursor-pointer"
-                  title="Diagnóstico"
-                >
-                  Diagnóstico
-                </button>
                 <button
                   type="button"
                   onClick={handleLogout}
@@ -7702,6 +7681,7 @@ export default function App() {
                   activeSheetName={activeSheetName === 'ALL' ? 'Controle Geral' : activeSheetName}
                   sheets={sheets}
                   users={users}
+                  currentUser={user}
                   onClose={() => setActiveTopTab('sites')}
                   onCreateSite={async (siteData) => {
                     await handleCreateSite(siteData);
@@ -8086,6 +8066,7 @@ export default function App() {
         activeSheetName={activeSheetName === 'ALL' ? 'Controle Geral' : activeSheetName}
         sheets={sheets}
         users={users}
+        currentUser={user}
         onClose={() => setNewSiteModalOpen(false)}
         onCreateSite={handleCreateSite}
       />
@@ -8267,80 +8248,6 @@ export default function App() {
       </nav>
       </div>
 
-      {/* Diagnóstico Modal (Read-only) */}
-      {diagnosticoOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-lg w-full border border-slate-200 shadow-2xl p-6 space-y-4 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h3 className="text-base font-bold text-slate-900">Diagnóstico de Perfil e Sessão</h3>
-              <button
-                type="button"
-                onClick={() => setDiagnosticoOpen(false)}
-                className="p-1 text-slate-400 hover:text-slate-700 rounded-lg cursor-pointer"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="space-y-2 text-xs font-mono bg-slate-50 border border-slate-200 rounded-xl p-3 text-slate-800 break-all select-text">
-              <div><strong>E-mail:</strong> {user?.email || '—'}</div>
-              <div><strong>UID:</strong> {user?.uid || user?.id || '—'}</div>
-              <div><strong>Nome:</strong> {user?.name || '—'}</div>
-              <div><strong>Role (cargo real):</strong> {user?.role || '—'}</div>
-              <div><strong>Situação:</strong> {user?.situacao || '—'}</div>
-              <div><strong>Access Released:</strong> {String(user?.accessReleased ?? false)}</div>
-              <div><strong>Tipo:</strong> {(user as any)?.tipo || '—'}</div>
-              <div><strong>Plataforma:</strong> {user?.plataforma || '—'}</div>
-              <div><strong>Assigned Platform:</strong> {user?.assignedPlatform || '—'}</div>
-              <div><strong>Equipe:</strong> {user?.equipe || '—'}</div>
-              <div className="pt-2 border-t border-slate-200">
-                <strong>isCoord (coordenação):</strong> {String(isCoord)}
-              </div>
-              <div>
-                <strong>Acionamentos recebidos pelo listener:</strong> {acionamentos.length}
-              </div>
-            </div>
-
-            <div className="flex items-center justify-end gap-2 pt-2">
-              <button
-                type="button"
-                onClick={() => {
-                  const diagText = JSON.stringify(
-                    {
-                      email: user?.email,
-                      uid: user?.uid || user?.id,
-                      name: user?.name,
-                      role: user?.role,
-                      situacao: user?.situacao,
-                      accessReleased: user?.accessReleased,
-                      tipo: (user as any)?.tipo,
-                      plataforma: user?.plataforma,
-                      assignedPlatform: user?.assignedPlatform,
-                      equipe: user?.equipe,
-                      isCoord,
-                      totalAcionamentos: acionamentos.length,
-                    },
-                    null,
-                    2
-                  );
-                  navigator.clipboard.writeText(diagText);
-                  showToast('Diagnóstico copiado para a área de transferência!');
-                }}
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold cursor-pointer"
-              >
-                Copiar diagnóstico
-              </button>
-              <button
-                type="button"
-                onClick={() => setDiagnosticoOpen(false)}
-                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold cursor-pointer"
-              >
-                Fechar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

@@ -35,6 +35,7 @@ import {
   EngineeringFile,
   ERICSSON_ORIGINAL_COLUMNS,
   Acionamento,
+  isOwnerAdmUser,
 } from '../types/telecom';
 import {
   parseEricssonWorkbookBuffer,
@@ -2103,7 +2104,7 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
                       </td>
                       <td className="py-2.5 px-3 text-right">
                         {effectiveRole === 'ADM' &&
-                          u.email.toLowerCase() !== 'rafael.araujo@ametaservicos.com.br' && (
+                          !isOwnerAdmUser(u.email) && (
                             <button
                               type="button"
                               onClick={() => handleDeleteEricssonUser(u)}

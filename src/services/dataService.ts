@@ -581,9 +581,7 @@ export function buildAmetaUserProfile(params: {
   return {
     id: params.uid,
     uid: params.uid,
-    name: isOwner
-      ? 'Rafael Araújo'
-      : (params.name || cleanEmail.split('@')[0]).trim() || 'Usuário',
+    name: (params.name || cleanEmail.split('@')[0]).trim() || 'Usuário',
     email: cleanEmail,
     tipo: isOwner ? 'admin' : 'usuario',
     role: safeRole,
@@ -620,8 +618,6 @@ class FirebaseDataService implements IDataService {
       if (isOwner && existing.situacao !== 'dono') {
         const updated: AmetaUser = {
           ...existing,
-          name: 'Rafael Araújo',
-          email: 'rafael.araujo@ametaservicos.com.br',
           role: 'ADM',
           situacao: 'dono',
           plataforma: 'AMBAS',
