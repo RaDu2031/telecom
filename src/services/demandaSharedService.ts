@@ -715,6 +715,7 @@ export const demandaSharedService = {
     const emailStr = cleanEmails.join(', ');
     const targetDate = params.demandDate || new Date().toLocaleDateString('pt-BR');
     const nowIso = new Date().toISOString();
+    const isExecutor = params.targetScope === 'executor';
 
     // 1. Expand all tokens so row.id, site.id, and siteId all resolve together
     const tokensSet = resolveExpandedSiteTokens(
@@ -724,10 +725,11 @@ export const demandaSharedService = {
       params.currentEricssonEngRows || []
     );
 
-    // 2. Update TelecomSite list
+    // 2. Update TelecomSite list (NOKIA Sites or ERICSSON Sites if targetScope is 'equipe')
     let updatedSitesCount = 0;
     const nextSites = params.currentSites.map((site) => {
       if (site.vendor !== params.vendor) return site;
+      if (isExecutor) return site; // 'executor' scope does NOT write to Sites
 
       const sId = String(site.id || '').trim().toUpperCase();
       const sRowKey = String(site.rowKey || '').trim().toUpperCase();
@@ -760,21 +762,23 @@ export const demandaSharedService = {
         customFields: {
           ...(site.customFields || {}),
           'EQUIPE EXECUTANTE': cleanResponsible,
+          EQUIPE: cleanResponsible,
           Executor: cleanResponsible,
           Responsável: cleanResponsible,
+          'TalonView Executor': cleanResponsible,
           'Data de demanda': targetDate,
           'Data Demanda': targetDate,
           ...(emailStr ? { 'E-MAIL DUPLA': emailStr } : {}),
-          ...(site.customFields && 'EQUIPE' in site.customFields ? { EQUIPE: cleanResponsible } : {}),
         },
         updatedAt: nowIso,
       };
     });
 
-    // 3. Update TssrRow list (Nokia)
+    // 3. Update TssrRow list (Nokia TSSR if targetScope is 'executor')
     let updatedTssrCount = 0;
     const nextTssrRows = (params.currentTssrRows || []).map((row) => {
       if (params.vendor !== 'NOKIA') return row;
+      if (!isExecutor) return row; // 'equipe' scope does NOT write to TSSR / Engineering
 
       const rId = String(row.id || '').trim().toUpperCase();
       const rRowKey = String(row.rowKey || '').trim().toUpperCase();
@@ -803,7 +807,10 @@ export const demandaSharedService = {
         fields: {
           ...(row.fields || {}),
           Executor: cleanResponsible,
+          EQUIPE: cleanResponsible,
           'EQUIPE EXECUTANTE': cleanResponsible,
+          Responsável: cleanResponsible,
+          'TalonView Executor': cleanResponsible,
           ...(emailStr ? { 'E-MAIL DUPLA': emailStr } : {}),
           'Data de demanda': targetDate,
           'Data Demanda': targetDate,
@@ -812,13 +819,12 @@ export const demandaSharedService = {
       };
     });
 
-    // 4. Update EricssonEngineeringRow list (Ericsson Executor)
+    // 4. Update EricssonEngineeringRow list (Ericsson Executor if targetScope is 'executor')
     let updatedEricssonCount = 0;
     const nextEricssonEngRows = (params.currentEricssonEngRows || []).map((row) => {
       if (params.vendor !== 'ERICSSON') return row;
+      if (!isExecutor) return row; // 'equipe' scope does NOT write to Ericsson Engenharia
 
-      // In Ericsson Engineering, each service is an individual row (WR, QRF, PPI).
-      // Matching MUST be strictly by exact row.id or row.rowKey so only the selected service row is affected.
       const rId = String(row.id || '').trim().toUpperCase();
       const rRowKey = String(row.rowKey || '').trim().toUpperCase();
       const isMatch = (rId !== '' && tokensSet.has(rId)) || (rRowKey !== '' && tokensSet.has(rRowKey));
@@ -846,6 +852,10 @@ export const demandaSharedService = {
           'EXECUTOR QRF': cleanResponsible,
           'EXECUTOR PPI': cleanResponsible,
           Executor: cleanResponsible,
+          EQUIPE: cleanResponsible,
+          'EQUIPE EXECUTANTE': cleanResponsible,
+          Responsável: cleanResponsible,
+          'TalonView Executor': cleanResponsible,
           ...(emailStr ? { 'E-MAIL DUPLA': emailStr } : {}),
           'Data Demanda': targetDate,
           'Data de demanda': targetDate,
@@ -854,10 +864,11 @@ export const demandaSharedService = {
       };
     });
 
-    // 5. Update EricssonRow list (Ericsson Vistoria / Duplas & Mother Sheet rows)
+    // 5. Update EricssonRow list (Ericsson Sites / Vistoria if targetScope is 'equipe')
     let updatedEricssonSitesCount = 0;
     const nextEricssonRows = (params.currentEricssonRows || []).map((row) => {
       if (params.vendor !== 'ERICSSON') return row;
+      if (isExecutor) return row; // 'executor' scope does NOT write to Ericsson Sites
 
       const rId = String(row.id || '').trim();
       const isMatch = params.siteTokens.some((tk) => {
@@ -886,6 +897,9 @@ export const demandaSharedService = {
           ...(row.fields || {}),
           EQUIPE: cleanResponsible,
           'EQUIPE EXECUTANTE': cleanResponsible,
+          Executor: cleanResponsible,
+          Responsável: cleanResponsible,
+          'TalonView Executor': cleanResponsible,
           ...(emailStr ? { 'E-MAIL DUPLA': emailStr } : {}),
           'Data de demanda': targetDate,
           'Data Demanda': targetDate,
@@ -978,10 +992,12 @@ export const demandaSharedService = {
       params.currentEricssonEngRows || []
     );
     const nowIso = new Date().toISOString();
+    const isExecutor = params.targetScope === 'executor';
 
     let updatedSitesCount = 0;
     const nextSites = params.currentSites.map((site) => {
       if (site.vendor !== params.vendor) return site;
+      if (isExecutor) return site;
 
       const sId = String(site.id || '').trim().toUpperCase();
       const sRowKey = String(site.rowKey || '').trim().toUpperCase();
@@ -1003,12 +1019,13 @@ export const demandaSharedService = {
         customFields: {
           ...(site.customFields || {}),
           'EQUIPE EXECUTANTE': '',
+          EQUIPE: '',
           Executor: '',
           Responsável: '',
+          'TalonView Executor': '',
           'Data de demanda': '',
           'Data Demanda': '',
           'E-MAIL DUPLA': '',
-          ...(site.customFields && 'EQUIPE' in site.customFields ? { EQUIPE: '' } : {}),
         },
         updatedAt: nowIso,
       };
@@ -1017,6 +1034,7 @@ export const demandaSharedService = {
     let updatedTssrCount = 0;
     const nextTssrRows = (params.currentTssrRows || []).map((row) => {
       if (params.vendor !== 'NOKIA') return row;
+      if (!isExecutor) return row;
 
       const rId = String(row.id || '').trim().toUpperCase();
       const rRowKey = String(row.rowKey || '').trim().toUpperCase();
@@ -1036,7 +1054,11 @@ export const demandaSharedService = {
         fields: {
           ...(row.fields || {}),
           Executor: '',
+          EQUIPE: '',
           'EQUIPE EXECUTANTE': '',
+          Responsável: '',
+          'TalonView Executor': '',
+          EXECUTOR: '',
           'E-MAIL DUPLA': '',
           'Data de demanda': '',
           'Data Demanda': '',
@@ -1048,9 +1070,8 @@ export const demandaSharedService = {
     let updatedEricssonCount = 0;
     const nextEricssonEngRows = (params.currentEricssonEngRows || []).map((row) => {
       if (params.vendor !== 'ERICSSON') return row;
+      if (!isExecutor) return row;
 
-      // In Ericsson Engineering, each service is an individual row (WR, QRF, PPI).
-      // Matching MUST be strictly by exact row.id or row.rowKey so only the selected service row is affected.
       const rId = String(row.id || '').trim().toUpperCase();
       const rRowKey = String(row.rowKey || '').trim().toUpperCase();
       const isMatch = (rId !== '' && tokensSet.has(rId)) || (rRowKey !== '' && tokensSet.has(rRowKey));
@@ -1069,6 +1090,10 @@ export const demandaSharedService = {
           'EXECUTOR QRF': '',
           'EXECUTOR PPI': '',
           Executor: '',
+          EQUIPE: '',
+          'EQUIPE EXECUTANTE': '',
+          Responsável: '',
+          'TalonView Executor': '',
           'E-MAIL DUPLA': '',
           'Data Demanda': '',
           'Data de demanda': '',
@@ -1080,6 +1105,7 @@ export const demandaSharedService = {
     let updatedEricssonSitesCount = 0;
     const nextEricssonRows = (params.currentEricssonRows || []).map((row) => {
       if (params.vendor !== 'ERICSSON') return row;
+      if (isExecutor) return row;
 
       const rId = String(row.id || '').trim();
       const isMatch = params.siteTokens.some((tk) => {
@@ -1097,6 +1123,9 @@ export const demandaSharedService = {
           ...(row.fields || {}),
           EQUIPE: '',
           'EQUIPE EXECUTANTE': '',
+          Executor: '',
+          Responsável: '',
+          'TalonView Executor': '',
           'E-MAIL DUPLA': '',
           'Data de demanda': '',
           'Data Demanda': '',
@@ -1174,9 +1203,11 @@ export const demandaSharedService = {
     const linkedEmails = params.linkedEmails || [];
     const nowIso = new Date().toISOString();
     const affectedTokens: string[] = [];
+    const isExecutor = params.targetScope === 'executor';
 
     const nextSites = params.currentSites.map((site) => {
       if (site.vendor !== params.vendor) return site;
+      if (isExecutor) return site;
 
       const sId = String(site.id || '').trim().toUpperCase();
       const sRowKey = String(site.rowKey || '').trim().toUpperCase();
@@ -1201,12 +1232,13 @@ export const demandaSharedService = {
         customFields: {
           ...(site.customFields || {}),
           'EQUIPE EXECUTANTE': '',
+          EQUIPE: '',
           Executor: '',
           Responsável: '',
+          'TalonView Executor': '',
           'Data de demanda': '',
           'Data Demanda': '',
           'E-MAIL DUPLA': '',
-          ...(site.customFields && 'EQUIPE' in site.customFields ? { EQUIPE: '' } : {}),
         },
         updatedAt: nowIso,
       };
@@ -1214,6 +1246,7 @@ export const demandaSharedService = {
 
     const nextTssrRows = (params.currentTssrRows || []).map((row) => {
       if (params.vendor !== 'NOKIA') return row;
+      if (!isExecutor) return row;
 
       const rId = String(row.id || '').trim().toUpperCase();
       const rRowKey = String(row.rowKey || '').trim().toUpperCase();
@@ -1236,7 +1269,11 @@ export const demandaSharedService = {
         fields: {
           ...(row.fields || {}),
           Executor: '',
+          EQUIPE: '',
           'EQUIPE EXECUTANTE': '',
+          Responsável: '',
+          'TalonView Executor': '',
+          EXECUTOR: '',
           'E-MAIL DUPLA': '',
           'Data de demanda': '',
           'Data Demanda': '',
@@ -1247,6 +1284,7 @@ export const demandaSharedService = {
 
     const nextEricssonEngRows = (params.currentEricssonEngRows || []).map((row) => {
       if (params.vendor !== 'ERICSSON') return row;
+      if (!isExecutor) return row;
 
       const rId = String(row.id || '').trim().toUpperCase();
       const rRowKey = String(row.rowKey || '').trim().toUpperCase();
@@ -1271,6 +1309,10 @@ export const demandaSharedService = {
           'EXECUTOR QRF': '',
           'EXECUTOR PPI': '',
           Executor: '',
+          EQUIPE: '',
+          'EQUIPE EXECUTANTE': '',
+          Responsável: '',
+          'TalonView Executor': '',
           'E-MAIL DUPLA': '',
           'Data Demanda': '',
           'Data de demanda': '',
@@ -1281,6 +1323,7 @@ export const demandaSharedService = {
 
     const nextEricssonRows = (params.currentEricssonRows || []).map((row) => {
       if (params.vendor !== 'ERICSSON') return row;
+      if (isExecutor) return row;
 
       const rId = String(row.id || '').trim();
       const isDirectMatch = doesEricssonRowMatchResponsible(row, cleanResponsible, linkedEmails);
@@ -1299,6 +1342,9 @@ export const demandaSharedService = {
           ...(row.fields || {}),
           EQUIPE: '',
           'EQUIPE EXECUTANTE': '',
+          Executor: '',
+          Responsável: '',
+          'TalonView Executor': '',
           'E-MAIL DUPLA': '',
           'Data de demanda': '',
           'Data Demanda': '',
