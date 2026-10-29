@@ -53,6 +53,7 @@ import {
   normalizeAccents,
   matchesDuplaName,
 } from '../utils/spreadsheetUtils';
+import { showToast } from '../utils/toast';
 import { INITIAL_SITES } from '../data/initialSites';
 import { INITIAL_ERICSSON_SITES } from '../data/initialEricssonSites';
 import { INITIAL_ERICSSON_ENGINEERING_ROWS } from '../data/initialEricssonEngineering';
@@ -548,6 +549,7 @@ export interface IDataService {
     responsibleName: string;
     linkedEmails?: string[];
     vendor?: 'NOKIA' | 'ERICSSON';
+    tipoDestinatario: 'VISTORIA' | 'EXECUTOR';
   }): Promise<string[]>;
 }
 
@@ -1901,6 +1903,7 @@ class FirebaseDataService implements IDataService {
       responsibleName: params.responsibleName,
       linkedEmails: params.linkedEmails,
       vendor: params.vendor,
+      tipoDestinatario: params.targetScope === 'executor' ? 'EXECUTOR' : 'VISTORIA',
     });
 
     if (params.vendor === 'ERICSSON') {
@@ -3029,42 +3032,45 @@ class FirebaseDataService implements IDataService {
     responsibleName: string;
     linkedEmails?: string[];
     vendor?: 'NOKIA' | 'ERICSSON';
+    tipoDestinatario: 'VISTORIA' | 'EXECUTOR';
   }): Promise<string[]> {
-    const emailsSet = new Set<string>();
+    const candidateEmails = new Set<string>();
     (params.linkedEmails || []).forEach((e) => {
       const clean = String(e || '').trim().toLowerCase();
-      if (clean && clean.includes('@')) emailsSet.add(clean);
+      if (clean && clean.includes('@')) candidateEmails.add(clean);
     });
 
     const cleanResp = (params.responsibleName || '').trim();
-    if (!cleanResp) return Array.from(emailsSet);
 
     // 1. Consultar duplas_config/main
-    try {
-      const cfgSnap = await getDoc(doc(db, 'duplas_config', 'main'));
-      if (cfgSnap.exists()) {
-        const data = cfgSnap.data();
-        const mapNokia = (data?.duplaEmailsMap || {}) as Record<string, string[]>;
-        const mapEric = (data?.ericssonDuplaEmailsMap || {}) as Record<string, string[]>;
+    if (cleanResp) {
+      try {
+        const cfgSnap = await getDoc(doc(db, 'duplas_config', 'main'));
+        if (cfgSnap.exists()) {
+          const data = cfgSnap.data();
+          const mapNokia = (data?.duplaEmailsMap || {}) as Record<string, string[]>;
+          const mapEric = (data?.ericssonDuplaEmailsMap || {}) as Record<string, string[]>;
 
-        const checkMap = (map: Record<string, string[]>) => {
-          for (const [name, list] of Object.entries(map)) {
-            if (matchesDuplaName(name, cleanResp)) {
-              (list || []).forEach((em) => {
-                const c = String(em || '').trim().toLowerCase();
-                if (c && c.includes('@')) emailsSet.add(c);
-              });
+          const checkMap = (map: Record<string, string[]>) => {
+            for (const [name, list] of Object.entries(map)) {
+              if (matchesDuplaName(name, cleanResp)) {
+                (list || []).forEach((em) => {
+                  const c = String(em || '').trim().toLowerCase();
+                  if (c && c.includes('@')) candidateEmails.add(c);
+                });
+              }
             }
-          }
-        };
-        checkMap(mapNokia);
-        checkMap(mapEric);
+          };
+          checkMap(mapNokia);
+          checkMap(mapEric);
+        }
+      } catch (err) {
+        console.warn('Erro ao ler duplas_config para destinatários:', err);
       }
-    } catch (err) {
-      console.warn('Erro ao ler duplas_config para destinatários:', err);
     }
 
     // 2. Consultar coleção usuarios cadastrados
+    const userByEmailMap = new Map<string, AmetaUser>();
     try {
       const usersSnap = await getDocs(collection(db, FIRESTORE_COLLECTIONS.USUARIOS));
       usersSnap.docs.forEach((d) => {
@@ -3072,20 +3078,64 @@ class FirebaseDataService implements IDataService {
         const uEmail = (u.email || '').trim().toLowerCase();
         if (!uEmail || !uEmail.includes('@')) return;
 
-        const isMatch =
-          matchesDuplaName(u.equipe, cleanResp) ||
-          matchesDuplaName(u.name, cleanResp) ||
-          matchesDuplaName((u as any).dupla, cleanResp);
+        userByEmailMap.set(uEmail, u);
 
-        if (isMatch) {
-          emailsSet.add(uEmail);
+        if (cleanResp) {
+          const isMatch =
+            matchesDuplaName(u.equipe, cleanResp) ||
+            matchesDuplaName(u.name, cleanResp) ||
+            matchesDuplaName((u as any).dupla, cleanResp);
+
+          if (isMatch) {
+            candidateEmails.add(uEmail);
+          }
         }
       });
     } catch (err) {
       console.warn('Erro ao consultar usuarios para destinatários:', err);
     }
 
-    return Array.from(emailsSet);
+    // 3. Filtrar pelo cargo cadastrado em usuarios:
+    // - E-mails sem cadastro em usuarios são removidos.
+    // - Não inclua coordenação como destinatária.
+    // - Para 'VISTORIA', mantenha somente quem tem role contendo 'Vistoriador';
+    // - Para 'EXECUTOR', somente quem tem role contendo 'Executor'.
+    // - Quem tem os dois cargos fica nos dois.
+    const finalEmails: string[] = [];
+    for (const email of candidateEmails) {
+      const u = userByEmailMap.get(email);
+      if (!u) {
+        // E-mails sem cadastro em usuarios são removidos.
+        continue;
+      }
+
+      const roleRaw = String(u.role || '').toLowerCase();
+      const isCoordOrAdmin =
+        roleRaw.includes('coord') ||
+        roleRaw.includes('adm') ||
+        roleRaw.includes('admin') ||
+        isOwnerAdmUser(u.email, u.situacao);
+
+      if (isCoordOrAdmin) {
+        // Não inclua coordenação como destinatária.
+        continue;
+      }
+
+      const hasVistoriador = roleRaw.includes('vistoriador');
+      const hasExecutor = roleRaw.includes('executor');
+
+      if (params.tipoDestinatario === 'VISTORIA') {
+        if (hasVistoriador) {
+          finalEmails.push(email);
+        }
+      } else if (params.tipoDestinatario === 'EXECUTOR') {
+        if (hasExecutor) {
+          finalEmails.push(email);
+        }
+      }
+    }
+
+    return finalEmails;
   }
 
   async salvarOuAtualizarAcionamento(
@@ -3335,13 +3385,17 @@ class FirebaseDataService implements IDataService {
     if (data.status === 'Cancelado') return;
 
     const nowIso = new Date().toISOString();
+    const prevEmails = (data.destinatariosEmails || []).join(', ') || 'nenhum';
+    const motivoBase = actor?.motivo || 'Demanda desvinculada';
+    const detalhes = `${motivoBase} (Destinatários removidos: ${prevEmails})`;
+
     const evento: AcionamentoHistorico = {
       data: nowIso,
       autor: actor?.nome || 'Coordenação Telecom',
       email: (actor?.email || '').toLowerCase(),
       acao: 'Demanda cancelada / removida no Telecom',
       status: 'Cancelado',
-      detalhes: actor?.motivo || 'Demanda desvinculada',
+      detalhes,
     };
 
     const updatedHistorico = [...(data.historico || []), evento];
@@ -3349,6 +3403,7 @@ class FirebaseDataService implements IDataService {
       docRef,
       sanitizeFirestoreData({
         status: 'Cancelado',
+        destinatariosEmails: [],
         atualizadoEm: nowIso,
         historico: updatedHistorico,
       })
