@@ -592,7 +592,7 @@ export const ExecutoresInteractiveView: React.FC<ExecutoresInteractiveViewProps>
       }
 
       if (!q) return true;
-      const hay = `${r.siteId} ${r.intervencaoClaro || ''} ${r.ocSitePre} ${r.enderecoId} ${r.fields?.['UF'] || ''} ${r.fields?.['Regional'] || ''} ${r.regional || ''} ${r.fields?.['Cidade'] || ''} ${r.fields?.['PROJETO'] || ''} ${r.fields?.['Tipo doc'] || ''} ${r.tipoDoc || ''} ${r.fields?.['TIPO SITE'] || ''} ${r.tipoSite || ''} ${r.fields?.['STATUS Engenharia'] || ''} ${r.fields?.['Status'] || ''} ${r.comentario || ''}`.toLowerCase();
+      const hay = `${r.siteId || ''} ${r.intervencaoClaro || ''} ${r.ocSitePre || ''} ${r.enderecoId || ''} ${r.fields?.['UF'] || ''} ${r.fields?.['Regional'] || ''} ${r.regional || ''} ${r.fields?.['Cidade'] || ''} ${r.fields?.['PROJETO'] || ''} ${r.fields?.['Tipo doc'] || ''} ${r.tipoDoc || ''} ${r.fields?.['TIPO SITE'] || ''} ${r.tipoSite || ''} ${r.fields?.['STATUS Engenharia'] || ''} ${r.fields?.['Status'] || ''} ${r.comentario || ''}`.toLowerCase();
       return hay.includes(q);
     });
   }, [
@@ -682,7 +682,7 @@ export const ExecutoresInteractiveView: React.FC<ExecutoresInteractiveViewProps>
       }
 
       if (tokens.length > 0) {
-        const hay = `${row.siteId} ${row.intervencaoClaro || ''} ${row.ocSitePre} ${row.enderecoId} ${row.fields?.['UF'] || ''} ${row.fields?.['Regional'] || ''} ${row.regional || ''} ${row.fields?.['Cidade'] || ''} ${row.fields?.['PROJETO'] || ''} ${row.fields?.['Tipo doc'] || ''} ${row.tipoDoc || ''} ${row.fields?.['TIPO SITE'] || ''} ${row.tipoSite || ''} ${statusEng} ${ex} ${row.comentario || ''}`.toLowerCase();
+        const hay = `${row.siteId || ''} ${row.intervencaoClaro || ''} ${row.ocSitePre || ''} ${row.enderecoId || ''} ${row.fields?.['UF'] || ''} ${row.fields?.['Regional'] || ''} ${row.regional || ''} ${row.fields?.['Cidade'] || ''} ${row.fields?.['PROJETO'] || ''} ${row.fields?.['Tipo doc'] || ''} ${row.tipoDoc || ''} ${row.fields?.['TIPO SITE'] || ''} ${row.tipoSite || ''} ${statusEng || ''} ${ex || ''} ${row.comentario || ''}`.toLowerCase();
         if (tokens.length === 1) {
           return hay.includes(tokens[0]);
         }

@@ -36,13 +36,21 @@ import {
   ERICSSON_ORIGINAL_COLUMNS,
   Acionamento,
   isOwnerAdmUser,
+  isUserDono,
+  normalizeUserRole,
 } from '../types/telecom';
 import {
   parseEricssonWorkbookBuffer,
   computeEricssonSiteCounters,
   mergeEricssonRowsPreservingVistoria,
 } from '../utils/ericssonSpreadsheetUtils';
-import { getCanonicalDuplaName, normalizeAccents, doesEricssonRowMatchResponsible } from '../utils/spreadsheetUtils';
+import {
+  getCanonicalDuplaName,
+  normalizeAccents,
+  doesEricssonRowMatchResponsible,
+  detectarTipoPlanilha,
+  getNomeTipoPlanilha,
+} from '../utils/spreadsheetUtils';
 import { dataService } from '../services/dataService';
 import { AcionamentoStatusBadge } from './AcionamentoStatusBadge';
 
@@ -177,6 +185,14 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
 
   const hasFullAccess =
     effectiveRole === 'ADM' || effectiveRole === 'Coordenador Geral';
+
+  const realUserRole = normalizeUserRole(user.role, user.email);
+  const isRealGestor =
+    realUserRole === 'ADM' ||
+    realUserRole === 'Coordenador Geral' ||
+    realUserRole === 'Coordenador Engenharia' ||
+    isUserDono(user) ||
+    isOwnerAdmUser(user.email, user.situacao);
 
   // Filter out any blank, empty or invalid lines ("linhas brancas")
   const validRows = useMemo(() => {
@@ -325,16 +341,16 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
         (r.siteIdB || '').toUpperCase().includes(q) ||
         (r.chaves || '').toUpperCase().includes(q) ||
         (r.registro || '').toUpperCase().includes(q) ||
-        (r.cidadeA || '').toUpperCase().includes(q) ||
-        (r.cidadeB || '').toUpperCase().includes(q) ||
-        rEquipe.toUpperCase().includes(q) ||
-        rState.toUpperCase().includes(q)
+        (r.cidadeA || '').toString().toUpperCase().includes(q) ||
+        (r.cidadeB || '').toString().toUpperCase().includes(q) ||
+        (rEquipe || '').toString().toUpperCase().includes(q) ||
+        (rState || '').toString().toUpperCase().includes(q)
       ) {
         return true;
       }
 
       for (const val of Object.values(r.fields || {})) {
-        if (String(val || '').toUpperCase().includes(q)) return true;
+        if ((val || '').toString().toUpperCase().includes(q)) return true;
       }
       return false;
     });
@@ -533,6 +549,16 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
     setImportSummary(null);
     try {
       const arrayBuffer = await file.arrayBuffer();
+      const detectedType = detectarTipoPlanilha(arrayBuffer);
+      if (detectedType !== 'UNKNOWN' && detectedType !== 'ERICSSON_SITES') {
+        setSyncError(
+          `Planilha incompatível! O arquivo pertence a "${getNomeTipoPlanilha(detectedType)}". Destino fixo desta tela: "Ericsson – Sites". Nenhum dado foi gravado.`
+        );
+        setSyncLoading(false);
+        if (excelInputRef.current) excelInputRef.current.value = '';
+        return;
+      }
+
       const parsed = parseEricssonWorkbookBuffer(arrayBuffer);
       if (parsed.rows.length === 0) {
         setSyncError('Nenhuma linha de site válida encontrada na planilha. Verifique se as colunas Site ID e Chaves estão presentes.');
@@ -543,9 +569,9 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
       // Merge newly parsed rows with existing rows, preserving any assigned teams, responsibles, and delivered vistorias
       const merged = mergeEricssonRowsPreservingVistoria(rows, parsed.rows, 'upsert');
 
-      // Persist in Firestore
+      // Persist in Firestore (Append-Only)
       const res = await dataService.importarSitesEricssonEmLote(merged.rows as any, ericssonUsers, undefined, {
-        mode: 'fill_empty',
+        mode: 'append_only',
       });
 
       const updatedMeta: EricssonSheetMeta = {
@@ -933,14 +959,17 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
                 )}
 
                 <div className="grid grid-cols-2 sm:flex items-center gap-2 w-full sm:w-auto">
-                  <button
-                    type="button"
-                    onClick={() => setSyncModalOpen(true)}
-                    className="justify-center px-3 py-2.5 sm:py-2 bg-[#1E8E8D] hover:bg-[#177372] text-white text-xs font-bold rounded-xl sm:rounded-lg transition-colors flex items-center gap-1.5 shadow-2xs cursor-pointer"
-                  >
-                    <RefreshCw className="w-3.5 h-3.5 shrink-0" />
-                    <span className="truncate">Atualizar Planilha</span>
-                  </button>
+                  {isRealGestor && (
+                    <button
+                      type="button"
+                      onClick={() => setSyncModalOpen(true)}
+                      title="Destino: Ericsson – Sites"
+                      className="justify-center px-3 py-2.5 sm:py-2 bg-[#1E8E8D] hover:bg-[#177372] text-white text-xs font-bold rounded-xl sm:rounded-lg transition-colors flex items-center gap-1.5 shadow-2xs cursor-pointer"
+                    >
+                      <Upload className="w-3.5 h-3.5 shrink-0" />
+                      <span className="truncate">Carregar planilha</span>
+                    </button>
+                  )}
 
                   <button
                     type="button"
@@ -2140,11 +2169,16 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
               <div className="flex items-center gap-2.5">
                 <CloudDownload className="w-5 h-5 text-[#1E8E8D]" />
                 <div>
-                  <h3 className="text-sm font-bold text-slate-900">
-                    Excel Online / Atualizar Planilha Ericsson
-                  </h3>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-sm font-bold text-slate-900">
+                      Carregar Planilha Ericsson
+                    </h3>
+                    <span className="px-2 py-0.5 rounded bg-teal-800 border border-teal-400 text-teal-100 text-[10px] font-mono font-bold">
+                      Destino: Ericsson – Sites
+                    </span>
+                  </div>
                   <p className="text-[11px] text-slate-500">
-                    Atualiza os dados mantendo Vistoria A, Vistoria B e LOS já registrados
+                    Acrescenta novos registros mantendo Vistoria A, Vistoria B e LOS sem apagar nada.
                   </p>
                 </div>
               </div>

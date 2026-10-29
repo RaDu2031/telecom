@@ -24,6 +24,9 @@ import {
   parseExcelWorkbookFile,
   getExcelColumnLetter,
   getCellValueForColumn,
+  detectarTipoPlanilha,
+  getNomeTipoPlanilha,
+  SpreadsheetDestinationType,
 } from '../utils/spreadsheetUtils';
 
 interface BulkPasteModalProps {
@@ -35,6 +38,10 @@ interface BulkPasteModalProps {
   sheets: SpreadsheetMeta[];
   initialPastedText?: string;
   existingSites?: TelecomSite[];
+  isFixedDestination?: boolean;
+  fixedDestinationTitle?: string;
+  fixedDestinationVendor?: VendorType;
+  fixedDestinationType?: SpreadsheetDestinationType;
   onClose: () => void;
   onBulkImport: (params: {
     sites: Partial<TelecomSite>[];
@@ -63,6 +70,10 @@ export const BulkPasteModal: React.FC<BulkPasteModalProps> = ({
   sheets,
   initialPastedText = '',
   existingSites = [],
+  isFixedDestination = false,
+  fixedDestinationTitle = 'Nokia – Sites (Vistoria)',
+  fixedDestinationVendor = 'NOKIA',
+  fixedDestinationType = 'NOKIA_SITES',
   onClose,
   onBulkImport,
 }) => {
@@ -110,8 +121,6 @@ export const BulkPasteModal: React.FC<BulkPasteModalProps> = ({
       setTab('paste');
     }
   }, [initialPastedText]);
-
-  if (!isOpen) return null;
 
   const vendorSheets = sheets.filter((s) => s.vendor === vendor);
   const effectiveSheetName =
@@ -167,6 +176,8 @@ export const BulkPasteModal: React.FC<BulkPasteModalProps> = ({
     };
   }, [parsedSites, existingSites]);
 
+  if (!isOpen) return null;
+
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -174,7 +185,17 @@ export const BulkPasteModal: React.FC<BulkPasteModalProps> = ({
     setUploadedFileName(file.name);
 
     try {
-      const { sheetNames, sheetsData, sheetsColumns } = await parseExcelWorkbookFile(file, vendor);
+      const buffer = await file.arrayBuffer();
+      const detectedType = detectarTipoPlanilha(buffer);
+      if (isFixedDestination && detectedType !== 'UNKNOWN' && detectedType !== fixedDestinationType) {
+        setError(
+          `Planilha incompatível! O arquivo pertence a "${getNomeTipoPlanilha(detectedType)}". Destino fixo desta tela: "${fixedDestinationTitle}". Nenhum dado foi importado.`
+        );
+        if (fileInputRef.current) fileInputRef.current.value = '';
+        return;
+      }
+
+      const { sheetNames, sheetsData, sheetsColumns } = await parseExcelWorkbookFile(file, isFixedDestination ? fixedDestinationVendor : vendor);
       if (sheetNames.length === 0) {
         setError('O arquivo selecionado não contém abas válidas ou está vazio.');
         return;
@@ -200,23 +221,32 @@ export const BulkPasteModal: React.FC<BulkPasteModalProps> = ({
       return;
     }
 
+    const detectedType = detectarTipoPlanilha(detectedColumns);
+    if (isFixedDestination && detectedType !== 'UNKNOWN' && detectedType !== fixedDestinationType) {
+      setError(
+        `Planilha incompatível! O conteúdo pertence a "${getNomeTipoPlanilha(detectedType)}". Destino fixo desta tela: "${fixedDestinationTitle}". Nenhum dado foi gravado.`
+      );
+      return;
+    }
+
     setSubmitting(true);
     setError(null);
     setImportSummaryResult(null);
 
     try {
-      const destSheetName =
-        tab === 'excel' && selectedExcelTab
-          ? targetSheet === '__NEW__' && customSheetName.trim()
-            ? customSheetName.trim()
-            : selectedExcelTab
-          : effectiveSheetName;
+      const destSheetName = isFixedDestination
+        ? fixedDestinationTitle
+        : tab === 'excel' && selectedExcelTab
+        ? targetSheet === '__NEW__' && customSheetName.trim()
+          ? customSheetName.trim()
+          : selectedExcelTab
+        : effectiveSheetName;
 
       const result = await onBulkImport({
         sites: parsedSites,
-        vendor,
+        vendor: isFixedDestination ? fixedDestinationVendor : vendor,
         sheetName: destSheetName,
-        mode: importMode,
+        mode: 'append_only',
         sourceFileName: tab === 'excel' ? uploadedFileName : 'Colagem Direta Ctrl+V',
         columns: detectedColumns,
       });
@@ -257,11 +287,20 @@ export const BulkPasteModal: React.FC<BulkPasteModalProps> = ({
           <div>
             <h2 className="text-base sm:text-lg font-bold text-white flex items-center gap-2">
               <PlusCircle className="w-5 h-5 text-emerald-400" />
-              <span>Importar Planilha ({vendor}) — Apenas Acrescentar Novos</span>
+              <span>
+                Importar Planilha ({isFixedDestination ? fixedDestinationVendor : vendor}) — Apenas Acrescentar Novos
+              </span>
             </h2>
-            <p className="text-xs text-slate-400 mt-0.5">
-              Toda importação nunca substitui nem apaga a base existente. Dados anteriores são 100% preservados.
-            </p>
+            <div className="flex items-center gap-2 mt-1">
+              {isFixedDestination && (
+                <span className="px-2.5 py-0.5 rounded-full bg-blue-900/80 border border-blue-500/50 text-blue-200 text-xs font-bold font-mono">
+                  Destino: {fixedDestinationTitle}
+                </span>
+              )}
+              <p className="text-xs text-slate-400">
+                Toda importação nunca substitui nem apaga a base existente. Dados anteriores são 100% preservados.
+              </p>
+            </div>
           </div>
           {!inlineTabMode && (
             <button

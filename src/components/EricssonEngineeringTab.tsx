@@ -39,6 +39,8 @@ import {
   ERICSSON_SITE_LIST_COLUMNS,
   ERICSSON_REAL_STATUSES_BY_DOC,
   isOwnerAdmUser,
+  isUserDono,
+  normalizeUserRole,
 } from '../types/telecom';
 import { INITIAL_ERICSSON_ENGINEERING_ROWS } from '../data/initialEricssonEngineering';
 import { isEricssonRowAssignedToResponsible } from '../services/demandaSharedService';
@@ -88,7 +90,7 @@ export const sortColumnsToCanonical = (rawCols?: string[]): string[] => {
 
   return ordered;
 };
-import { doesEricssonRowMatchResponsible } from '../utils/spreadsheetUtils';
+import { doesEricssonRowMatchResponsible, detectarTipoPlanilha, getNomeTipoPlanilha } from '../utils/spreadsheetUtils';
 import { dataService, FIRESTORE_COLLECTIONS } from '../services/dataService';
 import { db } from '../lib/firebaseClient';
 import { collection, onSnapshot } from 'firebase/firestore';
@@ -159,6 +161,14 @@ export const EricssonEngineeringTab: React.FC<EricssonEngineeringTabProps> = ({
     user?.role?.toLowerCase() === 'vistoriador';
 
   const isUserRestricted = isExecutor || isVistoriador;
+
+  const normalizedRealRole = normalizeUserRole(user?.role);
+  const isDono = isUserDono(user);
+  const isRealGestor =
+    isDono ||
+    isOwnerAdmUser(user?.role) ||
+    normalizedRealRole === 'Coordenador Geral' ||
+    normalizedRealRole === 'Coordenador Engenharia';
 
   // Filters state
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -549,11 +559,11 @@ export const EricssonEngineeringTab: React.FC<EricssonEngineeringTabProps> = ({
 
       // 4. Text search in all fields
       if (q) {
-        const matchIntervencao = (r.intervencaoClaro || '').toLowerCase().includes(q);
-        const matchSiteA = (r.siteIdA || '').toLowerCase().includes(q);
-        const matchSiteB = (r.siteIdB || '').toLowerCase().includes(q);
-        const matchStatus = (r.status || '').toLowerCase().includes(q);
-        const matchDoc = (r.tipoDoc || '').toLowerCase().includes(q);
+        const matchIntervencao = (r.intervencaoClaro || '').toString().toLowerCase().includes(q);
+        const matchSiteA = (r.siteIdA || '').toString().toLowerCase().includes(q);
+        const matchSiteB = (r.siteIdB || '').toString().toLowerCase().includes(q);
+        const matchStatus = (r.status || '').toString().toLowerCase().includes(q);
+        const matchDoc = (r.tipoDoc || '').toString().toLowerCase().includes(q);
         const matchExec = (
           r.executor ||
           r.fields?.['EXECUTOR'] ||
@@ -562,13 +572,13 @@ export const EricssonEngineeringTab: React.FC<EricssonEngineeringTabProps> = ({
           r.fields?.['EXECUTOR PPI'] ||
           r.fields?.['Executor'] ||
           ''
-        ).toLowerCase().includes(q);
+        ).toString().toLowerCase().includes(q);
         if (matchIntervencao || matchSiteA || matchSiteB || matchStatus || matchDoc || matchExec) {
           return true;
         }
         // Check other fields
         const anyField = Object.values(r.fields || {}).some((v) =>
-          String(v).toLowerCase().includes(q)
+          (v || '').toString().toLowerCase().includes(q)
         );
         return anyField;
       }
@@ -683,6 +693,17 @@ export const EricssonEngineeringTab: React.FC<EricssonEngineeringTabProps> = ({
     try {
       showToast('Lendo arquivo Excel da Ericsson...');
       const buffer = await file.arrayBuffer();
+
+      const detectedType = detectarTipoPlanilha(buffer);
+      if (detectedType !== 'UNKNOWN' && detectedType !== 'ERICSSON_ENGENHARIA') {
+        showToast(
+          `⚠️ Planilha incompatível! Esta planilha é do tipo "${getNomeTipoPlanilha(
+            detectedType
+          )}". O destino desta tela é "Ericsson – Engenharia". Processamento cancelado.`
+        );
+        return;
+      }
+
       const workbook = XLSX.read(buffer, { type: 'array', cellDates: true });
       const sheetName =
         workbook.SheetNames.find((n) => n.trim().toLowerCase() === 'site list') ||
@@ -937,19 +958,24 @@ export const EricssonEngineeringTab: React.FC<EricssonEngineeringTabProps> = ({
 
           {/* Action Buttons */}
           <div className="flex flex-wrap items-center gap-2">
+            {isRealGestor && (
+              <label
+                title="Destino: Ericsson – Engenharia"
+                className="px-3.5 py-2 bg-emerald-700 hover:bg-emerald-600 text-white text-xs font-bold rounded-xl transition-all shadow-xs flex items-center gap-1.5 cursor-pointer"
+              >
+                <Upload className="w-3.5 h-3.5 text-emerald-200" />
+                <span>Carregar planilha</span>
+                <input
+                  type="file"
+                  accept=".xlsx,.xls,.csv"
+                  onChange={handleUploadLocalFile}
+                  className="hidden"
+                />
+              </label>
+            )}
+
             {!isUserRestricted && (
               <>
-                {/* Upload Local .XLSX */}
-                <label className="px-3.5 py-2 bg-emerald-700 hover:bg-emerald-600 text-white text-xs font-bold rounded-xl transition-all shadow-xs flex items-center gap-1.5 cursor-pointer">
-                  <Upload className="w-3.5 h-3.5 text-emerald-200" />
-                  <span>Selecionar Planilha Excel (.xlsx)</span>
-                  <input
-                    type="file"
-                    accept=".xlsx,.xls,.csv"
-                    onChange={handleUploadLocalFile}
-                    className="hidden"
-                  />
-                </label>
 
                 {/* Importar Dados Iniciais da Planilha */}
                 <button

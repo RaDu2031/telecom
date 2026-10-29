@@ -890,6 +890,12 @@ export default function App() {
   }, [user, users, ericssonUsers]);
 
   const isRealAdmin = isOwnerAdm || realUserRole === 'ADM';
+  const isRealGestor =
+    isOwnerAdm ||
+    realUserRole === 'ADM' ||
+    realUserRole === 'Coordenador Geral' ||
+    realUserRole === 'Coordenador Engenharia' ||
+    isUserDono(user);
   const rawActiveTargetUser: AmetaUser | null = simulatedTargetUser || user;
   const effectiveRole: UserRole = simulatedTargetUser
     ? normalizeUserRole(simulatedTargetUser.role, simulatedTargetUser.email, true)
@@ -961,17 +967,6 @@ export default function App() {
         effectiveRole === 'ADM' ||
         activeTargetUser.situacao === 'dono' ||
         (activeTargetUser as any).tipo === 'admin')
-  );
-
-  const isRealGestor = Boolean(
-    user &&
-      (user.situacao === 'dono' ||
-        isUserDono(user) ||
-        isOwnerAdmUser(user.email) ||
-        realUserRole === 'ADM' ||
-        realUserRole === 'Coordenador Geral' ||
-        realUserRole === 'Coordenador Engenharia' ||
-        (user as any).tipo === 'admin')
   );
 
   const canSeeAcionamento = Boolean(
@@ -3193,25 +3188,25 @@ export default function App() {
   }, [deferredSearchTerm]);
 
   const matchesSiteSingleTerm = useCallback((site: TelecomSite, qLower: string): boolean => {
-    const colBSiteId = (site.customFields?.['SITE ID'] || site.siteId || '').toLowerCase();
+    const colBSiteId = (site.customFields?.['SITE ID'] || site.siteId || '').toString().toLowerCase();
     if (colBSiteId.includes(qLower)) return true;
 
     const matchStandard =
-      site.siteId.toLowerCase().includes(qLower) ||
-      site.siteName.toLowerCase().includes(qLower) ||
-      site.municipio.toLowerCase().includes(qLower) ||
-      site.uf.toLowerCase().includes(qLower) ||
-      site.gabineteBbu.toLowerCase().includes(qLower) ||
-      site.tecnologias.toLowerCase().includes(qLower) ||
-      site.responsavelCampo.toLowerCase().includes(qLower) ||
-      site.equipeParceira.toLowerCase().includes(qLower) ||
-      site.ordemServico.toLowerCase().includes(qLower) ||
-      site.observacoes.toLowerCase().includes(qLower);
+      (site.siteId || '').toString().toLowerCase().includes(qLower) ||
+      (site.siteName || '').toString().toLowerCase().includes(qLower) ||
+      (site.municipio || '').toString().toLowerCase().includes(qLower) ||
+      (site.uf || '').toString().toLowerCase().includes(qLower) ||
+      (site.gabineteBbu || '').toString().toLowerCase().includes(qLower) ||
+      (site.tecnologias || '').toString().toLowerCase().includes(qLower) ||
+      (site.responsavelCampo || '').toString().toLowerCase().includes(qLower) ||
+      (site.equipeParceira || '').toString().toLowerCase().includes(qLower) ||
+      (site.ordemServico || '').toString().toLowerCase().includes(qLower) ||
+      (site.observacoes || '').toString().toLowerCase().includes(qLower);
 
     if (matchStandard) return true;
 
     return site.customFields
-      ? Object.values(site.customFields).some((v) => String(v).toLowerCase().includes(qLower))
+      ? Object.values(site.customFields).some((v) => (v || '').toString().toLowerCase().includes(qLower))
       : false;
   }, []);
 
@@ -6492,6 +6487,22 @@ export default function App() {
                         )}
                     </div>
 
+                    {/* "Carregar planilha" button for Nokia Sites */}
+                    {isRealGestor && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setBulkInitialTab('excel');
+                          setBulkModalOpen(true);
+                        }}
+                        title="Destino: Nokia – Sites (Vistoria)"
+                        className="px-3 py-1.5 bg-[#223585] hover:bg-[#1a2a6c] text-white text-xs font-bold rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer shadow-2xs shrink-0"
+                      >
+                        <Upload className="w-3.5 h-3.5" />
+                        <span>Carregar planilha</span>
+                      </button>
+                    )}
+
                     {/* "+ Adicionar Filtro" Popover Trigger */}
                     <div className="relative">
                       <button
@@ -8099,6 +8110,10 @@ export default function App() {
         sheets={sheets}
         existingSites={sites}
         initialPastedText={pastedShortcutText}
+        isFixedDestination={activeVendor === 'NOKIA' && resolvedTopTab === 'sites'}
+        fixedDestinationTitle="Nokia – Sites (Vistoria)"
+        fixedDestinationVendor="NOKIA"
+        fixedDestinationType="NOKIA_SITES"
         onClose={() => {
           setBulkModalOpen(false);
           setPastedShortcutText('');

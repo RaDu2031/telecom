@@ -9,6 +9,136 @@ import {
   EricssonRow,
 } from '../types/telecom';
 
+export type SpreadsheetDestinationType =
+  | 'NOKIA_SITES'
+  | 'NOKIA_TSSR'
+  | 'ERICSSON_SITES'
+  | 'ERICSSON_ENGENHARIA'
+  | 'UNKNOWN';
+
+export function normalizeHeaderSignature(str: unknown): string {
+  return String(str || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+export function detectarTipoPlanilhaFromHeaders(headers: string[]): SpreadsheetDestinationType {
+  const normalized = headers.map(normalizeHeaderSignature);
+  const combined = normalized.join(' ');
+
+  let tssrScore = 0;
+  if (combined.includes('oc site pre') || combined.includes('ocsitepre')) tssrScore += 5;
+  if (combined.includes('projeto tim') || combined.includes('projetotim')) tssrScore += 4;
+  if (combined.includes('tssr status') || combined.includes('tssr status final')) tssrScore += 5;
+  if (combined.includes('tssr tim nokia') || combined.includes('tssrtimnokia') || combined.includes('controle tssr')) tssrScore += 5;
+  if (combined.includes('data envio tssr') || combined.includes('enviado para nokia')) tssrScore += 4;
+  if (combined.includes('acumulado apos critica') || combined.includes('critica')) tssrScore += 3;
+  if (combined.includes('regional nokia') || combined.includes('codigo site pre')) tssrScore += 4;
+  if (tssrScore >= 5) return 'NOKIA_TSSR';
+
+  let ericEngScore = 0;
+  if (combined.includes('chave unica') || combined.includes('chave_unica')) ericEngScore += 5;
+  if (combined.includes('empresa engenharia')) ericEngScore += 5;
+  if (combined.includes('versao tssr') || combined.includes('situacao tssr')) ericEngScore += 5;
+  if (combined.includes('project type') || combined.includes('project_type')) ericEngScore += 4;
+  if (combined.includes('uf de trabalho')) ericEngScore += 4;
+  if (combined.includes('estatus vistoria laudo') || combined.includes('situacao laudo') || combined.includes('situacao tss') || combined.includes('situacao projeto')) ericEngScore += 4;
+  if (ericEngScore >= 5) return 'ERICSSON_ENGENHARIA';
+
+  let ericSitesScore = 0;
+  if (combined.includes('registro de vistoria sites') || combined.includes('registro vistoria sites')) ericSitesScore += 6;
+  if (combined.includes('fornecedor de vistoria')) ericSitesScore += 5;
+  if (combined.includes('solicitacao de vistoria')) ericSitesScore += 5;
+  if (combined.includes('status da vistoria da sites') || combined.includes('status vistoria sites')) ericSitesScore += 5;
+  if (combined.includes('situacao do registro sites') || combined.includes('situacao registro sites')) ericSitesScore += 5;
+  if (combined.includes('01 00 chaves') || combined.includes('01 21 site id a') || combined.includes('chaves')) ericSitesScore += 3;
+  if (ericSitesScore >= 5) return 'ERICSSON_SITES';
+
+  let nokiaSitesScore = 0;
+  if (combined.includes('empresa vistoriadora')) nokiaSitesScore += 5;
+  if (combined.includes('status agendamento vistoria') || combined.includes('agendamento vistoria')) nokiaSitesScore += 5;
+  if (combined.includes('data vistoria integrador')) nokiaSitesScore += 5;
+  if (combined.includes('comentarios do acesso') || combined.includes('comentario acesso')) nokiaSitesScore += 4;
+  if (combined.includes('endereco id') || combined.includes('enderecoid')) nokiaSitesScore += 3;
+  if (combined.includes('site id') || combined.includes('siteid') || combined.includes('sigla')) nokiaSitesScore += 2;
+  if (combined.includes('uf') && (combined.includes('municipio') || combined.includes('cidade'))) nokiaSitesScore += 2;
+  if (nokiaSitesScore >= 4) return 'NOKIA_SITES';
+
+  if (tssrScore > 0 && tssrScore >= ericEngScore && tssrScore >= ericSitesScore && tssrScore >= nokiaSitesScore) return 'NOKIA_TSSR';
+  if (ericEngScore > 0 && ericEngScore >= tssrScore && ericEngScore >= ericSitesScore && ericEngScore >= nokiaSitesScore) return 'ERICSSON_ENGENHARIA';
+  if (ericSitesScore > 0 && ericSitesScore >= tssrScore && ericSitesScore >= ericEngScore && ericSitesScore >= nokiaSitesScore) return 'ERICSSON_SITES';
+  if (nokiaSitesScore > 0) return 'NOKIA_SITES';
+
+  return 'UNKNOWN';
+}
+
+export function detectarTipoPlanilha(input: unknown): SpreadsheetDestinationType {
+  if (!input) return 'UNKNOWN';
+
+  if (Array.isArray(input) && input.length > 0) {
+    if (typeof input[0] === 'string') {
+      return detectarTipoPlanilhaFromHeaders(input as string[]);
+    }
+    if (typeof input[0] === 'object' && input[0] !== null) {
+      if (Array.isArray(input[0])) {
+        for (let i = 0; i < Math.min(10, input.length); i++) {
+          const row = input[i];
+          if (Array.isArray(row)) {
+            const headers = row.map((cell) => String(cell || ''));
+            const type = detectarTipoPlanilhaFromHeaders(headers);
+            if (type !== 'UNKNOWN') return type;
+          }
+        }
+      } else {
+        const headers = Object.keys(input[0]);
+        return detectarTipoPlanilhaFromHeaders(headers);
+      }
+    }
+  }
+
+  if (input instanceof ArrayBuffer || input instanceof Uint8Array || (typeof Buffer !== 'undefined' && Buffer.isBuffer(input))) {
+    try {
+      const wb = XLSX.read(input, { type: 'array', cellDates: true });
+      for (const sheetName of wb.SheetNames) {
+        const ws = wb.Sheets[sheetName];
+        if (!ws) continue;
+        const rawRows = XLSX.utils.sheet_to_json<unknown[]>(ws, { header: 1, defval: '' });
+        for (let i = 0; i < Math.min(10, rawRows.length); i++) {
+          const row = rawRows[i];
+          if (Array.isArray(row) && row.length > 0) {
+            const headers = row.map((cell) => String(cell || ''));
+            const type = detectarTipoPlanilhaFromHeaders(headers);
+            if (type !== 'UNKNOWN') return type;
+          }
+        }
+      }
+    } catch {
+      return 'UNKNOWN';
+    }
+  }
+
+  return 'UNKNOWN';
+}
+
+export function getNomeTipoPlanilha(type: SpreadsheetDestinationType): string {
+  switch (type) {
+    case 'NOKIA_SITES':
+      return 'Nokia – Sites (Vistoria)';
+    case 'NOKIA_TSSR':
+      return 'Nokia – Engenharia';
+    case 'ERICSSON_SITES':
+      return 'Ericsson – Sites';
+    case 'ERICSSON_ENGENHARIA':
+      return 'Ericsson – Engenharia';
+    default:
+      return 'Desconhecido / Outro';
+  }
+}
+
 export function getExcelColumnLetter(colIdx: number): string {
   return XLSX.utils.encode_col(colIdx);
 }

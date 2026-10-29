@@ -43,6 +43,9 @@ import {
   TSSR_ALL_COLUMNS,
   DEFAULT_ONEDRIVE_TSSR_URL,
   DEFAULT_ERICSSON_ENG_ONEDRIVE_URL,
+  isOwnerAdmUser,
+  isUserDono,
+  normalizeUserRole,
 } from '../types/telecom';
 import { dataService } from '../services/dataService';
 import { isTssrRowAssignedToResponsible } from '../services/demandaSharedService';
@@ -52,6 +55,10 @@ import {
   exportTssrRowsToXlsx,
   exportTssrRowsToCsv,
 } from '../utils/tssrSpreadsheetUtils';
+import {
+  detectarTipoPlanilha,
+  getNomeTipoPlanilha,
+} from '../utils/spreadsheetUtils';
 import {
   EngineeringInteractiveChart,
   EngineeringChartCategory,
@@ -135,6 +142,14 @@ export const EngineeringControlTab: React.FC<EngineeringControlTabProps> = ({
   const isAdmin = isAdmRole || isCoordenadorGeral || isCoordenadorEngenharia;
   const isGestorEngenharia = isCoordenadorEngenharia || isCoordenadorGeral || isAdmRole || isAdmin;
   const isExecutor = effectiveRole === 'Executor';
+
+  const realUserRole = normalizeUserRole(user.role, user.email);
+  const isRealGestor =
+    realUserRole === 'ADM' ||
+    realUserRole === 'Coordenador Geral' ||
+    realUserRole === 'Coordenador Engenharia' ||
+    isUserDono(user) ||
+    isOwnerAdmUser(user.email, user.situacao);
   
   const engineeringUrl = spreadsheetUrl || (activeVendor === 'ERICSSON' 
     ? DEFAULT_ERICSSON_ENG_ONEDRIVE_URL 
@@ -466,13 +481,13 @@ export const EngineeringControlTab: React.FC<EngineeringControlTabProps> = ({
       // Smart search (single keyword or multiple pasted Site IDs)
       if (searchTokens.length > 0) {
         const haystack = [
-          row.siteId,
-          row.ocSitePre,
-          row.enderecoId,
-          row.vistoriaStatus,
+          row.siteId || '',
+          row.ocSitePre || '',
+          row.enderecoId || '',
+          row.vistoriaStatus || '',
           row.vistoriaFileName || '',
           row.vistoriaUploadedBy || '',
-          ...Object.values(row.fields || {}),
+          ...Object.values(row.fields || {}).map((v) => (v || '').toString()),
         ]
           .join(' ')
           .toLowerCase();
@@ -494,7 +509,7 @@ export const EngineeringControlTab: React.FC<EngineeringControlTabProps> = ({
       const ordA = order[getEngenhariaCategory(a)];
       const ordB = order[getEngenhariaCategory(b)];
       if (ordA !== ordB) return ordA - ordB;
-      return a.siteId.localeCompare(b.siteId);
+      return (a.siteId || '').toString().localeCompare((b.siteId || '').toString());
     });
   }, [
     tabRows,
@@ -553,6 +568,16 @@ export const EngineeringControlTab: React.FC<EngineeringControlTabProps> = ({
 
     try {
       const arrayBuffer = await file.arrayBuffer();
+      const detectedType = detectarTipoPlanilha(arrayBuffer);
+      if (detectedType !== 'UNKNOWN' && detectedType !== 'NOKIA_TSSR') {
+        setImportError(
+          `Planilha incompatível! O arquivo pertence a "${getNomeTipoPlanilha(detectedType)}". Destino fixo desta tela: "Nokia – Engenharia". Nenhum dado foi gravado.`
+        );
+        setImportingTssr(false);
+        if (fileInputRef.current) fileInputRef.current.value = '';
+        return;
+      }
+
       const parsed = parseTssrWorkbookBuffer(arrayBuffer, activeVendor, activeSubTab);
       if (parsed.rows.length === 0) {
         setImportError('Nenhuma linha válida encontrada na planilha TSSR selecionada.');
@@ -1332,6 +1357,19 @@ export const EngineeringControlTab: React.FC<EngineeringControlTabProps> = ({
                   </div>
                 </div>
 
+                {/* "Carregar planilha" button for Nokia Engenharia */}
+                {isRealGestor && (
+                  <button
+                    type="button"
+                    onClick={() => setIsImportModalOpen(true)}
+                    title="Destino: Nokia – Engenharia"
+                    className="px-3 py-1.5 bg-[#223585] hover:bg-[#1a2a6c] text-white text-xs font-bold rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer shadow-2xs shrink-0"
+                  >
+                    <Upload className="w-3.5 h-3.5" />
+                    <span>Carregar planilha</span>
+                  </button>
+                )}
+
                 {/* "+ Adicionar Filtro" Popover */}
                 <div className="relative">
                   <button
@@ -2082,11 +2120,16 @@ export const EngineeringControlTab: React.FC<EngineeringControlTabProps> = ({
               <div className="flex items-center gap-2.5">
                 <FileSpreadsheet className="w-5 h-5 text-emerald-400" />
                 <div>
-                  <h3 className="text-sm font-bold">
-                    Carregar Planilha TSSR — {activeSubTab}
-                  </h3>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-sm font-bold">
+                      Carregar Planilha TSSR — {activeSubTab}
+                    </h3>
+                    <span className="px-2 py-0.5 rounded bg-blue-800 border border-blue-400 text-blue-100 text-[10px] font-mono font-bold">
+                      Destino: Nokia – Engenharia
+                    </span>
+                  </div>
                   <p className="text-[11px] text-slate-300">
-                    Atualiza as 37 colunas originais preservando Status da vistoria, Arquivo e Data de entrega
+                    Acrescenta novas linhas preservando Status da vistoria, Arquivo e Data de entrega sem apagar dados.
                   </p>
                 </div>
               </div>

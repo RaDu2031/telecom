@@ -389,7 +389,7 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = React
     const q = assignedSearch.trim().toLowerCase();
     if (!q) return assignedNokiaSitesForSelectedDupla;
     return assignedNokiaSitesForSelectedDupla.filter((s) => {
-      const hay = `${s.siteId} ${s.siteName} ${s.municipio} ${s.uf} ${s.status}`.toLowerCase();
+      const hay = `${s.siteId || ''} ${s.siteName || ''} ${s.municipio || ''} ${s.uf || ''} ${s.status || ''}`.toLowerCase();
       return hay.includes(q);
     });
   }, [assignedNokiaSitesForSelectedDupla, assignedSearch]);
@@ -398,7 +398,7 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = React
     const q = assignedSearch.trim().toLowerCase();
     if (!q) return assignedEricssonRowsForSelectedDupla;
     return assignedEricssonRowsForSelectedDupla.filter((r) => {
-      const hay = `${r.siteIdA} ${r.siteIdB} ${r.siteName} ${r.chaves} ${r.cidadeA} ${r.cidadeB} ${r.state} ${r.servico}`.toLowerCase();
+      const hay = `${r.siteIdA || ''} ${r.siteIdB || ''} ${r.siteName || ''} ${r.chaves || ''} ${r.cidadeA || ''} ${r.cidadeB || ''} ${r.state || ''} ${r.servico || ''}`.toLowerCase();
       return hay.includes(q);
     });
   }, [assignedEricssonRowsForSelectedDupla, assignedSearch]);
@@ -453,9 +453,9 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = React
       }
 
       if (tokens.length > 0) {
-        const hay = `${s.siteId} ${getCellValueForColumn(s, 'END ID') || s.siteName} ${
-          s.municipio
-        } ${s.uf} ${eq} ${getCellValueForColumn(s, 'Escopo') || s.setores}`.toLowerCase();
+        const hay = `${s.siteId || ''} ${getCellValueForColumn(s, 'END ID') || s.siteName || ''} ${
+          s.municipio || ''
+        } ${s.uf || ''} ${eq || ''} ${getCellValueForColumn(s, 'Escopo') || s.setores || ''}`.toLowerCase();
         if (tokens.length === 1) {
           return hay.includes(tokens[0]);
         }
