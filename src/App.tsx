@@ -7256,7 +7256,7 @@ export default function App() {
         {/* -------------------------------------------------------------------
             ABAS INDIVIDUAIS DO MENU RA (MESMAS REGRAS EM NOKIA E ERICSSON)
            ------------------------------------------------------------------- */}
-        {isRealAdmin &&
+        {(isRealAdmin || canSeeDuplasTab || canAccessDemandaExecutores) &&
           resolvedTopTab !== 'sites' &&
           resolvedTopTab !== 'engenharia' &&
           resolvedTopTab !== 'vistoria' && (
@@ -7269,15 +7269,19 @@ export default function App() {
                   </span>
                   {(
                     [
-                      { id: 'duplas', label: 'Duplas & Demanda' },
+                      ...(canSeeDuplasTab ? [{ id: 'duplas' as const, label: 'Duplas & Demanda' }] : []),
                       ...(canAccessDemandaExecutores
                         ? [{ id: 'executores' as const, label: 'Demanda Executores' }]
                         : []),
-                      { id: 'perfis', label: 'Perfis & Acessos' },
-                      { id: 'novo_site' as const, label: '+ Novo Site' },
-                      { id: 'importar' as const, label: 'Importar / OneDrive' },
-                      { id: 'colar' as const, label: 'Colar Ctrl+V' },
-                      { id: 'exportar' as const, label: 'Exportar Planilha' },
+                      ...(isRealAdmin
+                        ? [
+                            { id: 'perfis' as const, label: 'Perfis & Acessos' },
+                            { id: 'novo_site' as const, label: '+ Novo Site' },
+                            { id: 'importar' as const, label: 'Importar / OneDrive' },
+                            { id: 'colar' as const, label: 'Colar Ctrl+V' },
+                            { id: 'exportar' as const, label: 'Exportar Planilha' },
+                          ]
+                        : []),
                       ...(isOwnerAdm
                         ? ([{ id: 'simular' as const, label: 'Ver como (Simular)' }] as const)
                         : []),

@@ -637,6 +637,22 @@ export interface EricssonSiteCounters {
   statusOutrosSites: number;
 }
 
+export function isEricssonStatusFinalizado(rawStatus?: string | null): boolean {
+  if (!rawStatus) return false;
+  const s = rawStatus.trim().toLowerCase();
+  return (
+    s.includes('finaliz') ||
+    s.includes('conclu') ||
+    s.includes('liberad') ||
+    s.includes('entregue') ||
+    s.includes('executad') ||
+    s.includes('pronto') ||
+    s.includes('aprovad') ||
+    s.includes('ok') ||
+    s.includes('100%')
+  );
+}
+
 export function computeEricssonSiteCounters(rows: EricssonRow[]): EricssonSiteCounters {
   let totalSites = 0;
   let vistoriaEntregueSites = 0;
@@ -650,7 +666,7 @@ export function computeEricssonSiteCounters(rows: EricssonRow[]): EricssonSiteCo
 
   const classifySheetStatus = (rawStatus: string) => {
     const s = (rawStatus || '').trim().toLowerCase();
-    if (s.includes('conclu') || s.includes('liberad')) {
+    if (s.includes('conclu') || s.includes('liberad') || s.includes('finaliz')) {
       statusConcluidoSites++;
     } else if (
       s.includes('andamento') ||
@@ -673,26 +689,30 @@ export function computeEricssonSiteCounters(rows: EricssonRow[]): EricssonSiteCo
   rows.forEach((row) => {
     if (row.siteIdA && row.siteIdA.trim()) {
       totalSites++;
-      if (row.siteAVistoriaStatus === 'Entregue') {
+      const stA = row.statusA || row.fields?.['Status A'] || '';
+      const isFinA = row.siteAVistoriaStatus === 'Entregue' || isEricssonStatusFinalizado(stA);
+      if (isFinA) {
         vistoriaEntregueSites++;
       } else if (row.siteAVistoriaStatus === 'Dispensado') {
         vistoriaDispensadoSites++;
       } else {
         vistoriaPendenteSites++;
       }
-      classifySheetStatus(row.statusA || row.fields?.['Status A'] || '');
+      classifySheetStatus(stA);
     }
 
     if (row.siteIdB && row.siteIdB.trim()) {
       totalSites++;
-      if (row.siteBVistoriaStatus === 'Entregue') {
+      const stB = row.statusB || row.fields?.['Status B'] || '';
+      const isFinB = row.siteBVistoriaStatus === 'Entregue' || isEricssonStatusFinalizado(stB);
+      if (isFinB) {
         vistoriaEntregueSites++;
       } else if (row.siteBVistoriaStatus === 'Dispensado') {
         vistoriaDispensadoSites++;
       } else {
         vistoriaPendenteSites++;
       }
-      classifySheetStatus(row.statusB || row.fields?.['Status B'] || '');
+      classifySheetStatus(stB);
     }
   });
 

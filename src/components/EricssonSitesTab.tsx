@@ -43,6 +43,7 @@ import {
   parseEricssonWorkbookBuffer,
   computeEricssonSiteCounters,
   mergeEricssonRowsPreservingVistoria,
+  isEricssonStatusFinalizado,
 } from '../utils/ericssonSpreadsheetUtils';
 import {
   getCanonicalDuplaName,
@@ -295,8 +296,10 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
         return false;
       }
 
-      const isAFinalizado = r.siteAVistoriaStatus === 'Entregue';
-      const isBFinalizado = r.siteBVistoriaStatus === 'Entregue';
+      const isAFinalizado =
+        r.siteAVistoriaStatus === 'Entregue' || isEricssonStatusFinalizado(rStatusA);
+      const isBFinalizado =
+        r.siteBVistoriaStatus === 'Entregue' || isEricssonStatusFinalizado(rStatusB);
       const isLosFinalizado = r.losStatus === 'Entregue';
       const isSmartFinalizado = r.smartStatus === 'Entregue';
       const isSdcFinalizado = r.sdcStatus === 'Entregue';
@@ -411,12 +414,14 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
       const entry = map.get(st) || { state: st, totalSites: 0, finalizado: 0, pendente: 0 };
       if ((r.siteIdA || '').trim()) {
         entry.totalSites++;
-        if (r.siteAVistoriaStatus === 'Entregue') entry.finalizado++;
+        const finA = r.siteAVistoriaStatus === 'Entregue' || isEricssonStatusFinalizado(r.statusA || r.fields?.['Status A']);
+        if (finA) entry.finalizado++;
         else entry.pendente++;
       }
       if ((r.siteIdB || '').trim()) {
         entry.totalSites++;
-        if (r.siteBVistoriaStatus === 'Entregue') entry.finalizado++;
+        const finB = r.siteBVistoriaStatus === 'Entregue' || isEricssonStatusFinalizado(r.statusB || r.fields?.['Status B']);
+        if (finB) entry.finalizado++;
         else entry.pendente++;
       }
       map.set(st, entry);
@@ -451,12 +456,14 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
       const item = map.get(eq) || { equipe: eq, sites: 0, finalizados: 0, pendentes: 0 };
       if ((r.siteIdA || '').trim()) {
         item.sites++;
-        if (r.siteAVistoriaStatus === 'Entregue') item.finalizados++;
+        const finA = r.siteAVistoriaStatus === 'Entregue' || isEricssonStatusFinalizado(r.statusA || r.fields?.['Status A']);
+        if (finA) item.finalizados++;
         else item.pendentes++;
       }
       if ((r.siteIdB || '').trim()) {
         item.sites++;
-        if (r.siteBVistoriaStatus === 'Entregue') item.finalizados++;
+        const finB = r.siteBVistoriaStatus === 'Entregue' || isEricssonStatusFinalizado(r.statusB || r.fields?.['Status B']);
+        if (finB) item.finalizados++;
         else item.pendentes++;
       }
       map.set(eq, item);
@@ -1397,18 +1404,12 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
               <Filter className="w-3.5 h-3.5 text-[#223585]" />
               <span>
                 Exibindo <strong>{siteCounters.totalSites}</strong> sites em{' '}
-                <strong>{filteredRows.length}</strong> linhas. Colunas de controle:{' '}
-                <strong className="text-[#223585]">Vistoria A</strong>,{' '}
-                <strong className="text-[#1E8E8D]">Vistoria B</strong> e{' '}
-                <strong className="text-amber-700">LOS</strong>.
+                <strong>{filteredRows.length}</strong> linhas.
               </span>
             </div>
             <div className="flex items-center gap-3 text-[11px]">
               <span className="inline-flex items-center gap-1 text-emerald-700 font-semibold">
-                <span className="w-2 h-2 rounded-full bg-emerald-500" /> Entregue
-              </span>
-              <span className="inline-flex items-center gap-1 text-sky-700 font-semibold">
-                <span className="w-2 h-2 rounded-full bg-sky-500" /> Dispensado
+                <span className="w-2 h-2 rounded-full bg-emerald-500" /> Entregue / Finalizado
               </span>
               <span className="inline-flex items-center gap-1 text-red-600 font-semibold">
                 <span className="w-2 h-2 rounded-full bg-red-500" /> Pendente
@@ -1443,21 +1444,12 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
                   </th>
                   <th className="py-2.5 px-2.5 font-bold border-l border-slate-200">EQUIPE</th>
                   <th className="py-2.5 px-2.5 font-bold">Serviço</th>
-                  <th className="py-2.5 px-3 font-bold bg-blue-50 text-[#223585] border-l border-slate-200">
-                    Vistoria A
-                  </th>
-                  <th className="py-2.5 px-3 font-bold bg-teal-50 text-[#1E8E8D] border-l border-slate-200">
-                    Vistoria B
-                  </th>
-                  <th className="py-2.5 px-3 font-bold bg-amber-50 text-amber-800 border-l border-slate-200">
-                    LOS
-                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200">
                 {filteredRows.length === 0 ? (
                   <tr>
-                    <td colSpan={14} className="px-6 py-12 text-center text-slate-500">
+                    <td colSpan={11} className="px-6 py-12 text-center text-slate-500">
                       <div className="max-w-md mx-auto space-y-3">
                         <div className="w-12 h-12 mx-auto rounded-full bg-slate-100 flex items-center justify-center text-slate-400">
                           <FileSpreadsheet className="w-6 h-6" />
@@ -1564,20 +1556,6 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
                         {row.servico || row.fields?.['Serviço'] || row.fields?.['Servico'] || row.fields?.['02.00.Scope'] || '—'}
                       </td>
 
-                      {/* VISTORIA A */}
-                      <td className={`${cellPad} bg-blue-50/15 border-l border-slate-200`}>
-                        {renderVistoriaOrLosCell(row, 'A')}
-                      </td>
-
-                      {/* VISTORIA B */}
-                      <td className={`${cellPad} bg-teal-50/15 border-l border-slate-200`}>
-                        {renderVistoriaOrLosCell(row, 'B')}
-                      </td>
-
-                      {/* NOVA COLUNA: LOS */}
-                      <td className={`${cellPad} bg-amber-50/20 border-l border-slate-200`}>
-                        {renderVistoriaOrLosCell(row, 'LOS')}
-                      </td>
                     </tr>
                   );
                 }))}
@@ -1599,8 +1577,7 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
                 Aba: <strong className="text-slate-900">{sheetMeta?.tabName || 'ERICSSON CLARO TX'}</strong> •{' '}
                 {originalColumns.length} colunas originais do Excel + colunas{' '}
                 <strong className="text-[#223585]">Vistoria A</strong>,{' '}
-                <strong className="text-[#1E8E8D]">Vistoria B</strong> e{' '}
-                <strong className="text-amber-700">LOS</strong>
+                {originalColumns.length} colunas originais do Excel
               </span>
             </div>
             <span className="text-[11px] text-slate-500">
@@ -1630,15 +1607,6 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
                       </th>
                     );
                   })}
-                  <th className="py-2.5 px-3 font-bold whitespace-nowrap bg-blue-50 text-[#223585] border-r border-slate-200">
-                    Vistoria A
-                  </th>
-                  <th className="py-2.5 px-3 font-bold whitespace-nowrap bg-teal-50 text-[#1E8E8D] border-r border-slate-200">
-                    Vistoria B
-                  </th>
-                  <th className="py-2.5 px-3 font-bold whitespace-nowrap bg-amber-50 text-amber-800 border-r border-slate-200">
-                    LOS
-                  </th>
                   <th className="py-2.5 px-3 font-bold whitespace-nowrap bg-violet-50 text-violet-800 border-r border-slate-200">
                     SMART
                   </th>
@@ -1651,7 +1619,7 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
                 {filteredRows.length === 0 ? (
                   <tr>
                     <td
-                      colSpan={originalColumns.length + 6}
+                      colSpan={originalColumns.length + 2}
                       className="px-6 py-12 text-center text-slate-500"
                     >
                       <div className="max-w-md mx-auto space-y-3">
@@ -1730,21 +1698,6 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
                         </td>
                       );
                     })}
-
-                    {/* VISTORIA A */}
-                    <td className={`${cellPad} whitespace-nowrap bg-blue-50/15 border-r border-slate-200`}>
-                      {renderVistoriaOrLosCell(row, 'A')}
-                    </td>
-
-                    {/* VISTORIA B */}
-                    <td className={`${cellPad} whitespace-nowrap bg-teal-50/15 border-r border-slate-200`}>
-                      {renderVistoriaOrLosCell(row, 'B')}
-                    </td>
-
-                    {/* NOVA COLUNA: LOS */}
-                    <td className={`${cellPad} whitespace-nowrap bg-amber-50/20 border-r border-slate-200`}>
-                      {renderVistoriaOrLosCell(row, 'LOS')}
-                    </td>
 
                     {/* NOVA COLUNA: SMART */}
                     <td className={`${cellPad} whitespace-nowrap bg-violet-50/20 border-r border-slate-200`}>
