@@ -118,6 +118,15 @@ export const EricssonEngineeringTab: React.FC<EricssonEngineeringTabProps> = ({
 }) => {
   // Main data state
   const [rows, setRows] = useState<EricssonEngineeringRow[]>(() => {
+    const isZerada =
+      localStorage.getItem('ameta_planilhas_zeradas') === 'true' ||
+      localStorage.getItem('ameta_planilhas_zeradas_v2') === 'true' ||
+      localStorage.getItem('ameta_planilhas_zeradas_v3') === 'true' ||
+      localStorage.getItem('ameta_planilhas_zeradas_v4') === 'true' ||
+      localStorage.getItem('ameta_planilhas_zeradas_v5') === 'true' ||
+      localStorage.getItem('ameta_ericsson_zerada') === 'true' ||
+      localStorage.getItem('ameta_ericsson_zerada_v1') === 'true';
+    if (isZerada) return [];
     try {
       const cached = localStorage.getItem('ameta_cached_ericsson_eng');
       if (cached) {
@@ -125,7 +134,7 @@ export const EricssonEngineeringTab: React.FC<EricssonEngineeringTabProps> = ({
         if (Array.isArray(parsed) && parsed.length > 0) return parsed;
       }
     } catch {}
-    return INITIAL_ERICSSON_ENGINEERING_ROWS;
+    return [];
   });
   const [reprovacoes, setReprovacoes] = useState<EricssonReprovacaoRecord[]>(() => {
     try {
@@ -232,9 +241,19 @@ export const EricssonEngineeringTab: React.FC<EricssonEngineeringTabProps> = ({
         dataService.carregarEricssonReprovacoes(),
       ]);
 
-      if (Array.isArray(engRows) && engRows.length > 0) {
+      const isZerada =
+        localStorage.getItem('ameta_planilhas_zeradas') === 'true' ||
+        localStorage.getItem('ameta_planilhas_zeradas_v2') === 'true' ||
+        localStorage.getItem('ameta_planilhas_zeradas_v3') === 'true' ||
+        localStorage.getItem('ameta_planilhas_zeradas_v4') === 'true' ||
+        localStorage.getItem('ameta_planilhas_zeradas_v5') === 'true' ||
+        localStorage.getItem('ameta_ericsson_zerada') === 'true' ||
+        localStorage.getItem('ameta_ericsson_zerada_v1') === 'true';
+
+      if (isZerada || !Array.isArray(engRows) || engRows.length === 0) {
+        setRows([]);
+      } else {
         const byId = new Map<string, EricssonEngineeringRow>();
-        INITIAL_ERICSSON_ENGINEERING_ROWS.forEach((r) => byId.set(r.id, r));
         (engRows as EricssonEngineeringRow[]).forEach((r) => {
           const existing = byId.get(r.id);
           byId.set(r.id, existing ? { ...existing, ...r, fields: { ...(existing.fields || {}), ...(r.fields || {}) } } : r);
@@ -242,10 +261,6 @@ export const EricssonEngineeringTab: React.FC<EricssonEngineeringTabProps> = ({
         const merged = Array.from(byId.values());
         setRows(merged);
         updateColumnsFromRows(merged);
-      } else {
-        // Inicializa com as 250 linhas reais da planilha do OneDrive na ordem exata
-        setRows(INITIAL_ERICSSON_ENGINEERING_ROWS);
-        setColumns([...ERICSSON_SITE_LIST_COLUMNS]);
       }
 
       if (Array.isArray(repRows) && repRows.length > 0) {
@@ -265,20 +280,32 @@ export const EricssonEngineeringTab: React.FC<EricssonEngineeringTabProps> = ({
     const unsubEng = onSnapshot(
       collection(db, FIRESTORE_COLLECTIONS.ERICSSON_ENGENHARIA),
       (snap) => {
-        if (!snap.empty) {
-          const fetched = snap.docs.map((d) => ({ id: d.id, ...d.data() } as EricssonEngineeringRow));
-          setRows((prev) => {
-            const base = prev.length > 0 ? prev : INITIAL_ERICSSON_ENGINEERING_ROWS;
-            const byId = new Map<string, EricssonEngineeringRow>(base.map((r) => [r.id, r]));
-            fetched.forEach((r) => {
-              const existing = byId.get(r.id);
-              byId.set(r.id, existing ? { ...existing, ...r, fields: { ...(existing.fields || {}), ...(r.fields || {}) } } : r);
-            });
-            const merged = Array.from(byId.values());
-            updateColumnsFromRows(merged);
-            return merged;
-          });
+        const isZerada =
+          localStorage.getItem('ameta_planilhas_zeradas') === 'true' ||
+          localStorage.getItem('ameta_planilhas_zeradas_v2') === 'true' ||
+          localStorage.getItem('ameta_planilhas_zeradas_v3') === 'true' ||
+          localStorage.getItem('ameta_planilhas_zeradas_v4') === 'true' ||
+          localStorage.getItem('ameta_planilhas_zeradas_v5') === 'true' ||
+          localStorage.getItem('ameta_ericsson_zerada') === 'true' ||
+          localStorage.getItem('ameta_ericsson_zerada_v1') === 'true';
+
+        if (snap.empty || isZerada) {
+          setRows([]);
+          return;
         }
+
+        const fetched = snap.docs.map((d) => ({ id: d.id, ...d.data() } as EricssonEngineeringRow));
+        setRows((prev) => {
+          const base = (prev.length > 0 || isZerada) ? prev : INITIAL_ERICSSON_ENGINEERING_ROWS;
+          const byId = new Map<string, EricssonEngineeringRow>(base.map((r) => [r.id, r]));
+          fetched.forEach((r) => {
+            const existing = byId.get(r.id);
+            byId.set(r.id, existing ? { ...existing, ...r, fields: { ...(existing.fields || {}), ...(r.fields || {}) } } : r);
+          });
+          const merged = Array.from(byId.values());
+          updateColumnsFromRows(merged);
+          return merged;
+        });
       },
       (err) => console.error('Erro na escuta de ericsson_engenharia:', err)
     );

@@ -293,6 +293,7 @@ export interface IDataService {
     errorMessage?: string;
   }>;
   zerarTodasPlanilhas(): Promise<{ deletedCount: number }>;
+  zerarEricssonPlanilhas(): Promise<{ deletedCount: number }>;
   importarSitesEricssonEmLote(
     rows: EricssonRow[],
     users?: AmetaUser[],
@@ -3612,6 +3613,47 @@ class FirebaseDataService implements IDataService {
       localStorage.setItem('ameta_planilhas_zeradas', 'true');
     } catch (err) {
       console.warn('Erro ao limpar localStorage no zerarTodasPlanilhas:', err);
+    }
+
+    return { deletedCount: totalDeleted };
+  }
+
+  async zerarEricssonPlanilhas(): Promise<{ deletedCount: number }> {
+    const collectionsToClear = [
+      FIRESTORE_COLLECTIONS.ERICSSON_SITES,
+      FIRESTORE_COLLECTIONS.ERICSSON_ENGENHARIA,
+      FIRESTORE_COLLECTIONS.ERICSSON_REPROVACOES,
+    ];
+
+    let totalDeleted = 0;
+
+    for (const collName of collectionsToClear) {
+      try {
+        const snap = await getDocs(collection(db, collName));
+        if (!snap.empty) {
+          const docs = snap.docs;
+          const chunkSize = 400;
+          for (let i = 0; i < docs.length; i += chunkSize) {
+            const batch = writeBatch(db);
+            const chunk = docs.slice(i, i + chunkSize);
+            chunk.forEach((d) => batch.delete(d.ref));
+            await batch.commit();
+            totalDeleted += chunk.length;
+          }
+        }
+      } catch (err) {
+        console.error(`Erro ao zerar coleção Ericsson ${collName}:`, err);
+      }
+    }
+
+    try {
+      localStorage.removeItem('ameta_cached_ericsson_sites');
+      localStorage.removeItem('ameta_cached_ericsson_eng');
+      localStorage.removeItem('ameta_cached_ericsson_meta');
+      localStorage.removeItem('ameta_cached_ericsson_reprovacoes');
+      localStorage.setItem('ameta_ericsson_zerada', 'true');
+    } catch (err) {
+      console.warn('Erro ao limpar localStorage no zerarEricssonPlanilhas:', err);
     }
 
     return { deletedCount: totalDeleted };
