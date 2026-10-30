@@ -26,6 +26,15 @@ import {
   CloudDownload,
   UserPlus,
   FolderOpen,
+  ChevronDown,
+  ChevronUp,
+  Layers,
+  Eye,
+  Wrench,
+  ShieldAlert,
+  HelpCircle,
+  XCircle,
+  TrendingUp,
 } from 'lucide-react';
 import {
   AmetaUser,
@@ -112,16 +121,16 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
   const [filterSheetStatus, setFilterSheetStatus] = useState<string>('ALL');
   const [filterVistoriaStatus, setFilterVistoriaStatus] = useState<
     | 'ALL'
-    | 'FINALIZADO'
-    | 'PENDENTE'
+    | 'STATUS_A'
+    | 'STATUS_B'
     | 'LOS_FINALIZADO'
     | 'LOS_PENDENTE'
-    | 'SMART_FINALIZADO'
-    | 'SMART_PENDENTE'
-    | 'SDC_FINALIZADO'
-    | 'SDC_PENDENTE'
+    | 'FINALIZADO'
+    | 'PENDENTE'
   >('ALL');
   const [togglingRowKey, setTogglingRowKey] = useState<string | null>(null);
+  const [metaChartMetric, setMetaChartMetric] = useState<'sites' | 'lines'>('sites');
+  const [showMetaChartCard, setShowMetaChartCard] = useState<boolean>(true);
 
   // Sync / Excel Modal
   const [syncModalOpen, setSyncModalOpen] = useState<boolean>(false);
@@ -251,6 +260,31 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
     return Array.from(set).sort();
   }, [roleScopedRows]);
 
+  const distinctMetas = useMemo(() => {
+    const set = new Set<string>();
+    roleScopedRows.forEach((r) => {
+      const val = (r.meta || r.fields?.['Meta'] || r.fields?.['META'] || '').trim();
+      if (val) set.add(val);
+      else set.add('(Em branco)');
+    });
+    const standardOrder = [
+      'Finalizado',
+      'Vistoria',
+      'Engenharia',
+      'Acesso Especial',
+      'Cancelado',
+      '(Em branco)',
+    ];
+    return Array.from(set).sort((a, b) => {
+      const idxA = standardOrder.indexOf(a);
+      const idxB = standardOrder.indexOf(b);
+      if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+      if (idxA !== -1) return -1;
+      if (idxB !== -1) return 1;
+      return a.localeCompare(b);
+    });
+  }, [roleScopedRows]);
+
   const distinctEquipes = useMemo(() => {
     const set = new Set<string>();
     // Exclusively Ericsson teams from rows
@@ -277,50 +311,22 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
     return Array.from(set).sort();
   }, [roleScopedRows]);
 
-  const filteredRows = useMemo(() => {
+  // Base filtered rows before top-card filters (filterSheetStatus and filterVistoriaStatus)
+  const baseFilteredRows = useMemo(() => {
     return roleScopedRows.filter((r) => {
       const rState = (r.state || r.fields?.['00.03.State'] || '').trim();
-      const rMeta = (r.meta || r.fields?.['Meta'] || '').trim();
+      const rMeta = (r.meta || r.fields?.['Meta'] || r.fields?.['META'] || '').trim();
       const rEquipe = (r.equipe || r.fields?.['EQUIPE'] || '').trim();
-      const rStatusA = (r.statusA || r.fields?.['Status A'] || '').trim();
-      const rStatusB = (r.statusB || r.fields?.['Status B'] || '').trim();
 
       if (filterState !== 'ALL' && rState !== filterState) return false;
-      if (filterMeta !== 'ALL' && rMeta !== filterMeta) return false;
+      if (filterMeta !== 'ALL') {
+        if (filterMeta === '(Em branco)') {
+          if (rMeta !== '') return false;
+        } else if (rMeta.toLowerCase() !== filterMeta.toLowerCase()) {
+          return false;
+        }
+      }
       if (filterEquipe !== 'ALL' && rEquipe !== filterEquipe) return false;
-      if (
-        filterSheetStatus !== 'ALL' &&
-        rStatusA !== filterSheetStatus &&
-        rStatusB !== filterSheetStatus
-      ) {
-        return false;
-      }
-
-      const isAFinalizado =
-        r.siteAVistoriaStatus === 'Entregue' || isEricssonStatusFinalizado(rStatusA);
-      const isBFinalizado =
-        r.siteBVistoriaStatus === 'Entregue' || isEricssonStatusFinalizado(rStatusB);
-      const isLosFinalizado = r.losStatus === 'Entregue';
-      const isSmartFinalizado = r.smartStatus === 'Entregue';
-      const isSdcFinalizado = r.sdcStatus === 'Entregue';
-
-      if (filterVistoriaStatus === 'FINALIZADO') {
-        if (!isAFinalizado && !isBFinalizado) return false;
-      } else if (filterVistoriaStatus === 'PENDENTE') {
-        if (isAFinalizado && isBFinalizado) return false;
-      } else if (filterVistoriaStatus === 'LOS_FINALIZADO') {
-        if (!isLosFinalizado) return false;
-      } else if (filterVistoriaStatus === 'LOS_PENDENTE') {
-        if (isLosFinalizado) return false;
-      } else if (filterVistoriaStatus === 'SMART_FINALIZADO') {
-        if (!isSmartFinalizado) return false;
-      } else if (filterVistoriaStatus === 'SMART_PENDENTE') {
-        if (isSmartFinalizado) return false;
-      } else if (filterVistoriaStatus === 'SDC_FINALIZADO') {
-        if (!isSdcFinalizado) return false;
-      } else if (filterVistoriaStatus === 'SDC_PENDENTE') {
-        if (isSdcFinalizado) return false;
-      }
 
       if (searchTokens.length === 0) return true;
 
@@ -357,51 +363,284 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
       }
       return false;
     });
-  }, [
-    roleScopedRows,
-    filterState,
-    filterMeta,
-    filterEquipe,
-    filterSheetStatus,
-    filterVistoriaStatus,
-    searchTokens,
-  ]);
+  }, [roleScopedRows, filterState, filterMeta, filterEquipe, searchTokens]);
 
-  // Top Counters: COUNTED BY SITE (plus LOS, SMART, SDC counters)
+  const filteredRows = useMemo(() => {
+    return baseFilteredRows.filter((r) => {
+      const rStatusA = (r.statusA || r.fields?.['Status A'] || '').trim();
+      const rStatusB = (r.statusB || r.fields?.['Status B'] || '').trim();
+
+      if (filterSheetStatus !== 'ALL') {
+        if (filterSheetStatus === 'LIBERADO') {
+          const isLiberadoA = isEricssonStatusFinalizado(rStatusA);
+          const isLiberadoB = isEricssonStatusFinalizado(rStatusB);
+          if (!isLiberadoA && !isLiberadoB) return false;
+        } else if (filterSheetStatus === 'ANDAMENTO') {
+          const isAndamento = (s: string) => {
+            const low = s.toLowerCase();
+            return (
+              low.includes('andamento') ||
+              low.includes('execu') ||
+              low.includes('programad') ||
+              low.includes('acesso') ||
+              low.includes('pend') ||
+              low.includes('aguard')
+            );
+          };
+          if (!isAndamento(rStatusA) && !isAndamento(rStatusB)) return false;
+        } else {
+          if (rStatusA !== filterSheetStatus && rStatusB !== filterSheetStatus) {
+            return false;
+          }
+        }
+      }
+
+      const isAFinalizado =
+        r.siteAVistoriaStatus === 'Entregue' || isEricssonStatusFinalizado(rStatusA);
+      const isBFinalizado =
+        r.siteBVistoriaStatus === 'Entregue' || isEricssonStatusFinalizado(rStatusB);
+      const isLosFinalizado = r.losStatus === 'Entregue';
+
+      if (filterVistoriaStatus === 'STATUS_A') {
+        if (!isAFinalizado) return false;
+      } else if (filterVistoriaStatus === 'STATUS_B') {
+        if (!isBFinalizado) return false;
+      } else if (filterVistoriaStatus === 'FINALIZADO') {
+        if (!isAFinalizado && !isBFinalizado) return false;
+      } else if (filterVistoriaStatus === 'PENDENTE') {
+        if (isAFinalizado && isBFinalizado) return false;
+      } else if (filterVistoriaStatus === 'LOS_FINALIZADO') {
+        if (!isLosFinalizado) return false;
+      } else if (filterVistoriaStatus === 'LOS_PENDENTE') {
+        if (isLosFinalizado) return false;
+      }
+
+      return true;
+    });
+  }, [baseFilteredRows, filterSheetStatus, filterVistoriaStatus]);
+
+  // Top Counters computed from baseFilteredRows so card values remain stable while filtering
   const siteCounters = useMemo(
-    () => computeEricssonSiteCounters(filteredRows),
-    [filteredRows]
+    () => computeEricssonSiteCounters(baseFilteredRows),
+    [baseFilteredRows]
   );
+
+  const statusACounters = useMemo(() => {
+    let total = 0;
+    let concluidos = 0;
+    baseFilteredRows.forEach((r) => {
+      const sA = (r.statusA || r.fields?.['Status A'] || '').trim();
+      if ((r.siteIdA || '').trim()) {
+        total++;
+        if (isEricssonStatusFinalizado(sA) || r.siteAVistoriaStatus === 'Entregue') {
+          concluidos++;
+        }
+      }
+    });
+    return { total, concluidos };
+  }, [baseFilteredRows]);
+
+  const statusBCounters = useMemo(() => {
+    let total = 0;
+    let concluidos = 0;
+    baseFilteredRows.forEach((r) => {
+      const sB = (r.statusB || r.fields?.['Status B'] || '').trim();
+      if ((r.siteIdB || '').trim()) {
+        total++;
+        if (isEricssonStatusFinalizado(sB) || r.siteBVistoriaStatus === 'Entregue') {
+          concluidos++;
+        }
+      }
+    });
+    return { total, concluidos };
+  }, [baseFilteredRows]);
 
   const losCounters = useMemo(() => {
     let entregues = 0;
     let pendentes = 0;
-    filteredRows.forEach((r) => {
+    baseFilteredRows.forEach((r) => {
       if (r.losStatus === 'Entregue') entregues++;
       else pendentes++;
     });
     return { entregues, pendentes };
-  }, [filteredRows]);
+  }, [baseFilteredRows]);
 
-  const smartCounters = useMemo(() => {
-    let entregues = 0;
-    let pendentes = 0;
-    filteredRows.forEach((r) => {
-      if (r.smartStatus === 'Entregue') entregues++;
-      else pendentes++;
-    });
-    return { entregues, pendentes };
-  }, [filteredRows]);
+  // Gráfico de Colunas: META Status (com todas as categorias da coluna META do Excel)
+  const chartDataByMeta = useMemo(() => {
+    const standardOrder = [
+      'Finalizado',
+      'Vistoria',
+      'Engenharia',
+      'Acesso Especial',
+      'Cancelado',
+      '(Em branco)',
+    ];
 
-  const sdcCounters = useMemo(() => {
-    let entregues = 0;
-    let pendentes = 0;
-    filteredRows.forEach((r) => {
-      if (r.sdcStatus === 'Entregue') entregues++;
-      else pendentes++;
+    const getColorConfig = (key: string) => {
+      const norm = key.toLowerCase();
+      if (norm.includes('finaliz')) {
+        return {
+          color: '#10b981',
+          bgBar: 'bg-emerald-500',
+          hoverBg: 'hover:bg-emerald-600',
+          textColor: 'text-emerald-700',
+          badgeBg: 'bg-emerald-100 text-emerald-800',
+          borderColor: 'border-emerald-300',
+        };
+      }
+      if (norm.includes('vistor')) {
+        return {
+          color: '#0284c7',
+          bgBar: 'bg-sky-500',
+          hoverBg: 'hover:bg-sky-600',
+          textColor: 'text-sky-700',
+          badgeBg: 'bg-sky-100 text-sky-800',
+          borderColor: 'border-sky-300',
+        };
+      }
+      if (norm.includes('engenhar')) {
+        return {
+          color: '#6366f1',
+          bgBar: 'bg-indigo-500',
+          hoverBg: 'hover:bg-indigo-600',
+          textColor: 'text-indigo-700',
+          badgeBg: 'bg-indigo-100 text-indigo-800',
+          borderColor: 'border-indigo-300',
+        };
+      }
+      if (norm.includes('acesso')) {
+        return {
+          color: '#f59e0b',
+          bgBar: 'bg-amber-500',
+          hoverBg: 'hover:bg-amber-600',
+          textColor: 'text-amber-700',
+          badgeBg: 'bg-amber-100 text-amber-800',
+          borderColor: 'border-amber-300',
+        };
+      }
+      if (norm.includes('cancel')) {
+        return {
+          color: '#ef4444',
+          bgBar: 'bg-rose-500',
+          hoverBg: 'hover:bg-rose-600',
+          textColor: 'text-rose-700',
+          badgeBg: 'bg-rose-100 text-rose-800',
+          borderColor: 'border-rose-300',
+        };
+      }
+      if (norm.includes('branco') || norm === '' || norm.includes('sem meta')) {
+        return {
+          color: '#64748b',
+          bgBar: 'bg-slate-400',
+          hoverBg: 'hover:bg-slate-500',
+          textColor: 'text-slate-600',
+          badgeBg: 'bg-slate-100 text-slate-700',
+          borderColor: 'border-slate-300',
+        };
+      }
+      return {
+        color: '#14b8a6',
+        bgBar: 'bg-teal-500',
+        hoverBg: 'hover:bg-teal-600',
+        textColor: 'text-teal-700',
+        badgeBg: 'bg-teal-100 text-teal-800',
+        borderColor: 'border-teal-300',
+      };
+    };
+
+    const map = new Map<
+      string,
+      {
+        key: string;
+        label: string;
+        linesCount: number;
+        sitesCount: number;
+        finalizados: number;
+        pendentes: number;
+        color: string;
+        bgBar: string;
+        hoverBg: string;
+        textColor: string;
+        badgeBg: string;
+        borderColor: string;
+      }
+    >();
+
+    // Inicializa com as opções padrão vistas na planilha oficial
+    standardOrder.forEach((label) => {
+      const cfg = getColorConfig(label);
+      map.set(label, {
+        key: label,
+        label,
+        linesCount: 0,
+        sitesCount: 0,
+        finalizados: 0,
+        pendentes: 0,
+        color: cfg.color,
+        bgBar: cfg.bgBar,
+        hoverBg: cfg.hoverBg,
+        textColor: cfg.textColor,
+        badgeBg: cfg.badgeBg,
+        borderColor: cfg.borderColor,
+      });
     });
-    return { entregues, pendentes };
-  }, [filteredRows]);
+
+    // Agrupa as linhas (respeitando escopo do usuário e filtros base)
+    roleScopedRows.forEach((r) => {
+      const raw = (r.meta || r.fields?.['Meta'] || r.fields?.['META'] || '').trim();
+      const catKey = raw || '(Em branco)';
+      let entry = map.get(catKey);
+      if (!entry) {
+        const cfg = getColorConfig(catKey);
+        entry = {
+          key: catKey,
+          label: catKey,
+          linesCount: 0,
+          sitesCount: 0,
+          finalizados: 0,
+          pendentes: 0,
+          color: cfg.color,
+          bgBar: cfg.bgBar,
+          hoverBg: cfg.hoverBg,
+          textColor: cfg.textColor,
+          badgeBg: cfg.badgeBg,
+          borderColor: cfg.borderColor,
+        };
+        map.set(catKey, entry);
+      }
+
+      entry.linesCount++;
+
+      if ((r.siteIdA || '').trim()) {
+        entry.sitesCount++;
+        const finA =
+          r.siteAVistoriaStatus === 'Entregue' ||
+          isEricssonStatusFinalizado(r.statusA || r.fields?.['Status A']);
+        if (finA) entry.finalizados++;
+        else entry.pendentes++;
+      }
+      if ((r.siteIdB || '').trim()) {
+        entry.sitesCount++;
+        const finB =
+          r.siteBVistoriaStatus === 'Entregue' ||
+          isEricssonStatusFinalizado(r.statusB || r.fields?.['Status B']);
+        if (finB) entry.finalizados++;
+        else entry.pendentes++;
+      }
+    });
+
+    const list = Array.from(map.values());
+    list.sort((a, b) => {
+      const idxA = standardOrder.indexOf(a.label);
+      const idxB = standardOrder.indexOf(b.label);
+      if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+      if (idxA !== -1) return -1;
+      if (idxB !== -1) return 1;
+      return b.sitesCount - a.sitesCount;
+    });
+
+    return list;
+  }, [roleScopedRows]);
 
   // Charts Data (all counted by Site!)
   const chartDataByState = useMemo(() => {
@@ -913,6 +1152,198 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
       ? 'px-4 py-3 text-xs'
       : 'px-3 py-2 text-xs';
 
+  const renderMetaColumnChart = (isHeroFullWidth = false) => {
+    const totalSelectedMetric = chartDataByMeta.reduce(
+      (acc, c) => acc + (metaChartMetric === 'sites' ? c.sitesCount : c.linesCount),
+      0
+    );
+    const maxVal = Math.max(
+      ...chartDataByMeta.map((c) =>
+        metaChartMetric === 'sites' ? c.sitesCount : c.linesCount
+      ),
+      1
+    );
+
+    return (
+      <div
+        className={`bg-white border border-slate-200 rounded-xl p-5 shadow-2xs space-y-4 ${
+          isHeroFullWidth ? 'lg:col-span-2' : ''
+        }`}
+      >
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center text-[#223585] shadow-2xs">
+              <BarChart3 className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-sm font-bold text-slate-900">
+                  Gráfico de Colunas — Status Coluna META
+                </h3>
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-[#223585]">
+                  {chartDataByMeta.length} categorias
+                </span>
+              </div>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Distribuição dos sites e linhas pelos status da coluna META (Acesso Especial, Cancelado, Engenharia, Finalizado, Vistoria, Em branco) — clique em uma coluna para filtrar
+              </p>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            {filterMeta !== 'ALL' && (
+              <div className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-blue-50 border border-blue-200 text-[#223585] text-xs font-bold animate-fadeIn">
+                <span>Filtro META ativo: <strong>{filterMeta}</strong></span>
+                <button
+                  type="button"
+                  onClick={() => setFilterMeta('ALL')}
+                  className="hover:bg-blue-100 p-0.5 rounded cursor-pointer transition-colors"
+                  title="Limpar filtro META"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            )}
+
+            {/* Alternador de Métrica: Sites (A+B) vs Linhas */}
+            <div className="inline-flex bg-slate-100 p-0.5 rounded-lg border border-slate-200 text-xs">
+              <button
+                type="button"
+                onClick={() => setMetaChartMetric('sites')}
+                className={`px-3 py-1 rounded-md font-bold transition-all cursor-pointer ${
+                  metaChartMetric === 'sites'
+                    ? 'bg-white text-slate-900 shadow-2xs'
+                    : 'text-slate-500 hover:text-slate-800'
+                }`}
+              >
+                Sites (A + B)
+              </button>
+              <button
+                type="button"
+                onClick={() => setMetaChartMetric('lines')}
+                className={`px-3 py-1 rounded-md font-bold transition-all cursor-pointer ${
+                  metaChartMetric === 'lines'
+                    ? 'bg-white text-slate-900 shadow-2xs'
+                    : 'text-slate-500 hover:text-slate-800'
+                }`}
+              >
+                Linhas / Enlaces
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Visual Column Bars (Gráfico de Colunas Vertical) */}
+        <div className="pt-2">
+          <div className="h-64 flex items-end justify-between gap-3 sm:gap-4 px-2 sm:px-6 border-b-2 border-slate-200 pb-2">
+            {chartDataByMeta.map((item) => {
+              const val = metaChartMetric === 'sites' ? item.sitesCount : item.linesCount;
+              const heightPct = maxVal > 0 ? Math.max((val / maxVal) * 100, 6) : 6;
+              const sharePct = totalSelectedMetric > 0 ? ((val / totalSelectedMetric) * 100).toFixed(1) : '0.0';
+              const isSelected = filterMeta === item.key;
+
+              return (
+                <div
+                  key={item.key}
+                  onClick={() => setFilterMeta((prev) => (prev === item.key ? 'ALL' : item.key))}
+                  className="flex-1 flex flex-col items-center h-full justify-end group cursor-pointer"
+                >
+                  {/* Etiqueta de Valor no topo da coluna */}
+                  <div className="mb-2 text-center transition-transform group-hover:-translate-y-1">
+                    <span className="block text-xs font-black font-mono text-slate-800 tabular-nums">
+                      {val.toLocaleString('pt-BR')}
+                    </span>
+                    <span className="text-[10px] text-slate-400 font-semibold">
+                      {sharePct}%
+                    </span>
+                  </div>
+
+                  {/* A Coluna Vertical */}
+                  <div className="w-full max-w-[68px] flex flex-col justify-end h-full">
+                    <div
+                      className={`w-full rounded-t-xl transition-all duration-300 relative overflow-hidden ${
+                        isSelected
+                          ? 'ring-3 ring-offset-2 ring-[#223585] shadow-lg scale-102'
+                          : 'group-hover:opacity-90 group-hover:scale-101 shadow-2xs'
+                      }`}
+                      style={{
+                        height: `${heightPct}%`,
+                        backgroundColor: item.color,
+                      }}
+                    >
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/15 via-transparent to-white/30 pointer-events-none" />
+                      {isSelected && (
+                        <div className="absolute top-1.5 left-1/2 -translate-x-1/2 w-2 h-2 rounded-full bg-white shadow-xs" />
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Rótulo e Categoria no Rodapé */}
+                  <div className="mt-2.5 text-center w-full">
+                    <div
+                      className={`px-1.5 py-1 rounded-md text-[11px] font-bold truncate transition-colors ${
+                        isSelected
+                          ? 'bg-[#223585] text-white shadow-xs'
+                          : 'text-slate-700 bg-slate-100 group-hover:bg-slate-200'
+                      }`}
+                      title={item.label}
+                    >
+                      {item.label}
+                    </div>
+                    <div className="text-[10px] text-slate-400 font-mono mt-0.5 truncate">
+                      {metaChartMetric === 'sites' ? `${item.linesCount} lin` : `${item.sitesCount} sites`}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Grade de Cards Detalhados dos Status da Coluna META */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5 pt-2">
+          {chartDataByMeta.map((item) => {
+            const isSelected = filterMeta === item.key;
+            return (
+              <button
+                key={item.key}
+                type="button"
+                onClick={() => setFilterMeta((prev) => (prev === item.key ? 'ALL' : item.key))}
+                className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
+                  isSelected
+                    ? 'bg-blue-50/90 border-[#223585] ring-2 ring-[#223585]/20 shadow-xs'
+                    : 'bg-slate-50/70 hover:bg-slate-100/90 border-slate-200'
+                }`}
+              >
+                <div className="flex items-center gap-1.5 mb-1.5">
+                  <span
+                    className="w-2.5 h-2.5 rounded-full shrink-0"
+                    style={{ backgroundColor: item.color }}
+                  />
+                  <span className="text-xs font-bold text-slate-800 truncate" title={item.label}>
+                    {item.label}
+                  </span>
+                </div>
+                <div className="flex items-baseline justify-between gap-1">
+                  <span className="text-lg font-extrabold font-mono text-slate-900 tabular-nums">
+                    {item.sitesCount}
+                  </span>
+                  <span className="text-[10px] text-slate-500 font-semibold">
+                    sites
+                  </span>
+                </div>
+                <div className="flex items-center justify-between text-[10px] text-slate-500 font-mono mt-1 pt-1 border-t border-slate-200/60">
+                  <span>{item.linesCount} linhas</span>
+                  <span className="text-emerald-700 font-bold">{item.finalizados} fin</span>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div
       className={
@@ -1016,7 +1447,7 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
           </div>
         </div>
 
-        {/* SITE COUNTERS BAR (COUNTED BY SITE + LOS) */}
+        {/* SITE COUNTERS BAR (COUNTED BY LINE + STATUS A & B + LOS) */}
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 pt-1">
           <button
             type="button"
@@ -1031,73 +1462,76 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
             }`}
           >
             <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
-              Total de Sites (A + B)
+              Total de Sites
             </div>
             <div className="text-2xl font-extrabold font-mono text-slate-900 mt-0.5 tabular-nums">
-              {siteCounters.totalSites}
+              {baseFilteredRows.length}
             </div>
             <div className="text-[10px] text-slate-500 mt-0.5">
-              Em {siteCounters.totalPairs} linhas (enlaces)
+              {filteredRows.length !== baseFilteredRows.length ? `${filteredRows.length} filtrados • ` : ''}Total de linhas (enlaces)
             </div>
           </button>
 
           <button
             type="button"
-            onClick={() =>
+            onClick={() => {
+              setFilterSheetStatus('ALL');
               setFilterVistoriaStatus((prev) =>
-                prev === 'FINALIZADO' ? 'ALL' : 'FINALIZADO'
-              )
-            }
+                prev === 'STATUS_A' ? 'ALL' : 'STATUS_A'
+              );
+            }}
             className={`text-left p-3.5 rounded-xl border transition-all cursor-pointer ${
-              filterVistoriaStatus === 'FINALIZADO'
-                ? 'bg-emerald-50 border-emerald-500 ring-1 ring-emerald-500/20'
-                : 'bg-emerald-50/40 hover:bg-emerald-50 border-emerald-200'
+              filterVistoriaStatus === 'STATUS_A'
+                ? 'bg-blue-50 border-[#223585] ring-1 ring-[#223585]/20'
+                : 'bg-blue-50/40 hover:bg-blue-50 border-blue-200'
             }`}
           >
-            <div className="text-[10px] font-bold uppercase tracking-wider text-emerald-700 flex items-center justify-between">
-              <span>Vistorias Finalizadas (A+B)</span>
-              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+            <div className="text-[10px] font-bold uppercase tracking-wider text-[#223585] flex items-center justify-between">
+              <span>Status A</span>
+              <CheckCircle2 className="w-3.5 h-3.5 text-[#223585]" />
             </div>
-            <div className="text-2xl font-extrabold font-mono text-emerald-700 mt-0.5 tabular-nums">
-              {siteCounters.vistoriaEntregueSites}
+            <div className="text-2xl font-extrabold font-mono text-[#223585] mt-0.5 tabular-nums">
+              {statusACounters.concluidos}
             </div>
-            <div className="text-[10px] text-emerald-700/80 mt-0.5">
-              Sites A/B entregues
+            <div className="text-[10px] text-[#223585]/80 mt-0.5">
+              {statusACounters.concluidos} de {statusACounters.total} Sites A liberados
             </div>
           </button>
 
           <button
             type="button"
-            onClick={() =>
+            onClick={() => {
+              setFilterSheetStatus('ALL');
               setFilterVistoriaStatus((prev) =>
-                prev === 'PENDENTE' ? 'ALL' : 'PENDENTE'
-              )
-            }
+                prev === 'STATUS_B' ? 'ALL' : 'STATUS_B'
+              );
+            }}
             className={`text-left p-3.5 rounded-xl border transition-all cursor-pointer ${
-              filterVistoriaStatus === 'PENDENTE'
-                ? 'bg-red-50 border-red-500 ring-1 ring-red-500/20'
-                : 'bg-red-50/40 hover:bg-red-50 border-red-200'
+              filterVistoriaStatus === 'STATUS_B'
+                ? 'bg-teal-50 border-[#1E8E8D] ring-1 ring-[#1E8E8D]/20'
+                : 'bg-teal-50/40 hover:bg-teal-50 border-teal-200'
             }`}
           >
-            <div className="text-[10px] font-bold uppercase tracking-wider text-red-700 flex items-center justify-between">
-              <span>Vistorias Pendentes (A+B)</span>
-              <Clock className="w-3.5 h-3.5 text-red-600" />
+            <div className="text-[10px] font-bold uppercase tracking-wider text-[#1E8E8D] flex items-center justify-between">
+              <span>Status B</span>
+              <CheckCircle2 className="w-3.5 h-3.5 text-[#1E8E8D]" />
             </div>
-            <div className="text-2xl font-extrabold font-mono text-red-700 mt-0.5 tabular-nums">
-              {siteCounters.vistoriaPendenteSites}
+            <div className="text-2xl font-extrabold font-mono text-[#1E8E8D] mt-0.5 tabular-nums">
+              {statusBCounters.concluidos}
             </div>
-            <div className="text-[10px] text-red-700/80 mt-0.5">
-              Sites A/B pendentes
+            <div className="text-[10px] text-[#1E8E8D]/80 mt-0.5">
+              {statusBCounters.concluidos} de {statusBCounters.total} Sites B liberados
             </div>
           </button>
 
           <button
             type="button"
-            onClick={() =>
+            onClick={() => {
+              setFilterSheetStatus('ALL');
               setFilterVistoriaStatus((prev) =>
                 prev === 'LOS_FINALIZADO' ? 'ALL' : 'LOS_FINALIZADO'
-              )
-            }
+              );
+            }}
             className={`text-left p-3.5 rounded-xl border transition-all cursor-pointer ${
               filterVistoriaStatus === 'LOS_FINALIZADO'
                 ? 'bg-amber-50 border-amber-500 ring-1 ring-amber-500/20'
@@ -1118,69 +1552,47 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
 
           <button
             type="button"
-            onClick={() =>
-              setFilterVistoriaStatus((prev) =>
-                prev === 'SMART_FINALIZADO' ? 'ALL' : 'SMART_FINALIZADO'
-              )
-            }
+            onClick={() => {
+              setFilterVistoriaStatus('ALL');
+              setFilterSheetStatus((prev) =>
+                prev === 'LIBERADO' ? 'ALL' : 'LIBERADO'
+              );
+            }}
             className={`text-left p-3.5 rounded-xl border transition-all cursor-pointer ${
-              filterVistoriaStatus === 'SMART_FINALIZADO'
-                ? 'bg-violet-50 border-violet-500 ring-1 ring-violet-500/20'
-                : 'bg-violet-50/40 hover:bg-violet-50 border-violet-200'
+              filterSheetStatus === 'LIBERADO'
+                ? 'bg-teal-50 border-teal-600 ring-1 ring-teal-600/20 shadow-xs'
+                : 'bg-teal-50/40 hover:bg-teal-50 border-teal-200'
             }`}
           >
-            <div className="text-[10px] font-bold uppercase tracking-wider text-violet-800 flex items-center justify-between">
-              <span>SMART Entregues</span>
-              <CheckCircle2 className="w-3.5 h-3.5 text-violet-600" />
+            <div className="text-[10px] font-bold uppercase tracking-wider text-teal-700 flex items-center justify-between">
+              <span>Status Planilha: Liberado</span>
+              <CheckCircle2 className="w-3.5 h-3.5 text-teal-600" />
             </div>
-            <div className="text-2xl font-extrabold font-mono text-violet-800 mt-0.5 tabular-nums">
-              {smartCounters.entregues}
+            <div className="text-2xl font-extrabold font-mono text-teal-700 mt-0.5 tabular-nums">
+              {siteCounters.statusConcluidoSites}
             </div>
-            <div className="text-[10px] text-violet-800/80 mt-0.5">
-              {smartCounters.pendentes} SMART pendentes
+            <div className="text-[10px] text-teal-700/80 mt-0.5">
+              Sites liberados (A + B)
             </div>
           </button>
 
           <button
             type="button"
-            onClick={() =>
-              setFilterVistoriaStatus((prev) =>
-                prev === 'SDC_FINALIZADO' ? 'ALL' : 'SDC_FINALIZADO'
-              )
-            }
+            onClick={() => {
+              setFilterVistoriaStatus('ALL');
+              setFilterSheetStatus((prev) =>
+                prev === 'ANDAMENTO' ? 'ALL' : 'ANDAMENTO'
+              );
+            }}
             className={`text-left p-3.5 rounded-xl border transition-all cursor-pointer ${
-              filterVistoriaStatus === 'SDC_FINALIZADO'
-                ? 'bg-rose-50 border-rose-500 ring-1 ring-rose-500/20'
-                : 'bg-rose-50/40 hover:bg-rose-50 border-rose-200'
+              filterSheetStatus === 'ANDAMENTO'
+                ? 'bg-blue-50 border-[#223585] ring-1 ring-[#223585]/20 shadow-xs'
+                : 'bg-slate-50/70 hover:bg-slate-100/70 border-slate-200'
             }`}
           >
-            <div className="text-[10px] font-bold uppercase tracking-wider text-rose-800 flex items-center justify-between">
-              <span>SDC Entregues</span>
-              <CheckCircle2 className="w-3.5 h-3.5 text-rose-600" />
-            </div>
-            <div className="text-2xl font-extrabold font-mono text-rose-800 mt-0.5 tabular-nums">
-              {sdcCounters.entregues}
-            </div>
-            <div className="text-[10px] text-rose-800/80 mt-0.5">
-              {sdcCounters.pendentes} SDC pendentes
-            </div>
-          </button>
-
-          <div className="p-3.5 rounded-xl bg-slate-50/70 border border-slate-200">
-            <div className="text-[10px] font-bold uppercase tracking-wider text-teal-700">
-              Status Planilha: Liberado
-            </div>
-            <div className="text-2xl font-extrabold font-mono text-teal-700 mt-0.5 tabular-nums">
-              {siteCounters.statusConcluidoSites}
-            </div>
-            <div className="text-[10px] text-slate-500 mt-0.5">
-              Sites liberados (A + B)
-            </div>
-          </div>
-
-          <div className="p-3.5 rounded-xl bg-slate-50/70 border border-slate-200">
-            <div className="text-[10px] font-bold uppercase tracking-wider text-[#223585]">
-              Em Andamento / Campo
+            <div className="text-[10px] font-bold uppercase tracking-wider text-[#223585] flex items-center justify-between">
+              <span>Em Andamento / Campo</span>
+              <Clock className="w-3.5 h-3.5 text-[#223585]" />
             </div>
             <div className="text-2xl font-extrabold font-mono text-[#223585] mt-0.5 tabular-nums">
               {siteCounters.statusEmAndamentoSites}
@@ -1188,7 +1600,7 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
             <div className="text-[10px] text-slate-500 mt-0.5">
               Sites em execução (A + B)
             </div>
-          </div>
+          </button>
         </div>
       </div>
 
@@ -1234,7 +1646,7 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
               }`}
             >
               <BarChart3 className="w-3.5 h-3.5" />
-              <span>Gráficos (Por Site)</span>
+              <span>Gráficos & META</span>
             </button>
 
             {hasFullAccess && (
@@ -1259,140 +1671,253 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
             )}
           </div>
 
-          {(viewMode === 'resumo' || viewMode === 'planilha') && (
-            <div className="flex items-center gap-2">
-              <span className="text-[11px] font-semibold text-slate-500">Densidade:</span>
-              <div className="inline-flex bg-slate-100 p-0.5 rounded-lg border border-slate-200 text-[11px]">
-                {(
-                  [
-                    { id: 'compact', label: 'Compacta' },
-                    { id: 'normal', label: 'Padrão' },
-                    { id: 'comfortable', label: 'Confortável' },
-                  ] as const
-                ).map((d) => (
-                  <button
-                    key={d.id}
-                    type="button"
-                    onClick={() => setDensity(d.id)}
-                    className={`px-2.5 py-1 rounded-md font-semibold transition-colors cursor-pointer ${
-                      density === d.id
-                        ? 'bg-white text-slate-900 shadow-2xs'
-                        : 'text-slate-500 hover:text-slate-800'
-                    }`}
-                  >
-                    {d.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
+          <div className="flex flex-wrap items-center gap-2">
+            {(viewMode === 'resumo' || viewMode === 'planilha') && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => setShowMetaChartCard((prev) => !prev)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 border transition-all cursor-pointer ${
+                    showMetaChartCard
+                      ? 'bg-blue-50 border-blue-200 text-[#223585] shadow-2xs'
+                      : 'bg-white border-slate-200 text-slate-600 hover:text-slate-900'
+                  }`}
+                  title="Exibir ou ocultar o Gráfico de Colunas da coluna META"
+                >
+                  <BarChart3 className="w-3.5 h-3.5 text-[#223585]" />
+                  <span>Gráfico Coluna META</span>
+                  {showMetaChartCard ? (
+                    <ChevronUp className="w-3 h-3 text-[#223585]" />
+                  ) : (
+                    <ChevronDown className="w-3 h-3 text-slate-400" />
+                  )}
+                </button>
+
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] font-semibold text-slate-500">Densidade:</span>
+                  <div className="inline-flex bg-slate-100 p-0.5 rounded-lg border border-slate-200 text-[11px]">
+                    {(
+                      [
+                        { id: 'compact', label: 'Compacta' },
+                        { id: 'normal', label: 'Padrão' },
+                        { id: 'comfortable', label: 'Confortável' },
+                      ] as const
+                    ).map((d) => (
+                      <button
+                        key={d.id}
+                        type="button"
+                        onClick={() => setDensity(d.id)}
+                        className={`px-2.5 py-1 rounded-md font-semibold transition-colors cursor-pointer ${
+                          density === d.id
+                            ? 'bg-white text-slate-900 shadow-2xs'
+                            : 'text-slate-500 hover:text-slate-800'
+                        }`}
+                      >
+                        {d.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
         </div>
 
         {/* Smart Search & Filters */}
         {viewMode !== 'equipes' && (
-          <div className="grid grid-cols-1 md:grid-cols-12 gap-2.5 pt-1">
-            <div className="md:col-span-4 relative">
-              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Busca inteligente ou cole vários Site IDs (A ou B), Chaves, Cidade..."
-                className="w-full pl-9 pr-8 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-[#223585]"
-              />
-              {searchQuery && (
+          <div className="space-y-2.5 pt-1">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-2.5">
+              <div className="md:col-span-2 lg:col-span-3 relative">
+                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Busca inteligente ou cole vários Site IDs (A ou B), Chaves, Cidade..."
+                  className="w-full pl-9 pr-8 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-[#223585]"
+                />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchQuery('')}
+                    className="absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-600 cursor-pointer"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+                {searchTokens.length > 1 && (
+                  <div className="mt-1 flex items-center gap-1.5 text-[11px] text-[#223585] font-semibold">
+                    <span>
+                      Multi-busca ativa: {searchTokens.length} códigos colados ({filteredRows.length}{' '}
+                      linhas / {siteCounters.totalSites} sites encontrados)
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              {/* Filtro META */}
+              <div className="md:col-span-1 lg:col-span-2">
+                <select
+                  value={filterMeta}
+                  onChange={(e) => setFilterMeta(e.target.value)}
+                  className={`w-full px-2.5 py-2 border rounded-lg text-xs font-bold focus:outline-none focus:border-[#223585] ${
+                    filterMeta !== 'ALL'
+                      ? 'bg-blue-50 border-blue-300 text-[#223585]'
+                      : 'bg-slate-50 border-slate-200 text-slate-700'
+                  }`}
+                >
+                  <option value="ALL">META: Todos ({distinctMetas.length})</option>
+                  {distinctMetas.map((m) => (
+                    <option key={m} value={m}>
+                      {m}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="md:col-span-1 lg:col-span-2">
+                <select
+                  value={filterState}
+                  onChange={(e) => setFilterState(e.target.value)}
+                  className="w-full px-2.5 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-700 font-medium focus:outline-none focus:border-[#223585]"
+                >
+                  <option value="ALL">00.03.State: Todos ({distinctStates.length})</option>
+                  {distinctStates.map((st) => (
+                    <option key={st} value={st}>
+                      {st}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="md:col-span-1 lg:col-span-2">
+                <select
+                  value={filterEquipe}
+                  onChange={(e) => setFilterEquipe(e.target.value)}
+                  className="w-full px-2.5 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-700 font-medium focus:outline-none focus:border-[#223585]"
+                >
+                  <option value="ALL">EQUIPE: Todas ({distinctEquipes.length})</option>
+                  {distinctEquipes.map((eq) => (
+                    <option key={eq} value={eq}>
+                      {eq}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="md:col-span-1 lg:col-span-3">
+                <select
+                  value={filterSheetStatus}
+                  onChange={(e) => setFilterSheetStatus(e.target.value)}
+                  className="w-full px-2.5 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-700 font-medium focus:outline-none focus:border-[#223585]"
+                >
+                  <option value="ALL">Status Site (A/B): Todos</option>
+                  <option value="LIBERADO">Status: Liberado / Concluído ({siteCounters.statusConcluidoSites})</option>
+                  <option value="ANDAMENTO">Status: Em Andamento / Campo ({siteCounters.statusEmAndamentoSites})</option>
+                  {distinctSheetStatuses.map((s) => (
+                    <option key={s} value={s}>
+                      {s}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Active Filters Bar */}
+            {(filterMeta !== 'ALL' ||
+              filterState !== 'ALL' ||
+              filterEquipe !== 'ALL' ||
+              filterSheetStatus !== 'ALL' ||
+              filterVistoriaStatus !== 'ALL') && (
+              <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-slate-100 text-xs">
+                <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1">
+                  <Filter className="w-3 h-3 text-[#223585]" /> Filtros ativos:
+                </span>
+                {filterMeta !== 'ALL' && (
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-blue-50 border border-blue-200 text-[#223585] font-bold">
+                    META: {filterMeta}
+                    <button
+                      type="button"
+                      onClick={() => setFilterMeta('ALL')}
+                      className="hover:text-blue-900 cursor-pointer p-0.5"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </span>
+                )}
+                {filterState !== 'ALL' && (
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-100 border border-slate-200 text-slate-800 font-bold">
+                    Estado: {filterState}
+                    <button
+                      type="button"
+                      onClick={() => setFilterState('ALL')}
+                      className="hover:text-slate-900 cursor-pointer p-0.5"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </span>
+                )}
+                {filterEquipe !== 'ALL' && (
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-100 border border-slate-200 text-slate-800 font-bold">
+                    Equipe: {filterEquipe}
+                    <button
+                      type="button"
+                      onClick={() => setFilterEquipe('ALL')}
+                      className="hover:text-slate-900 cursor-pointer p-0.5"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </span>
+                )}
+                {filterSheetStatus !== 'ALL' && (
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-teal-50 border border-teal-200 text-teal-800 font-bold">
+                    Status: {filterSheetStatus}
+                    <button
+                      type="button"
+                      onClick={() => setFilterSheetStatus('ALL')}
+                      className="hover:text-teal-900 cursor-pointer p-0.5"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </span>
+                )}
+                {filterVistoriaStatus !== 'ALL' && (
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-indigo-50 border border-indigo-200 text-indigo-800 font-bold">
+                    Vistoria: {filterVistoriaStatus}
+                    <button
+                      type="button"
+                      onClick={() => setFilterVistoriaStatus('ALL')}
+                      className="hover:text-indigo-900 cursor-pointer p-0.5"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </span>
+                )}
                 <button
                   type="button"
-                  onClick={() => setSearchQuery('')}
-                  className="absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-600 cursor-pointer"
+                  onClick={() => {
+                    setFilterMeta('ALL');
+                    setFilterState('ALL');
+                    setFilterEquipe('ALL');
+                    setFilterSheetStatus('ALL');
+                    setFilterVistoriaStatus('ALL');
+                  }}
+                  className="text-[11px] text-slate-500 hover:text-red-600 font-semibold underline cursor-pointer ml-1"
                 >
-                  <X className="w-3.5 h-3.5" />
+                  Limpar todos os filtros
                 </button>
-              )}
-              {searchTokens.length > 1 && (
-                <div className="mt-1 flex items-center gap-1.5 text-[11px] text-[#223585] font-semibold">
-                  <span>
-                    Multi-busca ativa: {searchTokens.length} códigos colados ({filteredRows.length}{' '}
-                    linhas / {siteCounters.totalSites} sites encontrados)
-                  </span>
-                </div>
-              )}
-            </div>
-
-            <div className="md:col-span-2">
-              <select
-                value={filterState}
-                onChange={(e) => setFilterState(e.target.value)}
-                className="w-full px-2.5 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-700 font-medium focus:outline-none focus:border-[#223585]"
-              >
-                <option value="ALL">00.03.State: Todos ({distinctStates.length})</option>
-                {distinctStates.map((st) => (
-                  <option key={st} value={st}>
-                    {st}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="md:col-span-2">
-              <select
-                value={filterEquipe}
-                onChange={(e) => setFilterEquipe(e.target.value)}
-                className="w-full px-2.5 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-700 font-medium focus:outline-none focus:border-[#223585]"
-              >
-                <option value="ALL">EQUIPE: Todas ({distinctEquipes.length})</option>
-                {distinctEquipes.map((eq) => (
-                  <option key={eq} value={eq}>
-                    {eq}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="md:col-span-2">
-              <select
-                value={filterSheetStatus}
-                onChange={(e) => setFilterSheetStatus(e.target.value)}
-                className="w-full px-2.5 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-700 font-medium focus:outline-none focus:border-[#223585]"
-              >
-                <option value="ALL">Status Site (A/B): Todos</option>
-                {distinctSheetStatuses.map((s) => (
-                  <option key={s} value={s}>
-                    {s}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="md:col-span-2">
-              <select
-                value={filterVistoriaStatus}
-                onChange={(e) =>
-                  setFilterVistoriaStatus(
-                    e.target.value as
-                      | 'ALL'
-                      | 'FINALIZADO'
-                      | 'PENDENTE'
-                      | 'LOS_FINALIZADO'
-                      | 'LOS_PENDENTE'
-                      | 'SMART_FINALIZADO'
-                      | 'SMART_PENDENTE'
-                      | 'SDC_FINALIZADO'
-                      | 'SDC_PENDENTE'
-                  )
-                }
-                className="w-full px-2.5 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-700 font-medium focus:outline-none focus:border-[#223585]"
-              >
-                <option value="ALL">Filtro Documentos / Vistorias: Todos</option>
-                <option value="FINALIZADO">Vistoria A/B Finalizado</option>
-                <option value="PENDENTE">Vistoria A/B Pendente</option>
-                <option value="LOS_FINALIZADO">LOS Finalizado ({losCounters.entregues})</option>
-                <option value="LOS_PENDENTE">LOS Pendente ({losCounters.pendentes})</option>
-              </select>
-            </div>
+              </div>
+            )}
           </div>
         )}
       </div>
+
+      {/* Gráfico de Colunas META em modo Resumo ou Planilha quando ativado */}
+      {showMetaChartCard && (viewMode === 'resumo' || viewMode === 'planilha') && (
+        <div className="transition-all animate-fadeIn">
+          {renderMetaColumnChart(false)}
+        </div>
+      )}
 
       {/* =====================================================================
           3A. VIEW MODE: RESUMO (SITE A, SITE B, AND NEW LOS COLUMN)
@@ -1721,6 +2246,9 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
          ===================================================================== */}
       {viewMode === 'graficos' && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {/* GRÁFICO DE COLUNAS: STATUS DA COLUNA META (HERO SPANNING 2 COLS) */}
+          {renderMetaColumnChart(true)}
+
           <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-2xs space-y-4">
             <div>
               <h3 className="text-sm font-bold text-slate-900">
