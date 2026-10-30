@@ -233,6 +233,9 @@ export default function App() {
         if (Array.isArray(parsed) && parsed.length > 0) return parsed;
       }
     } catch {}
+    if (localStorage.getItem('ameta_planilhas_zeradas') === 'true' || localStorage.getItem('ameta_planilhas_zeradas_v2') === 'true') {
+      return [];
+    }
     return INITIAL_SITES;
   });
   const [sheets, setSheets] = useState<SpreadsheetMeta[]>(() => {
@@ -253,6 +256,9 @@ export default function App() {
         if (Array.isArray(parsed) && parsed.length > 0) return parsed;
       }
     } catch {}
+    if (localStorage.getItem('ameta_planilhas_zeradas') === 'true' || localStorage.getItem('ameta_planilhas_zeradas_v2') === 'true') {
+      return [];
+    }
     return convertSitesToTssrRows(INITIAL_SITES);
   });
   const [tssrSheets, setTssrSheets] = useState<TssrSheetMeta[]>([]);
@@ -264,6 +270,9 @@ export default function App() {
         if (Array.isArray(parsed) && parsed.length > 0) return parsed;
       }
     } catch {}
+    if (localStorage.getItem('ameta_planilhas_zeradas') === 'true' || localStorage.getItem('ameta_planilhas_zeradas_v2') === 'true') {
+      return [];
+    }
     return INITIAL_ERICSSON_SITES;
   });
   const [ericssonSheetMeta, setEricssonSheetMeta] = useState<EricssonSheetMeta | undefined>(() => {
@@ -282,6 +291,9 @@ export default function App() {
         if (Array.isArray(parsed) && parsed.length > 0) return parsed;
       }
     } catch {}
+    if (localStorage.getItem('ameta_planilhas_zeradas') === 'true' || localStorage.getItem('ameta_planilhas_zeradas_v2') === 'true') {
+      return [];
+    }
     return INITIAL_ERICSSON_ENGINEERING_ROWS;
   });
   const [serverEricssonExecutorEmailsMap, setServerEricssonExecutorEmailsMap] = useState<Record<string, string[]>>({});
@@ -563,14 +575,40 @@ export default function App() {
     return () => clearTimeout(timer);
   }, [tssrRows]);
 
+  // Auto-zeroing execution on startup when requested
+  useEffect(() => {
+    if (localStorage.getItem('ameta_planilhas_zeradas_v2') !== 'true') {
+      dataService
+        .zerarTodasPlanilhas()
+        .then(() => {
+          localStorage.setItem('ameta_planilhas_zeradas_v2', 'true');
+          localStorage.setItem('ameta_planilhas_zeradas', 'true');
+          setSites([]);
+          setTssrRows([]);
+          setEricssonRows([]);
+          setEricssonEngineeringRows([]);
+        })
+        .catch((err) => {
+          console.error('Erro ao auto-zerar planilhas:', err);
+        });
+    }
+  }, []);
+
   // Observação em tempo real no Firestore (Nokia, Ericsson, Usuários, Duplas e Notificações)
   useEffect(() => {
     if (!user) return;
     const unsub = dataService.observarColecoesPlataforma(user, {
       onNokiaSites: (fetched) => {
+        const isZerada =
+          localStorage.getItem('ameta_planilhas_zeradas') === 'true' ||
+          localStorage.getItem('ameta_planilhas_zeradas_v2') === 'true';
+        if (fetched.length === 0 && isZerada) {
+          setSites([]);
+          return;
+        }
         if (fetched.length > 0) {
           setSites((prev) => {
-            const base = prev.length > 0 ? prev : INITIAL_SITES;
+            const base = prev.length > 0 || isZerada ? prev : INITIAL_SITES;
             const byKey = new Map<string, TelecomSite>();
             base.forEach((s) => {
               const k = `${(s.sheetName || 'Controle Geral').toUpperCase()}__${(s.siteId || s.id || '').toUpperCase()}`;
@@ -619,43 +657,55 @@ export default function App() {
         }
       },
       onEricssonSites: (fetched) => {
-        if (fetched.length > 0) {
-          const validFetched = fetched.filter((r) => {
-            if (!r) return false;
-            const a = (r.siteIdA || r.fields?.['01.21.Site ID A'] || r.fields?.['Site ID A'] || '').trim().toUpperCase();
-            const b = (r.siteIdB || r.fields?.['01.21.Site ID B'] || r.fields?.['Site ID B'] || '').trim().toUpperCase();
-            const isPlaceholder = (s: string) => !s || s === '—' || s === '-' || s === '--' || s === 'N/A' || s === '#N/A' || s === 'TOTAL' || s === 'TOTAL GERAL' || s === 'SOMA' || s === '0';
-            return !isPlaceholder(a) || !isPlaceholder(b);
-          });
-          if (validFetched.length > 0) {
-            setEricssonRows((prev) => {
-              const base = prev.length > 0 ? prev : INITIAL_ERICSSON_SITES;
-              const byId = new Map<string, EricssonRow>(base.map((r) => [r.id, r]));
-              validFetched.forEach((r) => {
-                const existing = byId.get(r.id);
-                byId.set(
-                  r.id,
-                  existing
-                    ? {
-                        ...existing,
-                        ...r,
-                        fields: {
-                          ...(existing.fields || {}),
-                          ...(r.fields || {}),
-                        },
-                      }
-                    : r
-                );
-              });
-              return Array.from(byId.values());
+        const isZerada =
+          localStorage.getItem('ameta_planilhas_zeradas') === 'true' ||
+          localStorage.getItem('ameta_planilhas_zeradas_v2') === 'true';
+        const validFetched = fetched.filter((r) => {
+          if (!r) return false;
+          const a = (r.siteIdA || r.fields?.['01.21.Site ID A'] || r.fields?.['Site ID A'] || '').trim().toUpperCase();
+          const b = (r.siteIdB || r.fields?.['01.21.Site ID B'] || r.fields?.['Site ID B'] || '').trim().toUpperCase();
+          const isPlaceholder = (s: string) => !s || s === '—' || s === '-' || s === '--' || s === 'N/A' || s === '#N/A' || s === 'TOTAL' || s === 'TOTAL GERAL' || s === 'SOMA' || s === '0';
+          return !isPlaceholder(a) || !isPlaceholder(b);
+        });
+        if (validFetched.length === 0 && isZerada) {
+          setEricssonRows([]);
+          return;
+        }
+        if (validFetched.length > 0) {
+          setEricssonRows((prev) => {
+            const base = prev.length > 0 || isZerada ? prev : INITIAL_ERICSSON_SITES;
+            const byId = new Map<string, EricssonRow>(base.map((r) => [r.id, r]));
+            validFetched.forEach((r) => {
+              const existing = byId.get(r.id);
+              byId.set(
+                r.id,
+                existing
+                  ? {
+                      ...existing,
+                      ...r,
+                      fields: {
+                        ...(existing.fields || {}),
+                        ...(r.fields || {}),
+                      },
+                    }
+                  : r
+              );
             });
-          }
+            return Array.from(byId.values());
+          });
         }
       },
       onEricssonEngineering: (fetched) => {
+        const isZerada =
+          localStorage.getItem('ameta_planilhas_zeradas') === 'true' ||
+          localStorage.getItem('ameta_planilhas_zeradas_v2') === 'true';
+        if (fetched.length === 0 && isZerada) {
+          setEricssonEngineeringRows([]);
+          return;
+        }
         if (fetched.length > 0) {
           setEricssonEngineeringRows((prev) => {
-            const base = prev.length > 0 ? prev : INITIAL_ERICSSON_ENGINEERING_ROWS;
+            const base = prev.length > 0 || isZerada ? prev : INITIAL_ERICSSON_ENGINEERING_ROWS;
             const byId = new Map<string, EricssonEngineeringRow>(base.map((r) => [r.id, r]));
             fetched.forEach((r) => {
               const existing = byId.get(r.id);
@@ -1453,13 +1503,28 @@ export default function App() {
     isEngCoordinator ||
     isRealGestor;
 
-  const canSeeSitesTab = true;
+  const canSeeSitesTab =
+    effectiveRole === 'ADM' ||
+    effectiveRole === 'Coordenador Geral' ||
+    effectiveRole === 'Coordenador Engenharia' ||
+    effectiveRole === 'Vistoriador' ||
+    isRealGestor;
 
   const canSeeEngenhariaTab =
     effectiveRole === 'ADM' ||
     effectiveRole === 'Coordenador Geral' ||
     effectiveRole === 'Coordenador Engenharia' ||
+    effectiveRole === 'Executor' ||
     isRealGestor;
+
+  // Auto-correct active top tab based on role permissions
+  useEffect(() => {
+    if (effectiveRole === 'Executor' && (activeTopTab === 'sites' || activeTopTab === 'duplas')) {
+      setActiveTopTab('engenharia');
+    } else if (effectiveRole === 'Vistoriador' && (activeTopTab === 'engenharia' || activeTopTab === 'executores')) {
+      setActiveTopTab('sites');
+    }
+  }, [effectiveRole, activeTopTab]);
 
   // "essa opção aparece somente para os gestores engenharia e para gestor geral para todo resto é oculta"
   const canAccessDemandaExecutores =
