@@ -33,6 +33,8 @@ interface AmetaSidebarProps {
   canSeeDuplasTab: boolean;
   canAccessDemandaExecutores: boolean;
   canSeeAcionamento?: boolean;
+  canAccessNokia?: boolean;
+  canAccessEricsson?: boolean;
 }
 
 export const AmetaSidebar: React.FC<AmetaSidebarProps> = React.memo(({
@@ -52,11 +54,14 @@ export const AmetaSidebar: React.FC<AmetaSidebarProps> = React.memo(({
   canSeeDuplasTab,
   canAccessDemandaExecutores,
   canSeeAcionamento,
+  canAccessNokia = true,
+  canAccessEricsson = true,
 }) => {
   const isSitesActive = activeTab === 'sites';
   const isEngenhariaActive = activeTab === 'engenharia' || activeTab === 'vistoria';
   const isDuplasActive = activeTab === 'duplas';
   const isExecutoresActive = activeTab === 'executores';
+  const isClaroActive = activeVendor === 'CLARO_TIM';
 
   return (
     <aside
@@ -192,18 +197,23 @@ export const AmetaSidebar: React.FC<AmetaSidebarProps> = React.memo(({
           </button>
         )}
 
-        {/* 3. Duplas & Demanda */}
+        {/* 3. Duplas & Demanda (Desativado se CLARO) */}
         {canSeeDuplasTab && (
           <button
             type="button"
-            onClick={() => onSelectTab('duplas')}
-            title={collapsed ? `Duplas & Demanda (${duplasCount})` : undefined}
-            className={`w-full flex items-center transition-all cursor-pointer rounded-xl group relative ${
+            disabled={isClaroActive}
+            onClick={() => !isClaroActive && onSelectTab('duplas')}
+            title={isClaroActive ? 'Duplas & Demanda (Indisponível na Claro — em construção)' : (collapsed ? `Duplas & Demanda (${duplasCount})` : undefined)}
+            className={`w-full flex items-center transition-all rounded-xl group relative ${
+              isClaroActive
+                ? 'opacity-40 cursor-not-allowed pointer-events-none'
+                : 'cursor-pointer'
+            } ${
               collapsed
                 ? 'justify-center p-3'
                 : 'justify-between px-3 py-2.5 text-xs font-medium'
             } ${
-              isDuplasActive
+              isDuplasActive && !isClaroActive
                 ? 'bg-[#162746] text-white font-bold border border-blue-900/60 shadow-sm'
                 : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
             }`}
@@ -212,7 +222,7 @@ export const AmetaSidebar: React.FC<AmetaSidebarProps> = React.memo(({
               <div className="relative shrink-0">
                 <Users
                   className={`w-4 h-4 transition-colors ${
-                    isDuplasActive ? 'text-indigo-400' : 'text-slate-400 group-hover:text-slate-200'
+                    isDuplasActive && !isClaroActive ? 'text-indigo-400' : 'text-slate-400 group-hover:text-slate-200'
                   }`}
                 />
                 {collapsed && duplasCount > 0 && (
@@ -227,7 +237,7 @@ export const AmetaSidebar: React.FC<AmetaSidebarProps> = React.memo(({
             {!collapsed && (
               <span
                 className={`text-[11px] font-mono tabular-nums px-2 py-0.5 rounded-full font-bold shrink-0 ml-1.5 ${
-                  isDuplasActive
+                  isDuplasActive && !isClaroActive
                     ? 'bg-indigo-950/80 text-indigo-300 border border-indigo-800/60'
                     : 'text-slate-400 bg-slate-800/50'
                 }`}
@@ -238,18 +248,23 @@ export const AmetaSidebar: React.FC<AmetaSidebarProps> = React.memo(({
           </button>
         )}
 
-        {/* 4. Demandar Executores */}
+        {/* 4. Demandar Executores (Desativado se CLARO) */}
         {canAccessDemandaExecutores && (
           <button
             type="button"
-            onClick={() => onSelectTab('executores')}
-            title={collapsed ? `Demandar Executores (${executoresCount})` : undefined}
-            className={`w-full flex items-center transition-all cursor-pointer rounded-xl group relative ${
+            disabled={isClaroActive}
+            onClick={() => !isClaroActive && onSelectTab('executores')}
+            title={isClaroActive ? 'Demandar Executores (Indisponível na Claro — em construção)' : (collapsed ? `Demandar Executores (${executoresCount})` : undefined)}
+            className={`w-full flex items-center transition-all rounded-xl group relative ${
+              isClaroActive
+                ? 'opacity-40 cursor-not-allowed pointer-events-none'
+                : 'cursor-pointer'
+            } ${
               collapsed
                 ? 'justify-center p-3'
                 : 'justify-between px-3 py-2.5 text-xs font-medium'
             } ${
-              isExecutoresActive
+              isExecutoresActive && !isClaroActive
                 ? 'bg-[#162746] text-white font-bold border border-amber-600/70 shadow-sm'
                 : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
             }`}
@@ -258,10 +273,9 @@ export const AmetaSidebar: React.FC<AmetaSidebarProps> = React.memo(({
               <div className="relative shrink-0">
                 <HardHat
                   className={`w-4 h-4 transition-colors ${
-                    isExecutoresActive ? 'text-amber-400' : 'text-slate-400 group-hover:text-slate-200'
+                    isExecutoresActive && !isClaroActive ? 'text-amber-400' : 'text-slate-400 group-hover:text-slate-200'
                   }`}
                 />
-                {/* Yellow dot like in image_9d4deadc.png */}
                 {collapsed && (
                   <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-amber-500 rounded-full border-2 border-[#0B1327]" />
                 )}
@@ -274,7 +288,7 @@ export const AmetaSidebar: React.FC<AmetaSidebarProps> = React.memo(({
             {!collapsed && (
               <span
                 className={`text-[11px] font-mono tabular-nums px-2 py-0.5 rounded-full font-bold shrink-0 ml-1.5 ${
-                  isExecutoresActive
+                  isExecutoresActive && !isClaroActive
                     ? 'bg-amber-950/80 text-amber-300 border border-amber-800/60'
                     : 'text-slate-400 bg-slate-800/50'
                 }`}
@@ -285,79 +299,119 @@ export const AmetaSidebar: React.FC<AmetaSidebarProps> = React.memo(({
           </button>
         )}
 
-        {/* 5. Acionamento */}
+        {/* 5. Acionamento (Desativado se CLARO) */}
         {canSeeAcionamento && (
-          <a
-            href={ACIONAMENTO_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            title={collapsed ? 'Acionamento' : undefined}
-            className={`w-full flex items-center transition-all cursor-pointer rounded-xl group relative text-slate-300 hover:text-white hover:bg-slate-800/60 ${
-              collapsed
-                ? 'justify-center p-3'
-                : 'justify-between px-3 py-2.5 text-xs font-medium'
-            }`}
-          >
-            <div className="flex items-center gap-3 min-w-0">
-              <div className="relative shrink-0">
-                <Wrench className="w-4 h-4 text-slate-400 group-hover:text-slate-200 transition-colors" />
+          isClaroActive ? (
+            <div
+              title="Acionamento (Indisponível na Claro — em construção)"
+              className="w-full flex items-center justify-between px-3 py-2.5 text-xs font-medium text-slate-500 opacity-40 cursor-not-allowed rounded-xl"
+            >
+              <div className="flex items-center gap-3 min-w-0">
+                <Wrench className="w-4 h-4 text-slate-500 shrink-0" />
+                {!collapsed && <span className="truncate">Acionamento</span>}
               </div>
-              {!collapsed && (
-                <span className="truncate">Acionamento</span>
-              )}
+              {!collapsed && <ExternalLink className="w-3.5 h-3.5 text-slate-500 shrink-0 ml-1.5" />}
             </div>
+          ) : (
+            <a
+              href={ACIONAMENTO_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              title={collapsed ? 'Acionamento' : undefined}
+              className={`w-full flex items-center transition-all cursor-pointer rounded-xl group relative text-slate-300 hover:text-white hover:bg-slate-800/60 ${
+                collapsed
+                  ? 'justify-center p-3'
+                  : 'justify-between px-3 py-2.5 text-xs font-medium'
+              }`}
+            >
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="relative shrink-0">
+                  <Wrench className="w-4 h-4 text-slate-400 group-hover:text-slate-200 transition-colors" />
+                </div>
+                {!collapsed && (
+                  <span className="truncate">Acionamento</span>
+                )}
+              </div>
 
-            {!collapsed && (
-              <ExternalLink className="w-3.5 h-3.5 text-slate-400 group-hover:text-slate-200 shrink-0 ml-1.5 transition-colors" />
-            )}
-          </a>
+              {!collapsed && (
+                <ExternalLink className="w-3.5 h-3.5 text-slate-400 group-hover:text-slate-200 shrink-0 ml-1.5 transition-colors" />
+              )}
+            </a>
+          )
         )}
       </div>
 
       {/* Bottom Vendor Quick Switcher (when expanded) */}
       {!collapsed && (
-        <div className="px-3 py-2.5 border-t border-slate-800/80 bg-slate-900/40">
-          <div className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+        <div className="px-3 py-2.5 border-t border-slate-800/80 bg-slate-900/40 space-y-1.5">
+          <div className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
             <Radio className="w-3 h-3 text-blue-400" />
             <span>Operadora / Rede</span>
           </div>
-          <div className="grid grid-cols-3 gap-1 p-1 bg-slate-950/70 rounded-lg border border-slate-800 text-[10px] font-bold text-center">
-            <button
-              type="button"
-              onClick={() => onSelectVendor('NOKIA')}
-              className={`py-1 rounded cursor-pointer transition-colors ${
-                activeVendor === 'NOKIA'
-                  ? 'bg-[#223585] text-white shadow-xs'
-                  : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              TIM
-            </button>
-            <button
-              type="button"
-              onClick={() => onSelectVendor('ERICSSON')}
-              className={`py-1 rounded cursor-pointer transition-colors ${
-                activeVendor === 'ERICSSON'
-                  ? 'bg-[#1E8E8D] text-white shadow-xs'
-                  : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              ERICSSON
-            </button>
-            <button
-              type="button"
-              onClick={() => onSelectVendor('CLARO_TIM')}
-              className={`py-1 rounded cursor-pointer transition-colors relative flex items-center justify-center gap-0.5 ${
-                activeVendor === 'CLARO_TIM'
-                  ? 'bg-amber-600 text-white shadow-xs'
-                  : 'text-amber-400 hover:text-amber-300'
-              }`}
-              title="Claro / TIM (Em manutenção)"
-            >
-              <span>CLARO</span>
-              <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping" />
-            </button>
+
+          {/* Level 1: Vendor Buttons (NOKIA vs ERICSSON) */}
+          <div className="grid grid-cols-2 gap-1 p-1 bg-slate-950/70 rounded-lg border border-slate-800 text-[10px] font-bold text-center">
+            {canAccessNokia && (
+              <button
+                type="button"
+                onClick={() => {
+                  if (activeVendor === 'ERICSSON') onSelectVendor('NOKIA');
+                }}
+                className={`py-1.5 rounded cursor-pointer transition-colors ${
+                  activeVendor === 'NOKIA' || activeVendor === 'CLARO_TIM'
+                    ? 'bg-[#223585] text-white shadow-xs font-extrabold'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                NOKIA
+              </button>
+            )}
+            {canAccessEricsson && (
+              <button
+                type="button"
+                onClick={() => onSelectVendor('ERICSSON')}
+                className={`py-1.5 rounded cursor-pointer transition-colors ${
+                  activeVendor === 'ERICSSON'
+                    ? 'bg-[#1E8E8D] text-white shadow-xs font-extrabold'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                ERICSSON
+              </button>
+            )}
           </div>
+
+          {/* Level 2: Operators sub-buttons (Shown when NOKIA is selected) */}
+          {canAccessNokia && (activeVendor === 'NOKIA' || activeVendor === 'CLARO_TIM') && (
+            <div className="grid grid-cols-2 gap-1 p-1 bg-slate-950/50 rounded-lg border border-slate-800/80 text-[10px] font-bold text-center">
+              <button
+                type="button"
+                onClick={() => onSelectVendor('NOKIA')}
+                className={`py-1 rounded cursor-pointer transition-colors ${
+                  activeVendor === 'NOKIA'
+                    ? 'bg-blue-900 text-white shadow-xs font-extrabold'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                Nokia · TIM
+              </button>
+              <button
+                type="button"
+                onClick={() => onSelectVendor('CLARO_TIM')}
+                className={`py-1 rounded cursor-pointer transition-colors flex items-center justify-center gap-0.5 ${
+                  activeVendor === 'CLARO_TIM'
+                    ? 'bg-amber-600 text-white shadow-xs font-extrabold'
+                    : 'text-amber-400 hover:text-amber-300'
+                }`}
+                title="Nokia · Claro (em construção)"
+              >
+                <span>Claro</span>
+                <span className="text-[8px] font-extrabold uppercase px-1 rounded bg-amber-950 text-amber-300 border border-amber-800">
+                  constr.
+                </span>
+              </button>
+            </div>
+          )}
         </div>
       )}
 

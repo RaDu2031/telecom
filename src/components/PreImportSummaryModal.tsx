@@ -59,7 +59,7 @@ export const PreImportSummaryModal: React.FC<PreImportSummaryModalProps> = ({
             <div>
               <h3 className="font-bold text-base leading-tight">{title}</h3>
               <p className="text-xs text-slate-300 truncate max-w-xs sm:max-w-sm mt-0.5">
-                {fileName} {sheetName ? `(Aba: ${sheetName})` : ''}
+                {fileName} · Aba de destino: <strong className="text-white">{sheetName || 'Controle Geral'}</strong>
               </p>
             </div>
           </div>
@@ -76,6 +76,14 @@ export const PreImportSummaryModal: React.FC<PreImportSummaryModalProps> = ({
 
         {/* Body */}
         <div className="p-6 space-y-4">
+          {/* Aba de destino highlight */}
+          <div className="p-2.5 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between text-xs text-slate-700">
+            <span className="font-medium">Aba de destino:</span>
+            <span className="font-mono font-bold text-emerald-800 bg-emerald-50 border border-emerald-300 px-2.5 py-0.5 rounded-md">
+              {sheetName || 'Controle Geral'}
+            </span>
+          </div>
+
           {/* Warning Banner if previously imported */}
           {isPreviouslyImported && (
             <div className="p-4 bg-amber-500/10 border-2 border-amber-500/30 rounded-xl flex items-start gap-3 text-amber-950">

@@ -1362,7 +1362,7 @@ export default function App() {
     if (!activeTargetUser) return;
     if (!canAccessNokia && canAccessEricsson && activeVendor !== 'ERICSSON') {
       setActiveVendor('ERICSSON');
-    } else if (!canAccessEricsson && canAccessNokia && activeVendor !== 'NOKIA') {
+    } else if (!canAccessEricsson && canAccessNokia && activeVendor !== 'NOKIA' && activeVendor !== 'CLARO_TIM') {
       setActiveVendor('NOKIA');
     }
   }, [activeTargetUser, canAccessNokia, canAccessEricsson, activeVendor]);
@@ -4996,6 +4996,8 @@ export default function App() {
         canSeeDuplasTab={canSeeDuplasTab}
         canAccessDemandaExecutores={canAccessDemandaExecutores}
         canSeeAcionamento={canSeeAcionamento}
+        canAccessNokia={canAccessNokia}
+        canAccessEricsson={canAccessEricsson}
       />
 
       {/* Main App Area */}
@@ -5018,65 +5020,85 @@ export default function App() {
                 <AmetaLogo size="sm" theme="light" />
               </button>
 
-              {/* Desktop Vendor Pill Switcher with CLARO / TIM */}
-              <div className="flex items-center p-0.5 bg-[#F0F3FB] border border-blue-200/70 rounded-lg shrink-0">
-                {canAccessNokia && (
-                  <button
-                    type="button"
-                    onClick={() => handleSwitchVendor('NOKIA')}
-                    className={`px-2.5 py-1 text-[11px] font-bold rounded-md transition-colors cursor-pointer ${
-                      activeVendor === 'NOKIA'
-                        ? 'bg-[#223585] text-white shadow-2xs'
-                        : 'text-slate-600 hover:text-[#223585]'
-                    }`}
-                  >
-                    TIM / NOKIA
-                  </button>
+              {/* Desktop Vendor Pill Switcher (Level 1: NOKIA / ERICSSON, Level 2: TIM / CLARO when NOKIA is active) */}
+              <div className="flex items-center gap-2">
+                <div className="flex items-center p-0.5 bg-[#F0F3FB] border border-blue-200/70 rounded-lg shrink-0 gap-0.5">
+                  {canAccessNokia && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (activeVendor === 'ERICSSON') handleSwitchVendor('NOKIA');
+                      }}
+                      className={`px-3 py-1 text-[11px] font-extrabold rounded-md transition-all cursor-pointer ${
+                        activeVendor === 'NOKIA' || activeVendor === 'CLARO_TIM'
+                          ? 'bg-[#223585] text-white shadow-2xs'
+                          : 'text-slate-600 hover:text-[#223585]'
+                      }`}
+                    >
+                      NOKIA
+                    </button>
+                  )}
+                  {canAccessEricsson && (
+                    <button
+                      type="button"
+                      onClick={() => handleSwitchVendor('ERICSSON')}
+                      className={`px-3 py-1 text-[11px] font-extrabold rounded-md transition-all cursor-pointer ${
+                        activeVendor === 'ERICSSON'
+                          ? 'bg-[#1E8E8D] text-white shadow-2xs'
+                          : 'text-slate-600 hover:text-[#1E8E8D]'
+                      }`}
+                    >
+                      ERICSSON
+                    </button>
+                  )}
+                </div>
+
+                {/* Level 2: Operator selection for Nokia */}
+                {canAccessNokia && (activeVendor === 'NOKIA' || activeVendor === 'CLARO_TIM') && (
+                  <div className="flex items-center p-0.5 bg-slate-100 border border-slate-200/90 rounded-lg shrink-0 gap-0.5 animate-fadeIn">
+                    <button
+                      type="button"
+                      onClick={() => handleSwitchVendor('NOKIA')}
+                      className={`px-2.5 py-1 text-[11px] font-bold rounded-md transition-all cursor-pointer ${
+                        activeVendor === 'NOKIA'
+                          ? 'bg-blue-900 text-white shadow-2xs font-extrabold'
+                          : 'text-slate-600 hover:text-blue-900'
+                      }`}
+                    >
+                      TIM
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleSwitchVendor('CLARO_TIM')}
+                      className={`px-2.5 py-1 text-[11px] font-bold rounded-md transition-all cursor-pointer flex items-center gap-1.5 ${
+                        activeVendor === 'CLARO_TIM'
+                          ? 'bg-amber-600 text-white shadow-2xs font-extrabold'
+                          : 'text-slate-700 hover:text-amber-900 hover:bg-amber-50'
+                      }`}
+                      title="Nokia · Claro — em construção"
+                    >
+                      <span>CLARO</span>
+                      <span className="text-[9px] font-extrabold uppercase px-1.5 py-0.2 rounded bg-amber-100 text-amber-950 border border-amber-300">
+                        em construção
+                      </span>
+                    </button>
+                  </div>
                 )}
-                {canAccessEricsson && (
-                  <button
-                    type="button"
-                    onClick={() => handleSwitchVendor('ERICSSON')}
-                    className={`px-2.5 py-1 text-[11px] font-bold rounded-md transition-colors cursor-pointer ${
-                      activeVendor === 'ERICSSON'
-                        ? 'bg-[#1E8E8D] text-white shadow-2xs'
-                        : 'text-slate-600 hover:text-[#1E8E8D]'
-                    }`}
-                  >
-                    ERICSSON
-                  </button>
-                )}
-                <button
-                  type="button"
-                  onClick={() => handleSwitchVendor('CLARO_TIM')}
-                  className={`px-2.5 py-1 text-[11px] font-bold rounded-md transition-colors cursor-pointer flex items-center gap-1.5 ${
-                    activeVendor === 'CLARO_TIM'
-                      ? 'bg-amber-600 text-white shadow-2xs'
-                      : 'text-amber-800 hover:text-amber-900 hover:bg-amber-100/60'
-                  }`}
-                  title="Claro / TIM (Módulo em manutenção)"
-                >
-                  <span>CLARO / TIM</span>
-                  <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping" />
-                  <span className="hidden xl:inline text-[9px] uppercase px-1 py-0.2 bg-amber-200/80 text-amber-950 font-extrabold rounded">
-                    Manutenção
-                  </span>
-                </button>
               </div>
 
               {/* Breadcrumb / Title of Current View */}
               <div className="hidden lg:flex items-center gap-2 text-xs text-slate-500 font-medium pl-1 border-l border-slate-200">
                 <span className="text-slate-900 font-bold">
                   {activeVendor === 'CLARO_TIM'
-                    ? 'Claro / TIM'
+                    ? 'Nokia · Claro (em construção)'
                     : activeVendor === 'ERICSSON'
                     ? 'Ericsson'
-                    : 'TIM / Nokia'}
+                    : 'Nokia · TIM'}
                 </span>
                 <span>/</span>
                 <span className="text-slate-700">
                   {activeVendor === 'CLARO_TIM'
-                    ? 'Manutenção'
+                    ? 'Em construção'
                     : resolvedTopTab === 'sites'
                     ? 'Sites (Planilhas)'
                     : resolvedTopTab === 'engenharia'
@@ -5200,12 +5222,17 @@ export default function App() {
 
                       <button
                         type="button"
+                        disabled={activeVendor === 'CLARO_TIM'}
                         onClick={() => {
+                          if (activeVendor === 'CLARO_TIM') return;
                           setIsRaMenuOpen(false);
                           setActiveTopTab('duplas');
                         }}
-                        className={`w-full px-3.5 py-2.5 sm:py-1.5 text-left flex items-center justify-between hover:bg-slate-50 cursor-pointer ${
-                          resolvedTopTab === 'duplas' ? 'bg-blue-50/70 text-blue-700 font-semibold' : 'text-slate-700'
+                        className={`w-full px-3.5 py-2.5 sm:py-1.5 text-left flex items-center justify-between ${
+                          activeVendor === 'CLARO_TIM'
+                            ? 'opacity-40 cursor-not-allowed text-slate-400'
+                            : 'hover:bg-slate-50 cursor-pointer ' +
+                              (resolvedTopTab === 'duplas' ? 'bg-blue-50/70 text-blue-700 font-semibold' : 'text-slate-700')
                         }`}
                       >
                         <span className="flex items-center gap-2">
@@ -5218,14 +5245,17 @@ export default function App() {
                       {canAccessDemandaExecutores && (
                         <button
                           type="button"
+                          disabled={activeVendor === 'CLARO_TIM'}
                           onClick={() => {
+                            if (activeVendor === 'CLARO_TIM') return;
                             setIsRaMenuOpen(false);
                             setActiveTopTab('executores');
                           }}
-                          className={`w-full px-3.5 py-2.5 sm:py-1.5 text-left flex items-center justify-between hover:bg-slate-50 cursor-pointer ${
-                            resolvedTopTab === 'executores'
-                              ? 'bg-amber-50/90 text-amber-950 font-black'
-                              : 'text-slate-700'
+                          className={`w-full px-3.5 py-2.5 sm:py-1.5 text-left flex items-center justify-between ${
+                            activeVendor === 'CLARO_TIM'
+                              ? 'opacity-40 cursor-not-allowed text-slate-400'
+                              : 'hover:bg-slate-50 cursor-pointer ' +
+                                (resolvedTopTab === 'executores' ? 'bg-amber-50/90 text-amber-950 font-black' : 'text-slate-700')
                           }`}
                         >
                           <span className="flex items-center gap-2">
@@ -5259,12 +5289,17 @@ export default function App() {
 
                       <button
                         type="button"
+                        disabled={activeVendor === 'CLARO_TIM'}
                         onClick={() => {
+                          if (activeVendor === 'CLARO_TIM') return;
                           setIsRaMenuOpen(false);
                           setActiveTopTab('novo_site');
                         }}
-                        className={`w-full px-3.5 py-2.5 sm:py-1.5 text-left flex items-center gap-2 hover:bg-slate-50 cursor-pointer ${
-                          resolvedTopTab === 'novo_site' ? 'bg-blue-50/70 text-blue-700 font-semibold' : 'text-slate-700'
+                        className={`w-full px-3.5 py-2.5 sm:py-1.5 text-left flex items-center gap-2 ${
+                          activeVendor === 'CLARO_TIM'
+                            ? 'opacity-40 cursor-not-allowed text-slate-400'
+                            : 'hover:bg-slate-50 cursor-pointer ' +
+                              (resolvedTopTab === 'novo_site' ? 'bg-blue-50/70 text-blue-700 font-semibold' : 'text-slate-700')
                         }`}
                       >
                         <Plus className="w-4 h-4 text-blue-600" />
@@ -5273,13 +5308,18 @@ export default function App() {
 
                       <button
                         type="button"
+                        disabled={activeVendor === 'CLARO_TIM'}
                         onClick={() => {
+                          if (activeVendor === 'CLARO_TIM') return;
                           setIsRaMenuOpen(false);
                           setBulkInitialTab('excel');
                           setActiveTopTab('importar');
                         }}
-                        className={`w-full px-3.5 py-2.5 sm:py-1.5 text-left flex items-center gap-2 hover:bg-slate-50 cursor-pointer ${
-                          resolvedTopTab === 'importar' ? 'bg-blue-50/70 text-blue-700 font-semibold' : 'text-slate-700'
+                        className={`w-full px-3.5 py-2.5 sm:py-1.5 text-left flex items-center gap-2 ${
+                          activeVendor === 'CLARO_TIM'
+                            ? 'opacity-40 cursor-not-allowed text-slate-400'
+                            : 'hover:bg-slate-50 cursor-pointer ' +
+                              (resolvedTopTab === 'importar' ? 'bg-blue-50/70 text-blue-700 font-semibold' : 'text-slate-700')
                         }`}
                       >
                         <CloudDownload className="w-4 h-4 text-blue-600" />
@@ -5300,14 +5340,19 @@ export default function App() {
 
                       <button
                         type="button"
+                        disabled={activeVendor === 'CLARO_TIM'}
                         onClick={() => {
+                          if (activeVendor === 'CLARO_TIM') return;
                           setIsRaMenuOpen(false);
                           setPastedShortcutText('');
                           setBulkInitialTab('paste');
                           setActiveTopTab('colar');
                         }}
-                        className={`w-full px-3.5 py-2.5 sm:py-1.5 text-left flex items-center gap-2 hover:bg-slate-50 cursor-pointer ${
-                          resolvedTopTab === 'colar' ? 'bg-blue-50/70 text-blue-700 font-semibold' : 'text-slate-700'
+                        className={`w-full px-3.5 py-2.5 sm:py-1.5 text-left flex items-center gap-2 ${
+                          activeVendor === 'CLARO_TIM'
+                            ? 'opacity-40 cursor-not-allowed text-slate-400'
+                            : 'hover:bg-slate-50 cursor-pointer ' +
+                              (resolvedTopTab === 'colar' ? 'bg-blue-50/70 text-blue-700 font-semibold' : 'text-slate-700')
                         }`}
                       >
                         <ClipboardPaste className="w-4 h-4 text-slate-600" />
@@ -5521,46 +5566,70 @@ export default function App() {
             - Botões grandes, legíveis e em grade 100% visível sem precisar esconder
            =================================================================== */}
         <div className="lg:hidden space-y-2 pt-1.5 border-t border-slate-100">
-          {/* 1. Seletor Grande de Sistema (TIM / NOKIA vs ERICSSON vs CLARO / TIM) */}
-          <div className="grid grid-cols-3 gap-1.5">
-            <button
-              type="button"
-              onClick={() => handleSwitchVendor('NOKIA')}
-              className={`py-2 px-1 rounded-xl text-[11px] font-black uppercase tracking-wide flex items-center justify-center gap-1 border-2 transition-all cursor-pointer ${
-                activeVendor === 'NOKIA'
-                  ? 'bg-[#223585] border-[#223585] text-white shadow-sm'
-                  : 'bg-slate-50 border-slate-200 text-slate-700 hover:border-[#223585]'
-              }`}
-            >
-              <span>TIM</span>
-            </button>
+          {/* 1. Seletor de Fornecedor (NOKIA vs ERICSSON) */}
+          <div className="grid grid-cols-2 gap-1.5">
+            {canAccessNokia && (
+              <button
+                type="button"
+                onClick={() => {
+                  if (activeVendor === 'ERICSSON') handleSwitchVendor('NOKIA');
+                }}
+                className={`py-2 px-1 rounded-xl text-[11px] font-black uppercase tracking-wide flex items-center justify-center gap-1 border-2 transition-all cursor-pointer ${
+                  activeVendor === 'NOKIA' || activeVendor === 'CLARO_TIM'
+                    ? 'bg-[#223585] border-[#223585] text-white shadow-sm'
+                    : 'bg-slate-50 border-slate-200 text-slate-700 hover:border-[#223585]'
+                }`}
+              >
+                <span>NOKIA</span>
+              </button>
+            )}
 
-            <button
-              type="button"
-              onClick={() => handleSwitchVendor('ERICSSON')}
-              className={`py-2 px-1 rounded-xl text-[11px] font-black uppercase tracking-wide flex items-center justify-center gap-1 border-2 transition-all cursor-pointer ${
-                activeVendor === 'ERICSSON'
-                  ? 'bg-[#1E8E8D] border-[#1E8E8D] text-white shadow-sm'
-                  : 'bg-slate-50 border-slate-200 text-slate-700 hover:border-[#1E8E8D]'
-              }`}
-            >
-              <span>ERICSSON</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => handleSwitchVendor('CLARO_TIM')}
-              className={`py-2 px-1 rounded-xl text-[11px] font-black uppercase tracking-wide flex items-center justify-center gap-1 border-2 transition-all cursor-pointer ${
-                activeVendor === 'CLARO_TIM'
-                  ? 'bg-amber-600 border-amber-600 text-white shadow-sm'
-                  : 'bg-amber-50/70 border-amber-300 text-amber-900 hover:border-amber-500'
-              }`}
-              title="Claro / TIM (Em manutenção)"
-            >
-              <span>CLARO</span>
-              <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-ping" />
-            </button>
+            {canAccessEricsson && (
+              <button
+                type="button"
+                onClick={() => handleSwitchVendor('ERICSSON')}
+                className={`py-2 px-1 rounded-xl text-[11px] font-black uppercase tracking-wide flex items-center justify-center gap-1 border-2 transition-all cursor-pointer ${
+                  activeVendor === 'ERICSSON'
+                    ? 'bg-[#1E8E8D] border-[#1E8E8D] text-white shadow-sm'
+                    : 'bg-slate-50 border-slate-200 text-slate-700 hover:border-[#1E8E8D]'
+                }`}
+              >
+                <span>ERICSSON</span>
+              </button>
+            )}
           </div>
+
+          {/* Level 2 Operadoras para Nokia no Mobile */}
+          {canAccessNokia && (activeVendor === 'NOKIA' || activeVendor === 'CLARO_TIM') && (
+            <div className="grid grid-cols-2 gap-1.5 p-1 bg-slate-100 rounded-xl border border-slate-200/90">
+              <button
+                type="button"
+                onClick={() => handleSwitchVendor('NOKIA')}
+                className={`py-1.5 px-1 rounded-lg text-[11px] font-bold flex items-center justify-center gap-1 transition-all cursor-pointer ${
+                  activeVendor === 'NOKIA'
+                    ? 'bg-blue-900 text-white shadow-2xs font-extrabold'
+                    : 'text-slate-700 hover:bg-slate-200'
+                }`}
+              >
+                <span>TIM</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleSwitchVendor('CLARO_TIM')}
+                className={`py-1.5 px-1 rounded-lg text-[11px] font-bold flex items-center justify-center gap-1 transition-all cursor-pointer ${
+                  activeVendor === 'CLARO_TIM'
+                    ? 'bg-amber-600 text-white shadow-2xs font-extrabold'
+                    : 'text-slate-700 hover:bg-amber-100'
+                }`}
+              >
+                <span>CLARO</span>
+                <span className="text-[9px] font-extrabold px-1.5 py-0.2 rounded bg-amber-100 text-amber-950 border border-amber-300">
+                  em construção
+                </span>
+              </button>
+            </div>
+          )}
 
           {/* 2. Grade de Opções Principais Bem Aparentes (2 colunas, botões grandes) */}
           <div className="grid grid-cols-2 gap-2">
@@ -5663,24 +5732,28 @@ export default function App() {
             {canSeeDuplasTab && (
               <button
                 type="button"
-                onClick={() => setActiveTopTab('duplas')}
-                className={`p-2.5 rounded-xl border-2 text-left flex items-center justify-between gap-2 transition-all cursor-pointer ${
-                  resolvedTopTab === 'duplas'
-                    ? 'bg-slate-900 border-slate-900 text-white shadow-sm'
-                    : 'bg-amber-50/80 border-amber-300 text-slate-900 hover:border-slate-900'
+                disabled={activeVendor === 'CLARO_TIM'}
+                onClick={() => activeVendor !== 'CLARO_TIM' && setActiveTopTab('duplas')}
+                className={`p-2.5 rounded-xl border-2 text-left flex items-center justify-between gap-2 transition-all ${
+                  activeVendor === 'CLARO_TIM'
+                    ? 'opacity-40 cursor-not-allowed bg-slate-100 border-slate-200 text-slate-400'
+                    : 'cursor-pointer ' +
+                      (resolvedTopTab === 'duplas'
+                        ? 'bg-slate-900 border-slate-900 text-white shadow-sm'
+                        : 'bg-amber-50/80 border-amber-300 text-slate-900 hover:border-slate-900')
                 }`}
               >
                 <div className="flex items-center gap-2 min-w-0">
                   <Users
                     className={`w-4 h-4 shrink-0 ${
-                      resolvedTopTab === 'duplas' ? 'text-amber-400' : 'text-amber-600'
+                      resolvedTopTab === 'duplas' && activeVendor !== 'CLARO_TIM' ? 'text-amber-400' : 'text-amber-600'
                     }`}
                   />
                   <span className="text-xs font-extrabold truncate">Demandar / Duplas</span>
                 </div>
                 <span
                   className={`px-1.5 py-0.5 rounded-md font-mono text-[11px] font-bold shrink-0 ${
-                    resolvedTopTab === 'duplas'
+                    resolvedTopTab === 'duplas' && activeVendor !== 'CLARO_TIM'
                       ? 'bg-white/20 text-white'
                       : 'bg-amber-200/70 text-amber-950'
                   }`}
@@ -5693,24 +5766,28 @@ export default function App() {
             {canAccessDemandaExecutores && (
               <button
                 type="button"
-                onClick={() => setActiveTopTab('executores')}
-                className={`p-2.5 rounded-xl border-2 text-left flex items-center justify-between gap-2 transition-all cursor-pointer ${
-                  resolvedTopTab === 'executores'
-                    ? 'bg-amber-500 border-amber-500 text-slate-950 font-black shadow-sm'
-                    : 'bg-amber-50/80 border-amber-300 text-slate-900 hover:border-slate-900'
+                disabled={activeVendor === 'CLARO_TIM'}
+                onClick={() => activeVendor !== 'CLARO_TIM' && setActiveTopTab('executores')}
+                className={`p-2.5 rounded-xl border-2 text-left flex items-center justify-between gap-2 transition-all ${
+                  activeVendor === 'CLARO_TIM'
+                    ? 'opacity-40 cursor-not-allowed bg-slate-100 border-slate-200 text-slate-400'
+                    : 'cursor-pointer ' +
+                      (resolvedTopTab === 'executores'
+                        ? 'bg-amber-500 border-amber-500 text-slate-950 font-black shadow-sm'
+                        : 'bg-amber-50/80 border-amber-300 text-slate-900 hover:border-slate-900')
                 }`}
               >
                 <div className="flex items-center gap-2 min-w-0">
                   <HardHat
                     className={`w-4 h-4 shrink-0 ${
-                      resolvedTopTab === 'executores' ? 'text-slate-950' : 'text-amber-700'
+                      resolvedTopTab === 'executores' && activeVendor !== 'CLARO_TIM' ? 'text-slate-950' : 'text-amber-700'
                     }`}
                   />
                   <span className="text-xs font-extrabold truncate">Demanda Executores</span>
                 </div>
                 <span
                   className={`px-1.5 py-0.5 rounded-md font-mono text-[11px] font-bold shrink-0 ${
-                    resolvedTopTab === 'executores'
+                    resolvedTopTab === 'executores' && activeVendor !== 'CLARO_TIM'
                       ? 'bg-slate-950 text-white'
                       : 'bg-amber-200/70 text-amber-950'
                   }`}
@@ -6857,6 +6934,13 @@ export default function App() {
                         }
                         if (toastMsg) showToast(toastMsg);
                       }}
+                      onNokiaSitesUpdated={(novosSites, idsRemovidos) => {
+                        setSites((prev) => {
+                          const removeSet = new Set(idsRemovidos);
+                          const filtered = prev.filter((s) => !removeSet.has(s.id));
+                          return [...novosSites, ...filtered];
+                        });
+                      }}
                     />
                   </div>
                 ) : (
@@ -7693,6 +7777,13 @@ export default function App() {
                       localStorage.setItem(STORAGE_USER_KEY, JSON.stringify(updatedSelf));
                     }
                     if (toastMsg) showToast(toastMsg);
+                  }}
+                  onNokiaSitesUpdated={(novosSites, idsRemovidos) => {
+                    setSites((prev) => {
+                      const removeSet = new Set(idsRemovidos);
+                      const filtered = prev.filter((s) => !removeSet.has(s.id));
+                      return [...novosSites, ...filtered];
+                    });
                   }}
                 />
               )}

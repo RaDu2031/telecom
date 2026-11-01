@@ -26,6 +26,14 @@ export function normalizeHeaderSignature(str: unknown): string {
     .trim();
 }
 
+export function normalizeNokiaSitesSheetName(rawName?: string): string {
+  const t = (rawName || '').trim();
+  if (t === 'Controle Geral' || t === 'Controle Cancelados' || t === 'Equipes') {
+    return t;
+  }
+  return 'Controle Geral';
+}
+
 export interface EvaluationResult {
   detectedType: SpreadsheetDestinationType;
   scores: Record<SpreadsheetDestinationType, number>;

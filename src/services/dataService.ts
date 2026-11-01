@@ -53,6 +53,7 @@ import {
   getCanonicalDuplaName,
   normalizeAccents,
   matchesDuplaName,
+  normalizeNokiaSitesSheetName,
 } from '../utils/spreadsheetUtils';
 import { showToast } from '../utils/toast';
 import { INITIAL_SITES } from '../data/initialSites';
@@ -274,8 +275,23 @@ export function resolveEricssonRowResponsaveis(
   };
 }
 
+export interface ErroAbaNokiaSitesDiagnostico {
+  total: number;
+  porAba: Record<string, number>;
+  docs: Array<{ id: string; data: TelecomSite }>;
+}
+
+export interface ResultadoCorrecaoAbaNokiaSites {
+  movidos: number;
+  novosSites: TelecomSite[];
+  idsRemovidos: string[];
+  detalhesPorAba: Record<string, number>;
+}
+
 export interface IDataService {
   isConfigured(): boolean;
+  verificarLinhasAbaErradaNokiaSites(): Promise<ErroAbaNokiaSitesDiagnostico>;
+  corrigirLinhasAbaErradaNokiaSites(): Promise<ResultadoCorrecaoAbaNokiaSites>;
   sincronizarUsuariosIniciais(): Promise<number>;
   registrarAuditLog(entry: Omit<AuditLogEntry, 'id' | 'createdAt'>): Promise<void>;
   garantirUsuarioAoAutenticar(params: {
@@ -897,8 +913,9 @@ class FirebaseDataService implements IDataService {
           continue;
         }
 
+        const normalizedSheet = normalizeNokiaSitesSheetName(site.sheetName || options?.sheetName || 'Controle Geral');
         const cleanSiteId = (site.customFields?.['SITE ID'] || site.siteId || site.id || '').toString().trim();
-        const baseDocId = sanitizeSiteDocId(cleanSiteId || `NK_${rowNumberInFile}`, site.sheetName);
+        const baseDocId = sanitizeSiteDocId(cleanSiteId || `NK_${rowNumberInFile}`, normalizedSheet);
 
         // REGRA 2: If base ID does NOT exist yet and not used by another line in same import, use base ID.
         // Otherwise, create unique ID: baseDocId + "__" + importCode + "_" + rowNumberInFile.
@@ -914,7 +931,7 @@ class FirebaseDataService implements IDataService {
           id: finalDocId,
           siteId: site.siteId || cleanSiteId || finalDocId,
           fileName,
-          sheetName: site.sheetName || options?.sheetName || 'Controle Geral',
+          sheetName: normalizedSheet,
           rowNumberInFile,
           importCode,
           createdAt: site.createdAt || new Date().toISOString(),
@@ -3865,6 +3882,147 @@ class FirebaseDataService implements IDataService {
     }
 
     return { deletedCount: totalDeleted };
+  }
+
+  async verificarLinhasAbaErradaNokiaSites(): Promise<ErroAbaNokiaSitesDiagnostico> {
+    const snap = await getDocs(collection(db, FIRESTORE_COLLECTIONS.NOKIA_SITES));
+    const docsToFix: Array<{ id: string; data: TelecomSite }> = [];
+    const porAba: Record<string, number> = {};
+    const validSheets = new Set(['Controle Geral', 'Controle Cancelados', 'Equipes']);
+
+    for (const docSnap of snap.docs) {
+      const data = docSnap.data() as TelecomSite;
+      const rawSheet = (data.sheetName || '').trim();
+      if (!validSheets.has(rawSheet)) {
+        const displaySheet = rawSheet || '(em branco / sem aba)';
+        porAba[displaySheet] = (porAba[displaySheet] || 0) + 1;
+        docsToFix.push({ id: docSnap.id, data: { ...data, id: docSnap.id } });
+      }
+    }
+
+    return {
+      total: docsToFix.length,
+      porAba,
+      docs: docsToFix,
+    };
+  }
+
+  async corrigirLinhasAbaErradaNokiaSites(): Promise<ResultadoCorrecaoAbaNokiaSites> {
+    const snap = await getDocs(collection(db, FIRESTORE_COLLECTIONS.NOKIA_SITES));
+    const existingIds = new Set<string>(snap.docs.map((d) => d.id));
+    const validSheets = new Set(['Controle Geral', 'Controle Cancelados', 'Equipes']);
+
+    const docsToFix: Array<{ id: string; data: TelecomSite }> = [];
+    const detalhesPorAba: Record<string, number> = {};
+
+    for (const docSnap of snap.docs) {
+      const data = docSnap.data() as TelecomSite;
+      const rawSheet = (data.sheetName || '').trim();
+      if (!validSheets.has(rawSheet)) {
+        const displaySheet = rawSheet || '(em branco / sem aba)';
+        detalhesPorAba[displaySheet] = (detalhesPorAba[displaySheet] || 0) + 1;
+        docsToFix.push({ id: docSnap.id, data: { ...data, id: docSnap.id } });
+      }
+    }
+
+    if (docsToFix.length === 0) {
+      return {
+        movidos: 0,
+        novosSites: [],
+        idsRemovidos: [],
+        detalhesPorAba: {},
+      };
+    }
+
+    const usedIds = new Set<string>(existingIds);
+    const novosSites: TelecomSite[] = [];
+    const idsRemovidos: string[] = [];
+
+    const batchOperations: Array<
+      | { type: 'set'; id: string; data: TelecomSite }
+      | { type: 'delete'; id: string }
+    > = [];
+
+    let corrigidoCounter = 1;
+
+    for (const item of docsToFix) {
+      const oldId = item.id;
+      const oldData = item.data;
+
+      const rawSiteId = (
+        oldData.customFields?.['SITE ID'] ||
+        oldData.siteId ||
+        oldId
+      ).toString().trim();
+
+      let cleanedSiteId = rawSiteId;
+      if (cleanedSiteId.includes('__')) {
+        cleanedSiteId = cleanedSiteId.split('__').slice(1).join('__').trim();
+      }
+      if (!cleanedSiteId) {
+        cleanedSiteId = oldId.includes('__') ? oldId.split('__').slice(1).join('__').trim() : oldId;
+      }
+
+      const baseDocId = sanitizeSiteDocId(cleanedSiteId, 'Controle Geral');
+
+      let finalDocId = baseDocId;
+      if (usedIds.has(finalDocId) && finalDocId !== oldId) {
+        while (usedIds.has(`${baseDocId}__corrigido_${corrigidoCounter}`)) {
+          corrigidoCounter++;
+        }
+        finalDocId = `${baseDocId}__corrigido_${corrigidoCounter}`;
+        corrigidoCounter++;
+      }
+
+      usedIds.add(finalDocId);
+
+      const newRecord: TelecomSite = {
+        ...oldData,
+        id: finalDocId,
+        siteId: oldData.siteId || cleanedSiteId || finalDocId,
+        sheetName: 'Controle Geral',
+        updatedAt: new Date().toISOString(),
+        updatedBy: 'Correção de Aba Errada',
+      };
+
+      novosSites.push(newRecord);
+      batchOperations.push({
+        type: 'set',
+        id: finalDocId,
+        data: sanitizeFirestoreData(newRecord),
+      });
+
+      if (oldId !== finalDocId) {
+        idsRemovidos.push(oldId);
+        batchOperations.push({
+          type: 'delete',
+          id: oldId,
+        });
+        usedIds.delete(oldId);
+      }
+    }
+
+    // Executa no Firestore em lotes de 20 operações
+    const chunkSize = 20;
+    for (let i = 0; i < batchOperations.length; i += chunkSize) {
+      const chunk = batchOperations.slice(i, i + chunkSize);
+      const batch = writeBatch(db);
+      for (const op of chunk) {
+        if (op.type === 'set') {
+          batch.set(doc(db, FIRESTORE_COLLECTIONS.NOKIA_SITES, op.id), op.data);
+        } else if (op.type === 'delete') {
+          batch.delete(doc(db, FIRESTORE_COLLECTIONS.NOKIA_SITES, op.id));
+        }
+      }
+      await batch.commit();
+    }
+
+    return {
+      movidos: docsToFix.length,
+      novosSites,
+      idsRemovidos,
+      detalhesPorAba,
+    };
   }
 }
 

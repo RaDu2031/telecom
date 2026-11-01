@@ -25,15 +25,15 @@ export const ClaroTimMaintenanceView: React.FC<ClaroTimMaintenanceViewProps> = (
 
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-50 border border-amber-200 text-amber-800 text-xs font-bold uppercase tracking-wider">
             <span className="w-2 h-2 rounded-full bg-amber-500 animate-ping" />
-            <span>Módulo em Manutenção</span>
+            <span>Em Construção</span>
           </div>
 
           <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-            Plataforma Claro / TIM
+            Nokia · Claro — em construção
           </h2>
 
           <p className="text-sm text-slate-600 leading-relaxed max-w-md">
-            A integração da plataforma <strong>Claro / TIM</strong> está sendo estruturada e encontra-se temporariamente em manutenção técnica.
+            Este módulo ainda está em construção.
           </p>
         </div>
 
@@ -45,7 +45,7 @@ export const ClaroTimMaintenanceView: React.FC<ClaroTimMaintenanceViewProps> = (
               <span>Sincronização</span>
             </div>
             <p className="text-[11px] text-slate-500">
-              Conexão com os repositórios e planilhas oficiais Claro/TIM.
+              Conexão com os repositórios e planilhas oficiais Nokia Claro.
             </p>
           </div>
 
@@ -74,7 +74,7 @@ export const ClaroTimMaintenanceView: React.FC<ClaroTimMaintenanceViewProps> = (
         <div className="p-3 bg-amber-50/70 border border-amber-200/80 rounded-xl flex items-start gap-2.5 text-left text-xs text-amber-900">
           <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
           <span>
-            Nenhuma planilha ou dado de campo será impactado durante a manutenção. Para continuar operando, selecione <strong>TIM / Nokia</strong> ou <strong>Ericsson</strong>.
+            Nenhuma planilha ou dado de campo será impactado durante a construção. Para continuar operando, selecione <strong>Nokia · TIM</strong> ou <strong>Ericsson</strong>.
           </span>
         </div>
 
@@ -85,7 +85,7 @@ export const ClaroTimMaintenanceView: React.FC<ClaroTimMaintenanceViewProps> = (
             onClick={() => onSwitchVendor('NOKIA')}
             className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-[#223585] hover:bg-[#1b2b6d] text-white text-xs font-bold flex items-center justify-center gap-2 shadow-sm transition-all cursor-pointer"
           >
-            <span>Ir para TIM / NOKIA</span>
+            <span>Ir para Nokia · TIM</span>
             <ArrowRight className="w-3.5 h-3.5" />
           </button>
 

@@ -31,6 +31,7 @@ import {
   getNomeTipoPlanilha,
   validarCompatibilidadePlanilha,
   SpreadsheetDestinationType,
+  normalizeNokiaSitesSheetName,
 } from '../utils/spreadsheetUtils';
 
 interface BulkPasteModalProps {
@@ -129,23 +130,52 @@ export const BulkPasteModal: React.FC<BulkPasteModalProps> = ({
     }
   }, [initialPastedText]);
 
+  const isNokiaSites =
+    (isFixedDestination &&
+      (fixedDestinationType === 'NOKIA_SITES' ||
+       fixedDestinationVendor === 'NOKIA' ||
+       fixedDestinationTitle?.includes('Nokia') ||
+       fixedDestinationTitle?.includes('Sites'))) ||
+    (!isFixedDestination && vendor === 'NOKIA');
+
   const vendorSheets = sheets.filter((s) => s.vendor === vendor);
-  const effectiveSheetName =
-    targetSheet === '__NEW__'
-      ? customSheetName.trim() || selectedExcelTab || `Controle Geral`
-      : targetSheet || `Controle Geral`;
+  const effectiveSheetName = isNokiaSites
+    ? 'Controle Geral'
+    : targetSheet === '__NEW__'
+    ? customSheetName.trim() || selectedExcelTab || `Controle Geral`
+    : targetSheet || `Controle Geral`;
 
   const parsedFromPaste =
     tab === 'paste' && rawText.trim()
       ? parseClipboardOrCsvText(rawText, vendor, effectiveSheetName)
       : { sites: [], detectedColumns: [] };
 
-  const parsedSites: Partial<TelecomSite>[] =
+  const rawParsedSites: Partial<TelecomSite>[] =
     tab === 'paste'
       ? parsedFromPaste.sites
       : selectedExcelTab && excelSheetsMap[selectedExcelTab]
       ? excelSheetsMap[selectedExcelTab]
       : [];
+
+  const destSheetName = isNokiaSites
+    ? normalizeNokiaSitesSheetName(tab === 'paste' ? 'Controle Geral' : selectedExcelTab || 'Controle Geral')
+    : isFixedDestination
+    ? fixedDestinationTitle
+    : tab === 'excel' && selectedExcelTab
+    ? targetSheet === '__NEW__' && customSheetName.trim()
+      ? customSheetName.trim()
+      : selectedExcelTab
+    : effectiveSheetName;
+
+  const parsedSites: Partial<TelecomSite>[] = useMemo(() => {
+    if (isNokiaSites) {
+      return rawParsedSites.map((s) => ({
+        ...s,
+        sheetName: destSheetName,
+      }));
+    }
+    return rawParsedSites;
+  }, [rawParsedSites, isNokiaSites, destSheetName]);
 
   const detectedColumns: string[] =
     tab === 'paste'
@@ -209,15 +239,47 @@ export const BulkPasteModal: React.FC<BulkPasteModalProps> = ({
         setError('O arquivo selecionado não contém abas válidas ou está vazio.');
         return;
       }
-      setExcelSheetsMap(sheetsData);
-      setExcelColumnsMap(sheetsColumns);
-      const preferred = sheetNames.includes('Controle Geral') ? 'Controle Geral' : sheetNames[0];
-      setSelectedExcelTab(preferred);
-      if (vendorSheets.some((s) => s.name === preferred)) {
+
+      if (isNokiaSites) {
+        // Regra 1: se o arquivo tiver abas chamadas exatamente "Controle Geral", "Controle Cancelados" ou "Equipes",
+        // mantenha esse nome para cada aba; QUALQUER outro nome vira "Controle Geral". Não ofereça "nova aba".
+        const normalizedSheetsData: Record<string, Partial<TelecomSite>[]> = {};
+        const normalizedColumnsMap: Record<string, string[]> = {};
+
+        for (const rawSheet of sheetNames) {
+          const targetName = normalizeNokiaSitesSheetName(rawSheet);
+          const rows = (sheetsData[rawSheet] || []).map((row) => ({
+            ...row,
+            sheetName: targetName,
+          }));
+          if (!normalizedSheetsData[targetName]) {
+            normalizedSheetsData[targetName] = [];
+            normalizedColumnsMap[targetName] = sheetsColumns[rawSheet] || CONTROLE_GERAL_COLUMNS;
+          }
+          normalizedSheetsData[targetName].push(...rows);
+        }
+
+        setExcelSheetsMap(normalizedSheetsData);
+        setExcelColumnsMap(normalizedColumnsMap);
+
+        const normalizedKeys = Object.keys(normalizedSheetsData);
+        const preferred = normalizedKeys.includes('Controle Geral')
+          ? 'Controle Geral'
+          : normalizedKeys[0] || 'Controle Geral';
+        setSelectedExcelTab(preferred);
         setTargetSheet(preferred);
+        setCustomSheetName('');
       } else {
-        setTargetSheet('__NEW__');
-        setCustomSheetName(preferred);
+        setExcelSheetsMap(sheetsData);
+        setExcelColumnsMap(sheetsColumns);
+        const preferred = sheetNames.includes('Controle Geral') ? 'Controle Geral' : sheetNames[0];
+        setSelectedExcelTab(preferred);
+        if (vendorSheets.some((s) => s.name === preferred)) {
+          setTargetSheet(preferred);
+        } else {
+          setTargetSheet('__NEW__');
+          setCustomSheetName(preferred);
+        }
       }
     } catch {
       setError('Erro ao ler arquivo Excel. Certifique-se de que é um arquivo .xlsx ou .csv válido.');
@@ -258,14 +320,6 @@ export const BulkPasteModal: React.FC<BulkPasteModalProps> = ({
     setImportSummaryResult(null);
 
     try {
-      const destSheetName = isFixedDestination
-        ? fixedDestinationTitle
-        : tab === 'excel' && selectedExcelTab
-        ? targetSheet === '__NEW__' && customSheetName.trim()
-          ? customSheetName.trim()
-          : selectedExcelTab
-        : effectiveSheetName;
-
       const result = await onBulkImport({
         sites: parsedSites,
         vendor: isFixedDestination ? fixedDestinationVendor : vendor,
@@ -492,7 +546,7 @@ export const BulkPasteModal: React.FC<BulkPasteModalProps> = ({
 
           {/* Pre-Save Summary Preview */}
           {parsedSites.length > 0 && (
-            <div className="p-4 bg-slate-950 border border-slate-800 rounded-xl space-y-2">
+            <div className="p-4 bg-slate-950 border border-slate-800 rounded-xl space-y-2.5">
               <div className="flex items-center justify-between text-xs font-bold text-slate-200">
                 <span className="flex items-center gap-1.5">
                   <Sparkles className="w-4 h-4 text-amber-400" />
@@ -502,7 +556,16 @@ export const BulkPasteModal: React.FC<BulkPasteModalProps> = ({
                   {previewStats.total} linhas lidas
                 </span>
               </div>
-              <div className="grid grid-cols-2 gap-2 pt-1 font-mono text-[11px]">
+
+              {/* Requirement: "Mostre no resumo antes de gravar: 'Aba de destino: Controle Geral'" */}
+              <div className="p-2.5 bg-slate-900 border border-slate-800 rounded-lg flex items-center justify-between text-xs">
+                <span className="text-slate-400 font-medium">Aba de destino:</span>
+                <span className="font-bold font-mono text-emerald-400">
+                  {destSheetName}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 pt-0.5 font-mono text-[11px]">
                 <div className="p-2 bg-emerald-950/40 border border-emerald-800/60 rounded text-center">
                   <span className="text-[10px] text-emerald-400 block font-sans">LINHAS PARA ADICIONAR</span>
                   <strong className="text-emerald-300 text-base">+{previewStats.total}</strong>
@@ -555,7 +618,7 @@ export const BulkPasteModal: React.FC<BulkPasteModalProps> = ({
         isOpen={preImportModalOpen}
         title="Confirmar Importação de Planilha"
         fileName={tab === 'excel' && uploadedFileName ? uploadedFileName : 'Colagem Direta Ctrl+V'}
-        sheetName={selectedExcelTab || effectiveSheetName}
+        sheetName={destSheetName}
         linhasLidas={parsedSites.length}
         linhasAdicionadas={parsedSites.length}
         linhasIgnoradas={0}
