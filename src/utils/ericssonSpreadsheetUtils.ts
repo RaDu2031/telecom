@@ -1212,6 +1212,7 @@ export function parseEricssonEngineeringWorkbookBuffer(buffer: ArrayBuffer): {
         fields['EXECUTOR PPI'] ||
         fields['Executor'] ||
         '',
+      meta: fields['Meta'] || fields['META'] || '',
       fields,
       siteAVistoriaStatus: 'Pendente',
       siteBVistoriaStatus: siteIdB ? 'Pendente' : undefined,
@@ -1236,7 +1237,11 @@ export function exportEricssonEngineeringToXlsx(
   const data = sorted.map((r) => {
     const obj: Record<string, string> = {};
     cols.forEach((c) => {
-      obj[c] = r.fields?.[c] ?? r.fields?.[c.replace(/\r?\n/g, ' ')] ?? '';
+      if (c === 'Meta' || c.toLowerCase() === 'meta') {
+        obj[c] = r.fields?.[c] || r.meta || '';
+      } else {
+        obj[c] = r.fields?.[c] ?? r.fields?.[c.replace(/\r?\n/g, ' ')] ?? '';
+      }
     });
     return obj;
   });

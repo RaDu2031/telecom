@@ -291,6 +291,59 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
     });
   }, [roleScopedRows]);
 
+  const canEditMeta = useMemo(() => {
+    if (isUserDono(user) || isOwnerAdmUser(user?.email, user?.situacao)) return true;
+    const realRole = normalizeUserRole(user?.role, user?.email);
+    const rolesWithAccess = ['ADM', 'Coordenador Geral', 'Coordenador Engenharia'];
+    return (
+      rolesWithAccess.includes(effectiveRole) ||
+      rolesWithAccess.includes(realRole) ||
+      rolesWithAccess.includes(user?.role || '')
+    );
+  }, [user, effectiveRole]);
+
+  const metaSelectOptions = useMemo(() => {
+    const map = new Map<string, string>();
+    rows.forEach((r) => {
+      const val = (r.meta || r.fields?.['Meta'] || r.fields?.['META'] || '').trim();
+      if (val && val !== '—' && val !== '-' && val !== '--') {
+        const lower = val.toLowerCase();
+        if (!map.has(lower)) {
+          map.set(lower, val);
+        }
+      }
+    });
+    return Array.from(map.values()).sort((a, b) =>
+      a.localeCompare(b, 'pt-BR', { sensitivity: 'base' })
+    );
+  }, [rows]);
+
+  const handleInlineMetaChange = async (row: EricssonRow, newMeta: string) => {
+    const prevMeta = row.meta || row.fields?.['Meta'] || '';
+    const cleanMeta = newMeta.trim();
+    if (cleanMeta === prevMeta.trim()) return;
+
+    const updatedRow: EricssonRow = {
+      ...row,
+      meta: cleanMeta,
+      fields: {
+        ...(row.fields || {}),
+        Meta: cleanMeta,
+      },
+      updatedAt: new Date().toISOString(),
+    };
+
+    const nextRows = rows.map((r) => (r.id === row.id ? updatedRow : r));
+    onUpdated(nextRows, sheetMeta, 'Meta atualizada');
+
+    try {
+      await dataService.atualizarMetaEricssonSite(row, cleanMeta);
+    } catch (err: any) {
+      console.error('Erro ao atualizar meta em ericsson_sites:', err);
+      onUpdated(rows, sheetMeta, `Erro ao atualizar meta: ${err?.message || err}`);
+    }
+  };
+
   const distinctEquipes = useMemo(() => {
     const set = new Set<string>();
     // Exclusively Ericsson teams from rows with demandada equipe
@@ -2082,8 +2135,38 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
                       <td className={`${cellPad} font-mono font-semibold text-slate-700`}>
                         {row.state || row.fields?.['00.03.State'] || row.fields?.['State'] || row.fields?.['UF'] || '—'}
                       </td>
-                      <td className={`${cellPad} text-slate-600 whitespace-nowrap`}>
-                        {row.meta || row.fields?.['Meta'] || '—'}
+                      <td
+                        className={`${cellPad} text-slate-600 whitespace-nowrap`}
+                        onClick={canEditMeta ? (e) => e.stopPropagation() : undefined}
+                      >
+                        {canEditMeta ? (
+                          <select
+                            value={(row.meta || row.fields?.['Meta'] || '').trim()}
+                            onChange={(e) => handleInlineMetaChange(row, e.target.value)}
+                            className="text-xs bg-slate-50 hover:bg-white focus:bg-white border border-slate-300 focus:border-blue-500 rounded px-2 py-1 font-medium text-slate-800 shadow-2xs focus:ring-1 focus:ring-blue-500 outline-none cursor-pointer max-w-[140px] truncate"
+                            title="Alterar Meta"
+                          >
+                            <option value="">—</option>
+                            {metaSelectOptions.map((opt) => (
+                              <option key={opt} value={opt}>
+                                {opt}
+                              </option>
+                            ))}
+                            {(() => {
+                              const cur = (row.meta || row.fields?.['Meta'] || '').trim();
+                              if (
+                                cur &&
+                                cur !== '—' &&
+                                !metaSelectOptions.some((o) => o.toLowerCase() === cur.toLowerCase())
+                              ) {
+                                return <option value={cur}>{cur}</option>;
+                              }
+                              return null;
+                            })()}
+                          </select>
+                        ) : (
+                          <span>{row.meta || row.fields?.['Meta'] || '—'}</span>
+                        )}
                       </td>
 
                       {/* SITE A */}

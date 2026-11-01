@@ -1023,6 +1023,7 @@ export const ERICSSON_SITE_LIST_COLUMNS: string[] = [
   'Intervencao Claro',
   'TIPO SITE',
   'Regional',
+  'Meta',
   'Tipo doc',
   'Status',
   'Comentário STATUS',
@@ -1184,6 +1185,7 @@ export interface EricssonEngineeringRow {
   regional: string;
   tipoSite: string;
   executor: string;
+  meta?: string;
   equipe?: string;
   responsavelDemand?: string;
   fields: Record<string, string>;

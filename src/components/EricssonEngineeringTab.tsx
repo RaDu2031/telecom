@@ -178,6 +178,61 @@ export const EricssonEngineeringTab: React.FC<EricssonEngineeringTabProps> = ({
   const [regionalFilter, setRegionalFilter] = useState<string>('ALL');
   const [tipoSiteFilter, setTipoSiteFilter] = useState<string>('ALL');
   const [executorFilter, setExecutorFilter] = useState<string>('ALL');
+  const [filterMeta, setFilterMeta] = useState<string>('ALL');
+
+  const canEditMeta = useMemo(() => {
+    if (isUserDono(user) || isOwnerAdmUser(user?.email, user?.situacao)) return true;
+    const realRole = normalizeUserRole(user?.role, user?.email);
+    const rolesWithAccess = ['ADM', 'Coordenador Geral', 'Coordenador Engenharia'];
+    return (
+      rolesWithAccess.includes(effectiveRole) ||
+      rolesWithAccess.includes(realRole) ||
+      rolesWithAccess.includes(user?.role || '')
+    );
+  }, [user, effectiveRole]);
+
+  const metaSelectOptions = useMemo(() => {
+    const map = new Map<string, string>();
+    rows.forEach((r) => {
+      const val = (r.meta || r.fields?.['Meta'] || r.fields?.['META'] || '').trim();
+      if (val && val !== '—' && val !== '-' && val !== '--') {
+        const lower = val.toLowerCase();
+        if (!map.has(lower)) {
+          map.set(lower, val);
+        }
+      }
+    });
+    return Array.from(map.values()).sort((a, b) =>
+      a.localeCompare(b, 'pt-BR', { sensitivity: 'base' })
+    );
+  }, [rows]);
+
+  const handleInlineMetaChange = async (row: EricssonEngineeringRow, newMeta: string) => {
+    const prevMeta = row.meta || row.fields?.['Meta'] || '';
+    const cleanMeta = newMeta.trim();
+    if (cleanMeta === prevMeta.trim()) return;
+
+    const updatedRow: EricssonEngineeringRow = {
+      ...row,
+      meta: cleanMeta,
+      fields: {
+        ...(row.fields || {}),
+        Meta: cleanMeta,
+      },
+      updatedAt: new Date().toISOString(),
+    };
+
+    setRows((prev) => prev.map((r) => (r.id === row.id ? updatedRow : r)));
+
+    try {
+      await dataService.atualizarMetaEricssonEngenharia(row, cleanMeta);
+      showToast('Meta atualizada');
+    } catch (err: any) {
+      console.error('Erro ao atualizar meta em ericsson_engenharia:', err);
+      setRows((prev) => prev.map((r) => (r.id === row.id ? row : r)));
+      showToast(`Erro ao atualizar meta: ${err?.message || err}`);
+    }
+  };
 
   // Reprovados filter state
   const [selectedReprovadoExecutor, setSelectedReprovadoExecutor] = useState<string | null>(null);
@@ -557,6 +612,14 @@ export const EricssonEngineeringTab: React.FC<EricssonEngineeringTabProps> = ({
           '';
         if (ex !== executorFilter) return false;
       }
+      if (filterMeta !== 'ALL') {
+        const rowMeta = (r.meta || r.fields?.['Meta'] || r.fields?.['META'] || '').trim();
+        if (filterMeta === 'EMPTY') {
+          if (rowMeta && rowMeta !== '—') return false;
+        } else {
+          if (rowMeta.toLowerCase() !== filterMeta.toLowerCase()) return false;
+        }
+      }
 
       // 4. Text search in all fields
       if (q) {
@@ -574,7 +637,8 @@ export const EricssonEngineeringTab: React.FC<EricssonEngineeringTabProps> = ({
           r.fields?.['Executor'] ||
           ''
         ).toString().toLowerCase().includes(q);
-        if (matchIntervencao || matchSiteA || matchSiteB || matchStatus || matchDoc || matchExec) {
+        const matchMeta = (r.meta || r.fields?.['Meta'] || r.fields?.['META'] || '').toString().toLowerCase().includes(q);
+        if (matchIntervencao || matchSiteA || matchSiteB || matchStatus || matchDoc || matchExec || matchMeta) {
           return true;
         }
         // Check other fields
@@ -598,6 +662,7 @@ export const EricssonEngineeringTab: React.FC<EricssonEngineeringTabProps> = ({
     regionalFilter,
     tipoSiteFilter,
     executorFilter,
+    filterMeta,
     searchQuery,
   ]);
 
@@ -660,6 +725,7 @@ export const EricssonEngineeringTab: React.FC<EricssonEngineeringTabProps> = ({
     regionalFilter,
     tipoSiteFilter,
     executorFilter,
+    filterMeta,
     pageSize,
   ]);
 
@@ -1176,6 +1242,21 @@ export const EricssonEngineeringTab: React.FC<EricssonEngineeringTabProps> = ({
               ))}
             </select>
 
+            {/* Meta Filter */}
+            <select
+              value={filterMeta}
+              onChange={(e) => setFilterMeta(e.target.value)}
+              className="px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-xl font-medium text-slate-700 focus:outline-none focus:border-teal-500 max-w-[160px] cursor-pointer"
+            >
+              <option value="ALL">Meta: Todas</option>
+              {metaSelectOptions.map((opt) => (
+                <option key={opt} value={opt}>
+                  Meta: {opt}
+                </option>
+              ))}
+              <option value="EMPTY">Meta: (Sem Meta)</option>
+            </select>
+
             {/* View Mode Toggle: All 51 Columns vs Essential */}
             <div className="flex items-center p-0.5 bg-slate-100 rounded-xl border border-slate-200">
               <button
@@ -1213,6 +1294,7 @@ export const EricssonEngineeringTab: React.FC<EricssonEngineeringTabProps> = ({
           regionalFilter !== 'ALL' ||
           tipoSiteFilter !== 'ALL' ||
           executorFilter !== 'ALL' ||
+          filterMeta !== 'ALL' ||
           selectedDeliveryWeek ||
           selectedReprovadoExecutor ||
           selectedReprovadoDocGroup ||
@@ -1298,6 +1380,19 @@ export const EricssonEngineeringTab: React.FC<EricssonEngineeringTabProps> = ({
               </span>
             )}
 
+            {filterMeta !== 'ALL' && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-cyan-50 text-cyan-800 border border-cyan-200 text-[11px] font-bold">
+                Meta: {filterMeta === 'EMPTY' ? '(Sem Meta)' : filterMeta}
+                <button
+                  type="button"
+                  onClick={() => setFilterMeta('ALL')}
+                  className="hover:text-cyan-950 cursor-pointer"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </span>
+            )}
+
             {selectedDeliveryWeek && (
               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-800 border border-emerald-200 text-[11px] font-bold">
                 Semana: {selectedDeliveryWeek.label}
@@ -1354,6 +1449,7 @@ export const EricssonEngineeringTab: React.FC<EricssonEngineeringTabProps> = ({
                 setRegionalFilter('ALL');
                 setTipoSiteFilter('ALL');
                 setExecutorFilter('ALL');
+                setFilterMeta('ALL');
                 setSelectedDeliveryWeek(null);
                 setSelectedDeliveryDocGroup(null);
                 setSelectedReprovadoExecutor(null);
@@ -1414,6 +1510,7 @@ export const EricssonEngineeringTab: React.FC<EricssonEngineeringTabProps> = ({
                       'Demanda',
                       'Planejado',
                       'Entregue',
+                      'Meta',
                     ].includes(colName)
                   ) {
                     return null;
@@ -1495,12 +1592,56 @@ export const EricssonEngineeringTab: React.FC<EricssonEngineeringTabProps> = ({
                             'Demanda',
                             'Planejado',
                             'Entregue',
+                            'Meta',
                           ].includes(colName)
                         ) {
                           return null;
                         }
 
                         const cellVal = row.fields?.[colName] ?? row.fields?.[colName.replace(/\r?\n/g, ' ')] ?? '';
+
+                        // Special handling for Meta column: inline editable select for authorized users
+                        if (colName === 'Meta' || colName.trim().toLowerCase() === 'meta') {
+                          const currentMetaVal = (row.meta || row.fields?.['Meta'] || row.fields?.['META'] || '').trim();
+                          if (canEditMeta) {
+                            return (
+                              <td
+                                key={colName}
+                                className="px-2 py-1.5 whitespace-nowrap"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <select
+                                  value={currentMetaVal}
+                                  onChange={(e) => handleInlineMetaChange(row, e.target.value)}
+                                  className="text-xs bg-slate-50 hover:bg-white focus:bg-white border border-slate-300 focus:border-blue-500 rounded px-2 py-1 font-medium text-slate-800 shadow-2xs focus:ring-1 focus:ring-blue-500 outline-none cursor-pointer max-w-[140px] truncate"
+                                  title="Alterar Meta"
+                                >
+                                  <option value="">—</option>
+                                  {metaSelectOptions.map((opt) => (
+                                    <option key={opt} value={opt}>
+                                      {opt}
+                                    </option>
+                                  ))}
+                                  {currentMetaVal &&
+                                    currentMetaVal !== '—' &&
+                                    !metaSelectOptions.some((o) => o.toLowerCase() === currentMetaVal.toLowerCase()) && (
+                                      <option value={currentMetaVal}>{currentMetaVal}</option>
+                                    )}
+                                </select>
+                              </td>
+                            );
+                          }
+
+                          return (
+                            <td
+                              key={colName}
+                              className="px-3 py-2 whitespace-nowrap text-slate-700 max-w-[140px] truncate font-medium"
+                              title={String(currentMetaVal || cellVal)}
+                            >
+                              {currentMetaVal || cellVal || '—'}
+                            </td>
+                          );
+                        }
 
                         // Special badge styling for Tipo doc
                         if (colName === 'Tipo doc' && cellVal) {

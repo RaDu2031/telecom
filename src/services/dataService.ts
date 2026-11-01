@@ -394,6 +394,7 @@ export interface IDataService {
     users?: AmetaUser[],
     duplaEmailsMap?: Record<string, string[]>
   ): Promise<void>;
+  atualizarMetaEricssonSite(row: EricssonRow, novaMeta: string): Promise<void>;
   excluirSiteEricsson(rowId: string): Promise<void>;
   carregarSitesEricsson(): Promise<EricssonRow[]>;
   salvarTssrNokia(row: TssrRow): Promise<void>;
@@ -433,6 +434,7 @@ export interface IDataService {
   carregarEricssonEngenharia(): Promise<any[]>;
   carregarEricssonReprovacoes(): Promise<any[]>;
   salvarEricssonEngenhariaRow(row: any): Promise<void>;
+  atualizarMetaEricssonEngenharia(row: EricssonEngineeringRow, novaMeta: string): Promise<void>;
   excluirEricssonEngenhariaRow(rowId: string): Promise<void>;
   salvarEricssonReprovacao(record: any): Promise<void>;
   excluirEricssonReprovacao(recordId: string): Promise<void>;
@@ -477,6 +479,10 @@ export interface IDataService {
     demandDate?: string;
     targetScope?: 'equipe' | 'executor';
   }): Promise<{ updatedCount: number; sitesWithoutEmailCount?: number }>;
+  resolverIdsAcionamentoEricsson(
+    docId: string,
+    tipoDestinatario: 'EXECUTOR' | 'VISTORIA'
+  ): Promise<string[]>;
   desvincularDemandaSites(params: {
     siteTokens: string[];
     vendor: 'NOKIA' | 'ERICSSON';
@@ -1467,6 +1473,33 @@ class FirebaseDataService implements IDataService {
     }), { merge: true });
   }
 
+  async atualizarMetaEricssonEngenharia(row: EricssonEngineeringRow, novaMeta: string): Promise<void> {
+    const docId = row.id;
+    const nowIso = new Date().toISOString();
+    const docRef = doc(db, FIRESTORE_COLLECTIONS.ERICSSON_ENGENHARIA, docId);
+    try {
+      await updateDoc(docRef, {
+        meta: novaMeta,
+        'fields.Meta': novaMeta,
+        updatedAt: nowIso,
+      });
+    } catch {
+      await setDoc(
+        docRef,
+        sanitizeFirestoreData({
+          ...row,
+          meta: novaMeta,
+          fields: {
+            ...(row.fields || {}),
+            Meta: novaMeta,
+          },
+          updatedAt: nowIso,
+        }),
+        { merge: true }
+      );
+    }
+  }
+
   async excluirEricssonEngenhariaRow(rowId: string): Promise<void> {
     await deleteDoc(doc(db, FIRESTORE_COLLECTIONS.ERICSSON_ENGENHARIA, rowId));
   }
@@ -1520,6 +1553,33 @@ class FirebaseDataService implements IDataService {
       ...row,
       id: docId,
     }), { merge: true });
+  }
+
+  async atualizarMetaEricssonSite(row: EricssonRow, novaMeta: string): Promise<void> {
+    const docId = row.id || sanitizeEricssonDocId(row);
+    const nowIso = new Date().toISOString();
+    const docRef = doc(db, FIRESTORE_COLLECTIONS.ERICSSON_SITES, docId);
+    try {
+      await updateDoc(docRef, {
+        meta: novaMeta,
+        'fields.Meta': novaMeta,
+        updatedAt: nowIso,
+      });
+    } catch {
+      await setDoc(
+        docRef,
+        sanitizeFirestoreData({
+          ...row,
+          meta: novaMeta,
+          fields: {
+            ...(row.fields || {}),
+            Meta: novaMeta,
+          },
+          updatedAt: nowIso,
+        }),
+        { merge: true }
+      );
+    }
   }
 
   async excluirSiteEricsson(rowId: string): Promise<void> {
@@ -2212,13 +2272,58 @@ class FirebaseDataService implements IDataService {
         await batch.commit();
 
         for (const docId of acionamentosToSync) {
-          const fallback: any = isExecutor ? initialEricssonEngMap.get(docId) : initialEricssonSitesMap.get(docId);
-          const canonSiteId = fallback?.siteIdA || fallback?.siteId || docId;
+          let rowData: any = null;
           try {
+            const snap = await getDoc(
+              doc(
+                db,
+                isExecutor
+                  ? FIRESTORE_COLLECTIONS.ERICSSON_ENGENHARIA
+                  : FIRESTORE_COLLECTIONS.ERICSSON_SITES,
+                docId
+              )
+            );
+            if (snap.exists()) {
+              rowData = snap.data();
+            }
+          } catch (err) {
+            // fallback
+          }
+
+          const fallback: any = isExecutor ? initialEricssonEngMap.get(docId) : initialEricssonSitesMap.get(docId);
+          const canonSiteId =
+            rowData?.siteIdA ||
+            rowData?.siteId ||
+            fallback?.siteIdA ||
+            fallback?.siteId ||
+            (isExecutor
+              ? rowData?.intervencaoClaro || rowData?.fields?.['Intervencao Claro']
+              : rowData?.fields?.['01.21.Site ID A'] || rowData?.fields?.['Site ID A']) ||
+            docId;
+
+          const canonClean = String(canonSiteId).trim().toUpperCase();
+
+          try {
+            const targetAcId = buildAcionamentoId('ERICSSON', canonClean, tipoDestinatario, docId);
+            // Cancelar qualquer acionamento antigo com ID diferente para este registro/site
+            const candidateOldIds = await this.resolverIdsAcionamentoEricsson(docId, tipoDestinatario);
+            for (const oldId of candidateOldIds) {
+              if (oldId !== targetAcId) {
+                try {
+                  await this.cancelarAcionamento(oldId, {
+                    motivo: `Demanda reatribuída para "${params.responsibleName}"`,
+                  });
+                } catch {
+                  // ignore
+                }
+              }
+            }
+
             await this.salvarOuAtualizarAcionamento({
-              siteId: canonSiteId,
+              id: targetAcId,
+              siteId: canonClean,
               registroId: docId,
-              rowNumberInFile: fallback?.rowNumberInFile,
+              rowNumberInFile: rowData?.rowNumberInFile || fallback?.rowNumberInFile,
               vendor: 'ERICSSON',
               tipoDestinatario,
               equipe: params.responsibleName,
@@ -2445,6 +2550,137 @@ class FirebaseDataService implements IDataService {
     };
   }
 
+  async resolverIdsAcionamentoEricsson(
+    docId: string,
+    tipoDestinatario: 'EXECUTOR' | 'VISTORIA'
+  ): Promise<string[]> {
+    const cleanDocId = (docId || '').replace(/^mother-/, '').trim();
+    if (!cleanDocId) return [];
+
+    const isExecutor = tipoDestinatario === 'EXECUTOR';
+    const collName = isExecutor
+      ? FIRESTORE_COLLECTIONS.ERICSSON_ENGENHARIA
+      : FIRESTORE_COLLECTIONS.ERICSSON_SITES;
+
+    let rowData: any = null;
+    try {
+      const snap = await getDoc(doc(db, collName, cleanDocId));
+      if (snap.exists()) {
+        rowData = snap.data();
+      }
+    } catch (err) {
+      console.warn(`[resolverIdsAcionamentoEricsson] Erro ao ler doc ${cleanDocId} em ${collName}:`, err);
+    }
+
+    const fallback: any = isExecutor
+      ? initialEricssonEngMap.get(cleanDocId) || initialEricssonEngMap.get(docId)
+      : initialEricssonSitesMap.get(cleanDocId) || initialEricssonSitesMap.get(docId);
+
+    const siteCanonicoRaw =
+      rowData?.siteIdA ||
+      rowData?.siteId ||
+      fallback?.siteIdA ||
+      fallback?.siteId ||
+      (isExecutor
+        ? rowData?.intervencaoClaro || rowData?.fields?.['Intervencao Claro']
+        : rowData?.fields?.['01.21.Site ID A'] || rowData?.fields?.['Site ID A']) ||
+      cleanDocId;
+
+    const siteCanonico = String(siteCanonicoRaw || cleanDocId).trim().toUpperCase();
+
+    const idsSet = new Set<string>();
+
+    // 1) Candidatos determinísticos montados com buildAcionamentoId
+    idsSet.add(buildAcionamentoId('ERICSSON', siteCanonico, tipoDestinatario, cleanDocId));
+    idsSet.add(buildAcionamentoId('ERICSSON', siteCanonico, tipoDestinatario));
+    idsSet.add(buildAcionamentoId('ERICSSON', cleanDocId, tipoDestinatario));
+    if (docId !== cleanDocId) {
+      idsSet.add(buildAcionamentoId('ERICSSON', siteCanonico, tipoDestinatario, docId));
+      idsSet.add(buildAcionamentoId('ERICSSON', docId, tipoDestinatario));
+    }
+
+    const siteIdB = (
+      rowData?.siteIdB ||
+      fallback?.siteIdB ||
+      rowData?.fields?.['01.21.Site ID B'] ||
+      rowData?.fields?.['Site ID B'] ||
+      ''
+    ).toString().trim().toUpperCase();
+
+    if (siteIdB) {
+      idsSet.add(buildAcionamentoId('ERICSSON', siteIdB, tipoDestinatario, cleanDocId));
+      idsSet.add(buildAcionamentoId('ERICSSON', siteIdB, tipoDestinatario));
+    }
+
+    // 2) Consulta a coleção acionamentos filtrando por vendor 'ERICSSON'
+    const acionamentosColl = collection(db, FIRESTORE_COLLECTIONS.ACIONAMENTOS);
+
+    const checkAndAddDoc = (d: any) => {
+      const data = d.data() as Acionamento;
+      if (data && data.tipoDestinatario === tipoDestinatario) {
+        idsSet.add(d.id);
+      }
+    };
+
+    // a. Consulta por siteId == siteCanonico
+    try {
+      const qSite = query(
+        acionamentosColl,
+        where('vendor', '==', 'ERICSSON'),
+        where('siteId', '==', siteCanonico)
+      );
+      const snapSite = await getDocs(qSite);
+      snapSite.docs.forEach(checkAndAddDoc);
+    } catch (err) {
+      console.warn('[resolverIdsAcionamentoEricsson] Erro na query por siteId:', err);
+    }
+
+    // b. Consulta por siteId == cleanDocId (se diferente de siteCanonico)
+    if (cleanDocId.toUpperCase() !== siteCanonico) {
+      try {
+        const qDoc = query(
+          acionamentosColl,
+          where('vendor', '==', 'ERICSSON'),
+          where('siteId', '==', cleanDocId.toUpperCase())
+        );
+        const snapDoc = await getDocs(qDoc);
+        snapDoc.docs.forEach(checkAndAddDoc);
+      } catch (err) {
+        console.warn('[resolverIdsAcionamentoEricsson] Erro na query por siteId (cleanDocId):', err);
+      }
+    }
+
+    // c. Consulta por registroId == cleanDocId
+    try {
+      const qReg = query(
+        acionamentosColl,
+        where('vendor', '==', 'ERICSSON'),
+        where('registroId', '==', cleanDocId)
+      );
+      const snapReg = await getDocs(qReg);
+      snapReg.docs.forEach(checkAndAddDoc);
+    } catch (err) {
+      console.warn('[resolverIdsAcionamentoEricsson] Erro na query por registroId:', err);
+    }
+
+    // d. Consulta por siteId == siteIdB se existir
+    if (siteIdB) {
+      try {
+        const qB = query(
+          acionamentosColl,
+          where('vendor', '==', 'ERICSSON'),
+          where('siteId', '==', siteIdB)
+        );
+        const snapB = await getDocs(qB);
+        snapB.docs.forEach(checkAndAddDoc);
+      } catch (err) {
+        console.warn('[resolverIdsAcionamentoEricsson] Erro na query por siteIdB:', err);
+      }
+    }
+
+    return Array.from(idsSet).filter(Boolean);
+  }
+
   async desvincularDemandaSites(params: {
     siteTokens: string[];
     vendor: 'NOKIA' | 'ERICSSON';
@@ -2464,15 +2700,28 @@ class FirebaseDataService implements IDataService {
 
       for (let i = 0; i < rawTokens.length; i += chunkSize) {
         const chunk = rawTokens.slice(i, i + chunkSize);
+
+        // 1. ANTES de limpar as linhas: resolve e cancela acionamentos de cada registro
+        for (const rawToken of chunk) {
+          const docId = rawToken.replace(/^mother-/, '');
+          try {
+            const acionamentoIds = await this.resolverIdsAcionamentoEricsson(docId, tipoDestinatario);
+            for (const acId of acionamentoIds) {
+              try {
+                await this.cancelarAcionamento(acId, { motivo: 'Demanda desvinculada / removida' });
+              } catch (cErr) {
+                console.warn(`[desvincularDemandaSites] Erro ao cancelar acionamento ${acId}:`, cErr);
+              }
+            }
+          } catch (err: any) {
+            console.warn(`[desvincularDemandaSites] Erro ao resolver acionamentos do site ${docId}:`, err);
+          }
+        }
+
+        // 2. Monta e commita o batch para limpar a demanda nas linhas
         const batch = writeBatch(db);
         for (const rawToken of chunk) {
           const docId = rawToken.replace(/^mother-/, '');
-          const acId = buildAcionamentoId('ERICSSON', docId, tipoDestinatario);
-          try {
-            await this.cancelarAcionamento(acId, { motivo: 'Demanda desvinculada / removida' });
-          } catch (err: any) {
-            showToast(`Não foi possível cancelar o acionamento do site ${docId}: ${err?.message || String(err)}`);
-          }
 
           if (isExecutor) {
             const docRef = doc(db, FIRESTORE_COLLECTIONS.ERICSSON_ENGENHARIA, docId);
@@ -2640,15 +2889,30 @@ class FirebaseDataService implements IDataService {
 
       for (let i = 0; i < rawTokens.length; i += chunkSize) {
         const chunk = rawTokens.slice(i, i + chunkSize);
+
+        // 1. ANTES de limpar as linhas: resolve e cancela acionamentos de cada registro
+        for (const rawToken of chunk) {
+          const docId = rawToken.replace(/^mother-/, '');
+          try {
+            const acionamentoIds = await this.resolverIdsAcionamentoEricsson(docId, tipoDestinatario);
+            for (const acId of acionamentoIds) {
+              try {
+                await this.cancelarAcionamento(acId, {
+                  motivo: `Demanda de "${params.responsibleName}" desvinculada / removida`,
+                });
+              } catch (cErr) {
+                console.warn(`[limparTodosSitesDemanda] Erro ao cancelar acionamento ${acId}:`, cErr);
+              }
+            }
+          } catch (err: any) {
+            console.warn(`[limparTodosSitesDemanda] Erro ao resolver acionamentos do site ${docId}:`, err);
+          }
+        }
+
+        // 2. Monta e commita o batch para limpar a demanda nas linhas
         const batch = writeBatch(db);
         for (const rawToken of chunk) {
           const docId = rawToken.replace(/^mother-/, '');
-          const acId = buildAcionamentoId('ERICSSON', docId, tipoDestinatario);
-          try {
-            await this.cancelarAcionamento(acId, { motivo: 'Demanda desvinculada / removida' });
-          } catch (err: any) {
-            showToast(`Não foi possível cancelar o acionamento do site ${docId}: ${err?.message || String(err)}`);
-          }
 
           if (isExecutor) {
             const docRef = doc(db, FIRESTORE_COLLECTIONS.ERICSSON_ENGENHARIA, docId);
@@ -2937,6 +3201,25 @@ class FirebaseDataService implements IDataService {
       const chunkSize = 450;
       for (let i = 0; i < rawTokens.length; i += chunkSize) {
         const chunk = rawTokens.slice(i, i + chunkSize);
+
+        // 1. ANTES de limpar as linhas: resolve e cancela acionamentos de VISTORIA
+        for (const docId of chunk) {
+          try {
+            const acionamentoIds = await this.resolverIdsAcionamentoEricsson(docId, 'VISTORIA');
+            for (const acId of acionamentoIds) {
+              try {
+                await this.cancelarAcionamento(acId, {
+                  motivo: `Equipe "${params.duplaName}" desvinculada / removida`,
+                });
+              } catch (cErr) {
+                console.warn(`[limparTodasLinhasEquipeDupla] Erro ao cancelar acionamento ${acId}:`, cErr);
+              }
+            }
+          } catch (err) {
+            console.warn(`[limparTodasLinhasEquipeDupla] Erro ao resolver acionamentos do site ${docId}:`, err);
+          }
+        }
+
         const batch = writeBatch(db);
         for (const docId of chunk) {
           batch.set(
