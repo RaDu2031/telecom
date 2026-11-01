@@ -77,6 +77,7 @@ import {
   canUserAccessVendor,
   Acionamento,
   normalizeSiteIdForDoc,
+  buildAcionamentoId,
 } from './types/telecom';
 import { isFirebaseEnvConfigured } from './lib/firebase';
 import { db } from './lib/firebaseClient';
@@ -1182,6 +1183,7 @@ export default function App() {
         const currentSites = sitesRef.current;
         const targetSite = currentSites.find(
           (s) =>
+            (ac.registroId && s.id === ac.registroId) ||
             s.siteId === ac.siteId ||
             s.id === ac.siteId ||
             normalizeSiteIdForDoc(s.siteId) === normalizeSiteIdForDoc(ac.siteId)
@@ -1279,6 +1281,7 @@ export default function App() {
           const currentEricssonRows = ericssonRowsRef.current;
           const targetRow = currentEricssonRows.find(
             (r) =>
+              (ac.registroId && r.id === ac.registroId) ||
               r.id === ac.siteId ||
               r.siteIdA === ac.siteId ||
               r.rowKey === ac.siteId ||
@@ -1404,6 +1407,9 @@ export default function App() {
     const map = new Map<string, Acionamento>();
     acionamentos.forEach((ac) => {
       map.set(ac.id, ac);
+      if (ac.registroId) {
+        map.set(ac.registroId, ac);
+      }
       const sNorm = normalizeSiteIdForDoc(ac.siteId);
       const vNorm = ac.vendor;
       map.set(`${vNorm}_${sNorm}_${ac.tipoDestinatario}`, ac);
@@ -1420,12 +1426,18 @@ export default function App() {
     (
       vendor: VendorType | string,
       siteId?: string,
-      tipoDestinatario?: 'EXECUTOR' | 'VISTORIA'
+      tipoDestinatario?: 'EXECUTOR' | 'VISTORIA',
+      registroId?: string
     ): Acionamento | undefined => {
-      if (!siteId) return undefined;
+      if (!siteId && !registroId) return undefined;
+      if (registroId && acionamentosMap.has(registroId)) {
+        return acionamentosMap.get(registroId);
+      }
       const v = (vendor || 'NOKIA').trim().toUpperCase();
-      const sNorm = normalizeSiteIdForDoc(siteId);
+      const sNorm = normalizeSiteIdForDoc(siteId || '');
       if (tipoDestinatario) {
+        const specId = buildAcionamentoId(v, siteId || '', tipoDestinatario, registroId);
+        if (acionamentosMap.has(specId)) return acionamentosMap.get(specId);
         return acionamentosMap.get(`${v}_${sNorm}_${tipoDestinatario}`);
       }
       return (
@@ -3740,7 +3752,7 @@ export default function App() {
     sites: Partial<TelecomSite>[];
     vendor: VendorType;
     sheetName: string;
-    mode: 'append_only' | 'fill_empty';
+    mode: 'append_only';
     sourceFileName?: string;
     columns?: string[];
   }) => {
@@ -3750,7 +3762,7 @@ export default function App() {
           params.sites as TelecomSite[],
           users,
           serverDuplaEmailsMap,
-          { mode: params.mode }
+          { mode: 'append_only', sourceFileName: params.sourceFileName || params.sheetName }
         );
         setActiveVendor(params.vendor);
         if (params.sheetName) {
@@ -3771,17 +3783,17 @@ export default function App() {
             ];
           });
         }
-        setSites((prev) => {
-          const importedIds = new Set((params.sites as TelecomSite[]).map((s) => s.id));
-          const filtered = prev.filter((s) => !importedIds.has(s.id));
-          const next = [...(params.sites as TelecomSite[]), ...filtered];
-          try {
-            localStorage.setItem('ameta_cached_sites', JSON.stringify(next));
-          } catch {}
-          return next;
-        });
+        if (res.novosRegistros && res.novosRegistros.length > 0) {
+          setSites((prev) => {
+            const next = [...prev, ...(res.novosRegistros as TelecomSite[])];
+            try {
+              localStorage.setItem('ameta_cached_sites', JSON.stringify(next));
+            } catch {}
+            return next;
+          });
+        }
         showToast(
-          `Planilha "${params.sheetName}" processada (+${res.novas} novos sites gravados, ${res.jaExistiam} já existiam mantidos)`
+          `Planilha "${params.sheetName}" processada (+${res.novas} novos sites gravados)`
         );
         return res;
       } else {
@@ -3789,24 +3801,15 @@ export default function App() {
           params.sites as any,
           ericssonUsers,
           serverEricssonDuplaEmailsMap,
-          { mode: params.mode }
+          { mode: 'append_only' }
         );
         setActiveVendor(params.vendor);
         if (params.sheetName) setActiveSheetName(params.sheetName);
-        const validImported = (params.sites as any[]).filter((r) => {
-          if (!r) return false;
-          const a = (r.siteIdA || r.fields?.['01.21.Site ID A'] || r.fields?.['Site ID A'] || '').trim().toUpperCase();
-          const b = (r.siteIdB || r.fields?.['01.21.Site ID B'] || r.fields?.['Site ID B'] || '').trim().toUpperCase();
-          const isPlaceholder = (s: string) => !s || s === '—' || s === '-' || s === '--' || s === 'N/A' || s === '#N/A' || s === 'TOTAL' || s === '0';
-          return !isPlaceholder(a) || !isPlaceholder(b);
-        });
-        setEricssonRows((prev) => {
-          const importedIds = new Set(validImported.map((s) => s.id));
-          const filtered = prev.filter((s) => !importedIds.has(s.id));
-          return [...validImported, ...filtered];
-        });
+        if (res.novosRegistros && res.novosRegistros.length > 0) {
+          setEricssonRows((prev) => [...prev, ...res.novosRegistros]);
+        }
         showToast(
-          `Planilha "${params.sheetName}" processada (+${res.novas} novos sites Ericsson gravados, ${res.jaExistiam} já existiam mantidos)`
+          `Planilha "${params.sheetName}" processada (+${res.novas} novos sites Ericsson gravados)`
         );
         return res;
       }
@@ -7458,6 +7461,32 @@ export default function App() {
                           };
                         })
                       );
+                    } else {
+                      const idsSet = new Set(siteIds.map((id) => String(id).trim().toUpperCase()));
+                      setSites((prev) =>
+                        prev.map((s) => {
+                          if (s.vendor !== 'NOKIA') return s;
+                          const sId = String(s.siteId || s.id || '').trim().toUpperCase();
+                          if (!idsSet.has(sId)) return s;
+                          return {
+                            ...s,
+                            responsavelDemand: cleanDupla,
+                            equipe: cleanDupla,
+                            equipeParceira: cleanDupla,
+                            responsavelCampo: cleanDupla,
+                            customFields: {
+                              ...(s.customFields || {}),
+                              EQUIPE: cleanDupla,
+                              'EQUIPE EXECUTANTE': cleanDupla,
+                              Executor: cleanDupla,
+                              ...(emailStr ? { 'E-MAIL DUPLA': emailStr } : {}),
+                              'Data de demanda': targetDate,
+                              'Data Demanda': targetDate,
+                            },
+                            updatedAt: nowIso,
+                          };
+                        })
+                      );
                     }
 
                     try {
@@ -7522,11 +7551,43 @@ export default function App() {
                           return {
                             ...r,
                             responsavelDemand: '',
+                            responsavelCampo: '',
+                            equipeParceira: '',
                             equipe: '',
+                            responsaveisEmails: [],
+                            responsaveisUids: [],
                             fields: {
                               ...(r.fields || {}),
                               EQUIPE: '',
                               'EQUIPE EXECUTANTE': '',
+                              'E-MAIL DUPLA': '',
+                              'Data de demanda': '',
+                              'Data Demanda': '',
+                            },
+                            updatedAt: nowIso,
+                          };
+                        })
+                      );
+                    } else {
+                      const idsSet = new Set(siteIds.map((id) => String(id).trim().toUpperCase()));
+                      setSites((prev) =>
+                        prev.map((s) => {
+                          if (s.vendor !== 'NOKIA') return s;
+                          const sId = String(s.siteId || s.id || '').trim().toUpperCase();
+                          if (!idsSet.has(sId)) return s;
+                          return {
+                            ...s,
+                            responsavelDemand: '',
+                            responsavelCampo: '',
+                            equipeParceira: '',
+                            equipe: '',
+                            responsaveisEmails: [],
+                            responsaveisUids: [],
+                            customFields: {
+                              ...(s.customFields || {}),
+                              EQUIPE: '',
+                              'EQUIPE EXECUTANTE': '',
+                              Executor: '',
                               'E-MAIL DUPLA': '',
                               'Data de demanda': '',
                               'Data Demanda': '',
@@ -7596,11 +7657,52 @@ export default function App() {
                           return {
                             ...r,
                             responsavelDemand: '',
+                            responsavelCampo: '',
+                            equipeParceira: '',
                             equipe: '',
+                            responsaveisEmails: [],
+                            responsaveisUids: [],
                             fields: {
                               ...(r.fields || {}),
                               EQUIPE: '',
                               'EQUIPE EXECUTANTE': '',
+                              'E-MAIL DUPLA': '',
+                              'Data de demanda': '',
+                              'Data Demanda': '',
+                            },
+                            updatedAt: nowIso,
+                          };
+                        })
+                      );
+                    } else {
+                      const idsSet =
+                        siteIdsToClear && siteIdsToClear.length > 0
+                          ? new Set(siteIdsToClear.map((id) => String(id).trim().toUpperCase()))
+                          : null;
+                      setSites((prev) =>
+                        prev.map((s) => {
+                          if (s.vendor !== 'NOKIA') return s;
+                          const sId = String(s.siteId || s.id || '').trim().toUpperCase();
+                          const match = idsSet
+                            ? idsSet.has(sId)
+                            : (matchesDuplaName(s.equipe, cleanDupla) ||
+                               matchesDuplaName(s.responsavelDemand, cleanDupla) ||
+                               matchesDuplaName(s.customFields?.['EQUIPE'], cleanDupla) ||
+                               doesSiteMatchResponsible(s, cleanDupla));
+                          if (!match) return s;
+                          return {
+                            ...s,
+                            responsavelDemand: '',
+                            responsavelCampo: '',
+                            equipeParceira: '',
+                            equipe: '',
+                            responsaveisEmails: [],
+                            responsaveisUids: [],
+                            customFields: {
+                              ...(s.customFields || {}),
+                              EQUIPE: '',
+                              'EQUIPE EXECUTANTE': '',
+                              Executor: '',
                               'E-MAIL DUPLA': '',
                               'Data de demanda': '',
                               'Data Demanda': '',

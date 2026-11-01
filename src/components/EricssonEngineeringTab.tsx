@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
+import { PreImportSummaryModal } from './PreImportSummaryModal';
 import {
   FileSpreadsheet,
   Search,
@@ -90,7 +91,7 @@ export const sortColumnsToCanonical = (rawCols?: string[]): string[] => {
 
   return ordered;
 };
-import { doesEricssonRowMatchResponsible, detectarTipoPlanilha, getNomeTipoPlanilha } from '../utils/spreadsheetUtils';
+import { doesEricssonRowMatchResponsible, detectarTipoPlanilha, getNomeTipoPlanilha, validarCompatibilidadePlanilha } from '../utils/spreadsheetUtils';
 import { dataService, FIRESTORE_COLLECTIONS } from '../services/dataService';
 import { db } from '../lib/firebaseClient';
 import { collection, onSnapshot } from 'firebase/firestore';
@@ -204,6 +205,16 @@ export const EricssonEngineeringTab: React.FC<EricssonEngineeringTabProps> = ({
   const [selectedDeliveryDocGroup, setSelectedDeliveryDocGroup] = useState<EricssonDocGroup | null>(null);
 
   // Modals
+  const [preImportModalOpen, setPreImportModalOpen] = useState<boolean>(false);
+  const [pendingUploadData, setPendingUploadData] = useState<{
+    file: File;
+    parsedRows: EricssonEngineeringRow[];
+    tabName: string;
+    cols: string[];
+    ignoredCount: number;
+    hist: { isPreviouslyImported: boolean; lastImportedAt?: string };
+  } | null>(null);
+
   const [isNewRowModalOpen, setIsNewRowModalOpen] = useState<boolean>(false);
   const [editingRow, setEditingRow] = useState<EricssonEngineeringRow | null>(null);
   const [selectedDrawerRow, setSelectedDrawerRow] = useState<EricssonEngineeringRow | null>(null);
@@ -721,14 +732,13 @@ export const EricssonEngineeringTab: React.FC<EricssonEngineeringTabProps> = ({
       showToast('Lendo arquivo Excel da Ericsson...');
       const buffer = await file.arrayBuffer();
 
-      const detectedType = detectarTipoPlanilha(buffer);
-      if (detectedType !== 'UNKNOWN' && detectedType !== 'ERICSSON_ENGENHARIA') {
-        showToast(
-          `⚠️ Planilha incompatível! Esta planilha é do tipo "${getNomeTipoPlanilha(
-            detectedType
-          )}". O destino desta tela é "Ericsson – Engenharia". Processamento cancelado.`
-        );
+      const check = validarCompatibilidadePlanilha(buffer, 'ERICSSON_ENGENHARIA', file.name);
+      if (check.shouldBlock) {
+        showToast(check.blockMessage || 'Planilha incompatível!');
         return;
+      }
+      if (check.warningMessage) {
+        showToast(check.warningMessage);
       }
 
       const workbook = XLSX.read(buffer, { type: 'array', cellDates: true });
@@ -813,30 +823,57 @@ export const EricssonEngineeringTab: React.FC<EricssonEngineeringTabProps> = ({
         parsed.push(newRowItem);
       }
 
-      // Gravando em lotes de 20 com proteção apenas acrescentar
-      showToast(`Analisando e gravando ${parsed.length} linhas no Firestore (ericsson_engenharia)...`);
-      const res = await dataService.importarEricssonEngenhariaEmLote(parsed, {
+      const ignoredCount = Math.max(0, rawRows.length - (headerRowIndex + 1) - parsed.length);
+      const hist = await dataService.verificarHistoricoArquivo(file.name, 'ERICSSON_ENGENHARIA');
+
+      setPendingUploadData({
+        file,
+        parsedRows: parsed,
+        tabName: sheetName,
+        cols,
+        ignoredCount,
+        hist,
+      });
+      setPreImportModalOpen(true);
+    } catch (err: any) {
+      console.error(err);
+      showToast(`Falha ao ler arquivo .xlsx: ${err?.message || err}`);
+    } finally {
+      if (e.target) e.target.value = '';
+    }
+  };
+
+  const confirmUploadLocalFile = async () => {
+    if (!pendingUploadData) return;
+    const { file, parsedRows, tabName, cols } = pendingUploadData;
+    try {
+      showToast(`Analisando e gravando ${parsedRows.length} linhas no Firestore (ericsson_engenharia)...`);
+      const res = await dataService.importarEricssonEngenhariaEmLote(parsedRows, {
         mode: 'append_only',
+        fileName: file.name,
+        sheetName: tabName,
       });
 
       if (res.errorMessage) {
         showToast(res.errorMessage);
       } else {
-        setRows((prev) => [...prev, ...parsed]);
-        setColumns(cols);
+        const novos = res.novosRegistros || [];
+        setRows((prev) => [...prev, ...novos]);
+        if (cols.length > 0) setColumns(cols);
         setMeta({
-          tabName: sheetName,
+          tabName,
           sourceFileName: file.name,
-          lastSyncAt: now,
-          totalRows: parsed.length,
+          lastSyncAt: new Date().toISOString(),
+          totalRows: rows.length + novos.length,
         });
-        showToast(`Planilha importada! (+${res.novas} novas gravadas, ${res.jaExistiam} já existiam mantidas).`);
+        showToast(`Planilha "${file.name}" importada com sucesso (+${res.novas} novos registros gravados no Firestore).`);
       }
     } catch (err: any) {
       console.error(err);
-      showToast(`Falha ao processar arquivo .xlsx no Firestore: ${err?.message || err}`);
+      showToast(`Falha ao gravar no Firestore: ${err?.message || err}`);
     } finally {
-      if (e.target) e.target.value = '';
+      setPreImportModalOpen(false);
+      setPendingUploadData(null);
     }
   };
 
@@ -1920,6 +1957,25 @@ export const EricssonEngineeringTab: React.FC<EricssonEngineeringTabProps> = ({
           showToast={showToast}
         />
       )}
+
+      {/* Confirmation Modal before Firestore write */}
+      <PreImportSummaryModal
+        isOpen={preImportModalOpen}
+        title="Confirmar Importação Ericsson Engenharia"
+        fileName={pendingUploadData?.file.name || ''}
+        sheetName={pendingUploadData?.tabName || ''}
+        linhasLidas={pendingUploadData?.parsedRows.length || 0}
+        linhasAdicionadas={pendingUploadData?.parsedRows.length || 0}
+        linhasIgnoradas={pendingUploadData?.ignoredCount || 0}
+        motivoIgnoradas="por estarem vazias ou serem cabeçalho/subtotal"
+        isPreviouslyImported={Boolean(pendingUploadData?.hist.isPreviouslyImported)}
+        previousImportDate={dataService.formatImportDate(pendingUploadData?.hist.lastImportedAt)}
+        onConfirm={confirmUploadLocalFile}
+        onCancel={() => {
+          setPreImportModalOpen(false);
+          setPendingUploadData(null);
+        }}
+      />
     </div>
   );
 };

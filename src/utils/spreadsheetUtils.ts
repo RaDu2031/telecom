@@ -26,102 +26,335 @@ export function normalizeHeaderSignature(str: unknown): string {
     .trim();
 }
 
-export function detectarTipoPlanilhaFromHeaders(headers: string[]): SpreadsheetDestinationType {
-  const normalized = headers.map(normalizeHeaderSignature);
-  const combined = normalized.join(' ');
-
-  let tssrScore = 0;
-  if (combined.includes('oc site pre') || combined.includes('ocsitepre')) tssrScore += 5;
-  if (combined.includes('projeto tim') || combined.includes('projetotim')) tssrScore += 4;
-  if (combined.includes('tssr status') || combined.includes('tssr status final')) tssrScore += 5;
-  if (combined.includes('tssr tim nokia') || combined.includes('tssrtimnokia') || combined.includes('controle tssr')) tssrScore += 5;
-  if (combined.includes('data envio tssr') || combined.includes('enviado para nokia')) tssrScore += 4;
-  if (combined.includes('acumulado apos critica') || combined.includes('critica')) tssrScore += 3;
-  if (combined.includes('regional nokia') || combined.includes('codigo site pre')) tssrScore += 4;
-  if (tssrScore >= 5) return 'NOKIA_TSSR';
-
-  let ericEngScore = 0;
-  if (combined.includes('chave unica') || combined.includes('chave_unica')) ericEngScore += 5;
-  if (combined.includes('empresa engenharia')) ericEngScore += 5;
-  if (combined.includes('versao tssr') || combined.includes('situacao tssr')) ericEngScore += 5;
-  if (combined.includes('project type') || combined.includes('project_type')) ericEngScore += 4;
-  if (combined.includes('uf de trabalho')) ericEngScore += 4;
-  if (combined.includes('estatus vistoria laudo') || combined.includes('situacao laudo') || combined.includes('situacao tss') || combined.includes('situacao projeto')) ericEngScore += 4;
-  if (ericEngScore >= 5) return 'ERICSSON_ENGENHARIA';
-
-  let ericSitesScore = 0;
-  if (combined.includes('registro de vistoria sites') || combined.includes('registro vistoria sites')) ericSitesScore += 6;
-  if (combined.includes('fornecedor de vistoria')) ericSitesScore += 5;
-  if (combined.includes('solicitacao de vistoria')) ericSitesScore += 5;
-  if (combined.includes('status da vistoria da sites') || combined.includes('status vistoria sites')) ericSitesScore += 5;
-  if (combined.includes('situacao do registro sites') || combined.includes('situacao registro sites')) ericSitesScore += 5;
-  if (combined.includes('01 00 chaves') || combined.includes('01 21 site id a') || combined.includes('chaves')) ericSitesScore += 3;
-  if (ericSitesScore >= 5) return 'ERICSSON_SITES';
-
-  let nokiaSitesScore = 0;
-  if (combined.includes('empresa vistoriadora')) nokiaSitesScore += 5;
-  if (combined.includes('status agendamento vistoria') || combined.includes('agendamento vistoria')) nokiaSitesScore += 5;
-  if (combined.includes('data vistoria integrador')) nokiaSitesScore += 5;
-  if (combined.includes('comentarios do acesso') || combined.includes('comentario acesso')) nokiaSitesScore += 4;
-  if (combined.includes('endereco id') || combined.includes('enderecoid')) nokiaSitesScore += 3;
-  if (combined.includes('site id') || combined.includes('siteid') || combined.includes('sigla')) nokiaSitesScore += 2;
-  if (combined.includes('uf') && (combined.includes('municipio') || combined.includes('cidade'))) nokiaSitesScore += 2;
-  if (nokiaSitesScore >= 4) return 'NOKIA_SITES';
-
-  if (tssrScore > 0 && tssrScore >= ericEngScore && tssrScore >= ericSitesScore && tssrScore >= nokiaSitesScore) return 'NOKIA_TSSR';
-  if (ericEngScore > 0 && ericEngScore >= tssrScore && ericEngScore >= ericSitesScore && ericEngScore >= nokiaSitesScore) return 'ERICSSON_ENGENHARIA';
-  if (ericSitesScore > 0 && ericSitesScore >= tssrScore && ericSitesScore >= ericEngScore && ericSitesScore >= nokiaSitesScore) return 'ERICSSON_SITES';
-  if (nokiaSitesScore > 0) return 'NOKIA_SITES';
-
-  return 'UNKNOWN';
+export interface EvaluationResult {
+  detectedType: SpreadsheetDestinationType;
+  scores: Record<SpreadsheetDestinationType, number>;
+  motivatingColumns: Record<SpreadsheetDestinationType, string[]>;
+  topMotivatingColumns: string[];
 }
 
-export function detectarTipoPlanilha(input: unknown): SpreadsheetDestinationType {
-  if (!input) return 'UNKNOWN';
+export function avaliarHeaders(
+  headers: string[],
+  fileName?: string,
+  sheetName?: string
+): EvaluationResult {
+  const scores: Record<SpreadsheetDestinationType, number> = {
+    NOKIA_SITES: 0,
+    NOKIA_TSSR: 0,
+    ERICSSON_SITES: 0,
+    ERICSSON_ENGENHARIA: 0,
+    UNKNOWN: 0,
+  };
+
+  const motivatingColumns: Record<SpreadsheetDestinationType, string[]> = {
+    NOKIA_SITES: [],
+    NOKIA_TSSR: [],
+    ERICSSON_SITES: [],
+    ERICSSON_ENGENHARIA: [],
+    UNKNOWN: [],
+  };
+
+  const addScore = (
+    type: SpreadsheetDestinationType,
+    points: number,
+    rawCol: string,
+    isStrong = false
+  ) => {
+    scores[type] += points;
+    if (rawCol && rawCol.trim()) {
+      const cleanCol = rawCol.trim();
+      if (!motivatingColumns[type].includes(cleanCol)) {
+        if (isStrong) {
+          motivatingColumns[type].unshift(cleanCol);
+        } else {
+          motivatingColumns[type].push(cleanCol);
+        }
+      }
+    }
+  };
+
+  headers.forEach((rawH) => {
+    const norm = normalizeHeaderSignature(rawH);
+    if (!norm) return;
+
+    // --- 1. NOKIA ENGENHARIA (TSSR) STRONG MARKERS ---
+    if (
+      norm.includes('tssr status') ||
+      norm.includes('tssr status final') ||
+      norm.includes('controle tssr') ||
+      norm.includes('tssr tim nokia') ||
+      norm.includes('data envio tssr') ||
+      norm.includes('enviado para nokia') ||
+      norm === 'tssr' ||
+      norm.includes('tssr ') ||
+      norm.includes(' tssr')
+    ) {
+      addScore('NOKIA_TSSR', 5, rawH, true);
+    }
+
+    // --- 2. NOKIA SITES STRONG MARKERS ---
+    if (
+      norm.includes('empresa vistoriadora') ||
+      norm.includes('status agendamento vistoria') ||
+      norm.includes('agendamento vistoria') ||
+      norm.includes('data vistoria integrador') ||
+      norm.includes('comentarios do acesso') ||
+      norm.includes('comentario acesso') ||
+      norm.includes('endereco id') ||
+      norm.includes('enderecoid')
+    ) {
+      addScore('NOKIA_SITES', 5, rawH, true);
+    } else if (norm === 'controle geral' || norm.includes('status vistoria')) {
+      addScore('NOKIA_SITES', 4, rawH, true);
+    } else if (norm.includes('talonview executor') || norm.includes('equipe executante')) {
+      addScore('NOKIA_SITES', 3, rawH, false);
+    }
+
+    // --- 3. WEAK / COMMON NOKIA COLUMNS (max 1 point each for NOKIA_TSSR and NOKIA_SITES) ---
+    if (
+      norm.includes('oc site pre') ||
+      norm.includes('ocsitepre') ||
+      norm.includes('regional nokia') ||
+      norm.includes('codigo site pre') ||
+      norm.includes('critica') ||
+      norm.includes('acumulado apos critica') ||
+      norm.includes('projeto tim')
+    ) {
+      addScore('NOKIA_TSSR', 1, rawH, false);
+      addScore('NOKIA_SITES', 1, rawH, false);
+    }
+
+    // --- 4. ERICSSON ENGENHARIA MARKERS ---
+    if (
+      norm.includes('chave unica') ||
+      norm.includes('chave_unica') ||
+      norm.includes('empresa engenharia') ||
+      norm.includes('versao tssr') ||
+      norm.includes('situacao tssr') ||
+      norm.includes('executor wr') ||
+      norm.includes('executor qrf') ||
+      norm.includes('executor ppi')
+    ) {
+      addScore('ERICSSON_ENGENHARIA', 5, rawH, true);
+    } else if (
+      norm.includes('project type') ||
+      norm.includes('uf de trabalho') ||
+      norm.includes('estatus vistoria laudo') ||
+      norm.includes('situacao laudo') ||
+      norm.includes('situacao tss') ||
+      norm.includes('situacao projeto')
+    ) {
+      addScore('ERICSSON_ENGENHARIA', 4, rawH, true);
+    }
+
+    // --- 5. ERICSSON SITES MARKERS ---
+    if (
+      norm.includes('registro de vistoria sites') ||
+      norm.includes('registro vistoria sites') ||
+      norm.includes('fornecedor de vistoria') ||
+      norm.includes('solicitacao de vistoria') ||
+      norm.includes('status da vistoria da sites') ||
+      norm.includes('status vistoria sites') ||
+      norm.includes('situacao do registro sites') ||
+      norm.includes('situacao registro sites')
+    ) {
+      addScore('ERICSSON_SITES', 5, rawH, true);
+    } else if (norm.includes('01 00 chaves') || norm.includes('01 21 site id a')) {
+      addScore('ERICSSON_SITES', 3, rawH, true);
+    }
+  });
+
+  // --- 6. FILE NAME AND SHEET NAME SCORE ADDITIONS ---
+  const fileAndSheetName = normalizeHeaderSignature(
+    `${fileName || ''} ${sheetName || ''}`
+  );
+
+  if (fileAndSheetName.includes('controle geral')) {
+    scores['NOKIA_SITES'] += 5;
+    if (sheetName) motivatingColumns['NOKIA_SITES'].unshift(`Aba: ${sheetName}`);
+  }
+  if (fileAndSheetName.includes('tssr')) {
+    scores['NOKIA_TSSR'] += 5;
+    if (sheetName) motivatingColumns['NOKIA_TSSR'].unshift(`Aba: ${sheetName}`);
+  }
+  if (fileAndSheetName.includes('engenharia')) {
+    if (fileAndSheetName.includes('ericsson')) {
+      scores['ERICSSON_ENGENHARIA'] += 5;
+    } else {
+      scores['NOKIA_TSSR'] += 3;
+    }
+  }
+  if (fileAndSheetName.includes('site list')) {
+    scores['ERICSSON_ENGENHARIA'] += 4;
+  }
+
+  // --- 7. DETERMINE DETECTED TYPE WITH HIGHEST SCORE ---
+  const types: SpreadsheetDestinationType[] = [
+    'NOKIA_SITES',
+    'NOKIA_TSSR',
+    'ERICSSON_SITES',
+    'ERICSSON_ENGENHARIA',
+  ];
+
+  let detectedType: SpreadsheetDestinationType = 'UNKNOWN';
+  let maxScore = 0;
+
+  types.forEach((type) => {
+    if (scores[type] > maxScore) {
+      maxScore = scores[type];
+      detectedType = type;
+    }
+  });
+
+  const topMotivatingColumns = (motivatingColumns[detectedType] || []).slice(0, 3);
+
+  return {
+    detectedType,
+    scores,
+    motivatingColumns,
+    topMotivatingColumns,
+  };
+}
+
+export function avaliarTipoPlanilha(
+  input: unknown,
+  fileName?: string,
+  sheetName?: string
+): EvaluationResult {
+  if (!input) {
+    return {
+      detectedType: 'UNKNOWN',
+      scores: { NOKIA_SITES: 0, NOKIA_TSSR: 0, ERICSSON_SITES: 0, ERICSSON_ENGENHARIA: 0, UNKNOWN: 0 },
+      motivatingColumns: { NOKIA_SITES: [], NOKIA_TSSR: [], ERICSSON_SITES: [], ERICSSON_ENGENHARIA: [], UNKNOWN: [] },
+      topMotivatingColumns: [],
+    };
+  }
+
+  if (Array.isArray(input) && input.length > 0 && typeof input[0] === 'string') {
+    return avaliarHeaders(input as string[], fileName, sheetName);
+  }
 
   if (Array.isArray(input) && input.length > 0) {
-    if (typeof input[0] === 'string') {
-      return detectarTipoPlanilhaFromHeaders(input as string[]);
-    }
     if (typeof input[0] === 'object' && input[0] !== null) {
       if (Array.isArray(input[0])) {
+        let bestEval: EvaluationResult | null = null;
         for (let i = 0; i < Math.min(10, input.length); i++) {
           const row = input[i];
-          if (Array.isArray(row)) {
+          if (Array.isArray(row) && row.length > 0) {
             const headers = row.map((cell) => String(cell || ''));
-            const type = detectarTipoPlanilhaFromHeaders(headers);
-            if (type !== 'UNKNOWN') return type;
+            const ev = avaliarHeaders(headers, fileName, sheetName);
+            if (!bestEval || ev.scores[ev.detectedType] > bestEval.scores[bestEval.detectedType]) {
+              bestEval = ev;
+            }
           }
         }
+        if (bestEval) return bestEval;
       } else {
         const headers = Object.keys(input[0]);
-        return detectarTipoPlanilhaFromHeaders(headers);
+        return avaliarHeaders(headers, fileName, sheetName);
       }
     }
   }
 
-  if (input instanceof ArrayBuffer || input instanceof Uint8Array || (typeof Buffer !== 'undefined' && Buffer.isBuffer(input))) {
+  if (
+    input instanceof ArrayBuffer ||
+    input instanceof Uint8Array ||
+    (typeof Buffer !== 'undefined' && Buffer.isBuffer(input))
+  ) {
     try {
       const wb = XLSX.read(input, { type: 'array', cellDates: true });
-      for (const sheetName of wb.SheetNames) {
-        const ws = wb.Sheets[sheetName];
+      let bestEval: EvaluationResult | null = null;
+
+      for (const curSheetName of wb.SheetNames) {
+        const ws = wb.Sheets[curSheetName];
         if (!ws) continue;
         const rawRows = XLSX.utils.sheet_to_json<unknown[]>(ws, { header: 1, defval: '' });
         for (let i = 0; i < Math.min(10, rawRows.length); i++) {
           const row = rawRows[i];
           if (Array.isArray(row) && row.length > 0) {
             const headers = row.map((cell) => String(cell || ''));
-            const type = detectarTipoPlanilhaFromHeaders(headers);
-            if (type !== 'UNKNOWN') return type;
+            const ev = avaliarHeaders(headers, fileName, sheetName || curSheetName);
+            if (!bestEval || ev.scores[ev.detectedType] > bestEval.scores[bestEval.detectedType]) {
+              bestEval = ev;
+            }
           }
         }
       }
+      if (bestEval) return bestEval;
     } catch {
-      return 'UNKNOWN';
+      // ignore
     }
   }
 
-  return 'UNKNOWN';
+  return avaliarHeaders([], fileName, sheetName);
+}
+
+export function detectarTipoPlanilhaFromHeaders(
+  headers: string[],
+  fileName?: string,
+  sheetName?: string
+): SpreadsheetDestinationType {
+  const ev = avaliarHeaders(headers, fileName, sheetName);
+  return ev.detectedType;
+}
+
+export function detectarTipoPlanilha(
+  input: unknown,
+  fileName?: string,
+  sheetName?: string
+): SpreadsheetDestinationType {
+  const ev = avaliarTipoPlanilha(input, fileName, sheetName);
+  return ev.detectedType;
+}
+
+export function validarCompatibilidadePlanilha(
+  input: unknown,
+  targetType: SpreadsheetDestinationType,
+  fileName?: string,
+  sheetName?: string
+): {
+  shouldBlock: boolean;
+  detectedType: SpreadsheetDestinationType;
+  targetType: SpreadsheetDestinationType;
+  blockMessage?: string;
+  warningMessage?: string;
+  topMotivatingColumns: string[];
+} {
+  const { detectedType, scores, topMotivatingColumns } = avaliarTipoPlanilha(input, fileName, sheetName);
+
+  if (detectedType === 'UNKNOWN' || detectedType === targetType) {
+    return {
+      shouldBlock: false,
+      detectedType,
+      targetType,
+      topMotivatingColumns: [],
+    };
+  }
+
+  const detectedScore = scores[detectedType] || 0;
+  const targetScore = scores[targetType] || 0;
+  const diff = detectedScore - targetScore;
+
+  if (diff >= 4) {
+    const colStr = topMotivatingColumns.length > 0 ? ` (colunas identificadoras: ${topMotivatingColumns.join(', ')})` : '';
+    const blockMessage = `Planilha incompatível! O arquivo pertence a "${getNomeTipoPlanilha(detectedType)}"${colStr}. Destino fixo desta tela: "${getNomeTipoPlanilha(targetType)}". Nenhum dado foi gravado.`;
+    return {
+      shouldBlock: true,
+      detectedType,
+      targetType,
+      blockMessage,
+      topMotivatingColumns,
+    };
+  }
+
+  const warningMessage = `Não tenho certeza se esta planilha é de ${getNomeTipoPlanilha(targetType)}. Confira o nome das colunas antes de confirmar`;
+  return {
+    shouldBlock: false,
+    detectedType,
+    targetType,
+    warningMessage,
+    topMotivatingColumns,
+  };
 }
 
 export function getNomeTipoPlanilha(type: SpreadsheetDestinationType): string {
@@ -1159,68 +1392,67 @@ export function isGenericNonTeamName(raw?: string | null): boolean {
 }
 
 /**
- * Checks if a Nokia TelecomSite was explicitly demanded in the system ("o que mandamos"),
- * ignoring raw historical spreadsheet values that were never demanded.
+ * Retorna o valor da coluna EQUIPE (ou campo equipe) para linhas de Sites (Nokia e Ericsson).
+ * Regra:
+ * - Nokia Sites (nokia_sites): customFields['EQUIPE'] (e o campo equipe)
+ * - Ericsson Sites (ericsson_sites): fields['EQUIPE'] (e o campo equipe)
+ */
+export function getEquipeSite(item?: any | null): string {
+  if (!item) return '';
+  if (item.customFields && typeof item.customFields === 'object') {
+    const cf = item.customFields['EQUIPE'];
+    if (cf !== undefined && cf !== null) {
+      const clean = String(cf).trim();
+      if (clean) return clean;
+      if (!clean && item.equipe && String(item.equipe).trim()) {
+        return String(item.equipe).trim();
+      }
+      return '';
+    }
+  }
+  if (item.fields && typeof item.fields === 'object') {
+    const f = item.fields['EQUIPE'];
+    if (f !== undefined && f !== null) {
+      const clean = String(f).trim();
+      if (clean) return clean;
+      if (!clean && item.equipe && String(item.equipe).trim()) {
+        return String(item.equipe).trim();
+      }
+      return '';
+    }
+  }
+  return String(item.equipe ?? '').trim();
+}
+
+/**
+ * Define se o site possui equipe demandada (exclusivo para Sites Nokia e Ericsson).
+ * Regra: o site está SEM equipe quando a coluna EQUIPE estiver vazia (depois de trim).
+ * Se tiver qualquer texto, está demandado.
+ * Para decidir isso nos Sites, NÃO usa mais data de demanda, e-mail da dupla,
+ * responsavelDemand, nem lista de nomes genéricos.
+ */
+export function temEquipeDemandadaSite(item?: any | null): boolean {
+  if (!item) return false;
+  return getEquipeSite(item).length > 0;
+}
+
+/**
+ * Checks if a Nokia TelecomSite was explicitly demanded in the system ("o que mandamos").
+ * Regra central de Sites: o site está SEM equipe quando a coluna EQUIPE estiver vazia (depois de trim).
  */
 export function isNokiaSiteActivelyDemanded(site?: TelecomSite | null): boolean {
   if (!site) return false;
   if (site.sheetName === 'Equipes' || site.sheetName === 'Controle Cancelados') return false;
-
-  const hasDemandDate = Boolean(
-    (site.customFields?.['Data de demanda'] || site.customFields?.['Data Demanda'] || '').trim()
-  );
-  const hasDemandEmail = Boolean(
-    (site.customFields?.['E-MAIL DUPLA'] || site.customFields?.['EMAIL_DUPLA'] || '').trim() ||
-      (Array.isArray(site.responsaveisEmails) && site.responsaveisEmails.length > 0)
-  );
-  const respDemand = (site.responsavelDemand || '').trim();
-  const hasValidRespDemand = !isGenericNonTeamName(respDemand);
-
-  if (!hasValidRespDemand && !hasDemandDate && !hasDemandEmail) {
-    return false;
-  }
-
-  // Also ensure there is an actual non-empty responsible name or email on the site
-  const rawResp = (
-    site.responsavelDemand ||
-    site.customFields?.['Executor'] ||
-    site.customFields?.['EQUIPE EXECUTANTE'] ||
-    site.equipeParceira ||
-    site.responsavelCampo ||
-    site.equipe ||
-    ''
-  ).trim();
-
-  return !isGenericNonTeamName(rawResp) || hasDemandEmail;
+  return temEquipeDemandadaSite(site);
 }
 
 /**
- * Checks if an Ericsson Mother Sheet row (EricssonRow) was explicitly demanded in the system ("o que mandamos"),
- * ignoring raw historical spreadsheet values in EQUIPE that were never demanded.
+ * Checks if an Ericsson Mother Sheet row (EricssonRow) was explicitly demanded in the system.
+ * Regra central de Sites: o site está SEM equipe quando a coluna EQUIPE estiver vazia (depois de trim).
  */
 export function isEricssonRowActivelyDemanded(row?: EricssonRow | null): boolean {
   if (!row) return false;
-  const rAny = row as any;
-  const hasDemandDate = Boolean(
-    (row.fields?.['Data de demanda'] || row.fields?.['Data Demanda'] || '').trim()
-  );
-  const hasDemandEmail = Boolean((row.fields?.['E-MAIL DUPLA'] || '').trim());
-  const respDemand = String(rAny.responsavelDemand || '').trim();
-  const hasValidRespDemand = !isGenericNonTeamName(respDemand);
-
-  if (!hasValidRespDemand && !hasDemandDate && !hasDemandEmail) {
-    return false;
-  }
-
-  const rawEq = String(
-    rAny.responsavelDemand ||
-      row.equipe ||
-      row.fields?.['EQUIPE'] ||
-      row.fields?.['EQUIPE EXECUTANTE'] ||
-      ''
-  ).trim();
-
-  return !isGenericNonTeamName(rawEq) || hasDemandEmail;
+  return temEquipeDemandadaSite(row);
 }
 
 function splitEmailTokens(raw?: string | null): string[] {
@@ -1234,21 +1466,11 @@ function splitEmailTokens(raw?: string | null): string[] {
 export function doesSiteMatchEquipe(site: TelecomSite, targetEquipe: string): boolean {
   if (!targetEquipe || targetEquipe === 'ALL') return true;
 
-  const isDemanded = isNokiaSiteActivelyDemanded(site);
-  const rawSiteEq = isDemanded
-    ? (
-        site.responsavelDemand ||
-        getCellValueForColumn(site, 'EQUIPE EXECUTANTE') ||
-        getCellValueForColumn(site, 'EQUIPE') ||
-        site.equipeParceira ||
-        site.equipe ||
-        ''
-      ).trim()
-    : '';
+  const isDemanded = temEquipeDemandadaSite(site);
+  const rawSiteEq = getEquipeSite(site);
 
-  const canonSiteEq = getCanonicalDuplaName(rawSiteEq);
   if (targetEquipe === 'Sem Dupla') {
-    return !isDemanded || !canonSiteEq;
+    return !isDemanded;
   }
 
   if (!isDemanded || !rawSiteEq) return false;
@@ -1311,17 +1533,7 @@ export function doesSiteMatchResponsible(
     return false;
   }
 
-  const rawSiteEq = (
-    site.responsavelDemand ||
-    getCellValueForColumn(site, 'Executor') ||
-    getCellValueForColumn(site, 'EQUIPE EXECUTANTE') ||
-    getCellValueForColumn(site, 'EQUIPE') ||
-    getCellValueForColumn(site, 'Responsável') ||
-    site.equipeParceira ||
-    site.responsavelCampo ||
-    site.equipe ||
-    ''
-  ).trim();
+  const rawSiteEq = getEquipeSite(site);
 
   const siteEmailTokens = new Set<string>([
     ...splitEmailTokens(site.customFields?.['E-MAIL DUPLA']),

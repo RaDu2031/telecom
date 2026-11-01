@@ -19,6 +19,9 @@ import {
   SpreadsheetMeta,
   CONTROLE_GERAL_COLUMNS,
 } from '../types/telecom';
+import { PreImportSummaryModal } from './PreImportSummaryModal';
+import { dataService } from '../services/dataService';
+import { showToast } from '../utils/toast';
 import {
   parseClipboardOrCsvText,
   parseExcelWorkbookFile,
@@ -26,6 +29,7 @@ import {
   getCellValueForColumn,
   detectarTipoPlanilha,
   getNomeTipoPlanilha,
+  validarCompatibilidadePlanilha,
   SpreadsheetDestinationType,
 } from '../utils/spreadsheetUtils';
 
@@ -47,7 +51,7 @@ interface BulkPasteModalProps {
     sites: Partial<TelecomSite>[];
     vendor: VendorType;
     sheetName: string;
-    mode: 'append_only' | 'fill_empty';
+    mode: 'append_only';
     sourceFileName?: string;
     columns?: string[];
   }) => Promise<{
@@ -186,13 +190,15 @@ export const BulkPasteModal: React.FC<BulkPasteModalProps> = ({
 
     try {
       const buffer = await file.arrayBuffer();
-      const detectedType = detectarTipoPlanilha(buffer);
-      if (isFixedDestination && detectedType !== 'UNKNOWN' && detectedType !== fixedDestinationType) {
-        setError(
-          `Planilha incompatível! O arquivo pertence a "${getNomeTipoPlanilha(detectedType)}". Destino fixo desta tela: "${fixedDestinationTitle}". Nenhum dado foi importado.`
-        );
+      const targetType = isFixedDestination ? fixedDestinationType : (vendor === 'ERICSSON' ? 'ERICSSON_SITES' : 'NOKIA_SITES');
+      const check = validarCompatibilidadePlanilha(buffer, targetType, file.name);
+      if (isFixedDestination && check.shouldBlock) {
+        setError(check.blockMessage || 'Planilha incompatível!');
         if (fileInputRef.current) fileInputRef.current.value = '';
         return;
+      }
+      if (check.warningMessage) {
+        showToast(check.warningMessage);
       }
 
       const { sheetNames, sheetsData, sheetsColumns } = await parseExcelWorkbookFile(file, isFixedDestination ? fixedDestinationVendor : vendor);
@@ -215,20 +221,38 @@ export const BulkPasteModal: React.FC<BulkPasteModalProps> = ({
     }
   };
 
-  const handleConfirmImport = async () => {
+  const [preImportModalOpen, setPreImportModalOpen] = useState(false);
+  const [historyCheckResult, setHistoryCheckResult] = useState<{ isPreviouslyImported: boolean; lastImportedAt?: string }>({ isPreviouslyImported: false });
+
+  const handleOpenPreImportSummary = async () => {
     if (parsedSites.length === 0) {
       setError('Selecione um arquivo Excel ou cole os dados (Ctrl+V) antes de importar.');
       return;
     }
 
-    const detectedType = detectarTipoPlanilha(detectedColumns);
-    if (isFixedDestination && detectedType !== 'UNKNOWN' && detectedType !== fixedDestinationType) {
-      setError(
-        `Planilha incompatível! O conteúdo pertence a "${getNomeTipoPlanilha(detectedType)}". Destino fixo desta tela: "${fixedDestinationTitle}". Nenhum dado foi gravado.`
-      );
+    const targetType = isFixedDestination ? fixedDestinationType : (vendor === 'ERICSSON' ? 'ERICSSON_SITES' : 'NOKIA_SITES');
+    const check = validarCompatibilidadePlanilha(detectedColumns, targetType, tab === 'excel' ? uploadedFileName : undefined);
+    if (isFixedDestination && check.shouldBlock) {
+      setError(check.blockMessage || 'Planilha incompatível!');
       return;
     }
+    if (check.warningMessage) {
+      showToast(check.warningMessage);
+    }
 
+    setError(null);
+    const fileName = tab === 'excel' && uploadedFileName ? uploadedFileName : 'Colagem Direta Ctrl+V';
+    try {
+      const hist = await dataService.verificarHistoricoArquivo(fileName, targetType as any);
+      setHistoryCheckResult(hist);
+    } catch {
+      setHistoryCheckResult({ isPreviouslyImported: false });
+    }
+    setPreImportModalOpen(true);
+  };
+
+  const handleConfirmImport = async () => {
+    setPreImportModalOpen(false);
     setSubmitting(true);
     setError(null);
     setImportSummaryResult(null);
@@ -454,58 +478,15 @@ export const BulkPasteModal: React.FC<BulkPasteModalProps> = ({
             </div>
           )}
 
-          {/* Import Mode Selection */}
-          <div className="p-4 bg-slate-950 border border-slate-800 rounded-xl space-y-3">
+          {/* Single Import Rule Banner */}
+          <div className="p-4 bg-slate-950 border border-slate-800 rounded-xl space-y-2">
             <h4 className="text-xs font-bold text-slate-200 flex items-center gap-2">
               <ShieldCheck className="w-4 h-4 text-emerald-400" />
-              <span>Regra de Gravação (Proteção da Base):</span>
+              <span>Regra de Proteção (Somente Acrescentar):</span>
             </h4>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <label
-                onClick={() => setImportMode('append_only')}
-                className={`p-3 rounded-xl border flex items-start gap-2.5 cursor-pointer transition-colors ${
-                  importMode === 'append_only'
-                    ? 'bg-emerald-950/40 border-emerald-600 text-emerald-200'
-                    : 'bg-slate-900 border-slate-800 text-slate-400 hover:border-slate-700'
-                }`}
-              >
-                <input
-                  type="radio"
-                  name="importMode"
-                  checked={importMode === 'append_only'}
-                  onChange={() => setImportMode('append_only')}
-                  className="mt-0.5"
-                />
-                <div>
-                  <strong className="block text-xs text-white">Importar Apenas Novas (Recomendado)</strong>
-                  <span className="text-[11px] text-slate-400 leading-relaxed block mt-0.5">
-                    Se o Site ID já existir, pula e mantém 100% dos dados, status e demandas atuais.
-                  </span>
-                </div>
-              </label>
-
-              <label
-                onClick={() => setImportMode('fill_empty')}
-                className={`p-3 rounded-xl border flex items-start gap-2.5 cursor-pointer transition-colors ${
-                  importMode === 'fill_empty'
-                    ? 'bg-blue-950/40 border-blue-600 text-blue-200'
-                    : 'bg-slate-900 border-slate-800 text-slate-400 hover:border-slate-700'
-                }`}
-              >
-                <input
-                  type="radio"
-                  name="importMode"
-                  checked={importMode === 'fill_empty'}
-                  onChange={() => setImportMode('fill_empty')}
-                  className="mt-0.5"
-                />
-                <div>
-                  <strong className="block text-xs text-white">Preencher Campos Vazios das Existentes</strong>
-                  <span className="text-[11px] text-slate-400 leading-relaxed block mt-0.5">
-                    Acrescenta novas e, nas existentes, preenche apenas colunas vazias sem sobrescrever o que já foi editado.
-                  </span>
-                </div>
-              </label>
+            <div className="p-3 bg-emerald-950/30 border border-emerald-800/50 rounded-xl text-emerald-200 text-xs leading-relaxed">
+              <strong className="text-white block font-semibold mb-0.5">Modo Único: Somente Acrescentar Novos Registros</strong>
+              Importar uma planilha nunca apaga, substitui ou modifica registros que já existem no Firestore. Cada linha do arquivo com algum conteúdo é gravada como novo registro, preservando 100% dos dados anteriores.
             </div>
           </div>
 
@@ -518,21 +499,17 @@ export const BulkPasteModal: React.FC<BulkPasteModalProps> = ({
                   <span>Resumo Pré-Gravação:</span>
                 </span>
                 <span className="text-slate-400 font-mono">
-                  {previewStats.total} linhas na planilha
+                  {previewStats.total} linhas lidas
                 </span>
               </div>
-              <div className="grid grid-cols-3 gap-2 pt-1 font-mono text-[11px]">
+              <div className="grid grid-cols-2 gap-2 pt-1 font-mono text-[11px]">
                 <div className="p-2 bg-emerald-950/40 border border-emerald-800/60 rounded text-center">
-                  <span className="text-[10px] text-emerald-400 block font-sans">LINHAS NOVAS</span>
-                  <strong className="text-emerald-300 text-base">+{previewStats.novas}</strong>
-                </div>
-                <div className="p-2 bg-amber-950/40 border border-amber-800/60 rounded text-center">
-                  <span className="text-[10px] text-amber-400 block font-sans">JÁ EXISTIAM</span>
-                  <strong className="text-amber-300 text-base">{previewStats.jaExistiam}</strong>
+                  <span className="text-[10px] text-emerald-400 block font-sans">LINHAS PARA ADICIONAR</span>
+                  <strong className="text-emerald-300 text-base">+{previewStats.total}</strong>
                 </div>
                 <div className="p-2 bg-slate-900 border border-slate-800 rounded text-center">
-                  <span className="text-[10px] text-slate-400 block font-sans">COM ERRO (SEM ID)</span>
-                  <strong className="text-slate-400 text-base">{previewStats.comErro}</strong>
+                  <span className="text-[10px] text-slate-400 block font-sans">REGRA</span>
+                  <strong className="text-slate-300 text-xs">Somente Acrescentar</strong>
                 </div>
               </div>
             </div>
@@ -552,26 +529,42 @@ export const BulkPasteModal: React.FC<BulkPasteModalProps> = ({
 
           <button
             type="button"
-            onClick={handleConfirmImport}
+            onClick={handleOpenPreImportSummary}
             disabled={submitting || parsedSites.length === 0}
             className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-bold text-xs rounded-xl shadow-xs transition-colors cursor-pointer flex items-center gap-2"
           >
             {submitting ? (
               <>
                 <RefreshCw className="w-4 h-4 animate-spin" />
-                <span>Gravando no Firestore (Lotes de 20)...</span>
+                <span>Gravando no Firestore...</span>
               </>
             ) : (
               <>
                 <CheckCircle2 className="w-4 h-4" />
                 <span>
-                  Confirmar e Gravar ({previewStats.novas > 0 ? `+${previewStats.novas} Novas` : `${previewStats.total} Linhas`})
+                  Ver Resumo e Confirmar ({parsedSites.length} Linhas)
                 </span>
               </>
             )}
           </button>
         </div>
       </div>
+
+      {/* Confirmation Modal before Firestore write */}
+      <PreImportSummaryModal
+        isOpen={preImportModalOpen}
+        title="Confirmar Importação de Planilha"
+        fileName={tab === 'excel' && uploadedFileName ? uploadedFileName : 'Colagem Direta Ctrl+V'}
+        sheetName={selectedExcelTab || effectiveSheetName}
+        linhasLidas={parsedSites.length}
+        linhasAdicionadas={parsedSites.length}
+        linhasIgnoradas={0}
+        isPreviouslyImported={historyCheckResult.isPreviouslyImported}
+        previousImportDate={dataService.formatImportDate(historyCheckResult.lastImportedAt)}
+        isSaving={submitting}
+        onConfirm={handleConfirmImport}
+        onCancel={() => setPreImportModalOpen(false)}
+      />
     </div>
   );
 };

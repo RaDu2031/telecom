@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useRef } from 'react';
 import * as XLSX from 'xlsx';
+import { PreImportSummaryModal } from './PreImportSummaryModal';
 import {
   Search,
   Filter,
@@ -60,8 +61,13 @@ import {
   doesEricssonRowMatchResponsible,
   detectarTipoPlanilha,
   getNomeTipoPlanilha,
+  validarCompatibilidadePlanilha,
+  getEquipeSite,
+  temEquipeDemandadaSite,
+  matchesDuplaName,
 } from '../utils/spreadsheetUtils';
 import { dataService } from '../services/dataService';
+import { showToast } from '../utils/toast';
 import { AcionamentoStatusBadge } from './AcionamentoStatusBadge';
 
 export interface EricssonSitesTabProps {
@@ -287,10 +293,12 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
 
   const distinctEquipes = useMemo(() => {
     const set = new Set<string>();
-    // Exclusively Ericsson teams from rows
+    // Exclusively Ericsson teams from rows with demandada equipe
     roleScopedRows.forEach((r) => {
-      const val = (r.equipe || r.fields?.['EQUIPE'] || '').trim();
-      if (val && val !== '—' && val !== '-' && val !== 'Cancelado') set.add(val);
+      if (temEquipeDemandadaSite(r)) {
+        const val = getEquipeSite(r);
+        if (val && val !== '—' && val !== '-' && val !== 'Cancelado') set.add(val);
+      }
     });
     // Plus registered Ericsson users' teams
     ericssonUsers.forEach((u) => {
@@ -316,7 +324,8 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
     return roleScopedRows.filter((r) => {
       const rState = (r.state || r.fields?.['00.03.State'] || '').trim();
       const rMeta = (r.meta || r.fields?.['Meta'] || r.fields?.['META'] || '').trim();
-      const rEquipe = (r.equipe || r.fields?.['EQUIPE'] || '').trim();
+      const rEquipe = getEquipeSite(r);
+      const hasEquipe = temEquipeDemandadaSite(r);
 
       if (filterState !== 'ALL' && rState !== filterState) return false;
       if (filterMeta !== 'ALL') {
@@ -326,7 +335,13 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
           return false;
         }
       }
-      if (filterEquipe !== 'ALL' && rEquipe !== filterEquipe) return false;
+      if (filterEquipe !== 'ALL') {
+        if (filterEquipe === 'Sem Dupla') {
+          if (hasEquipe) return false;
+        } else if (!hasEquipe || !matchesDuplaName(rEquipe, filterEquipe)) {
+          return false;
+        }
+      }
 
       if (searchTokens.length === 0) return true;
 
@@ -786,6 +801,17 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
     }
   };
 
+  const [preImportModalOpen, setPreImportModalOpen] = useState(false);
+  const [pendingUploadData, setPendingUploadData] = useState<{
+    file: File;
+    parsedRows: EricssonRow[];
+    tabName: string;
+    columns: string[];
+    rawTotalRows: number;
+    ignoredCount: number;
+    hist: { isPreviouslyImported: boolean; lastImportedAt?: string };
+  } | null>(null);
+
   // Upload new version of .xlsx spreadsheet from computer (append/update protection)
   const handleUploadLocalExcel = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -795,14 +821,15 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
     setImportSummary(null);
     try {
       const arrayBuffer = await file.arrayBuffer();
-      const detectedType = detectarTipoPlanilha(arrayBuffer);
-      if (detectedType !== 'UNKNOWN' && detectedType !== 'ERICSSON_SITES') {
-        setSyncError(
-          `Planilha incompatível! O arquivo pertence a "${getNomeTipoPlanilha(detectedType)}". Destino fixo desta tela: "Ericsson – Sites". Nenhum dado foi gravado.`
-        );
+      const check = validarCompatibilidadePlanilha(arrayBuffer, 'ERICSSON_SITES', file.name);
+      if (check.shouldBlock) {
+        setSyncError(check.blockMessage || 'Planilha incompatível!');
         setSyncLoading(false);
         if (excelInputRef.current) excelInputRef.current.value = '';
         return;
+      }
+      if (check.warningMessage) {
+        showToast(check.warningMessage);
       }
 
       const parsed = parseEricssonWorkbookBuffer(arrayBuffer);
@@ -812,21 +839,48 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
         return;
       }
 
-      // Merge newly parsed rows with existing rows, preserving any assigned teams, responsibles, and delivered vistorias
-      const merged = mergeEricssonRowsPreservingVistoria(rows, parsed.rows, 'upsert');
+      const rawTotal = (parsed as any).rawTotalRows || parsed.rows.length;
+      const ignoredCount = Math.max(0, rawTotal - parsed.rows.length);
+      const hist = await dataService.verificarHistoricoArquivo(file.name, 'ERICSSON_SITES');
 
-      // Persist in Firestore (Append-Only)
-      const res = await dataService.importarSitesEricssonEmLote(merged.rows as any, ericssonUsers, undefined, {
+      setPendingUploadData({
+        file,
+        parsedRows: parsed.rows as any,
+        tabName: parsed.tabName,
+        columns: parsed.columns && parsed.columns.length > 0 ? parsed.columns : [...ERICSSON_ORIGINAL_COLUMNS],
+        rawTotalRows: rawTotal,
+        ignoredCount,
+        hist,
+      });
+      setPreImportModalOpen(true);
+    } catch (err: any) {
+      console.error('Erro ao ler ou importar planilha Ericsson:', err);
+      setSyncError(`Falha ao ler o arquivo Excel (.xlsx): ${err?.message || String(err)}`);
+    } finally {
+      setSyncLoading(false);
+      if (excelInputRef.current) excelInputRef.current.value = '';
+    }
+  };
+
+  const confirmUploadLocalExcel = async () => {
+    if (!pendingUploadData) return;
+    const { file, parsedRows, tabName, columns } = pendingUploadData;
+    setSyncLoading(true);
+    try {
+      const res = await dataService.importarSitesEricssonEmLote(parsedRows as any, ericssonUsers, undefined, {
         mode: 'append_only',
+        fileName: file.name,
+        sheetName: tabName,
       });
 
+      const novos = res.novosRegistros || [];
       const updatedMeta: EricssonSheetMeta = {
         id: sheetMeta?.id || 'ericsson_main_sheet',
-        tabName: parsed.tabName,
-        columns: parsed.columns && parsed.columns.length > 0 ? parsed.columns : (sheetMeta?.columns || [...ERICSSON_ORIGINAL_COLUMNS]),
+        tabName,
+        columns: columns.length > 0 ? columns : (sheetMeta?.columns || [...ERICSSON_ORIGINAL_COLUMNS]),
         lastSyncAt: new Date().toISOString(),
-        totalRows: merged.rows.length,
-        totalSites: merged.rows.length * 2,
+        totalRows: rows.length + novos.length,
+        totalSites: (rows.length + novos.length) * 2,
       };
 
       setImportSummary(res);
@@ -834,17 +888,17 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
         setSyncError(res.errorMessage);
       } else {
         onUpdated(
-          merged.rows as any,
+          [...rows, ...novos],
           updatedMeta,
-          `Planilha "${file.name}" importada com sucesso: ${parsed.rows.length} linhas de sites lidas (+${res.novas} novos registros gravados, ${res.jaExistiam} sincronizados).`
+          `Planilha "${file.name}" importada com sucesso (+${res.novas} novos registros gravados no Firestore).`
         );
       }
     } catch (err: any) {
-      console.error('Erro ao ler ou importar planilha Ericsson:', err);
-      setSyncError(`Falha ao ler o arquivo Excel (.xlsx) ou gravar no Firestore: ${err?.message || String(err)}`);
+      setSyncError(`Erro ao gravar no Firestore: ${err?.message || String(err)}`);
     } finally {
       setSyncLoading(false);
-      if (excelInputRef.current) excelInputRef.current.value = '';
+      setPreImportModalOpen(false);
+      setPendingUploadData(null);
     }
   };
 
@@ -3077,6 +3131,26 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
           </div>
         </div>
       )}
+
+      {/* Confirmation Modal before Firestore write */}
+      <PreImportSummaryModal
+        isOpen={preImportModalOpen}
+        title="Confirmar Importação Ericsson Sites"
+        fileName={pendingUploadData?.file.name || ''}
+        sheetName={pendingUploadData?.tabName || ''}
+        linhasLidas={pendingUploadData?.parsedRows.length || 0}
+        linhasAdicionadas={pendingUploadData?.parsedRows.length || 0}
+        linhasIgnoradas={pendingUploadData?.ignoredCount || 0}
+        motivoIgnoradas="por estarem vazias ou serem cabeçalho/legenda"
+        isPreviouslyImported={Boolean(pendingUploadData?.hist.isPreviouslyImported)}
+        previousImportDate={dataService.formatImportDate(pendingUploadData?.hist.lastImportedAt)}
+        isSaving={syncLoading}
+        onConfirm={confirmUploadLocalExcel}
+        onCancel={() => {
+          setPreImportModalOpen(false);
+          setPendingUploadData(null);
+        }}
+      />
     </div>
   );
 };

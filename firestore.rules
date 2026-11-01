@@ -14,16 +14,18 @@ service cloud.firestore {
     }
 
     function isCorporateEmail() {
-      return isSignedIn() && request.auth.token.email != null && (
-        request.auth.token.email.lower().matches('.*@ametaservicos\\.com\\.br$') ||
-        isOwnerEmail()
+      return isSignedIn() && (
+        isOwnerEmail() ||
+        (request.auth.token.email != null && request.auth.token.email.lower().matches('.*@ametaservicos\\.com\\.br$')) ||
+        exists(/databases/$(database)/documents/usuarios/$(request.auth.uid))
       );
     }
 
     function isEmailVerified() {
       return isSignedIn() && (
         request.auth.token.email_verified == true ||
-        isOwnerEmail()
+        isOwnerEmail() ||
+        exists(/databases/$(database)/documents/usuarios/$(request.auth.uid))
       );
     }
 
@@ -31,19 +33,30 @@ service cloud.firestore {
       return get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data;
     }
 
+    function userExists() {
+      return isSignedIn() && exists(/databases/$(database)/documents/usuarios/$(request.auth.uid));
+    }
+
     function isAdmin() {
-      return isCorporateEmail() && isEmailVerified() && (
+      return isSignedIn() && (
         isOwnerEmail() ||
-        (exists(/databases/$(database)/documents/usuarios/$(request.auth.uid)) && 
-         (getUserData().get('role', '') == 'ADM' || getUserData().get('tipo', '') == 'admin' || getUserData().get('situacao', '') == 'dono'))
+        (userExists() && (
+          getUserData().get('role', '') == 'ADM' || 
+          getUserData().get('role', '') == 'Dono' || 
+          getUserData().get('tipo', '') == 'admin' || 
+          getUserData().get('situacao', '') == 'dono'
+        ))
       );
     }
 
     function isReleased() {
-      return isCorporateEmail() && isEmailVerified() && (
+      return isSignedIn() && (
         isAdmin() ||
-        (exists(/databases/$(database)/documents/usuarios/$(request.auth.uid)) && 
-         (getUserData().get('situacao', '') == 'ativo' || getUserData().get('situacao', '') == 'dono' || getUserData().get('accessReleased', false) == true))
+        (userExists() && (
+          getUserData().get('situacao', '') == 'ativo' || 
+          getUserData().get('situacao', '') == 'dono' || 
+          getUserData().get('accessReleased', false) == true
+        ))
       );
     }
 
@@ -57,7 +70,7 @@ service cloud.firestore {
     }
 
     function canAccessNokia() {
-      return isAdmin() || (
+      return isAdmin() || isCoordinatorOrAdmin() || (
         isReleased() && (
           getUserData().get('plataforma', '') == 'NOKIA' ||
           getUserData().get('plataforma', '') == 'AMBAS' ||
@@ -68,7 +81,7 @@ service cloud.firestore {
     }
 
     function canAccessEricsson() {
-      return isAdmin() || (
+      return isAdmin() || isCoordinatorOrAdmin() || (
         isReleased() && (
           getUserData().get('plataforma', '') == 'ERICSSON' ||
           getUserData().get('plataforma', '') == 'AMBAS' ||
@@ -80,123 +93,113 @@ service cloud.firestore {
 
     // App meta configuration
     match /app_meta/{docId} {
-      allow read: if isCorporateEmail() && isEmailVerified();
-      allow write: if isCorporateEmail() && isEmailVerified() && isAdmin();
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    // Historico de importacoes
+    match /historico_importacoes/{docId} {
+      allow read, write, delete: if isSignedIn() && (isAdmin() || isCoordinatorOrAdmin() || canAccessNokia() || canAccessEricsson());
     }
 
     // Usuarios collection
     match /usuarios/{userId} {
-      // Cada usuário lê só o próprio documento; admin e coordenadores continuam lendo todos
-      allow read: if isCorporateEmail() && isEmailVerified() && (
-        request.auth.uid == userId || isCoordinatorOrAdmin()
+      allow read: if isSignedIn() && (
+        request.auth.uid == userId || isCoordinatorOrAdmin() || isAdmin()
       );
       
-      // ONLY Admin can create user documents in Firestore
-      allow create: if isCorporateEmail() && isEmailVerified() && isAdmin();
+      allow create: if isSignedIn() && (isAdmin() || isOwnerEmail());
 
-      // Self-update allows changing profile documents/notes. Admin can modify roles, platforms and access.
-      allow update: if isCorporateEmail() && isEmailVerified() && (
+      allow update: if isSignedIn() && (
         (request.auth.uid == userId && 
          !request.resource.data.diff(resource.data).affectedKeys().hasAny(['tipo', 'role', 'situacao', 'accessReleased', 'plataforma', 'assignedPlatform', 'uid', 'email'])) ||
-        isAdmin()
+        isAdmin() ||
+        isOwnerEmail()
       );
       
-      // Admin can block or manage user profiles
-      allow delete: if isCorporateEmail() && isEmailVerified() && isAdmin();
+      allow delete: if isSignedIn() && (isAdmin() || isOwnerEmail());
 
-      // Subcoleção privada de dados e credenciais sensíveis (cpf, initialPasswordHash, salt)
       match /privado/{docId} {
-        allow read: if isCorporateEmail() && isEmailVerified() && (
-          request.auth.uid == userId || isAdmin()
-        );
-        allow write: if isCorporateEmail() && isEmailVerified() && (
-          request.auth.uid == userId || isAdmin()
-        );
+        allow read: if isSignedIn() && (request.auth.uid == userId || isAdmin() || isOwnerEmail());
+        allow write: if isSignedIn() && (request.auth.uid == userId || isAdmin() || isOwnerEmail());
       }
     }
 
     // Chamados collection
     match /chamados/{chamadoId} {
-      allow read: if isCorporateEmail() && isReleased() && (resource.data.uid == request.auth.uid || isAdmin());
-      allow create: if isCorporateEmail() && isReleased() && request.resource.data.uid == request.auth.uid && request.resource.data.status == 'Aberto';
-      allow update: if isCorporateEmail() && isReleased() && (
+      allow read: if isSignedIn() && (resource.data.uid == request.auth.uid || isAdmin() || isCoordinatorOrAdmin());
+      allow create: if isSignedIn() && request.resource.data.uid == request.auth.uid;
+      allow update: if isSignedIn() && (
         (resource.data.uid == request.auth.uid && 
          request.resource.data.uid == resource.data.uid && 
          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'descricao', 'titulo', 'updatedAt']) &&
          request.resource.data.status == 'Cancelado') ||
         isAdmin()
       );
-      allow delete: if isCorporateEmail() && isReleased() && isAdmin();
+      allow delete: if isSignedIn() && (isAdmin() || isOwnerEmail());
     }
 
     // Platform collections (Nokia)
     match /nokia_sites/{docId} {
-      allow read: if isCorporateEmail() && canAccessNokia();
-      allow create, delete: if isCorporateEmail() && canAccessNokia() && isCoordinatorOrAdmin();
-      allow update: if isCorporateEmail() && canAccessNokia() && (
-        isCoordinatorOrAdmin() ||
-        (isReleased() && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['responsavelCampo', 'responsavelDemand', 'equipeParceira', 'equipe', 'responsaveisUids', 'responsaveisEmails']))
-      );
+      allow read: if isSignedIn() && (canAccessNokia() || isCoordinatorOrAdmin() || isAdmin());
+      allow create, update, delete: if isSignedIn() && (isCoordinatorOrAdmin() || isAdmin() || canAccessNokia());
     }
     match /nokia_tssr/{docId} {
-      allow read, write: if isCorporateEmail() && canAccessNokia();
+      allow read, write, delete: if isSignedIn() && (canAccessNokia() || isCoordinatorOrAdmin() || isAdmin());
     }
     match /nokia_pastas/{docId} {
-      allow read, write: if isCorporateEmail() && canAccessNokia();
+      allow read, write, delete: if isSignedIn() && (canAccessNokia() || isCoordinatorOrAdmin() || isAdmin());
     }
     match /nokia_arquivos/{docId} {
-      allow read, write: if isCorporateEmail() && canAccessNokia();
+      allow read, write, delete: if isSignedIn() && (canAccessNokia() || isCoordinatorOrAdmin() || isAdmin());
     }
 
     // Platform collections (Ericsson)
     match /ericsson_sites/{docId} {
-      allow read: if isCorporateEmail() && canAccessEricsson();
-      allow create, delete: if isCorporateEmail() && canAccessEricsson() && isCoordinatorOrAdmin();
-      allow update: if isCorporateEmail() && canAccessEricsson() && (
-        isCoordinatorOrAdmin() ||
-        (isReleased() && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['responsavelCampo', 'responsavelDemand', 'equipeParceira', 'equipe', 'responsaveisUids', 'responsaveisEmails']))
-      );
+      allow read: if isSignedIn() && (canAccessEricsson() || isCoordinatorOrAdmin() || isAdmin());
+      allow create, update, delete: if isSignedIn() && (isCoordinatorOrAdmin() || isAdmin() || canAccessEricsson());
     }
     match /ericsson_pastas/{docId} {
-      allow read, write: if isCorporateEmail() && canAccessEricsson();
+      allow read, write, delete: if isSignedIn() && (canAccessEricsson() || isCoordinatorOrAdmin() || isAdmin());
     }
     match /ericsson_files/{docId} {
-      allow read, write: if isCorporateEmail() && canAccessEricsson();
+      allow read, write, delete: if isSignedIn() && (canAccessEricsson() || isCoordinatorOrAdmin() || isAdmin());
     }
     match /ericsson_arquivos/{docId} {
-      allow read, write: if isCorporateEmail() && canAccessEricsson();
+      allow read, write, delete: if isSignedIn() && (canAccessEricsson() || isCoordinatorOrAdmin() || isAdmin());
     }
     match /ericsson_engenharia/{docId} {
-      allow read, write: if isCorporateEmail() && canAccessEricsson();
+      allow read, write, delete: if isSignedIn() && (canAccessEricsson() || isCoordinatorOrAdmin() || isAdmin());
     }
     match /ericsson_reprovacoes/{docId} {
-      allow read, write: if isCorporateEmail() && canAccessEricsson();
+      allow read, write, delete: if isSignedIn() && (canAccessEricsson() || isCoordinatorOrAdmin() || isAdmin());
     }
 
     // Shared collections (Notifications and Duplas config)
     match /notificacoes/{docId} {
-      allow read: if isCorporateEmail() && isReleased();
-      allow write: if isCorporateEmail() && isReleased();
+      allow read, write, delete: if isSignedIn();
     }
     match /duplas_config/{docId} {
-      allow read: if isCorporateEmail() && isReleased();
-      allow write: if isCorporateEmail() && isCoordinatorOrAdmin();
+      allow read: if isSignedIn();
+      allow write, delete: if isSignedIn() && (isCoordinatorOrAdmin() || isAdmin());
     }
 
     match /acionamentos/{acionamentoId} {
-      allow read: if isCorporateEmail() && isEmailVerified() && (
+      allow read: if isSignedIn() && (
         isCoordinatorOrAdmin() ||
+        isAdmin() ||
         (isReleased() && request.auth.token.email.lower() in resource.data.get('destinatariosEmails', []))
       );
-      allow create: if isCorporateEmail() && isEmailVerified() && isCoordinatorOrAdmin();
-      allow update: if isCorporateEmail() && isEmailVerified() && (
+      allow create: if isSignedIn() && (isCoordinatorOrAdmin() || isAdmin());
+      allow update: if isSignedIn() && (
         isCoordinatorOrAdmin() ||
+        isAdmin() ||
         (isReleased() &&
          request.auth.token.email.lower() in resource.data.get('destinatariosEmails', []) &&
          request.resource.data.diff(resource.data).affectedKeys().hasOnly(
            ['status','aceitoPorEmail','aceitoPorNome','aceitoEm','atualizadoEm','historico','recusadoPorEmail','recusadoPorNome','recusadoEm','motivoRecusa','checkinEm','checkinLocal','checkoutEm','checkoutLocal','concluidoEm','resumoConclusao','pendencias']))
       );
-      allow delete: if isAdmin();
+      allow delete: if isSignedIn() && (isAdmin() || isOwnerEmail());
     }
 
     // Default deny catch-all

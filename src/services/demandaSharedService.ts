@@ -16,8 +16,12 @@ import {
   isNokiaSiteActivelyDemanded,
   isEricssonRowActivelyDemanded,
   isGenericNonTeamName,
+  getEquipeSite,
+  temEquipeDemandadaSite,
 } from '../utils/spreadsheetUtils';
 import { dataService } from './dataService';
+
+export { getEquipeSite, temEquipeDemandadaSite };
 
 export interface DemandaResult {
   updatedSites: TelecomSite[];
@@ -478,16 +482,8 @@ export function isItemAssignedToResponsible(
  * Gets the current responsible name assigned to a site or row, ONLY if actively demanded
  */
 export function getCurrentSiteResponsible(site: TelecomSite): string {
-  if (!isNokiaSiteActivelyDemanded(site)) return '';
-  return (
-    site.responsavelDemand ||
-    site.customFields?.['Executor'] ||
-    site.customFields?.['EQUIPE EXECUTANTE'] ||
-    site.responsavelCampo ||
-    site.equipeParceira ||
-    site.equipe ||
-    ''
-  ).trim();
+  if (!temEquipeDemandadaSite(site)) return '';
+  return getEquipeSite(site);
 }
 
 export function getCurrentTssrRowResponsible(row: TssrRow): string {
@@ -707,6 +703,7 @@ export const demandaSharedService = {
     actorName?: string;
     allowTransfer?: boolean;
     targetScope?: 'equipe' | 'executor';
+    isTypedText?: boolean;
   }): Promise<DemandaResult> {
     const cleanResponsible = params.responsibleName.trim();
     const cleanEmails = Array.isArray(params.linkedEmails)
@@ -717,13 +714,97 @@ export const demandaSharedService = {
     const nowIso = new Date().toISOString();
     const isExecutor = params.targetScope === 'executor';
 
-    // 1. Expand all tokens so row.id, site.id, and siteId all resolve together
-    const tokensSet = resolveExpandedSiteTokens(
-      params.siteTokens,
-      params.currentSites,
-      params.currentTssrRows || [],
-      params.currentEricssonEngRows || []
-    );
+    // Build the set of target unique record IDs
+    const targetRecordIds = new Set<string>();
+
+    if (params.isTypedText) {
+      // TYPED TEXT MODE: 1 mention = 1 free candidate record
+      const assignedIds = new Set<string>();
+
+      params.siteTokens.forEach((tk) => {
+        const cleanTk = String(tk || '').trim().toUpperCase();
+        if (!cleanTk || cleanTk === '—' || cleanTk === '-') return;
+
+        let candidateFound = false;
+
+        if (params.vendor === 'NOKIA') {
+          if (isExecutor) {
+            const candidates = (params.currentTssrRows || []).filter((r) => {
+              if (assignedIds.has(r.id.toUpperCase())) return false;
+              if (isTssrRowActivelyDemanded(r)) return false;
+              const rTokens = extractSiteTokens(r);
+              return rTokens.includes(cleanTk);
+            });
+            if (candidates.length > 0) {
+              const chosen = candidates[0];
+              assignedIds.add(chosen.id.toUpperCase());
+              targetRecordIds.add(chosen.id.toUpperCase());
+              candidateFound = true;
+            }
+          } else {
+            const candidates = params.currentSites.filter((s) => {
+              if (s.vendor !== 'NOKIA') return false;
+              if (assignedIds.has(s.id.toUpperCase())) return false;
+              if (temEquipeDemandadaSite(s)) return false;
+              const sTokens = extractSiteTokens(s);
+              return sTokens.includes(cleanTk);
+            });
+            if (candidates.length > 0) {
+              const chosen = candidates[0];
+              assignedIds.add(chosen.id.toUpperCase());
+              targetRecordIds.add(chosen.id.toUpperCase());
+              candidateFound = true;
+            }
+          }
+        } else {
+          // ERICSSON
+          if (isExecutor) {
+            const candidates = (params.currentEricssonEngRows || []).filter((r) => {
+              if (assignedIds.has(r.id.toUpperCase())) return false;
+              if (isEricssonEngRowActivelyDemanded(r)) return false;
+              const rTokens = extractSiteTokens(r as any);
+              return rTokens.includes(cleanTk);
+            });
+            if (candidates.length > 0) {
+              const chosen = candidates[0];
+              assignedIds.add(chosen.id.toUpperCase());
+              targetRecordIds.add(chosen.id.toUpperCase());
+              candidateFound = true;
+            }
+          } else {
+            const candidates = (params.currentEricssonRows || []).filter((r) => {
+              if (assignedIds.has(r.id.toUpperCase())) return false;
+              if (temEquipeDemandadaSite(r)) return false;
+              const rTokens = extractSiteTokens(r as any);
+              return rTokens.includes(cleanTk);
+            });
+            if (candidates.length > 0) {
+              const chosen = candidates[0];
+              assignedIds.add(chosen.id.toUpperCase());
+              targetRecordIds.add(chosen.id.toUpperCase());
+              candidateFound = true;
+            }
+          }
+        }
+
+        if (!candidateFound) {
+          try {
+            const { showToast } = require('../utils-[#toast]');
+          } catch {}
+          if (typeof window !== 'undefined' && (window as any).showToast) {
+            (window as any).showToast(`Todos os registros do site ${cleanTk} já têm equipe`);
+          }
+        }
+      });
+    } else {
+      // SELECTION MODE: Match strictly by unique record ID or rowKey
+      params.siteTokens.forEach((t) => {
+        const clean = String(t || '').trim().toUpperCase();
+        if (clean && clean !== '—' && clean !== '-') {
+          targetRecordIds.add(clean);
+        }
+      });
+    }
 
     // 2. Update TelecomSite list (NOKIA Sites or ERICSSON Sites if targetScope is 'equipe')
     let updatedSitesCount = 0;
@@ -733,13 +814,7 @@ export const demandaSharedService = {
 
       const sId = String(site.id || '').trim().toUpperCase();
       const sRowKey = String(site.rowKey || '').trim().toUpperCase();
-      const sSiteId = String(site.siteId || '').trim().toUpperCase();
-      const sColBSiteId = String(site.customFields?.['SITE ID'] || '').trim().toUpperCase();
-      const isMatch =
-        (sId !== '' && tokensSet.has(sId)) ||
-        (sRowKey !== '' && tokensSet.has(sRowKey)) ||
-        (sSiteId !== '' && tokensSet.has(sSiteId)) ||
-        (sColBSiteId !== '' && tokensSet.has(sColBSiteId));
+      const isMatch = (sId !== '' && targetRecordIds.has(sId)) || (sRowKey !== '' && targetRecordIds.has(sRowKey));
       if (!isMatch) return site;
 
       const currentResp = getCurrentSiteResponsible(site);
@@ -782,11 +857,7 @@ export const demandaSharedService = {
 
       const rId = String(row.id || '').trim().toUpperCase();
       const rRowKey = String(row.rowKey || '').trim().toUpperCase();
-      const rSiteId = String(row.siteId || '').trim().toUpperCase();
-      const isMatch =
-        (rId !== '' && tokensSet.has(rId)) ||
-        (rRowKey !== '' && tokensSet.has(rRowKey)) ||
-        (rSiteId !== '' && tokensSet.has(rSiteId));
+      const isMatch = (rId !== '' && targetRecordIds.has(rId)) || (rRowKey !== '' && targetRecordIds.has(rRowKey));
       if (!isMatch) return row;
 
       const currentResp = getCurrentTssrRowResponsible(row);
@@ -827,7 +898,7 @@ export const demandaSharedService = {
 
       const rId = String(row.id || '').trim().toUpperCase();
       const rRowKey = String(row.rowKey || '').trim().toUpperCase();
-      const isMatch = (rId !== '' && tokensSet.has(rId)) || (rRowKey !== '' && tokensSet.has(rRowKey));
+      const isMatch = (rId !== '' && targetRecordIds.has(rId)) || (rRowKey !== '' && targetRecordIds.has(rRowKey));
       if (!isMatch) return row;
 
       const currentResp = getCurrentEricssonRowResponsible(row);
@@ -870,11 +941,8 @@ export const demandaSharedService = {
       if (params.vendor !== 'ERICSSON') return row;
       if (isExecutor) return row; // 'executor' scope does NOT write to Ericsson Sites
 
-      const rId = String(row.id || '').trim();
-      const isMatch = params.siteTokens.some((tk) => {
-        const cleanTk = String(tk).trim().replace(/^mother-/i, '');
-        return cleanTk === rId;
-      });
+      const rId = String(row.id || '').trim().toUpperCase();
+      const isMatch = targetRecordIds.has(rId);
       if (!isMatch) return row;
 
       const currentResp = isEricssonRowActivelyDemanded(row)
@@ -932,9 +1000,7 @@ export const demandaSharedService = {
     }
 
     // 7. Persist to Firestore via dataService
-    const rawTokens = params.vendor === 'ERICSSON' && params.targetScope !== 'executor'
-      ? params.siteTokens
-      : Array.from(tokensSet);
+    const rawTokens = Array.from(targetRecordIds);
 
     let sitesWithoutEmailCount = 0;
     try {
@@ -957,10 +1023,7 @@ export const demandaSharedService = {
       throw err;
     }
 
-    const totalCount =
-      params.vendor === 'NOKIA'
-        ? Math.max(updatedSitesCount, updatedTssrCount, params.siteTokens.length)
-        : Math.max(updatedSitesCount, updatedEricssonCount, updatedEricssonSitesCount, params.siteTokens.length);
+    const totalCount = rawTokens.length;
 
     return {
       updatedSites: nextSites,
@@ -984,15 +1047,90 @@ export const demandaSharedService = {
     currentEricssonEngRows?: EricssonEngineeringRow[];
     currentEricssonRows?: EricssonRow[];
     targetScope?: 'equipe' | 'executor';
+    isTypedText?: boolean;
   }): Promise<DemandaResult> {
-    const tokensSet = resolveExpandedSiteTokens(
-      params.siteTokens,
-      params.currentSites,
-      params.currentTssrRows || [],
-      params.currentEricssonEngRows || []
-    );
-    const nowIso = new Date().toISOString();
     const isExecutor = params.targetScope === 'executor';
+    const targetRecordIds = new Set<string>();
+
+    if (params.isTypedText) {
+      // TYPED TEXT MODE: Remove 1 record per mention with team, from most recent to oldest
+      const unassignedIds = new Set<string>();
+
+      params.siteTokens.forEach((tk) => {
+        const cleanTk = String(tk || '').trim().toUpperCase();
+        if (!cleanTk || cleanTk === '—' || cleanTk === '-') return;
+
+        if (params.vendor === 'NOKIA') {
+          if (isExecutor) {
+            const candidates = (params.currentTssrRows || [])
+              .filter((r) => {
+                if (unassignedIds.has(r.id.toUpperCase())) return false;
+                if (!isTssrRowActivelyDemanded(r)) return false;
+                return extractSiteTokens(r).includes(cleanTk);
+              })
+              .sort((a, b) => (b.rowNumberInFile || 0) - (a.rowNumberInFile || 0));
+            if (candidates.length > 0) {
+              const chosen = candidates[0];
+              unassignedIds.add(chosen.id.toUpperCase());
+              targetRecordIds.add(chosen.id.toUpperCase());
+            }
+          } else {
+            const candidates = params.currentSites
+              .filter((s) => {
+                if (s.vendor !== 'NOKIA') return false;
+                if (unassignedIds.has(s.id.toUpperCase())) return false;
+                if (!temEquipeDemandadaSite(s)) return false;
+                return extractSiteTokens(s).includes(cleanTk);
+              })
+              .sort((a, b) => (b.rowNumberInFile || 0) - (a.rowNumberInFile || 0));
+            if (candidates.length > 0) {
+              const chosen = candidates[0];
+              unassignedIds.add(chosen.id.toUpperCase());
+              targetRecordIds.add(chosen.id.toUpperCase());
+            }
+          }
+        } else {
+          // ERICSSON
+          if (isExecutor) {
+            const candidates = (params.currentEricssonEngRows || [])
+              .filter((r) => {
+                if (unassignedIds.has(r.id.toUpperCase())) return false;
+                if (!isEricssonEngRowActivelyDemanded(r)) return false;
+                return extractSiteTokens(r as any).includes(cleanTk);
+              })
+              .sort((a, b) => (b.rowNumberInFile || 0) - (a.rowNumberInFile || 0));
+            if (candidates.length > 0) {
+              const chosen = candidates[0];
+              unassignedIds.add(chosen.id.toUpperCase());
+              targetRecordIds.add(chosen.id.toUpperCase());
+            }
+          } else {
+            const candidates = (params.currentEricssonRows || [])
+              .filter((r) => {
+                if (unassignedIds.has(r.id.toUpperCase())) return false;
+                if (!temEquipeDemandadaSite(r)) return false;
+                return extractSiteTokens(r as any).includes(cleanTk);
+              })
+              .sort((a, b) => (b.rowNumberInFile || 0) - (a.rowNumberInFile || 0));
+            if (candidates.length > 0) {
+              const chosen = candidates[0];
+              unassignedIds.add(chosen.id.toUpperCase());
+              targetRecordIds.add(chosen.id.toUpperCase());
+            }
+          }
+        }
+      });
+    } else {
+      // SELECTION MODE: Match strictly by unique record ID or rowKey
+      params.siteTokens.forEach((t) => {
+        const clean = String(t || '').trim().toUpperCase();
+        if (clean && clean !== '—' && clean !== '-') {
+          targetRecordIds.add(clean);
+        }
+      });
+    }
+
+    const nowIso = new Date().toISOString();
 
     let updatedSitesCount = 0;
     const nextSites = params.currentSites.map((site) => {
@@ -1001,11 +1139,7 @@ export const demandaSharedService = {
 
       const sId = String(site.id || '').trim().toUpperCase();
       const sRowKey = String(site.rowKey || '').trim().toUpperCase();
-      const sSiteId = String(site.siteId || '').trim().toUpperCase();
-      const isMatch =
-        (sId !== '' && tokensSet.has(sId)) ||
-        (sRowKey !== '' && tokensSet.has(sRowKey)) ||
-        (sSiteId !== '' && tokensSet.has(sSiteId));
+      const isMatch = (sId !== '' && targetRecordIds.has(sId)) || (sRowKey !== '' && targetRecordIds.has(sRowKey));
       if (!isMatch) return site;
 
       updatedSitesCount++;
@@ -1016,6 +1150,7 @@ export const demandaSharedService = {
         equipeParceira: '',
         equipe: '',
         responsaveisEmails: [],
+        responsaveisUids: [],
         customFields: {
           ...(site.customFields || {}),
           'EQUIPE EXECUTANTE': '',
@@ -1038,11 +1173,7 @@ export const demandaSharedService = {
 
       const rId = String(row.id || '').trim().toUpperCase();
       const rRowKey = String(row.rowKey || '').trim().toUpperCase();
-      const rSiteId = String(row.siteId || '').trim().toUpperCase();
-      const isMatch =
-        (rId !== '' && tokensSet.has(rId)) ||
-        (rRowKey !== '' && tokensSet.has(rRowKey)) ||
-        (rSiteId !== '' && tokensSet.has(rSiteId));
+      const isMatch = (rId !== '' && targetRecordIds.has(rId)) || (rRowKey !== '' && targetRecordIds.has(rRowKey));
       if (!isMatch) return row;
 
       updatedTssrCount++;
@@ -1074,7 +1205,7 @@ export const demandaSharedService = {
 
       const rId = String(row.id || '').trim().toUpperCase();
       const rRowKey = String(row.rowKey || '').trim().toUpperCase();
-      const isMatch = (rId !== '' && tokensSet.has(rId)) || (rRowKey !== '' && tokensSet.has(rRowKey));
+      const isMatch = (rId !== '' && targetRecordIds.has(rId)) || (rRowKey !== '' && targetRecordIds.has(rRowKey));
       if (!isMatch) return row;
 
       updatedEricssonCount++;
@@ -1107,18 +1238,19 @@ export const demandaSharedService = {
       if (params.vendor !== 'ERICSSON') return row;
       if (isExecutor) return row;
 
-      const rId = String(row.id || '').trim();
-      const isMatch = params.siteTokens.some((tk) => {
-        const cleanTk = String(tk).trim().replace(/^mother-/i, '');
-        return cleanTk === rId;
-      });
+      const rId = String(row.id || '').trim().toUpperCase();
+      const isMatch = targetRecordIds.has(rId);
       if (!isMatch) return row;
 
       updatedEricssonSitesCount++;
       return {
         ...row,
         responsavelDemand: '',
+        responsavelCampo: '',
+        equipeParceira: '',
         equipe: '',
+        responsaveisEmails: [],
+        responsaveisUids: [],
         fields: {
           ...(row.fields || {}),
           EQUIPE: '',
@@ -1154,9 +1286,7 @@ export const demandaSharedService = {
       } catch {}
     }
 
-    const rawTokens = params.vendor === 'ERICSSON' && params.targetScope !== 'executor'
-      ? params.siteTokens
-      : Array.from(tokensSet);
+    const rawTokens = Array.from(targetRecordIds);
 
     try {
       await dataService.desvincularDemandaSites({
@@ -1229,6 +1359,7 @@ export const demandaSharedService = {
         equipeParceira: '',
         equipe: '',
         responsaveisEmails: [],
+        responsaveisUids: [],
         customFields: {
           ...(site.customFields || {}),
           'EQUIPE EXECUTANTE': '',
@@ -1337,7 +1468,11 @@ export const demandaSharedService = {
       return {
         ...row,
         responsavelDemand: '',
+        responsavelCampo: '',
+        equipeParceira: '',
         equipe: '',
+        responsaveisEmails: [],
+        responsaveisUids: [],
         fields: {
           ...(row.fields || {}),
           EQUIPE: '',

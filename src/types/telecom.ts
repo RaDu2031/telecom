@@ -183,9 +183,24 @@ export interface TelecomSite {
   vistoriaDeliveredAt?: string;
   vistoriaUploadedBy?: string;
   isNew?: boolean; // True when newly added/imported into the system
+  fileName?: string;
+  rowNumberInFile?: number;
+  importCode?: string;
   createdAt?: string;
   updatedAt: string;
   updatedBy: string;
+}
+
+export interface ImportHistoryEntry {
+  id: string;
+  fileName: string;
+  target: 'NOKIA_SITES' | 'NOKIA_TSSR' | 'ERICSSON_SITES' | 'ERICSSON_ENGENHARIA';
+  sheetName?: string;
+  importCode: string;
+  importedAt: string;
+  totalLidas: number;
+  totalAdicionadas: number;
+  totalIgnoradas: number;
 }
 
 export interface SpreadsheetMeta {
@@ -745,6 +760,10 @@ export interface TssrRow {
   vistoriaUploadedByEmail?: string;
   responsaveisUids?: string[];
   responsaveisEmails?: string[];
+  fileName?: string;
+  sheetName?: string;
+  rowNumberInFile?: number;
+  importCode?: string;
   createdAt?: string;
   updatedAt: string;
 }
@@ -953,6 +972,10 @@ export interface EricssonRow {
   responsaveisUids?: string[];
   responsaveisEmails?: string[];
   isManualRow?: boolean;
+  fileName?: string;
+  sheetName?: string;
+  rowNumberInFile?: number;
+  importCode?: string;
   createdAt?: string;
   updatedAt: string;
 }
@@ -1177,6 +1200,10 @@ export interface EricssonEngineeringRow {
   vistoriaFileUrl?: string;
   history?: EricssonAuditLogEntry[];
   reprovacoes?: EricssonReprovacaoRecord[];
+  fileName?: string;
+  sheetName?: string;
+  rowNumberInFile?: number;
+  importCode?: string;
   updatedAt: string;
 }
 
@@ -1318,7 +1345,9 @@ export interface AcionamentoHistorico {
 }
 
 export interface Acionamento {
-  id: string; // Determinístico: ${vendor}_${siteIdNormalizado}_${tipoDestinatario}
+  id: string; // Determinístico: ${vendor}_${siteIdNormalizado}_${tipoDestinatario} ou ${vendor}_${siteIdNormalizado}__${sufixo}_${tipoDestinatario}
+  registroId?: string; // Unique document ID of the spreadsheet row
+  rowNumberInFile?: number; // Row number in file for "Linha N" label
   protocolo: string;
   origem: 'telecom';
   vendor: VendorType;
@@ -1368,11 +1397,20 @@ export function normalizeSiteIdForDoc(rawSiteId?: string): string {
 export function buildAcionamentoId(
   vendor: VendorType | string,
   siteId: string,
-  tipoDestinatario: 'EXECUTOR' | 'VISTORIA'
+  tipoDestinatario: 'EXECUTOR' | 'VISTORIA',
+  registroId?: string
 ): string {
   const v = (vendor || 'NOKIA').trim().toUpperCase();
   const s = normalizeSiteIdForDoc(siteId);
   const t = tipoDestinatario.trim().toUpperCase();
+
+  const refId = (registroId || '').trim();
+  if (refId && refId.includes('__')) {
+    const sufixo = refId.slice(refId.indexOf('__') + 2);
+    if (sufixo) {
+      return `${v}_${s}__${sufixo}_${t}`;
+    }
+  }
   return `${v}_${s}_${t}`;
 }
 

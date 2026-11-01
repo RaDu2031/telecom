@@ -29,11 +29,14 @@ import {
   isEricssonRowActivelyDemanded,
   getCanonicalDuplaName,
   normalizeAccents,
+  matchesDuplaName,
 } from '../utils/spreadsheetUtils';
 import {
   hasActiveResponsible,
   getRegisteredUsersForDemanda,
   getCurrentSiteResponsible,
+  getEquipeSite,
+  temEquipeDemandadaSite,
 } from '../services/demandaSharedService';
 import {
   isSiteFeito,
@@ -206,7 +209,7 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = React
   // Site picker controls (left column of workspace)
   const [sitePickerSearch, setSitePickerSearch] = useState<string>('');
   const [sitePickerFilter, setSitePickerFilter] = useState<
-    'ALL' | 'SEM_DUPLA' | 'PARA_FAZER' | 'FEITOS' | 'AGUARDANDO'
+    'SEM_DUPLA' | 'PARA_FAZER' | 'FEITOS' | 'AGUARDANDO'
   >('SEM_DUPLA');
 
   // Batch transfer confirmation modal state
@@ -353,13 +356,17 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = React
 
   // Nokia sites for a given Dupla
   const getNokiaSitesForDupla = (duplaName: string): TelecomSite[] => {
-    const linkedEmails = getLinkedEmailsForDupla(duplaName);
+    const cleanDupla = (duplaName || '').trim();
+    if (!cleanDupla) return [];
+    const linkedEmails = getLinkedEmailsForDupla(cleanDupla);
     const matched = sites.filter((s) => {
       if (s.vendor !== 'NOKIA' || s.sheetName !== 'Controle Geral' || isSiteCancelado(s)) {
         return false;
       }
-      if (doesSiteMatchEquipe(s, duplaName)) return true;
-      if (doesSiteMatchResponsible(s, duplaName, linkedEmails)) return true;
+      if (!temEquipeDemandadaSite(s)) return false;
+      const eq = getEquipeSite(s);
+      if (matchesDuplaName(eq, cleanDupla)) return true;
+      if (doesSiteMatchResponsible(s, cleanDupla, linkedEmails)) return true;
       return false;
     });
     return sortSitesParaFazerFirst(matched);
@@ -367,10 +374,15 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = React
 
   // Ericsson rows for a given Dupla
   const getEricssonRowsForDupla = (duplaName: string): EricssonRow[] => {
-    const linkedEmails = getLinkedEmailsForDupla(duplaName);
-    return ericssonRows.filter((row) =>
-      doesEricssonRowMatchDupla(row, duplaName, linkedEmails)
-    );
+    const cleanDupla = (duplaName || '').trim();
+    if (!cleanDupla) return [];
+    const linkedEmails = getLinkedEmailsForDupla(cleanDupla);
+    return ericssonRows.filter((row) => {
+      if (!temEquipeDemandadaSite(row)) return false;
+      const eq = getEquipeSite(row);
+      if (matchesDuplaName(eq, cleanDupla)) return true;
+      return doesEricssonRowMatchDupla(row, cleanDupla, linkedEmails);
+    });
   };
 
   const assignedNokiaSitesForSelectedDupla = useMemo(
@@ -432,6 +444,8 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = React
       : [];
 
     const matched = nokiaControleGeralSites.filter((s) => {
+      // REGRA: Na lista da esquerda de Duplas & Demanda, mostre SOMENTE sites com EQUIPE vazia, sempre.
+      if (temEquipeDemandadaSite(s)) return false;
       if (assignedIds.has(s.id)) return false;
 
       if (sitePickerUf !== 'ALL') {
@@ -439,10 +453,6 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = React
         if (uf !== sitePickerUf) return false;
       }
 
-      const eq = getCurrentSiteResponsible(s);
-      const hasDupla = hasActiveResponsible(eq);
-
-      if (sitePickerFilter === 'SEM_DUPLA' && hasDupla) return false;
       if (sitePickerFilter === 'PARA_FAZER' && isSiteFeito(s)) return false;
       if (sitePickerFilter === 'FEITOS' && !isSiteFeito(s)) return false;
       if (sitePickerFilter === 'AGUARDANDO') {
@@ -455,7 +465,7 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = React
       if (tokens.length > 0) {
         const hay = `${s.siteId || ''} ${getCellValueForColumn(s, 'END ID') || s.siteName || ''} ${
           s.municipio || ''
-        } ${s.uf || ''} ${eq || ''} ${getCellValueForColumn(s, 'Escopo') || s.setores || ''}`.toLowerCase();
+        } ${s.uf || ''} ${getCellValueForColumn(s, 'Escopo') || s.setores || ''}`.toLowerCase();
         if (tokens.length === 1) {
           return hay.includes(tokens[0]);
         }
@@ -473,7 +483,7 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = React
     sitePickerFilter,
   ]);
 
-  // Candidate Ericsson rows in the left picker panel
+  // Candidate Ericsson rows in the left picker panel (ALWAYS sites com EQUIPE vazia)
   const pickerEricssonRows = useMemo(() => {
     const assignedIds = new Set(assignedEricssonRowsForSelectedDupla.map((r) => r.id));
     const q = sitePickerSearch.trim().toLowerCase();
@@ -485,6 +495,8 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = React
       : [];
 
     return ericssonRows.filter((r) => {
+      // REGRA: Na lista da esquerda de Duplas & Demanda, mostre SOMENTE sites com EQUIPE vazia, sempre.
+      if (temEquipeDemandadaSite(r)) return false;
       if (assignedIds.has(r.id)) return false;
 
       if (sitePickerUf !== 'ALL') {
@@ -492,13 +504,8 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = React
         if (uf !== sitePickerUf) return false;
       }
 
-      const eq = isEricssonRowActivelyDemanded(r)
-        ? (r.responsavelDemand || r.equipe || r.fields?.['EQUIPE'] || '').trim()
-        : '';
-      const hasDupla = hasActiveResponsible(eq);
       const feito = isEricssonRowFeito(r);
 
-      if (sitePickerFilter === 'SEM_DUPLA' && hasDupla) return false;
       if (sitePickerFilter === 'PARA_FAZER' && feito) return false;
       if (sitePickerFilter === 'FEITOS' && !feito) return false;
       if (sitePickerFilter === 'AGUARDANDO') {
@@ -509,7 +516,7 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = React
       }
 
       if (tokens.length > 0) {
-        const hay = `${r.siteIdA} ${r.siteIdB} ${r.siteName} ${r.chaves} ${r.cidadeA} ${r.cidadeB} ${r.state} ${eq} ${r.servico}`.toLowerCase();
+        const hay = `${r.siteIdA} ${r.siteIdB} ${r.siteName} ${r.chaves} ${r.cidadeA} ${r.cidadeB} ${r.state} ${r.servico}`.toLowerCase();
         if (tokens.length === 1) {
           return hay.includes(tokens[0]);
         }
@@ -535,14 +542,9 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = React
 
   const unassignedVisibleCount = useMemo(() => {
     if (activeVendor === 'NOKIA') {
-      return pickerNokiaSites.filter((s) => !hasActiveResponsible(getCurrentSiteResponsible(s))).length;
+      return pickerNokiaSites.filter((s) => !temEquipeDemandadaSite(s)).length;
     }
-    return pickerEricssonRows.filter((r) => {
-      const eq = isEricssonRowActivelyDemanded(r)
-        ? (r.responsavelDemand || r.equipe || r.fields?.['EQUIPE'] || '').trim()
-        : '';
-      return !hasActiveResponsible(eq);
-    }).length;
+    return pickerEricssonRows.filter((r) => !temEquipeDemandadaSite(r)).length;
   }, [activeVendor, pickerNokiaSites, pickerEricssonRows]);
 
   const toggleSelectSite = (token: string) => {
@@ -555,15 +557,10 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = React
     const visibleUnassigned =
       activeVendor === 'NOKIA'
         ? pickerNokiaSites
-            .filter((s) => !hasActiveResponsible(getCurrentSiteResponsible(s)))
-            .map((s) => s.siteId)
+            .filter((s) => !temEquipeDemandadaSite(s))
+            .map((s) => s.id)
         : pickerEricssonRows
-            .filter((r) => {
-              const eq = isEricssonRowActivelyDemanded(r)
-                ? (r.responsavelDemand || r.equipe || r.fields?.['EQUIPE'] || '').trim()
-                : '';
-              return !hasActiveResponsible(eq);
-            })
+            .filter((r) => !temEquipeDemandadaSite(r))
             .map((r) => r.id);
 
     const allSelected =
@@ -604,16 +601,16 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = React
 
     if (activeVendor === 'NOKIA') {
       pickerNokiaSites.forEach((s) => {
-        if (selectedSiteIds.includes(s.siteId)) {
+        if (selectedSiteIds.includes(s.id)) {
           const cur = getCurrentSiteResponsible(s);
           if (hasActiveResponsible(cur) && cur.toLowerCase() !== selectedDupla.toLowerCase()) {
             ownedItems.push({
-              id: s.siteId,
+              id: s.id,
               name: s.siteId,
               owner: cur,
             });
           } else {
-            freeItemIds.push(s.siteId);
+            freeItemIds.push(s.id);
           }
         }
       });
@@ -1286,8 +1283,7 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = React
                 <div className="flex flex-wrap items-center gap-1">
                   {(
                     [
-                      { id: 'SEM_DUPLA', label: 'Sem Executor' },
-                      { id: 'ALL', label: 'Todos' },
+                      { id: 'SEM_DUPLA', label: 'Sem Dupla' },
                       { id: 'PARA_FAZER', label: 'Pendente' },
                       { id: 'FEITOS', label: 'Entregues' },
                       { id: 'AGUARDANDO', label: 'Aguardando' },
@@ -1365,7 +1361,7 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = React
             <div className="divide-y divide-slate-100 max-h-[450px] overflow-y-auto">
               {activeVendor === 'NOKIA'
                 ? pickerNokiaSites.slice(0, 120).map((site) => {
-                    const isChecked = selectedSiteIds.includes(site.siteId);
+                    const isChecked = selectedSiteIds.includes(site.id);
                     const currentEq = (
                       site.responsavelDemand ||
                       getCellValueForColumn(site, 'EQUIPE EXECUTANTE') ||
@@ -1378,7 +1374,7 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = React
                     return (
                       <div
                         key={site.id}
-                        onClick={() => toggleSelectSite(site.siteId)}
+                        onClick={() => toggleSelectSite(site.id)}
                         className={`px-3.5 py-2.5 flex items-center justify-between gap-2 text-xs cursor-pointer transition-colors ${
                           isChecked ? 'bg-blue-50/80' : 'hover:bg-slate-50'
                         }`}
@@ -1436,13 +1432,13 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = React
                                     siteName: site.siteId,
                                     currentOwner: currentEq,
                                     targetOwner: selectedDupla,
-                                    siteIds: [site.siteId],
+                                    siteIds: [site.id],
                                     vendor: 'NOKIA',
                                   });
                                   return;
                                 }
                                 await onAssignSitesToDupla(
-                                  [site.siteId],
+                                  [site.id],
                                   selectedDupla,
                                   activeDuplaLinkedEmails,
                                   'NOKIA',

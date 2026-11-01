@@ -180,6 +180,15 @@ export const AcionamentoStatusBadge: React.FC<AcionamentoStatusBadgeProps> = ({
       >
         {cfg.icon}
         <span>{cfg.label}</span>
+        {acionamento.rowNumberInFile ? (
+          <span className="px-1 py-0.2 bg-[#223585] text-white rounded text-[9px] font-mono font-bold shrink-0">
+            Linha {acionamento.rowNumberInFile}
+          </span>
+        ) : acionamento.registroId && acionamento.registroId.includes('__') ? (
+          <span className="px-1 py-0.2 bg-[#223585] text-white rounded text-[9px] font-mono font-bold shrink-0">
+            Linha {acionamento.registroId.split('_').pop()}
+          </span>
+        ) : null}
 
         {/* Informação adicional de aceite resumida se aceito */}
         {status === 'Aceito' && acionamento.aceitoPorNome && !compact && (

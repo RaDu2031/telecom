@@ -33,6 +33,8 @@ import {
   getCanonicalExecutorName,
   doesSiteMatchEquipe,
   doesSiteMatchExecutor,
+  getEquipeSite,
+  temEquipeDemandadaSite,
 } from '../utils/spreadsheetUtils';
 
 export type ChartCategoryFilter = 'ALL' | 'PARA_FAZER' | 'FEITOS' | 'NOTAS_PENDENTES';
@@ -354,12 +356,9 @@ export const InteractiveSpreadsheetChart: React.FC<InteractiveSpreadsheetChartPr
       }
 
       // 1. Canonical Dupla / Equipe Executante
-      const rawDupla = (
-        getCellValueForColumn(s, 'EQUIPE EXECUTANTE') ||
-        s.equipeParceira ||
-        ''
-      ).trim();
-      const canonDupla = getCanonicalDuplaName(rawDupla) || 'Sem Dupla';
+      const hasDupla = temEquipeDemandadaSite(s);
+      const rawDupla = getEquipeSite(s);
+      const canonDupla = hasDupla ? (getCanonicalDuplaName(rawDupla) || rawDupla) : 'Sem Dupla';
       const curD = byDupla.get(canonDupla) || {
         dupla: canonDupla,
         rawVariants: new Set<string>(),

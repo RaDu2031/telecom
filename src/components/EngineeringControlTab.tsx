@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
+import { PreImportSummaryModal } from './PreImportSummaryModal';
 import {
   FolderKanban,
   Search,
@@ -58,6 +59,7 @@ import {
 import {
   detectarTipoPlanilha,
   getNomeTipoPlanilha,
+  validarCompatibilidadePlanilha,
 } from '../utils/spreadsheetUtils';
 import {
   EngineeringInteractiveChart,
@@ -559,6 +561,15 @@ export const EngineeringControlTab: React.FC<EngineeringControlTabProps> = ({
     });
   };
 
+  const [preImportModalOpen, setPreImportModalOpen] = useState(false);
+  const [pendingUploadData, setPendingUploadData] = useState<{
+    file: File;
+    parsedRows: TssrRow[];
+    tabName: string;
+    ignoredCount: number;
+    hist: { isPreviouslyImported: boolean; lastImportedAt?: string };
+  } | null>(null);
+
   // Handle local .xlsx TSSR file upload
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -568,14 +579,15 @@ export const EngineeringControlTab: React.FC<EngineeringControlTabProps> = ({
 
     try {
       const arrayBuffer = await file.arrayBuffer();
-      const detectedType = detectarTipoPlanilha(arrayBuffer);
-      if (detectedType !== 'UNKNOWN' && detectedType !== 'NOKIA_TSSR') {
-        setImportError(
-          `Planilha incompatível! O arquivo pertence a "${getNomeTipoPlanilha(detectedType)}". Destino fixo desta tela: "Nokia – Engenharia". Nenhum dado foi gravado.`
-        );
+      const check = validarCompatibilidadePlanilha(arrayBuffer, 'NOKIA_TSSR', file.name);
+      if (check.shouldBlock) {
+        setImportError(check.blockMessage || 'Planilha incompatível!');
         setImportingTssr(false);
         if (fileInputRef.current) fileInputRef.current.value = '';
         return;
+      }
+      if (check.warningMessage) {
+        showToast(check.warningMessage);
       }
 
       const parsed = parseTssrWorkbookBuffer(arrayBuffer, activeVendor, activeSubTab);
@@ -585,11 +597,38 @@ export const EngineeringControlTab: React.FC<EngineeringControlTabProps> = ({
         return;
       }
 
-      await dataService.importarTssrNokiaEmLote(parsed.rows);
+      const hist = await dataService.verificarHistoricoArquivo(file.name, 'NOKIA_TSSR');
+      setPendingUploadData({
+        file,
+        parsedRows: parsed.rows,
+        tabName: parsed.sheetNameUsed || activeSubTab,
+        ignoredCount: 0,
+        hist,
+      });
+      setPreImportModalOpen(true);
+    } catch (err: any) {
+      console.error('Erro ao ler TSSR:', err);
+      setImportError(`Falha ao ler o arquivo Excel (.xlsx): ${err?.message || String(err)}`);
+    } finally {
+      setImportingTssr(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  const confirmUploadTssr = async () => {
+    if (!pendingUploadData) return;
+    const { file, parsedRows, tabName } = pendingUploadData;
+    setImportingTssr(true);
+    try {
+      const res = await dataService.importarTssrNokiaEmLote(parsedRows, undefined, {
+        fileName: file.name,
+        sheetName: tabName,
+      });
+      const novos = res.novosRegistros || [];
       onTssrUpdated(
-        parsed.rows,
+        [...tssrRows, ...novos],
         tssrSheets,
-        `Planilha TSSR atualizada no Firestore (${parsed.rows.length} registros gravados em lotes)`
+        `Planilha TSSR "${file.name}" importada (+${res.novas} novos registros gravados no Firestore).`
       );
       setIsImportModalOpen(false);
     } catch (err: any) {
@@ -597,7 +636,8 @@ export const EngineeringControlTab: React.FC<EngineeringControlTabProps> = ({
       setImportError(`Falha ao gravar no Firestore [nokia_tssr]: ${err?.code || err?.message || err}`);
     } finally {
       setImportingTssr(false);
-      if (fileInputRef.current) fileInputRef.current.value = '';
+      setPreImportModalOpen(false);
+      setPendingUploadData(null);
     }
   };
 
@@ -2603,6 +2643,26 @@ export const EngineeringControlTab: React.FC<EngineeringControlTabProps> = ({
         }}
         currentTssrRows={tabRows}
         currentVendor={activeVendor}
+      />
+
+      {/* Confirmation Modal before Firestore write */}
+      <PreImportSummaryModal
+        isOpen={preImportModalOpen}
+        title="Confirmar Importação TSSR Nokia"
+        fileName={pendingUploadData?.file.name || ''}
+        sheetName={pendingUploadData?.tabName || ''}
+        linhasLidas={pendingUploadData?.parsedRows.length || 0}
+        linhasAdicionadas={pendingUploadData?.parsedRows.length || 0}
+        linhasIgnoradas={pendingUploadData?.ignoredCount || 0}
+        motivoIgnoradas="por estarem vazias"
+        isPreviouslyImported={Boolean(pendingUploadData?.hist.isPreviouslyImported)}
+        previousImportDate={dataService.formatImportDate(pendingUploadData?.hist.lastImportedAt)}
+        isSaving={importingTssr}
+        onConfirm={confirmUploadTssr}
+        onCancel={() => {
+          setPreImportModalOpen(false);
+          setPendingUploadData(null);
+        }}
       />
     </div>
   );
