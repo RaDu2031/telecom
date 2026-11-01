@@ -57,7 +57,6 @@ import {
 import { showToast } from '../utils/toast';
 import { INITIAL_SITES } from '../data/initialSites';
 import { INITIAL_ERICSSON_SITES } from '../data/initialEricssonSites';
-import { INITIAL_ERICSSON_ENGINEERING_ROWS } from '../data/initialEricssonEngineering';
 
 const initialNokiaSitesMap = new Map<string, TelecomSite>();
 INITIAL_SITES.forEach((s) => {
@@ -74,9 +73,6 @@ INITIAL_ERICSSON_SITES.forEach((r) => {
 });
 
 const initialEricssonEngMap = new Map<string, EricssonEngineeringRow>();
-INITIAL_ERICSSON_ENGINEERING_ROWS.forEach((r) => {
-  if (r.id) initialEricssonEngMap.set(r.id, r);
-});
 
 export type Unsubscribe = () => void;
 let hasShownPermissionAcionamentosToast = false;
@@ -3824,7 +3820,6 @@ class FirebaseDataService implements IDataService {
       localStorage.removeItem('ameta_cached_ericsson_eng');
       localStorage.removeItem('ameta_cached_sheets');
       localStorage.removeItem('ameta_cached_ericsson_meta');
-      localStorage.setItem('ameta_planilhas_zeradas', 'true');
     } catch (err) {
       console.warn('Erro ao limpar localStorage no zerarTodasPlanilhas:', err);
     }
@@ -3865,7 +3860,6 @@ class FirebaseDataService implements IDataService {
       localStorage.removeItem('ameta_cached_ericsson_eng');
       localStorage.removeItem('ameta_cached_ericsson_meta');
       localStorage.removeItem('ameta_cached_ericsson_reprovacoes');
-      localStorage.setItem('ameta_ericsson_zerada', 'true');
     } catch (err) {
       console.warn('Erro ao limpar localStorage no zerarEricssonPlanilhas:', err);
     }

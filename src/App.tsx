@@ -86,7 +86,6 @@ import { dataService, sanitizeFirestoreData, FIRESTORE_COLLECTIONS } from './ser
 import { AcionamentoStatusBadge, formatAcionamentoDate } from './components/AcionamentoStatusBadge';
 import { INITIAL_SITES, INITIAL_SHEETS } from './data/initialSites';
 import { INITIAL_ERICSSON_SITES } from './data/initialEricssonSites';
-import { INITIAL_ERICSSON_ENGINEERING_ROWS } from './data/initialEricssonEngineering';
 import { AuthGate } from './components/AuthGate';
 import { AmetaLogo } from './components/AmetaLogo';
 import { AmetaSidebar, SidebarTabId } from './components/AmetaSidebar';
@@ -219,20 +218,7 @@ export default function App() {
   });
 
   const [sites, setSites] = useState<TelecomSite[]>(() => {
-    const isZerada =
-      localStorage.getItem('ameta_planilhas_zeradas') === 'true' ||
-      localStorage.getItem('ameta_planilhas_zeradas_v2') === 'true' ||
-      localStorage.getItem('ameta_planilhas_zeradas_v3') === 'true' ||
-      localStorage.getItem('ameta_nokia_zerada') === 'true';
-    if (isZerada) return [];
     try {
-      if (!localStorage.getItem('ameta_demand_cache_clean_v3')) {
-        localStorage.removeItem('ameta_cached_sites');
-        localStorage.removeItem('ameta_cached_tssr');
-        localStorage.removeItem('ameta_cached_ericsson_sites');
-        localStorage.removeItem('ameta_cached_ericsson_eng');
-        localStorage.setItem('ameta_demand_cache_clean_v3', '1');
-      }
       const cached = localStorage.getItem('ameta_cached_sites');
       if (cached) {
         const parsed = JSON.parse(cached);
@@ -252,12 +238,6 @@ export default function App() {
     return INITIAL_SHEETS;
   });
   const [tssrRows, setTssrRows] = useState<TssrRow[]>(() => {
-    const isZerada =
-      localStorage.getItem('ameta_planilhas_zeradas') === 'true' ||
-      localStorage.getItem('ameta_planilhas_zeradas_v2') === 'true' ||
-      localStorage.getItem('ameta_planilhas_zeradas_v3') === 'true' ||
-      localStorage.getItem('ameta_nokia_zerada') === 'true';
-    if (isZerada) return [];
     try {
       const cached = localStorage.getItem('ameta_cached_tssr');
       if (cached) {
@@ -269,13 +249,6 @@ export default function App() {
   });
   const [tssrSheets, setTssrSheets] = useState<TssrSheetMeta[]>([]);
   const [ericssonRows, setEricssonRows] = useState<EricssonRow[]>(() => {
-    const isZerada =
-      localStorage.getItem('ameta_planilhas_zeradas') === 'true' ||
-      localStorage.getItem('ameta_planilhas_zeradas_v2') === 'true' ||
-      localStorage.getItem('ameta_planilhas_zeradas_v3') === 'true' ||
-      localStorage.getItem('ameta_ericsson_zerada') === 'true' ||
-      localStorage.getItem('ameta_ericsson_zerada_v1') === 'true';
-    if (isZerada) return [];
     try {
       const cached = localStorage.getItem('ameta_cached_ericsson_sites');
       if (cached) {
@@ -294,13 +267,6 @@ export default function App() {
   });
   const [ericssonUsers, setEricssonUsers] = useState<AmetaUser[]>([]);
   const [ericssonEngineeringRows, setEricssonEngineeringRows] = useState<EricssonEngineeringRow[]>(() => {
-    const isZerada =
-      localStorage.getItem('ameta_planilhas_zeradas') === 'true' ||
-      localStorage.getItem('ameta_planilhas_zeradas_v2') === 'true' ||
-      localStorage.getItem('ameta_planilhas_zeradas_v3') === 'true' ||
-      localStorage.getItem('ameta_ericsson_zerada') === 'true' ||
-      localStorage.getItem('ameta_ericsson_zerada_v1') === 'true';
-    if (isZerada) return [];
     try {
       const cached = localStorage.getItem('ameta_cached_ericsson_eng');
       if (cached) {
@@ -589,39 +555,19 @@ export default function App() {
     return () => clearTimeout(timer);
   }, [tssrRows]);
 
-  // Auto-zeroing execution on startup when requested
+  // Limpeza de resíduos de marcas "zerada" no localStorage
   useEffect(() => {
-    if (localStorage.getItem('ameta_planilhas_zeradas_v5') !== 'true') {
-      localStorage.setItem('ameta_planilhas_zeradas_v5', 'true');
-      localStorage.setItem('ameta_planilhas_zeradas_v4', 'true');
-      localStorage.setItem('ameta_planilhas_zeradas_v3', 'true');
-      localStorage.setItem('ameta_planilhas_zeradas_v2', 'true');
-      localStorage.setItem('ameta_planilhas_zeradas', 'true');
-      localStorage.setItem('ameta_nokia_zerada', 'true');
-      localStorage.setItem('ameta_ericsson_zerada', 'true');
-      localStorage.setItem('ameta_ericsson_zerada_v1', 'true');
-      localStorage.removeItem('ameta_cached_sites');
-      localStorage.removeItem('ameta_cached_tssr');
-      localStorage.removeItem('ameta_cached_sheets');
-      localStorage.removeItem('ameta_cached_ericsson_sites');
-      localStorage.removeItem('ameta_cached_ericsson_eng');
-      localStorage.removeItem('ameta_cached_ericsson_meta');
-      localStorage.removeItem('ameta_cached_ericsson_reprovacoes');
-      setSites([]);
-      setTssrRows([]);
-      setEricssonRows([]);
-      setEricssonEngineeringRows([]);
-      dataService
-        .zerarTodasPlanilhas()
-        .then(() => {
-          setSites([]);
-          setTssrRows([]);
-          setEricssonRows([]);
-          setEricssonEngineeringRows([]);
-        })
-        .catch((err) => {
-          console.error('Erro ao auto-zerar planilhas:', err);
-        });
+    try {
+      const keysToRemove: string[] = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && (key.includes('zerada') || key.includes('zerado'))) {
+          keysToRemove.push(key);
+        }
+      }
+      keysToRemove.forEach((k) => localStorage.removeItem(k));
+    } catch {
+      // ignore storage errors
     }
   }, []);
 
@@ -630,43 +576,8 @@ export default function App() {
     if (!user) return;
     const unsub = dataService.observarColecoesPlataforma(user, {
       onNokiaSites: (fetched) => {
-        const isZerada =
-          localStorage.getItem('ameta_planilhas_zeradas') === 'true' ||
-          localStorage.getItem('ameta_planilhas_zeradas_v2') === 'true' ||
-          localStorage.getItem('ameta_planilhas_zeradas_v3') === 'true' ||
-          localStorage.getItem('ameta_nokia_zerada') === 'true';
-        if (fetched.length === 0 && isZerada) {
-          setSites([]);
-          return;
-        }
+        setSites(fetched);
         if (fetched.length > 0) {
-          setSites((prev) => {
-            const base = prev.length > 0 || isZerada ? prev : [];
-            const byKey = new Map<string, TelecomSite>();
-            base.forEach((s) => {
-              const k = `${(s.sheetName || 'Controle Geral').toUpperCase()}__${(s.siteId || s.id || '').toUpperCase()}`;
-              byKey.set(k, s);
-            });
-            fetched.forEach((s) => {
-              const k = `${(s.sheetName || 'Controle Geral').toUpperCase()}__${(s.siteId || s.id || '').toUpperCase()}`;
-              const existing = byKey.get(k);
-              byKey.set(
-                k,
-                existing
-                  ? {
-                      ...existing,
-                      ...s,
-                      customFields: {
-                        ...(existing.customFields || {}),
-                        ...(s.customFields || {}),
-                      },
-                    }
-                  : s
-              );
-            });
-            const merged = Array.from(byKey.values());
-            return merged;
-          });
           // Descobrir abas dinamicamente para não sumir com abas adicionadas
           setSheets((prevSheets) => {
             const sheetNames = new Set(prevSheets.map((s) => s.name));
@@ -690,35 +601,9 @@ export default function App() {
         }
       },
       onNokiaTssr: (fetched) => {
-        const isZerada =
-          localStorage.getItem('ameta_planilhas_zeradas') === 'true' ||
-          localStorage.getItem('ameta_planilhas_zeradas_v2') === 'true' ||
-          localStorage.getItem('ameta_planilhas_zeradas_v3') === 'true' ||
-          localStorage.getItem('ameta_nokia_zerada') === 'true';
-        if (fetched.length === 0 && isZerada) {
-          setTssrRows([]);
-          return;
-        }
-        if (fetched.length > 0) {
-          setTssrRows((prev) => {
-            const base = prev.length > 0 || isZerada ? prev : [];
-            const byId = new Map<string, TssrRow>(base.map((r) => [r.id, r]));
-            fetched.forEach((r) => {
-              const existing = byId.get(r.id);
-              byId.set(r.id, existing ? { ...existing, ...r } : r);
-            });
-            return Array.from(byId.values());
-          });
-        }
+        setTssrRows(fetched);
       },
       onEricssonSites: (fetched) => {
-        const isZerada =
-          localStorage.getItem('ameta_planilhas_zeradas') === 'true' ||
-          localStorage.getItem('ameta_planilhas_zeradas_v2') === 'true' ||
-          localStorage.getItem('ameta_planilhas_zeradas_v3') === 'true' ||
-          localStorage.getItem('ameta_planilhas_zeradas_v4') === 'true' ||
-          localStorage.getItem('ameta_ericsson_zerada') === 'true' ||
-          localStorage.getItem('ameta_ericsson_zerada_v1') === 'true';
         const validFetched = fetched.filter((r) => {
           if (!r) return false;
           const a = (r.siteIdA || r.fields?.['01.21.Site ID A'] || r.fields?.['Site ID A'] || '').trim().toUpperCase();
@@ -726,69 +611,10 @@ export default function App() {
           const isPlaceholder = (s: string) => !s || s === '—' || s === '-' || s === '--' || s === 'N/A' || s === '#N/A' || s === 'TOTAL' || s === 'TOTAL GERAL' || s === 'SOMA' || s === '0';
           return !isPlaceholder(a) || !isPlaceholder(b);
         });
-        if (validFetched.length === 0 && isZerada) {
-          setEricssonRows([]);
-          return;
-        }
-        if (validFetched.length > 0) {
-          setEricssonRows((prev) => {
-            const base = prev;
-            const byId = new Map<string, EricssonRow>(base.map((r) => [r.id, r]));
-            validFetched.forEach((r) => {
-              const existing = byId.get(r.id);
-              byId.set(
-                r.id,
-                existing
-                  ? {
-                      ...existing,
-                      ...r,
-                      fields: {
-                        ...(existing.fields || {}),
-                        ...(r.fields || {}),
-                      },
-                    }
-                  : r
-              );
-            });
-            return Array.from(byId.values());
-          });
-        }
+        setEricssonRows(validFetched);
       },
       onEricssonEngineering: (fetched) => {
-        const isZerada =
-          localStorage.getItem('ameta_planilhas_zeradas') === 'true' ||
-          localStorage.getItem('ameta_planilhas_zeradas_v2') === 'true' ||
-          localStorage.getItem('ameta_planilhas_zeradas_v3') === 'true' ||
-          localStorage.getItem('ameta_planilhas_zeradas_v4') === 'true' ||
-          localStorage.getItem('ameta_ericsson_zerada') === 'true' ||
-          localStorage.getItem('ameta_ericsson_zerada_v1') === 'true';
-        if (fetched.length === 0 && isZerada) {
-          setEricssonEngineeringRows([]);
-          return;
-        }
-        if (fetched.length > 0) {
-          setEricssonEngineeringRows((prev) => {
-            const base = prev;
-            const byId = new Map<string, EricssonEngineeringRow>(base.map((r) => [r.id, r]));
-            fetched.forEach((r) => {
-              const existing = byId.get(r.id);
-              byId.set(
-                r.id,
-                existing
-                  ? {
-                      ...existing,
-                      ...r,
-                      fields: {
-                        ...(existing.fields || {}),
-                        ...(r.fields || {}),
-                      },
-                    }
-                  : r
-              );
-            });
-            return Array.from(byId.values());
-          });
-        }
+        setEricssonEngineeringRows(fetched);
       },
       onUsuarios: (fetched) => {
         if (fetched.length > 0) {

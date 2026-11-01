@@ -21,6 +21,7 @@ import {
   UserCheck,
   RefreshCw,
   Copy,
+  FileSpreadsheet,
 } from 'lucide-react';
 import {
   AmetaUser,
@@ -253,6 +254,11 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
   } | null>(null);
   const [copiedEmailsNotice, setCopiedEmailsNotice] = useState(false);
 
+  // --- Estados e Lógicas do Modal "Zerar Planilhas" ---
+  const [zerarPlanilhasModalOpen, setZerarPlanilhasModalOpen] = useState(false);
+  const [zerarPlanilhasConfirmation, setZerarPlanilhasConfirmation] = useState('');
+  const [isExecutingZerarPlanilhas, setIsExecutingZerarPlanilhas] = useState(false);
+
   // Verifica se o usuário logado é Dono (situacao 'dono' ou configurado em isOwnerAdmUser)
   const isOwnerUser = useMemo(() => {
     if (!currentUser) return false;
@@ -357,6 +363,22 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
       showToast(`Erro ao zerar cadastros: ${err?.message || err}`);
     } finally {
       setIsExecutingZerar(false);
+    }
+  };
+
+  const handleExecuteZerarPlanilhas = async () => {
+    if (zerarPlanilhasConfirmation.trim().toUpperCase() !== 'ZERAR') return;
+    setIsExecutingZerarPlanilhas(true);
+    try {
+      const res = await dataService.zerarTodasPlanilhas();
+      showToast(`Todas as planilhas do Firestore foram zeradas (${res.deletedCount} registros excluídos).`);
+      setZerarPlanilhasModalOpen(false);
+      setZerarPlanilhasConfirmation('');
+    } catch (err: any) {
+      console.error('Erro ao zerar planilhas:', err);
+      showToast(`Erro ao zerar planilhas: ${err?.message || err}`);
+    } finally {
+      setIsExecutingZerarPlanilhas(false);
     }
   };
 
@@ -1321,20 +1343,36 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
           </button>
 
           {isOwnerUser && (
-            <button
-              type="button"
-              onClick={() => {
-                setError(null);
-                setZerarConfirmationInput('');
-                setZerarResult(null);
-                setZerarModalOpen(true);
-              }}
-              className="px-3.5 py-2 bg-red-700 hover:bg-red-800 text-white text-xs font-bold rounded-lg flex items-center gap-1.5 cursor-pointer whitespace-nowrap shadow-2xs transition-colors"
-              title="Zerar cadastros do sistema mantendo apenas Admins, Coordenadores e o Dono"
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-              <span>Zerar Cadastros</span>
-            </button>
+            <>
+              <button
+                type="button"
+                onClick={() => {
+                  setError(null);
+                  setZerarConfirmationInput('');
+                  setZerarResult(null);
+                  setZerarModalOpen(true);
+                }}
+                className="px-3.5 py-2 bg-red-700 hover:bg-red-800 text-white text-xs font-bold rounded-lg flex items-center gap-1.5 cursor-pointer whitespace-nowrap shadow-2xs transition-colors"
+                title="Zerar cadastros do sistema mantendo apenas Admins, Coordenadores e o Dono"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Zerar Cadastros</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setError(null);
+                  setZerarPlanilhasConfirmation('');
+                  setZerarPlanilhasModalOpen(true);
+                }}
+                className="px-3.5 py-2 bg-rose-900 hover:bg-rose-950 text-white text-xs font-bold rounded-lg flex items-center gap-1.5 cursor-pointer whitespace-nowrap shadow-2xs transition-colors"
+                title="Apagar todas as coleções de planilhas no Firestore (Nokia e Ericsson)"
+              >
+                <FileSpreadsheet className="w-3.5 h-3.5 text-rose-300" />
+                <span>Zerar Planilhas</span>
+              </button>
+            </>
           )}
         </div>
       </div>
@@ -3130,6 +3168,99 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
                   </button>
                 )}
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Modal Zerar Planilhas */}
+      {zerarPlanilhasModalOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-lg overflow-hidden flex flex-col">
+            {/* Header */}
+            <div className="p-4 sm:p-5 bg-gradient-to-r from-rose-900 to-slate-900 text-white flex items-center justify-between shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 bg-rose-800/80 rounded-xl border border-rose-600/60 shadow-inner">
+                  <FileSpreadsheet className="w-5 h-5 text-rose-200" />
+                </div>
+                <div>
+                  <h3 className="font-black text-base sm:text-lg tracking-wide">Zerar Planilhas do Firestore</h3>
+                  <p className="text-xs text-rose-200 font-medium">
+                    Exclusão permanente de todos os dados de planilhas no Firestore.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  if (!isExecutingZerarPlanilhas) {
+                    setZerarPlanilhasModalOpen(false);
+                    setZerarPlanilhasConfirmation('');
+                  }
+                }}
+                className="p-1.5 text-rose-200 hover:text-white hover:bg-white/10 rounded-lg cursor-pointer transition-colors"
+                title="Fechar"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="p-5 space-y-4">
+              <div className="p-3.5 bg-amber-50 border border-amber-300 rounded-xl text-xs text-amber-950 flex items-start gap-2.5">
+                <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                <div className="space-y-1">
+                  <p className="font-bold text-amber-900">Atenção: Esta ação é irreversível!</p>
+                  <p>
+                    Todas as linhas gravadas no Firestore para Nokia Sites, Nokia TSSR, Ericsson Sites e Ericsson Engenharia serão permanentemente excluídas do banco de dados.
+                  </p>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Digite <span className="font-mono text-rose-700 bg-rose-50 px-1 py-0.5 rounded border border-rose-200">ZERAR</span> para confirmar:
+                </label>
+                <input
+                  type="text"
+                  value={zerarPlanilhasConfirmation}
+                  onChange={(e) => setZerarPlanilhasConfirmation(e.target.value)}
+                  placeholder="ZERAR"
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-mono font-bold text-slate-900 focus:outline-none focus:border-rose-600"
+                />
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="p-4 border-t border-slate-200 bg-slate-50 flex items-center justify-end gap-2">
+              <button
+                type="button"
+                disabled={isExecutingZerarPlanilhas}
+                onClick={() => setZerarPlanilhasModalOpen(false)}
+                className="px-4 py-2 bg-white border border-slate-300 text-slate-700 font-bold text-xs rounded-xl hover:bg-slate-50 cursor-pointer shadow-2xs"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                disabled={
+                  zerarPlanilhasConfirmation.trim().toUpperCase() !== 'ZERAR' ||
+                  isExecutingZerarPlanilhas
+                }
+                onClick={handleExecuteZerarPlanilhas}
+                className="px-5 py-2 bg-rose-700 hover:bg-rose-800 disabled:opacity-40 disabled:cursor-not-allowed text-white font-black text-xs rounded-xl shadow-md flex items-center gap-2 cursor-pointer transition-colors"
+              >
+                {isExecutingZerarPlanilhas ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                    <span>Zerando Firestore...</span>
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-4 h-4" />
+                    <span>Confirmar e Zerar Planilhas</span>
+                  </>
+                )}
+              </button>
             </div>
           </div>
         </div>

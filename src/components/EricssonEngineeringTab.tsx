@@ -43,7 +43,6 @@ import {
   isUserDono,
   normalizeUserRole,
 } from '../types/telecom';
-import { INITIAL_ERICSSON_ENGINEERING_ROWS } from '../data/initialEricssonEngineering';
 import { isEricssonRowAssignedToResponsible } from '../services/demandaSharedService';
 import { confirmar } from '../hooks/useConfirm';
 import {
@@ -119,15 +118,6 @@ export const EricssonEngineeringTab: React.FC<EricssonEngineeringTabProps> = ({
 }) => {
   // Main data state
   const [rows, setRows] = useState<EricssonEngineeringRow[]>(() => {
-    const isZerada =
-      localStorage.getItem('ameta_planilhas_zeradas') === 'true' ||
-      localStorage.getItem('ameta_planilhas_zeradas_v2') === 'true' ||
-      localStorage.getItem('ameta_planilhas_zeradas_v3') === 'true' ||
-      localStorage.getItem('ameta_planilhas_zeradas_v4') === 'true' ||
-      localStorage.getItem('ameta_planilhas_zeradas_v5') === 'true' ||
-      localStorage.getItem('ameta_ericsson_zerada') === 'true' ||
-      localStorage.getItem('ameta_ericsson_zerada_v1') === 'true';
-    if (isZerada) return [];
     try {
       const cached = localStorage.getItem('ameta_cached_ericsson_eng');
       if (cached) {
@@ -252,16 +242,7 @@ export const EricssonEngineeringTab: React.FC<EricssonEngineeringTabProps> = ({
         dataService.carregarEricssonReprovacoes(),
       ]);
 
-      const isZerada =
-        localStorage.getItem('ameta_planilhas_zeradas') === 'true' ||
-        localStorage.getItem('ameta_planilhas_zeradas_v2') === 'true' ||
-        localStorage.getItem('ameta_planilhas_zeradas_v3') === 'true' ||
-        localStorage.getItem('ameta_planilhas_zeradas_v4') === 'true' ||
-        localStorage.getItem('ameta_planilhas_zeradas_v5') === 'true' ||
-        localStorage.getItem('ameta_ericsson_zerada') === 'true' ||
-        localStorage.getItem('ameta_ericsson_zerada_v1') === 'true';
-
-      if (isZerada || !Array.isArray(engRows) || engRows.length === 0) {
+      if (!Array.isArray(engRows) || engRows.length === 0) {
         setRows([]);
       } else {
         const byId = new Map<string, EricssonEngineeringRow>();
@@ -291,32 +272,14 @@ export const EricssonEngineeringTab: React.FC<EricssonEngineeringTabProps> = ({
     const unsubEng = onSnapshot(
       collection(db, FIRESTORE_COLLECTIONS.ERICSSON_ENGENHARIA),
       (snap) => {
-        const isZerada =
-          localStorage.getItem('ameta_planilhas_zeradas') === 'true' ||
-          localStorage.getItem('ameta_planilhas_zeradas_v2') === 'true' ||
-          localStorage.getItem('ameta_planilhas_zeradas_v3') === 'true' ||
-          localStorage.getItem('ameta_planilhas_zeradas_v4') === 'true' ||
-          localStorage.getItem('ameta_planilhas_zeradas_v5') === 'true' ||
-          localStorage.getItem('ameta_ericsson_zerada') === 'true' ||
-          localStorage.getItem('ameta_ericsson_zerada_v1') === 'true';
-
-        if (snap.empty || isZerada) {
+        if (snap.empty) {
           setRows([]);
           return;
         }
 
         const fetched = snap.docs.map((d) => ({ id: d.id, ...d.data() } as EricssonEngineeringRow));
-        setRows((prev) => {
-          const base = (prev.length > 0 || isZerada) ? prev : INITIAL_ERICSSON_ENGINEERING_ROWS;
-          const byId = new Map<string, EricssonEngineeringRow>(base.map((r) => [r.id, r]));
-          fetched.forEach((r) => {
-            const existing = byId.get(r.id);
-            byId.set(r.id, existing ? { ...existing, ...r, fields: { ...(existing.fields || {}), ...(r.fields || {}) } } : r);
-          });
-          const merged = Array.from(byId.values());
-          updateColumnsFromRows(merged);
-          return merged;
-        });
+        setRows(fetched);
+        updateColumnsFromRows(fetched);
       },
       (err) => console.error('Erro na escuta de ericsson_engenharia:', err)
     );
@@ -700,28 +663,6 @@ export const EricssonEngineeringTab: React.FC<EricssonEngineeringTabProps> = ({
     pageSize,
   ]);
 
-  // Import default initial rows from the OneDrive spreadsheet into Firestore
-  const handleImportInitialRows = async () => {
-    try {
-      showToast(`Gravando dados iniciais da planilha (${INITIAL_ERICSSON_ENGINEERING_ROWS.length} linhas) no Firestore...`);
-      const res = await dataService.importarEricssonEngenhariaEmLote(INITIAL_ERICSSON_ENGINEERING_ROWS, {
-        mode: 'append_only',
-      });
-      if (res.errorMessage) {
-        showToast(res.errorMessage);
-      } else {
-        setRows((prev) => {
-          const existingIds = new Set(prev.map((p) => p.id));
-          const toAdd = INITIAL_ERICSSON_ENGINEERING_ROWS.filter((r) => !existingIds.has(r.id));
-          return [...prev, ...toAdd];
-        });
-        setColumns([...ERICSSON_SITE_LIST_COLUMNS]);
-        showToast(`Dados iniciais gravados no Firestore (+${res.novas} novos, ${res.jaExistiam} já existiam).`);
-      }
-    } catch (err: any) {
-      showToast(`Erro ao gravar dados iniciais: ${err?.message || err}`);
-    }
-  };
 
   // Local Excel file upload directly to Firestore in batches (Append-Only)
   const handleUploadLocalFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1040,18 +981,6 @@ export const EricssonEngineeringTab: React.FC<EricssonEngineeringTabProps> = ({
 
             {!isUserRestricted && (
               <>
-
-                {/* Importar Dados Iniciais da Planilha */}
-                <button
-                  type="button"
-                  onClick={handleImportInitialRows}
-                  className="px-3.5 py-2 bg-blue-700 hover:bg-blue-600 text-white text-xs font-bold rounded-xl transition-all shadow-xs flex items-center gap-1.5 cursor-pointer"
-                  title="Gravar as 250 linhas iniciais da planilha no Firestore com segurança (append-only)"
-                >
-                  <FileSpreadsheet className="w-3.5 h-3.5 text-blue-200" />
-                  <span>Importar Dados Iniciais</span>
-                </button>
-
                 {/* + Nova Linha */}
                 <button
                   type="button"
