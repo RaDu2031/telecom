@@ -106,6 +106,9 @@ export const BulkPasteModal: React.FC<BulkPasteModalProps> = ({
     errorMessage?: string;
   } | null>(null);
 
+  const [preImportModalOpen, setPreImportModalOpen] = useState(false);
+  const [historyCheckResult, setHistoryCheckResult] = useState<{ isPreviouslyImported: boolean; lastImportedAt?: string }>({ isPreviouslyImported: false });
+
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   React.useEffect(() => {
@@ -220,9 +223,6 @@ export const BulkPasteModal: React.FC<BulkPasteModalProps> = ({
       setError('Erro ao ler arquivo Excel. Certifique-se de que é um arquivo .xlsx ou .csv válido.');
     }
   };
-
-  const [preImportModalOpen, setPreImportModalOpen] = useState(false);
-  const [historyCheckResult, setHistoryCheckResult] = useState<{ isPreviouslyImported: boolean; lastImportedAt?: string }>({ isPreviouslyImported: false });
 
   const handleOpenPreImportSummary = async () => {
     if (parsedSites.length === 0) {
