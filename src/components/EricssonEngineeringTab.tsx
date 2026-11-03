@@ -38,6 +38,7 @@ import {
   EricssonReprovacaoRecord,
   EngineeringFile,
   ERICSSON_SITE_LIST_COLUMNS,
+  ERICSSON_EXECUTOR_VISIBLE_COLUMNS,
   ERICSSON_REAL_STATUSES_BY_DOC,
   isOwnerAdmUser,
   isUserDono,
@@ -240,6 +241,28 @@ export const EricssonEngineeringTab: React.FC<EricssonEngineeringTabProps> = ({
 
   // View mode: 'all' (all 51 columns) vs 'essential' (clean primary columns + double site IDs)
   const [viewMode, setViewMode] = useState<'essential' | 'all'>('all');
+
+  // Visible table columns: for executors, strictly show the 11 demanded columns in exact sequence
+  const displayColumns = useMemo(() => {
+    if (isExecutor) {
+      return ERICSSON_EXECUTOR_VISIBLE_COLUMNS;
+    }
+    if (viewMode === 'essential') {
+      return [
+        'Intervencao Claro',
+        'Tipo doc',
+        'Status',
+        'Regional',
+        'TIPO SITE',
+        'EXECUTOR',
+        'Demanda',
+        'Planejado',
+        'Entregue',
+        'Meta',
+      ];
+    }
+    return columns;
+  }, [isExecutor, viewMode, columns]);
 
   // Pagination
   const [page, setPage] = useState<number>(1);
@@ -1055,7 +1078,7 @@ export const EricssonEngineeringTab: React.FC<EricssonEngineeringTabProps> = ({
               onClick={() =>
                 exportEricssonEngineeringToXlsx(
                   filteredRows,
-                  columns,
+                  displayColumns,
                   `Engenharia_Ericsson_${new Date().toISOString().slice(0, 10)}.xlsx`
                 )
               }
@@ -1072,7 +1095,7 @@ export const EricssonEngineeringTab: React.FC<EricssonEngineeringTabProps> = ({
               onClick={() =>
                 exportEricssonEngineeringToCsv(
                   filteredRows,
-                  columns,
+                  displayColumns,
                   `Engenharia_Ericsson_${new Date().toISOString().slice(0, 10)}.csv`
                 )
               }
@@ -1247,33 +1270,40 @@ export const EricssonEngineeringTab: React.FC<EricssonEngineeringTabProps> = ({
               <option value="EMPTY">Meta: (Sem Meta)</option>
             </select>
 
-            {/* View Mode Toggle: All 51 Columns vs Essential */}
-            <div className="flex items-center p-0.5 bg-slate-100 rounded-xl border border-slate-200">
-              <button
-                type="button"
-                onClick={() => setViewMode('all')}
-                className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                  viewMode === 'all'
-                    ? 'bg-white text-slate-900 shadow-2xs'
-                    : 'text-slate-500 hover:text-slate-800'
-                }`}
-                title="Exibir todas as 51 colunas exatas da planilha"
-              >
-                Todas 51 Colunas
-              </button>
-              <button
-                type="button"
-                onClick={() => setViewMode('essential')}
-                className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                  viewMode === 'essential'
-                    ? 'bg-white text-slate-900 shadow-2xs'
-                    : 'text-slate-500 hover:text-slate-800'
-                }`}
-                title="Visualização simplificada das principais colunas"
-              >
-                Essencial
-              </button>
-            </div>
+            {/* View Mode Toggle: All 51 Columns vs Essential (or Executor badge) */}
+            {isExecutor ? (
+              <div className="flex items-center gap-1.5 px-3 py-1.5 bg-teal-50 text-teal-800 rounded-xl border border-teal-200 text-xs font-bold shadow-2xs">
+                <CheckCircle2 className="w-3.5 h-3.5 text-teal-600" />
+                <span>Colunas do Executor ({displayColumns.length})</span>
+              </div>
+            ) : (
+              <div className="flex items-center p-0.5 bg-slate-100 rounded-xl border border-slate-200">
+                <button
+                  type="button"
+                  onClick={() => setViewMode('all')}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                    viewMode === 'all'
+                      ? 'bg-white text-slate-900 shadow-2xs'
+                      : 'text-slate-500 hover:text-slate-800'
+                  }`}
+                  title="Exibir todas as 51 colunas exatas da planilha"
+                >
+                  Todas 51 Colunas
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setViewMode('essential')}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                    viewMode === 'essential'
+                      ? 'bg-white text-slate-900 shadow-2xs'
+                      : 'text-slate-500 hover:text-slate-800'
+                  }`}
+                  title="Visualização simplificada das principais colunas"
+                >
+                  Essencial
+                </button>
+              </div>
+            )}
           </div>
         </div>
 
@@ -1486,25 +1516,8 @@ export const EricssonEngineeringTab: React.FC<EricssonEngineeringTabProps> = ({
           <table className="w-full text-xs border-collapse">
             <thead className="bg-slate-900 text-white sticky top-0 z-20 select-none">
               <tr>
-                {/* Columns from the spreadsheet in exact order */}
-                {columns.map((colName) => {
-                  if (
-                    viewMode === 'essential' &&
-                    ![
-                      'Intervencao Claro',
-                      'Tipo doc',
-                      'Status',
-                      'Regional',
-                      'TIPO SITE',
-                      'EXECUTOR',
-                      'Demanda',
-                      'Planejado',
-                      'Entregue',
-                      'Meta',
-                    ].includes(colName)
-                  ) {
-                    return null;
-                  }
+                {/* Columns from the spreadsheet in exact order (scoped to 11 columns for executors) */}
+                {displayColumns.map((colName) => {
                   const isSorted = sortColumn === colName;
                   return (
                     <th
@@ -1541,18 +1554,18 @@ export const EricssonEngineeringTab: React.FC<EricssonEngineeringTabProps> = ({
             <tbody className="divide-y divide-slate-100">
               {isLoading ? (
                 <tr>
-                  <td colSpan={columns.length + 1} className="p-12 text-center text-slate-400">
+                  <td colSpan={displayColumns.length + 1} className="p-12 text-center text-slate-400">
                     <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-teal-600" />
                     <p className="font-semibold text-slate-700">Carregando dados da Engenharia Ericsson...</p>
                   </td>
                 </tr>
               ) : paginatedRows.length === 0 ? (
                 <tr>
-                  <td colSpan={columns.length + 1} className="p-12 text-center text-slate-400">
+                  <td colSpan={displayColumns.length + 1} className="p-12 text-center text-slate-400">
                     <FileSpreadsheet className="w-8 h-8 mx-auto mb-2 text-slate-300" />
                     <p className="font-bold text-slate-700 text-sm">Nenhuma linha encontrada</p>
                     <p className="text-xs text-slate-400 mt-1">
-                      Ajuste os filtros de busca ou importe uma planilha Excel (.xlsx).
+                      Ajuste os filtros de busca ou aguarde novas demandas atribuídas.
                     </p>
                   </td>
                 </tr>
@@ -1568,26 +1581,8 @@ export const EricssonEngineeringTab: React.FC<EricssonEngineeringTabProps> = ({
                       className="hover:bg-teal-50/60 hover:shadow-2xs transition-all group cursor-pointer"
                       title="Clique para abrir detalhes completos do site"
                     >
-                      {/* 51 Exact Columns in Order */}
-                      {columns.map((colName) => {
-                        if (
-                          viewMode === 'essential' &&
-                          ![
-                            'Intervencao Claro',
-                            'Tipo doc',
-                            'Status',
-                            'Regional',
-                            'TIPO SITE',
-                            'EXECUTOR',
-                            'Demanda',
-                            'Planejado',
-                            'Entregue',
-                            'Meta',
-                          ].includes(colName)
-                        ) {
-                          return null;
-                        }
-
+                      {/* Columns */}
+                      {displayColumns.map((colName) => {
                         const cellVal = row.fields?.[colName] ?? row.fields?.[colName.replace(/\r?\n/g, ' ')] ?? '';
 
                         // Special handling for Meta column: inline editable select for authorized users
@@ -1705,6 +1700,18 @@ export const EricssonEngineeringTab: React.FC<EricssonEngineeringTabProps> = ({
                           );
                         }
 
+                        if (colName === 'Intervencao Claro') {
+                          return (
+                            <td
+                              key={colName}
+                              className="px-3 py-2 whitespace-nowrap font-bold text-slate-900 max-w-[200px] truncate"
+                              title={String(cellVal || row.intervencaoClaro || '')}
+                            >
+                              {cellVal || row.intervencaoClaro || '—'}
+                            </td>
+                          );
+                        }
+
                         return (
                           <td
                             key={colName}
@@ -1730,17 +1737,19 @@ export const EricssonEngineeringTab: React.FC<EricssonEngineeringTabProps> = ({
                           >
                             <Edit3 className="w-3.5 h-3.5" />
                           </button>
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleDeleteRow(row.id);
-                            }}
-                            className="p-1 text-slate-400 hover:text-red-600 rounded hover:bg-slate-100 cursor-pointer"
-                            title="Excluir linha"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
+                          {!isUserRestricted && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeleteRow(row.id);
+                              }}
+                              className="p-1 text-slate-400 hover:text-red-600 rounded hover:bg-slate-100 cursor-pointer"
+                              title="Excluir linha"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>

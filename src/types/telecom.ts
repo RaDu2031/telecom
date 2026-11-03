@@ -1088,6 +1088,20 @@ export const ERICSSON_SITE_LIST_COLUMNS: string[] = [
   'Finalizado WR',
 ];
 
+export const ERICSSON_EXECUTOR_VISIBLE_COLUMNS: string[] = [
+  'ASP',
+  'Intervencao Claro',
+  'TIPO SITE',
+  'Regional',
+  'Tipo doc',
+  'Status',
+  'Planejado',
+  'REPLAN',
+  'DATA REPLAN',
+  'MOTIVO REPLAN',
+  'Entregue',
+];
+
 export type EricssonDocGroup = 'WR' | 'QRF' | 'PPI' | 'BOQ' | 'SMART' | 'SDC';
 export type EricssonDocStatusCategory = 'Finalizado' | 'Em produção' | 'Pendente' | 'Dúvida';
 
