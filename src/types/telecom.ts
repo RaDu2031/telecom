@@ -723,6 +723,21 @@ export const TSSR_TIM_NOKIA_ORIGINAL_COLUMNS: string[] = [
   'Check',
 ];
 
+export const TSSR_EXECUTOR_VISIBLE_COLUMNS: string[] = [
+  'Oc Site Pre',
+  'Enderecoid',
+  'Site Id',
+  'Reg',
+  'UF',
+  'Cidade',
+  'PROJETO',
+  'DETENTORA',
+  'STATUS Engenharia',
+  'TIPO DE DOC',
+  'Prioridade Homero',
+  'Plan entrega',
+];
+
 export const TSSR_SYSTEM_COLUMNS: string[] = [
   'Status da vistoria',
   'Arquivo da vistoria',

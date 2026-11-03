@@ -40,6 +40,7 @@ import {
   TssrRow,
   TssrSheetMeta,
   TSSR_TIM_NOKIA_ORIGINAL_COLUMNS,
+  TSSR_EXECUTOR_VISIBLE_COLUMNS,
   TSSR_SYSTEM_COLUMNS,
   TSSR_ALL_COLUMNS,
   DEFAULT_ONEDRIVE_TSSR_URL,
@@ -103,24 +104,6 @@ const RESUMO_ORIGINAL_COLUMNS: string[] = [
   'Plan entrega',
   'RECEBIDO',
   'Status Financeiro',
-];
-
-// Columns shown exclusively for Executor:
-// oc site pre, endereco id, site id, reg, uf, cidade, projeto, detentora, status engenharia, demanda recebida, tipo de doc, prioridade, pan entrega
-const EXECUTOR_ORIGINAL_COLUMNS: string[] = [
-  'Oc Site Pre',
-  'Enderecoid',
-  'Site Id',
-  'Reg',
-  'UF',
-  'Cidade',
-  'PROJETO',
-  'DETENTORA',
-  'STATUS Engenharia',
-  'DEMANDA RECEBIDA',
-  'TIPO DE DOC',
-  'Prioridade Homero',
-  'Plan entrega',
 ];
 
 export const EngineeringControlTab: React.FC<EngineeringControlTabProps> = ({
@@ -316,7 +299,12 @@ export const EngineeringControlTab: React.FC<EngineeringControlTabProps> = ({
 
   // Rows belonging to the active tab ("TSSR TIM Nokia")
   const tabRows = useMemo(() => {
-    const base = tssrRows.filter((r) => r.tabName === activeSubTab);
+    const base = tssrRows.filter((r) => {
+      if (!r.tabName) return true;
+      const t = r.tabName.trim().toLowerCase();
+      const a = activeSubTab.trim().toLowerCase();
+      return t === a || t.includes('tssr') || a.includes('tssr');
+    });
     if (!isAdmin) {
       const targetUser = simulatedTargetUser || user;
       return base.filter((r) => isTssrRowAssignedToResponsible(r, targetUser));
@@ -482,17 +470,21 @@ export const EngineeringControlTab: React.FC<EngineeringControlTabProps> = ({
 
       // Smart search (single keyword or multiple pasted Site IDs)
       if (searchTokens.length > 0) {
-        const haystack = [
-          row.siteId || '',
-          row.ocSitePre || '',
-          row.enderecoId || '',
-          row.vistoriaStatus || '',
-          row.vistoriaFileName || '',
-          row.vistoriaUploadedBy || '',
-          ...Object.values(row.fields || {}).map((v) => (v || '').toString()),
-        ]
-          .join(' ')
-          .toLowerCase();
+        const haystack = isExecutor
+          ? TSSR_EXECUTOR_VISIBLE_COLUMNS.map((col) => getTssrColumnValue(row, col))
+              .join(' ')
+              .toLowerCase()
+          : [
+              row.siteId || '',
+              row.ocSitePre || '',
+              row.enderecoId || '',
+              row.vistoriaStatus || '',
+              row.vistoriaFileName || '',
+              row.vistoriaUploadedBy || '',
+              ...Object.values(row.fields || {}).map((v) => (v || '').toString()),
+            ]
+              .join(' ')
+              .toLowerCase();
 
         if (searchTokens.length === 1) {
           if (!haystack.includes(searchTokens[0])) return false;
@@ -525,6 +517,7 @@ export const EngineeringControlTab: React.FC<EngineeringControlTabProps> = ({
     financeiroFilter,
     columnValueFilters,
     searchTokens,
+    isExecutor,
   ]);
 
   const selectedRow = useMemo(
@@ -534,7 +527,11 @@ export const EngineeringControlTab: React.FC<EngineeringControlTabProps> = ({
 
   useEffect(() => {
     if (selectedRow) {
-      setDrawerDraftFields({ ...(selectedRow.fields || {}) });
+      const draft: Record<string, string> = { ...(selectedRow.fields || {}) };
+      draft['Site Id'] = draft['Site Id'] || selectedRow.siteId || '';
+      draft['Oc Site Pre'] = draft['Oc Site Pre'] || selectedRow.ocSitePre || '';
+      draft['Enderecoid'] = draft['Enderecoid'] || selectedRow.enderecoId || '';
+      setDrawerDraftFields(draft);
     }
   }, [selectedRow]);
 
@@ -852,16 +849,16 @@ export const EngineeringControlTab: React.FC<EngineeringControlTabProps> = ({
 
   // Columns to display depending on Executor role or Resumo vs Planilha mode
   const activeOriginalColumns = isExecutor
-    ? EXECUTOR_ORIGINAL_COLUMNS
+    ? TSSR_EXECUTOR_VISIBLE_COLUMNS
     : viewMode === 'grid'
     ? TSSR_TIM_NOKIA_ORIGINAL_COLUMNS
     : RESUMO_ORIGINAL_COLUMNS;
 
-  const activeSystemColumns = isExecutor ? ['Status da vistoria'] : TSSR_SYSTEM_COLUMNS;
+  const activeSystemColumns = isExecutor ? [] : TSSR_SYSTEM_COLUMNS;
 
   // Group rows by section when in "Resumo" mode (Entregues vs Pendentes)
   const groupedSections = useMemo(() => {
-    if (viewMode === 'grid') {
+    if (viewMode === 'grid' || isExecutor) {
       return [{ id: 'ALL', title: 'Planilha Completa — TSSR TIM Nokia', rows: filteredRows }];
     }
     const entregues = filteredRows.filter((r) => r.vistoriaStatus === 'Entregue');
@@ -884,7 +881,7 @@ export const EngineeringControlTab: React.FC<EngineeringControlTabProps> = ({
       });
     }
     return sections;
-  }, [filteredRows, viewMode, vistoriaStatusFilter]);
+  }, [filteredRows, viewMode, vistoriaStatusFilter, isExecutor]);
 
   return (
     <div className="w-full min-w-0 max-w-full space-y-3">
@@ -939,37 +936,43 @@ export const EngineeringControlTab: React.FC<EngineeringControlTabProps> = ({
               <span>Gráficos</span>
             </button>
 
-            <button
-              type="button"
-              onClick={() => setIsNewRowModalOpen(true)}
-              className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-semibold rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer"
-            >
-              <Plus className="w-3.5 h-3.5 text-blue-600" />
-              <span>+ Nova Linha</span>
-            </button>
+            {isAdmin && (
+              <button
+                type="button"
+                onClick={() => setIsNewRowModalOpen(true)}
+                className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-semibold rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer"
+              >
+                <Plus className="w-3.5 h-3.5 text-blue-600" />
+                <span>+ Nova Linha</span>
+              </button>
+            )}
 
-            <button
-              type="button"
-              onClick={() => {
-                setImportError(null);
-                setIsImportModalOpen(true);
-              }}
-              className="px-3.5 py-1.5 bg-[#223585] hover:bg-[#1b2a6b] text-white text-xs font-semibold rounded-lg transition-colors flex items-center gap-1.5 shadow-2xs cursor-pointer"
-            >
-              <Upload className="w-3.5 h-3.5" />
-              <span>Carregar Planilha TSSR (.XLSX / OneDrive)</span>
-            </button>
+            {isRealGestor && (
+              <button
+                type="button"
+                onClick={() => {
+                  setImportError(null);
+                  setIsImportModalOpen(true);
+                }}
+                className="px-3.5 py-1.5 bg-[#223585] hover:bg-[#1b2a6b] text-white text-xs font-semibold rounded-lg transition-colors flex items-center gap-1.5 shadow-2xs cursor-pointer"
+              >
+                <Upload className="w-3.5 h-3.5" />
+                <span>Carregar Planilha TSSR (.XLSX / OneDrive)</span>
+              </button>
+            )}
 
             {/* Firebase Cloud Status Button */}
-            <button
-              type="button"
-              onClick={() => setIsGoogleDriveOpen(true)}
-              className="px-3.5 py-1.5 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white text-xs font-semibold rounded-lg transition-all flex items-center gap-1.5 shadow-2xs cursor-pointer"
-              title="Status de Sincronização em Tempo Real na Nuvem Firebase (Storage e Firestore)"
-            >
-              <Cloud className="w-3.5 h-3.5 text-white" />
-              <span>Nuvem Firebase</span>
-            </button>
+            {isAdmin && (
+              <button
+                type="button"
+                onClick={() => setIsGoogleDriveOpen(true)}
+                className="px-3.5 py-1.5 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white text-xs font-semibold rounded-lg transition-all flex items-center gap-1.5 shadow-2xs cursor-pointer"
+                title="Status de Sincronização em Tempo Real na Nuvem Firebase (Storage e Firestore)"
+              >
+                <Cloud className="w-3.5 h-3.5 text-white" />
+                <span>Nuvem Firebase</span>
+              </button>
+            )}
 
             <button
               type="button"
@@ -1146,44 +1149,48 @@ export const EngineeringControlTab: React.FC<EngineeringControlTabProps> = ({
               </button>
             )}
 
-            {/* Separator */}
-            <div className="h-5 w-px bg-slate-200 mx-0.5" />
+            {/* Vistorias Entregues / Não Disponível (somente gestores) */}
+            {!isExecutor && (
+              <>
+                <div className="h-5 w-px bg-slate-200 mx-0.5" />
 
-            {/* Vistorias Entregues */}
-            <button
-              type="button"
-              onClick={() =>
-                setVistoriaStatusFilter((prev) => (prev === 'Entregue' ? 'ALL' : 'Entregue'))
-              }
-              className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold border transition-all flex items-center gap-1.5 cursor-pointer ${
-                vistoriaStatusFilter === 'Entregue'
-                  ? 'bg-emerald-700 border-emerald-700 text-white shadow-2xs'
-                  : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-700'
-              }`}
-              title="Vistorias com arquivo entregue"
-            >
-              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-              <span>Vistoria Entregue</span>
-              <span className="font-mono font-bold text-xs tabular-nums">{entreguesCount}</span>
-            </button>
+                {/* Vistorias Entregues */}
+                <button
+                  type="button"
+                  onClick={() =>
+                    setVistoriaStatusFilter((prev) => (prev === 'Entregue' ? 'ALL' : 'Entregue'))
+                  }
+                  className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold border transition-all flex items-center gap-1.5 cursor-pointer ${
+                    vistoriaStatusFilter === 'Entregue'
+                      ? 'bg-emerald-700 border-emerald-700 text-white shadow-2xs'
+                      : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-700'
+                  }`}
+                  title="Vistorias com arquivo entregue"
+                >
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>Vistoria Entregue</span>
+                  <span className="font-mono font-bold text-xs tabular-nums">{entreguesCount}</span>
+                </button>
 
-            {/* Vistoria Não Disponível */}
-            <button
-              type="button"
-              onClick={() =>
-                setVistoriaStatusFilter((prev) => (prev === 'NAO_DISPONIVEL' ? 'ALL' : 'NAO_DISPONIVEL'))
-              }
-              className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold border transition-all flex items-center gap-1.5 cursor-pointer ${
-                vistoriaStatusFilter === 'NAO_DISPONIVEL'
-                  ? 'bg-slate-800 border-slate-800 text-white shadow-2xs'
-                  : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-700'
-              }`}
-              title="Vistorias sem arquivo carregado"
-            >
-              <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
-              <span>Vistoria Não Disponível</span>
-              <span className="font-mono font-bold text-xs tabular-nums">{naoDisponivelCount}</span>
-            </button>
+                {/* Vistoria Não Disponível */}
+                <button
+                  type="button"
+                  onClick={() =>
+                    setVistoriaStatusFilter((prev) => (prev === 'NAO_DISPONIVEL' ? 'ALL' : 'NAO_DISPONIVEL'))
+                  }
+                  className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold border transition-all flex items-center gap-1.5 cursor-pointer ${
+                    vistoriaStatusFilter === 'NAO_DISPONIVEL'
+                      ? 'bg-slate-800 border-slate-800 text-white shadow-2xs'
+                      : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-700'
+                  }`}
+                  title="Vistorias sem arquivo carregado"
+                >
+                  <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
+                  <span>Vistoria Não Disponível</span>
+                  <span className="font-mono font-bold text-xs tabular-nums">{naoDisponivelCount}</span>
+                </button>
+              </>
+            )}
           </div>
         </div>
       </div>
@@ -1308,32 +1315,34 @@ export const EngineeringControlTab: React.FC<EngineeringControlTabProps> = ({
             </div>
 
             {/* View Mode Switcher (Resumo / Planilha) */}
-            <div className="flex items-center p-0.5 bg-[#F3F4F6] border border-slate-200 rounded-lg">
-              <button
-                type="button"
-                onClick={() => setViewMode('fluid')}
-                className={`px-2.5 py-1 text-[11px] font-medium rounded-md flex items-center gap-1.5 transition-colors cursor-pointer ${
-                  viewMode === 'fluid'
-                    ? 'bg-white text-slate-900 font-semibold shadow-2xs border border-slate-200/70'
-                    : 'text-slate-500 hover:text-slate-800'
-                }`}
-              >
-                <LayoutList className="w-3.5 h-3.5" />
-                <span>Resumo</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setViewMode('grid')}
-                className={`px-2.5 py-1 text-[11px] font-medium rounded-md flex items-center gap-1.5 transition-colors cursor-pointer ${
-                  viewMode === 'grid'
-                    ? 'bg-white text-slate-900 font-semibold shadow-2xs border border-slate-200/70'
-                    : 'text-slate-500 hover:text-slate-800'
-                }`}
-              >
-                <Table className="w-3.5 h-3.5" />
-                <span>Planilha ({TSSR_ALL_COLUMNS.length} col)</span>
-              </button>
-            </div>
+            {!isExecutor && (
+              <div className="flex items-center p-0.5 bg-[#F3F4F6] border border-slate-200 rounded-lg">
+                <button
+                  type="button"
+                  onClick={() => setViewMode('fluid')}
+                  className={`px-2.5 py-1 text-[11px] font-medium rounded-md flex items-center gap-1.5 transition-colors cursor-pointer ${
+                    viewMode === 'fluid'
+                      ? 'bg-white text-slate-900 font-semibold shadow-2xs border border-slate-200/70'
+                      : 'text-slate-500 hover:text-slate-800'
+                  }`}
+                >
+                  <LayoutList className="w-3.5 h-3.5" />
+                  <span>Resumo</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setViewMode('grid')}
+                  className={`px-2.5 py-1 text-[11px] font-medium rounded-md flex items-center gap-1.5 transition-colors cursor-pointer ${
+                    viewMode === 'grid'
+                      ? 'bg-white text-slate-900 font-semibold shadow-2xs border border-slate-200/70'
+                      : 'text-slate-500 hover:text-slate-800'
+                  }`}
+                >
+                  <Table className="w-3.5 h-3.5" />
+                  <span>Planilha ({TSSR_ALL_COLUMNS.length} col)</span>
+                </button>
+              </div>
+            )}
 
             {/* Fullscreen Toggle */}
             <button
@@ -1446,25 +1455,27 @@ export const EngineeringControlTab: React.FC<EngineeringControlTabProps> = ({
                         </div>
 
                         <div className="space-y-2.5">
-                          <div>
-                            <label className="block text-[11px] font-semibold text-slate-500 mb-1">
-                              Status da vistoria [SISTEMA]
-                            </label>
-                            <select
-                              value={vistoriaStatusFilter}
-                              onChange={(e) => {
-                                setVistoriaStatusFilter(
-                                  e.target.value as 'ALL' | 'Entregue' | 'NAO_DISPONIVEL'
-                                );
-                                setIsAddFilterOpen(false);
-                              }}
-                              className="w-full px-2.5 py-1.5 bg-[#F3F4F6] border border-slate-200 rounded-lg text-xs text-slate-800"
-                            >
-                              <option value="ALL">Todos ({totalCount})</option>
-                              <option value="Entregue">Vistoria Entregue ({entreguesCount})</option>
-                              <option value="NAO_DISPONIVEL">Vistoria Não Disponível ({naoDisponivelCount})</option>
-                            </select>
-                          </div>
+                          {!isExecutor && (
+                            <div>
+                              <label className="block text-[11px] font-semibold text-slate-500 mb-1">
+                                Status da vistoria [SISTEMA]
+                              </label>
+                              <select
+                                value={vistoriaStatusFilter}
+                                onChange={(e) => {
+                                  setVistoriaStatusFilter(
+                                    e.target.value as 'ALL' | 'Entregue' | 'NAO_DISPONIVEL'
+                                  );
+                                  setIsAddFilterOpen(false);
+                                }}
+                                className="w-full px-2.5 py-1.5 bg-[#F3F4F6] border border-slate-200 rounded-lg text-xs text-slate-800"
+                              >
+                                <option value="ALL">Todos ({totalCount})</option>
+                                <option value="Entregue">Vistoria Entregue ({entreguesCount})</option>
+                                <option value="NAO_DISPONIVEL">Vistoria Não Disponível ({naoDisponivelCount})</option>
+                              </select>
+                            </div>
+                          )}
 
                           <div>
                             <label className="block text-[11px] font-semibold text-slate-500 mb-1">
@@ -1531,28 +1542,30 @@ export const EngineeringControlTab: React.FC<EngineeringControlTabProps> = ({
                             </div>
                           </div>
 
-                          <div>
-                            <label className="block text-[11px] font-semibold text-slate-500 mb-1">
-                              Executor
-                            </label>
-                            <select
-                              value={executorFilter}
-                              onChange={(e) => {
-                                setExecutorFilter(e.target.value);
-                                setIsAddFilterOpen(false);
-                              }}
-                              className="w-full px-2.5 py-1.5 bg-[#F3F4F6] border border-slate-200 rounded-lg text-xs text-slate-800"
-                            >
-                              <option value="ALL">Todos ({filterOptions.executores.length})</option>
-                              {filterOptions.executores.map((ex) => (
-                                <option key={ex} value={ex}>
-                                  {ex}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
+                          {!isExecutor && (
+                            <div>
+                              <label className="block text-[11px] font-semibold text-slate-500 mb-1">
+                                Executor
+                              </label>
+                              <select
+                                value={executorFilter}
+                                onChange={(e) => {
+                                  setExecutorFilter(e.target.value);
+                                  setIsAddFilterOpen(false);
+                                }}
+                                className="w-full px-2.5 py-1.5 bg-[#F3F4F6] border border-slate-200 rounded-lg text-xs text-slate-800"
+                              >
+                                <option value="ALL">Todos ({filterOptions.executores.length})</option>
+                                {filterOptions.executores.map((ex) => (
+                                  <option key={ex} value={ex}>
+                                    {ex}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                          )}
 
-                          <div className="grid grid-cols-2 gap-2">
+                          <div className={`grid ${isExecutor ? 'grid-cols-1' : 'grid-cols-2'} gap-2`}>
                             <div>
                               <label className="block text-[11px] font-semibold text-slate-500 mb-1">
                                 PROJETO
@@ -1574,26 +1587,28 @@ export const EngineeringControlTab: React.FC<EngineeringControlTabProps> = ({
                               </select>
                             </div>
 
-                            <div>
-                              <label className="block text-[11px] font-semibold text-slate-500 mb-1">
-                                Status Financeiro
-                              </label>
-                              <select
-                                value={financeiroFilter}
-                                onChange={(e) => {
-                                  setFinanceiroFilter(e.target.value);
-                                  setIsAddFilterOpen(false);
-                                }}
-                                className="w-full px-2.5 py-1.5 bg-[#F3F4F6] border border-slate-200 rounded-lg text-xs text-slate-800"
-                              >
-                                <option value="ALL">Todos</option>
-                                {filterOptions.financeiros.map((fn) => (
-                                  <option key={fn} value={fn}>
-                                    {fn}
-                                  </option>
-                                ))}
-                              </select>
-                            </div>
+                            {!isExecutor && (
+                              <div>
+                                <label className="block text-[11px] font-semibold text-slate-500 mb-1">
+                                  Status Financeiro
+                                </label>
+                                <select
+                                  value={financeiroFilter}
+                                  onChange={(e) => {
+                                    setFinanceiroFilter(e.target.value);
+                                    setIsAddFilterOpen(false);
+                                  }}
+                                  className="w-full px-2.5 py-1.5 bg-[#F3F4F6] border border-slate-200 rounded-lg text-xs text-slate-800"
+                                >
+                                  <option value="ALL">Todos</option>
+                                  {filterOptions.financeiros.map((fn) => (
+                                    <option key={fn} value={fn}>
+                                      {fn}
+                                    </option>
+                                  ))}
+                                </select>
+                              </div>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -1958,34 +1973,34 @@ export const EngineeringControlTab: React.FC<EngineeringControlTabProps> = ({
                             );
                           })}
 
-                          {/* System Col 1: Status da vistoria (manual selector) */}
-                          <td
-                            className={`${densityPad} bg-slate-50/50 group-hover:bg-blue-50/40 border-r border-slate-100`}
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            {canEditVistoriaStatus(row) ? (
-                              <select
-                                value={row.vistoriaStatus === 'Entregue' ? 'Entregue' : 'NAO_DISPONIVEL'}
-                                onChange={(e) => handleUpdateVistoriaStatus(row, e.target.value as any)}
-                                className={`px-2 py-0.5 rounded-full text-[11px] font-bold border cursor-pointer focus:outline-none ${
-                                  row.vistoriaStatus === 'Entregue'
-                                    ? 'bg-emerald-50 text-emerald-700 border-emerald-300'
-                                    : 'bg-slate-100 text-slate-700 border-slate-300'
-                                }`}
-                              >
-                                <option value="Entregue">Entregue</option>
-                                <option value="NAO_DISPONIVEL">Não disponível</option>
-                              </select>
-                            ) : (
-                              renderVistoriaStatusBadge(
-                                row.vistoriaStatus === 'Entregue' ? 'Entregue' : 'NAO_DISPONIVEL'
-                              )
-                            )}
-                          </td>
-
-                          {/* Additional System Columns for managers */}
+                          {/* System Columns for managers only */}
                           {!isExecutor && (
                             <>
+                              {/* System Col 1: Status da vistoria (manual selector) */}
+                              <td
+                                className={`${densityPad} bg-slate-50/50 group-hover:bg-blue-50/40 border-r border-slate-100`}
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                {canEditVistoriaStatus(row) ? (
+                                  <select
+                                    value={row.vistoriaStatus === 'Entregue' ? 'Entregue' : 'NAO_DISPONIVEL'}
+                                    onChange={(e) => handleUpdateVistoriaStatus(row, e.target.value as any)}
+                                    className={`px-2 py-0.5 rounded-full text-[11px] font-bold border cursor-pointer focus:outline-none ${
+                                      row.vistoriaStatus === 'Entregue'
+                                        ? 'bg-emerald-50 text-emerald-700 border-emerald-300'
+                                        : 'bg-slate-100 text-slate-700 border-slate-300'
+                                    }`}
+                                  >
+                                    <option value="Entregue">Entregue</option>
+                                    <option value="NAO_DISPONIVEL">Não disponível</option>
+                                  </select>
+                                ) : (
+                                  renderVistoriaStatusBadge(
+                                    row.vistoriaStatus === 'Entregue' ? 'Entregue' : 'NAO_DISPONIVEL'
+                                  )
+                                )}
+                              </td>
+
                               {/* System Col 2: Arquivo da vistoria */}
                               <td
                                 className={`${densityPad} bg-slate-50/50 group-hover:bg-blue-50/40 border-r border-slate-100`}
@@ -2472,7 +2487,7 @@ export const EngineeringControlTab: React.FC<EngineeringControlTabProps> = ({
                   <span className="font-mono text-sm font-bold text-emerald-400">
                     {selectedRow.siteId}
                   </span>
-                  {renderVistoriaStatusBadge(selectedRow.vistoriaStatus)}
+                  {!isExecutor && renderVistoriaStatusBadge(selectedRow.vistoriaStatus)}
                 </div>
                 <p className="text-[11px] text-slate-300 mt-0.5">
                   Aba {activeSubTab} · Oc Site Pre: {selectedRow.ocSitePre || '—'} · Enderecoid:{' '}
@@ -2504,109 +2519,126 @@ export const EngineeringControlTab: React.FC<EngineeringControlTabProps> = ({
               onSubmit={handleSaveDrawerRow}
               className="flex-1 overflow-y-auto p-5 space-y-4 text-xs"
             >
-              {/* Automatic System Columns Box */}
-              <div className="p-4 rounded-xl bg-slate-50 border border-blue-200 space-y-2.5">
-                <div className="flex items-center justify-between">
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-[#223585]">
-                    Colunas do Sistema (Vistoria)
-                  </span>
-                </div>
+              {/* Automatic System Columns Box (somente para gestores/coordenadores/ADM) */}
+              {!isExecutor && (
+                <div className="p-4 rounded-xl bg-slate-50 border border-blue-200 space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-[#223585]">
+                      Colunas do Sistema (Vistoria)
+                    </span>
+                  </div>
 
-                <div className="grid grid-cols-2 gap-2.5 pt-1">
-                  <div>
-                    <div className="text-[10px] text-slate-500 font-semibold">
-                      Status da vistoria
+                  <div className="grid grid-cols-2 gap-2.5 pt-1">
+                    <div>
+                      <div className="text-[10px] text-slate-500 font-semibold">
+                        Status da vistoria
+                      </div>
+                      <div className="mt-0.5">
+                        {canEditVistoriaStatus(selectedRow) ? (
+                          <select
+                            value={selectedRow.vistoriaStatus === 'Entregue' ? 'Entregue' : 'NAO_DISPONIVEL'}
+                            onChange={(e) => handleUpdateVistoriaStatus(selectedRow, e.target.value as any)}
+                            className={`px-2.5 py-1 rounded-lg text-xs font-bold border cursor-pointer focus:outline-none ${
+                              selectedRow.vistoriaStatus === 'Entregue'
+                                ? 'bg-emerald-50 text-emerald-700 border-emerald-300'
+                                : 'bg-slate-100 text-slate-700 border-slate-300'
+                            }`}
+                          >
+                            <option value="Entregue">Entregue</option>
+                            <option value="NAO_DISPONIVEL">Não disponível</option>
+                          </select>
+                        ) : (
+                          renderVistoriaStatusBadge(selectedRow.vistoriaStatus)
+                        )}
+                      </div>
                     </div>
-                    <div className="mt-0.5">
-                      {canEditVistoriaStatus(selectedRow) ? (
-                        <select
-                          value={selectedRow.vistoriaStatus === 'Entregue' ? 'Entregue' : 'NAO_DISPONIVEL'}
-                          onChange={(e) => handleUpdateVistoriaStatus(selectedRow, e.target.value as any)}
-                          className={`px-2.5 py-1 rounded-lg text-xs font-bold border cursor-pointer focus:outline-none ${
-                            selectedRow.vistoriaStatus === 'Entregue'
-                              ? 'bg-emerald-50 text-emerald-700 border-emerald-300'
-                              : 'bg-slate-100 text-slate-700 border-slate-300'
-                          }`}
-                        >
-                          <option value="Entregue">Entregue</option>
-                          <option value="NAO_DISPONIVEL">Não disponível</option>
-                        </select>
-                      ) : (
-                        renderVistoriaStatusBadge(selectedRow.vistoriaStatus)
-                      )}
+                    <div>
+                      <div className="text-[10px] text-slate-500 font-semibold">
+                        Arquivo da vistoria
+                      </div>
+                      <div className="mt-0.5">{renderArquivoVistoriaCell(selectedRow)}</div>
                     </div>
-                  </div>
-                  <div>
-                    <div className="text-[10px] text-slate-500 font-semibold">
-                      Arquivo da vistoria
+                    <div>
+                      <div className="text-[10px] text-slate-500 font-semibold">
+                        Data/hora da entrega
+                      </div>
+                      <div className="font-mono font-semibold text-slate-800 mt-0.5">
+                        {selectedRow.vistoriaDeliveredAt || '—'}
+                      </div>
                     </div>
-                    <div className="mt-0.5">{renderArquivoVistoriaCell(selectedRow)}</div>
-                  </div>
-                  <div>
-                    <div className="text-[10px] text-slate-500 font-semibold">
-                      Data/hora da entrega
-                    </div>
-                    <div className="font-mono font-semibold text-slate-800 mt-0.5">
-                      {selectedRow.vistoriaDeliveredAt || '—'}
-                    </div>
-                  </div>
-                  <div>
-                    <div className="text-[10px] text-slate-500 font-semibold">
-                      Vistoriador que enviou
-                    </div>
-                    <div className="font-semibold text-slate-800 mt-0.5">
-                      {selectedRow.vistoriaUploadedBy || '—'}
+                    <div>
+                      <div className="text-[10px] text-slate-500 font-semibold">
+                        Vistoriador que enviou
+                      </div>
+                      <div className="font-semibold text-slate-800 mt-0.5">
+                        {selectedRow.vistoriaUploadedBy || '—'}
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
+              )}
 
-              {/* Original Columns (filtered for Executor) */}
+              {/* Columns List (12 colunas para Executor, 37 para Gestores) */}
               <div className="space-y-3">
                 <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
                   {isExecutor
-                    ? `Colunas da Planilha TSSR (${activeOriginalColumns.length} colunas)`
+                    ? `Colunas da Planilha TSSR (${TSSR_EXECUTOR_VISIBLE_COLUMNS.length} colunas)`
                     : `Colunas Originais da Planilha TSSR (${TSSR_TIM_NOKIA_ORIGINAL_COLUMNS.length} colunas)`}
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {activeOriginalColumns.map((colName) => (
-                    <div key={colName}>
-                      <label className="block text-[11px] font-semibold text-slate-600 mb-1">
-                        {colName}
-                      </label>
-                      {colName === 'STATUS Engenharia' ? (
-                        <select
-                          value={drawerDraftFields[colName] ?? ''}
-                          onChange={(e) =>
-                            setDrawerDraftFields((prev) => ({
-                              ...prev,
-                              [colName]: e.target.value,
-                            }))
-                          }
-                          className="w-full px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-900 focus:outline-none focus:border-blue-600"
-                        >
-                          <option value="">— Selecionar Status —</option>
-                          <option value="TSSR Aguardando aprovação">TSSR Aguardando aprovação</option>
-                          <option value="TSSR Entregue">TSSR Entregue</option>
-                          <option value="Em andamento">Em andamento</option>
-                          <option value="Reprovado">Reprovado</option>
-                          <option value="Cancelado">Cancelado</option>
-                        </select>
-                      ) : (
-                        <input
-                          type="text"
-                          value={drawerDraftFields[colName] ?? ''}
-                          onChange={(e) =>
-                            setDrawerDraftFields((prev) => ({
-                              ...prev,
-                              [colName]: e.target.value,
-                            }))
-                          }
-                          className="w-full px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs text-slate-900 focus:outline-none focus:border-blue-600"
-                        />
-                      )}
-                    </div>
-                  ))}
+                  {activeOriginalColumns.map((colName) => {
+                    const val =
+                      drawerDraftFields[colName] !== undefined && drawerDraftFields[colName] !== ''
+                        ? drawerDraftFields[colName]
+                        : getTssrColumnValue(selectedRow, colName) || '';
+                    return (
+                      <div key={colName}>
+                        <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                          {colName}
+                        </label>
+                        {colName === 'STATUS Engenharia' ? (
+                          <select
+                            value={drawerDraftFields[colName] ?? val}
+                            onChange={(e) =>
+                              setDrawerDraftFields((prev) => ({
+                                ...prev,
+                                [colName]: e.target.value,
+                              }))
+                            }
+                            className="w-full px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-900 focus:outline-none focus:border-blue-600"
+                          >
+                            <option value="">— Selecionar Status —</option>
+                            <option value="TSSR Em Execução">TSSR Em Execução</option>
+                            <option value="TSSR Aguardando aprovação">TSSR Aguardando aprovação</option>
+                            {!isExecutor && (
+                              <>
+                                <option value="TSSR Entregue">TSSR Entregue</option>
+                                <option value="Em andamento">Em andamento</option>
+                                <option value="Reprovado">Reprovado</option>
+                                <option value="Cancelado">Cancelado</option>
+                              </>
+                            )}
+                          </select>
+                        ) : isExecutor ? (
+                          <div className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-900 font-medium">
+                            {val || '—'}
+                          </div>
+                        ) : (
+                          <input
+                            type="text"
+                            value={drawerDraftFields[colName] ?? ''}
+                            onChange={(e) =>
+                              setDrawerDraftFields((prev) => ({
+                                ...prev,
+                                [colName]: e.target.value,
+                              }))
+                            }
+                            className="w-full px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs text-slate-900 focus:outline-none focus:border-blue-600"
+                          />
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
 

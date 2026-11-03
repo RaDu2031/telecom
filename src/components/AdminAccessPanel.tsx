@@ -219,6 +219,7 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
   const [atividade, setAtividade] = useState('ACESSO | TX');
   const [password, setPassword] = useState('ameta2026');
   const [newRole, setNewRole] = useState<UserRole>('Vistoriador');
+  const [newPlatform, setNewPlatform] = useState<AssignedPlatformScope | ''>('NOKIA');
   const [newDispensado, setNewDispensado] = useState<boolean>(false);
   const [showNewDocsSection, setShowNewDocsSection] = useState<boolean>(false);
   const [newProfileDocs, setNewProfileDocs] = useState<
@@ -540,19 +541,25 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
       string,
       {
         role: UserRole;
-        plataforma: AssignedPlatformScope;
+        plataforma: AssignedPlatformScope | '';
         equipe: string;
       }
     >
   >({});
   const [confirmedApprovals, setConfirmedApprovals] = useState<Record<string, boolean>>({});
 
-  const getPendingDraft = (u: AmetaUser) => {
+  const getPendingDraft = (u: AmetaUser): {
+    role: UserRole;
+    plataforma: AssignedPlatformScope | '';
+    equipe: string;
+  } => {
     const key = (u.email || u.id).toLowerCase();
+    const raw = (u.assignedPlatform || u.plataforma || '').trim().toUpperCase();
+    const plat = raw === 'BOTH' ? 'AMBAS' : raw;
     return (
       pendingDrafts[key] || {
         role: normalizeUserRole(u.role, u.email),
-        plataforma: (u.assignedPlatform || u.plataforma || 'NOKIA') as AssignedPlatformScope,
+        plataforma: (plat || '') as AssignedPlatformScope | '',
         equipe: u.equipe || u.name || '',
       }
     );
@@ -560,7 +567,7 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
 
   const updatePendingDraft = (
     u: AmetaUser,
-    patch: Partial<{ role: UserRole; plataforma: AssignedPlatformScope; equipe: string }>
+    patch: Partial<{ role: UserRole; plataforma: AssignedPlatformScope | ''; equipe: string }>
   ) => {
     const key = (u.email || u.id).toLowerCase();
     const cur = getPendingDraft(u);
@@ -578,9 +585,20 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
     }
     setError(null);
     const draft = getPendingDraft(target);
+    const rawPlat = String(draft.plataforma || '').trim().toUpperCase();
+    const normalizedPlat = rawPlat === 'BOTH' ? 'AMBAS' : rawPlat;
+
+    if ((draft.role === 'Executor' || draft.role === 'Vistoriador') && !normalizedPlat) {
+      setError(`Para liberar o acesso de ${target.name} como ${draft.role}, é obrigatório escolher a plataforma (Nokia, Ericsson ou Ambas).`);
+      showToast(`Escolha a plataforma (Nokia, Ericsson ou Ambas) antes de salvar.`);
+      return;
+    }
+
+    const finalPlat = (normalizedPlat || 'NOKIA') as AssignedPlatformScope;
+
     const resolvedEquipe =
       draft.equipe.trim() ||
-      (draft.role.includes('Coordenador') ? `Coordenação ${draft.plataforma}` : target.name);
+      (draft.role.includes('Coordenador') ? `Coordenação ${finalPlat}` : target.name);
     setUpdatingUserId(target.id);
     try {
       await dataService.atualizarPermissoesUsuario(target.uid || target.id, {
@@ -588,7 +606,7 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
         name: target.name,
         situacao: 'ativo',
         role: draft.role,
-        plataforma: draft.plataforma,
+        plataforma: finalPlat,
         equipe: resolvedEquipe,
       });
 
@@ -596,9 +614,9 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
         await dataService.criarNotificacao({
           id: `notif_appr_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
           type: 'PERMISSAO_LIBERADA_ADM',
-          vendor: draft.plataforma === 'ERICSSON' ? 'ERICSSON' : 'NOKIA',
+          vendor: finalPlat === 'ERICSSON' ? 'ERICSSON' : 'NOKIA',
           title: 'Acesso Liberado!',
-          message: `Seu acesso foi liberado como ${draft.role} (${draft.plataforma})!`,
+          message: `Seu acesso foi liberado como ${draft.role} (${finalPlat})!`,
           actorName: currentUser.name || 'Administrador',
           actorEmail: currentUser.email,
           targetRoles: [draft.role],
@@ -615,8 +633,8 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
           ? {
               ...u,
               role: draft.role,
-              plataforma: draft.plataforma,
-              assignedPlatform: draft.plataforma,
+              plataforma: finalPlat,
+              assignedPlatform: finalPlat,
               equipe: resolvedEquipe,
               situacao: 'ativo' as UserSituacao,
               accessReleased: true,
@@ -639,7 +657,7 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
       if (onUsersUpdated) {
         onUsersUpdated(
           updatedList,
-          `Acesso de ${target.name} liberado como ${draft.role} (Plataforma: ${draft.plataforma} · Dupla/Equipe: ${resolvedEquipe})!`
+          `Acesso de ${target.name} liberado como ${draft.role} (Plataforma: ${finalPlat} · Dupla/Equipe: ${resolvedEquipe})!`
         );
       }
       showToast(`Acesso de ${target.name} liberado com sucesso!`);
@@ -729,12 +747,23 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
     const target = users.find((u) => u.id === userId);
     try {
       if (target) {
+        const rawPlat = String(target.plataforma || target.assignedPlatform || '').trim().toUpperCase();
+        const normalizedPlat = rawPlat === 'BOTH' ? 'AMBAS' : rawPlat;
+
+        if ((role === 'Executor' || role === 'Vistoriador') && !normalizedPlat) {
+          setError(`Para definir o perfil de ${resourceName} como ${role}, é obrigatório escolher a plataforma (Nokia, Ericsson ou Ambas) antes de salvar.`);
+          showToast(`Escolha a plataforma para o ${role} antes de salvar.`);
+          return;
+        }
+
+        const finalPlat = (normalizedPlat || '') as AssignedPlatformScope;
+
         await dataService.atualizarPermissoesUsuario(target.uid || target.id, {
           email: target.email,
           name: target.name,
           situacao: target.situacao === 'dono' ? 'dono' : 'ativo',
           role,
-          plataforma: target.plataforma || target.assignedPlatform || 'NOKIA',
+          plataforma: finalPlat,
           equipe: target.equipe,
         });
         if (onUsersUpdated) {
@@ -744,6 +773,8 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
                 ? {
                     ...u,
                     role,
+                    plataforma: finalPlat,
+                    assignedPlatform: finalPlat,
                     situacao: u.situacao === 'dono' ? 'dono' : 'ativo',
                     accessReleased: true,
                   }
@@ -763,9 +794,21 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
 
   const handlePlatformAndSituacaoChange = async (
     target: AmetaUser,
-    nextPlatform: AssignedPlatformScope,
+    nextPlatform: AssignedPlatformScope | '',
     nextSituacao: UserSituacao
   ) => {
+    const role = normalizeUserRole(target.role, target.email);
+    const rawPlat = String(nextPlatform || '').trim().toUpperCase();
+    const normalizedPlat = rawPlat === 'BOTH' ? 'AMBAS' : rawPlat;
+
+    if ((role === 'Executor' || role === 'Vistoriador') && !normalizedPlat) {
+      setError(`Para o perfil ${role}, é obrigatório escolher a plataforma (Nokia, Ericsson ou Ambas) antes de salvar.`);
+      showToast(`Para ${role}, é obrigatório escolher a plataforma (Nokia, Ericsson ou Ambas).`);
+      return;
+    }
+
+    const finalPlat = (normalizedPlat || '') as AssignedPlatformScope;
+
     setUpdatingUserId(target.id);
     const nextReleased = nextSituacao === 'ativo' || nextSituacao === 'dono';
     try {
@@ -773,8 +816,8 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
         email: target.email,
         name: target.name,
         situacao: nextSituacao,
-        role: normalizeUserRole(target.role, target.email),
-        plataforma: nextPlatform,
+        role,
+        plataforma: finalPlat,
         equipe: target.equipe,
       });
       if (onUsersUpdated) {
@@ -783,14 +826,14 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
             u.id === target.id
               ? {
                   ...u,
-                  plataforma: nextPlatform,
-                  assignedPlatform: nextPlatform,
+                  plataforma: finalPlat,
+                  assignedPlatform: finalPlat,
                   situacao: nextSituacao,
                   accessReleased: nextReleased,
                 }
               : u
           ),
-          `Permissão de ${target.name} atualizada (${nextPlatform} · ${nextSituacao.toUpperCase()})`
+          `Permissão de ${target.name} atualizada (${finalPlat || 'Sem plataforma'} · ${nextSituacao.toUpperCase()})`
         );
       }
     } catch (err: any) {
@@ -1006,6 +1049,7 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
     setEquipe('');
     setPassword('ameta2026');
     setNewRole('Vistoriador');
+    setNewPlatform('NOKIA');
     setNewDispensado(false);
     setShowNewDocsSection(false);
     const cleanDocs = {} as Record<
@@ -1140,6 +1184,18 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
         return;
       }
 
+      const rawPlat = String(newPlatform || '').trim().toUpperCase();
+      const normalizedPlat = rawPlat === 'BOTH' ? 'AMBAS' : rawPlat;
+
+      if ((newRole === 'Executor' || newRole === 'Vistoriador') && !normalizedPlat) {
+        setError(`Para o perfil ${newRole}, é obrigatório escolher a plataforma (Nokia, Ericsson ou Ambas) antes de salvar.`);
+        showToast(`Escolha a plataforma (Nokia, Ericsson ou Ambas) para o ${newRole}.`);
+        setSaving(false);
+        return;
+      }
+
+      const finalPlat = (normalizedPlat || '') as AssignedPlatformScope;
+
       // Step 1: Create user account in Firebase Authentication via secondary app
       let authResult;
       try {
@@ -1185,8 +1241,8 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
         role: newRole,
         tipo: 'usuario',
         situacao: 'ativo',
-        plataforma: 'NOKIA',
-        assignedPlatform: 'NOKIA',
+        plataforma: finalPlat,
+        assignedPlatform: finalPlat,
         accessReleased: true,
         mustChangePassword: true,
         dispensadoDocumentos: newDispensado,
@@ -1533,9 +1589,16 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
                       <span className="px-2 py-0.5 rounded bg-white text-indigo-700 font-extrabold border border-indigo-200">
                         Perfil: {u.role || 'Vistoriador'}
                       </span>
-                      <span className="px-2 py-0.5 rounded bg-white text-slate-800 font-bold border border-slate-200">
-                        Plataforma: {u.plataforma || u.assignedPlatform || 'NOKIA'}
-                      </span>
+                      {!(u.plataforma || u.assignedPlatform || '').trim() ? (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-amber-200 text-amber-950 font-extrabold border border-amber-400">
+                          <AlertTriangle className="w-3 h-3 text-amber-700 shrink-0" />
+                          Sem plataforma
+                        </span>
+                      ) : (
+                        <span className="px-2 py-0.5 rounded bg-white text-slate-800 font-bold border border-slate-200">
+                          Plataforma: {u.plataforma || u.assignedPlatform}
+                        </span>
+                      )}
                     </div>
                   </div>
 
@@ -1569,11 +1632,16 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
                             plataforma: e.target.value as AssignedPlatformScope,
                           })
                         }
-                        className="w-full px-2.5 py-1.5 rounded-lg bg-white border-2 border-indigo-300 focus:border-indigo-600 text-xs font-bold text-slate-900"
+                        className={`w-full px-2.5 py-1.5 rounded-lg bg-white border-2 text-xs font-bold ${
+                          !draft.plataforma
+                            ? 'border-amber-400 text-amber-900 bg-amber-50'
+                            : 'border-indigo-300 focus:border-indigo-600 text-slate-900'
+                        }`}
                       >
-                        <option value="NOKIA">TIM / Nokia</option>
-                        <option value="ERICSSON">Ericsson</option>
-                        <option value="BOTH">Ambas (TIM + Ericsson)</option>
+                        <option value="">— Selecione a plataforma —</option>
+                        <option value="NOKIA">NOKIA</option>
+                        <option value="ERICSSON">ERICSSON</option>
+                        <option value="AMBAS">AMBAS</option>
                       </select>
                     </div>
 
@@ -1863,6 +1931,15 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
                               Você
                             </span>
                           )}
+                          {!(u.plataforma || u.assignedPlatform || '').trim() && (
+                            <span
+                              title="Usuário sem plataforma definida (Nokia, Ericsson ou Ambas)"
+                              className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-800 bg-amber-100 border border-amber-300 px-1.5 py-0.5 rounded-md shrink-0"
+                            >
+                              <AlertTriangle className="w-3 h-3 text-amber-600 shrink-0" />
+                              Sem plataforma
+                            </span>
+                          )}
                         </div>
                         {u.cpf && (
                           <div className="text-[11px] text-slate-400 font-mono whitespace-nowrap">
@@ -1970,7 +2047,7 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
                                   </button>
 
                                   <select
-                                    value={u.plataforma || u.assignedPlatform || 'NOKIA'}
+                                    value={u.plataforma || u.assignedPlatform || ''}
                                     disabled={isUpdating}
                                     onChange={(e) =>
                                       handlePlatformAndSituacaoChange(
@@ -1979,12 +2056,17 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
                                         u.situacao === 'aguardando' ? 'ativo' : u.situacao || 'ativo'
                                       )
                                     }
-                                    title="Selecionar Plataforma (Nokia ou Ericsson)"
-                                    className="px-2 py-1 text-[11px] font-bold rounded-lg border border-slate-200 bg-white text-slate-800 cursor-pointer"
+                                    title="Selecionar Plataforma (Nokia, Ericsson ou Ambas)"
+                                    className={`px-2 py-1 text-[11px] font-bold rounded-lg border bg-white cursor-pointer ${
+                                      !(u.plataforma || u.assignedPlatform || '').trim()
+                                        ? 'border-amber-400 text-amber-900 bg-amber-50'
+                                        : 'border-slate-200 text-slate-800'
+                                    }`}
                                   >
-                                    <option value="NOKIA">TIM / Nokia</option>
-                                    <option value="ERICSSON">Ericsson</option>
-                                    <option value="BOTH">Nokia + Ericsson</option>
+                                    <option value="">— Sem plataforma —</option>
+                                    <option value="NOKIA">NOKIA</option>
+                                    <option value="ERICSSON">ERICSSON</option>
+                                    <option value="AMBAS">AMBAS</option>
                                   </select>
 
                                   <button
@@ -2006,7 +2088,7 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
                                       const nextSit: UserSituacao = currSit === 'bloqueado' ? 'ativo' : 'bloqueado';
                                       handlePlatformAndSituacaoChange(
                                         u,
-                                        u.plataforma || u.assignedPlatform || 'NOKIA',
+                                        u.plataforma || u.assignedPlatform || '',
                                         nextSit
                                       );
                                     }}
@@ -2593,6 +2675,31 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
                     </button>
                   ))}
                 </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                  Plataforma {(newRole === 'Executor' || newRole === 'Vistoriador') && <span className="text-red-500">*</span>}
+                </label>
+                <select
+                  value={newPlatform}
+                  onChange={(e) => setNewPlatform(e.target.value as AssignedPlatformScope | '')}
+                  className={`w-full px-3 py-2 bg-white border rounded-lg text-xs font-semibold focus:outline-none ${
+                    (newRole === 'Executor' || newRole === 'Vistoriador') && !newPlatform
+                      ? 'border-amber-400 text-amber-900 bg-amber-50'
+                      : 'border-slate-200 text-slate-800 focus:border-blue-600'
+                  }`}
+                >
+                  <option value="">— Selecione a plataforma —</option>
+                  <option value="NOKIA">NOKIA</option>
+                  <option value="ERICSSON">ERICSSON</option>
+                  <option value="AMBAS">AMBAS</option>
+                </select>
+                {(newRole === 'Executor' || newRole === 'Vistoriador') && !newPlatform && (
+                  <p className="text-[11px] text-amber-600 mt-1 font-medium">
+                    Obrigatório selecionar Nokia, Ericsson ou Ambas para {newRole}.
+                  </p>
+                )}
               </div>
 
               {/* Exemption + Collapsible Columnar Document Section */}

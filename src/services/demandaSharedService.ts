@@ -192,6 +192,17 @@ export function isTssrRowActivelyDemanded(row?: TssrRow | null): boolean {
   const hasValidRespDemand = !isGenericNonTeamName(respDemand);
 
   if (!hasValidRespDemand && !hasDemandDate && !hasDemandEmail) {
+    const directExec = String(
+      row.fields?.['Executor'] ||
+      row.fields?.['EXECUTOR'] ||
+      row.executor ||
+      row.fields?.['EQUIPE EXECUTANTE'] ||
+      row.equipe ||
+      ''
+    ).trim();
+    if (directExec && !isGenericNonTeamName(directExec)) {
+      return true;
+    }
     return false;
   }
 
@@ -230,6 +241,20 @@ export function isEricssonEngRowActivelyDemanded(
   const hasValidRespDemand = !isGenericNonTeamName(respDemand);
 
   if (!hasValidRespDemand && !hasDemandDate && !hasDemandEmail) {
+    const directExec = String(
+      row.executor ||
+      row.fields?.['EXECUTOR'] ||
+      row.fields?.['EXECUTOR WR'] ||
+      row.fields?.['EXECUTOR QRF'] ||
+      row.fields?.['EXECUTOR PPI'] ||
+      row.fields?.['Executor'] ||
+      row.fields?.['EQUIPE'] ||
+      row.equipe ||
+      ''
+    ).trim();
+    if (directExec && !isGenericNonTeamName(directExec)) {
+      return true;
+    }
     return false;
   }
 

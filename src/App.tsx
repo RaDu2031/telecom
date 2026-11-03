@@ -769,7 +769,7 @@ export default function App() {
     const chosenVendor = initialVendor || authenticatedUser.preferredVendor || 'NOKIA';
     setActiveVendor(chosenVendor);
     setActiveSheetName(chosenVendor === 'NOKIA' ? 'Controle Geral' : 'ALL');
-    setActiveTopTab('sites');
+    setActiveTopTab(normalizedRole === 'Executor' ? 'engenharia' : 'sites');
   };
 
   const handleLogout = () => {
@@ -789,7 +789,7 @@ export default function App() {
         activeTopTab === 'colar' ||
         activeTopTab === 'exportar')
     ) {
-      setActiveTopTab('sites');
+      setActiveTopTab(effectiveRole === 'Executor' ? 'engenharia' : 'sites');
     }
     resetAllInternalFilters();
     if (user && vendor !== 'CLARO_TIM') {
@@ -1327,7 +1327,7 @@ export default function App() {
 
   // Auto-correct active top tab based on role permissions
   useEffect(() => {
-    if (effectiveRole === 'Executor' && (activeTopTab === 'sites' || activeTopTab === 'duplas')) {
+    if (effectiveRole === 'Executor' && (activeTopTab === 'sites' || activeTopTab === 'duplas' || activeTopTab === 'executores')) {
       setActiveTopTab('engenharia');
     } else if (effectiveRole === 'Vistoriador' && (activeTopTab === 'engenharia' || activeTopTab === 'executores')) {
       setActiveTopTab('sites');
@@ -2752,23 +2752,23 @@ export default function App() {
     // Duplas & Demanda aparece para todos os gestores
     if (activeTopTab === 'duplas') {
       if (!canSeeDuplasTab) {
-        return 'sites';
+        return effectiveRole === 'Executor' ? 'engenharia' : 'sites';
       }
       return 'duplas';
     }
     // Demandar Executores aparece somente para os gestores engenharia e para gestor geral (para todo resto é oculta)
     if (activeTopTab === 'executores') {
       if (!canAccessDemandaExecutores) {
-        return 'sites';
+        return effectiveRole === 'Executor' ? 'engenharia' : 'sites';
       }
       return 'executores';
     }
     if (isRaFunctionTab && (!isRealAdmin || simulatedTargetUser)) {
-      return isEngCoordinator ? 'engenharia' : 'sites';
+      return (isEngCoordinator || effectiveRole === 'Executor') ? 'engenharia' : 'sites';
     }
     // No Nokia, nunca resolver para 'vistoria'
     if (activeVendor === 'NOKIA' && activeTopTab === 'vistoria') {
-      return 'sites';
+      return effectiveRole === 'Executor' ? 'engenharia' : 'sites';
     }
     // Coordenador Engenharia default is 'engenharia' if 'sites' is requested
     if (isEngCoordinator && activeTopTab === 'sites') {
@@ -2779,11 +2779,11 @@ export default function App() {
       if (canSeeEricssonDemandsTab) {
         return 'vistoria';
       }
-      return isEngCoordinator ? 'engenharia' : 'sites';
+      return (isEngCoordinator || effectiveRole === 'Executor') ? 'engenharia' : 'sites';
     }
-    // Executor: se não for demanda autorizada, sempre 'sites' (Meus Sites Demandados)
+    // Executor: sua aba principal e de demandas é sempre 'engenharia'
     if (effectiveRole === 'Executor') {
-      return 'sites';
+      return 'engenharia';
     }
     // Vistoriador: sempre 'sites' (Meus Sites Demandados)
     if (effectiveRole === 'Vistoriador') {
@@ -5103,6 +5103,8 @@ export default function App() {
                     ? 'Sites (Planilhas)'
                     : resolvedTopTab === 'engenharia'
                     ? 'Engenharia'
+                    : resolvedTopTab === 'vistoria'
+                    ? 'Demandas Engenharia'
                     : resolvedTopTab === 'duplas'
                     ? 'Duplas & Demanda'
                     : resolvedTopTab === 'executores'

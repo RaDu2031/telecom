@@ -77,6 +77,7 @@ const initialEricssonEngMap = new Map<string, EricssonEngineeringRow>();
 
 export type Unsubscribe = () => void;
 let hasShownPermissionAcionamentosToast = false;
+const warnedPermissionDeniedCollections = new Set<string>();
 
 export const FIRESTORE_COLLECTIONS = {
   USUARIOS: 'usuarios',
@@ -1908,11 +1909,15 @@ class FirebaseDataService implements IDataService {
     const existing = snap.exists() ? (snap.data() as AmetaUser) : {};
     const accessReleased = payload.situacao === 'ativo' || payload.situacao === 'dono';
 
+    const rawPlat = String(payload.plataforma || '').trim().toUpperCase();
+    const normalizedPlat = (rawPlat === 'BOTH' ? 'AMBAS' : rawPlat) as AssignedPlatformScope;
+
     const merged = {
       ...existing,
       ...payload,
+      plataforma: normalizedPlat,
+      assignedPlatform: normalizedPlat,
       accessReleased,
-      assignedPlatform: payload.plataforma,
     };
 
     await setDoc(userRef, sanitizeFirestoreData(merged), { merge: true });
@@ -3507,20 +3512,58 @@ class FirebaseDataService implements IDataService {
   ): Unsubscribe {
     const unsubs: Unsubscribe[] = [];
 
+    const notificarPermissaoNegadaUmaVez = (colecao: string) => {
+      const sessionKey = `ameta_warned_perm_${colecao}`;
+      if (warnedPermissionDeniedCollections.has(colecao)) return;
+      try {
+        if (typeof sessionStorage !== 'undefined') {
+          if (sessionStorage.getItem(sessionKey)) {
+            warnedPermissionDeniedCollections.add(colecao);
+            return;
+          }
+          sessionStorage.setItem(sessionKey, '1');
+        }
+      } catch {
+        // ignore sessionStorage errors
+      }
+      warnedPermissionDeniedCollections.add(colecao);
+      showToast(
+        `Sem permissão para ler ${colecao}. Peça à coordenação para conferir sua plataforma (Nokia/Ericsson/Ambas) e sua situação.`
+      );
+    };
+
     if (callbacks.onNokiaSites) {
       unsubs.push(
-        onSnapshot(collection(db, FIRESTORE_COLLECTIONS.NOKIA_SITES), (snap) => {
-          const list = snap.docs.map((d) => ({ id: d.id, ...d.data() } as TelecomSite));
-          callbacks.onNokiaSites!(list);
-        }, (err) => console.error('Nokia sites snapshot error:', err))
+        onSnapshot(
+          collection(db, FIRESTORE_COLLECTIONS.NOKIA_SITES),
+          (snap) => {
+            const list = snap.docs.map((d) => ({ id: d.id, ...d.data() } as TelecomSite));
+            callbacks.onNokiaSites!(list);
+          },
+          (err: any) => {
+            console.error('Nokia sites snapshot error:', err);
+            if (err?.code === 'permission-denied') {
+              notificarPermissaoNegadaUmaVez('nokia_sites');
+            }
+          }
+        )
       );
     }
     if (callbacks.onNokiaTssr) {
       unsubs.push(
-        onSnapshot(collection(db, FIRESTORE_COLLECTIONS.NOKIA_TSSR), (snap) => {
-          const list = snap.docs.map((d) => ({ id: d.id, ...d.data() } as TssrRow));
-          callbacks.onNokiaTssr!(list);
-        }, (err) => console.error('Nokia TSSR snapshot error:', err))
+        onSnapshot(
+          collection(db, FIRESTORE_COLLECTIONS.NOKIA_TSSR),
+          (snap) => {
+            const list = snap.docs.map((d) => ({ id: d.id, ...d.data() } as TssrRow));
+            callbacks.onNokiaTssr!(list);
+          },
+          (err: any) => {
+            console.error('Nokia TSSR snapshot error:', err);
+            if (err?.code === 'permission-denied') {
+              notificarPermissaoNegadaUmaVez('nokia_tssr');
+            }
+          }
+        )
       );
     }
     if (callbacks.onNokiaFolders) {
@@ -3541,18 +3584,36 @@ class FirebaseDataService implements IDataService {
     }
     if (callbacks.onEricssonSites) {
       unsubs.push(
-        onSnapshot(collection(db, FIRESTORE_COLLECTIONS.ERICSSON_SITES), (snap) => {
-          const list = snap.docs.map((d) => ({ id: d.id, ...d.data() } as EricssonRow));
-          callbacks.onEricssonSites!(list);
-        }, (err) => console.error('Ericsson sites snapshot error:', err))
+        onSnapshot(
+          collection(db, FIRESTORE_COLLECTIONS.ERICSSON_SITES),
+          (snap) => {
+            const list = snap.docs.map((d) => ({ id: d.id, ...d.data() } as EricssonRow));
+            callbacks.onEricssonSites!(list);
+          },
+          (err: any) => {
+            console.error('Ericsson sites snapshot error:', err);
+            if (err?.code === 'permission-denied') {
+              notificarPermissaoNegadaUmaVez('ericsson_sites');
+            }
+          }
+        )
       );
     }
     if (callbacks.onEricssonEngineering) {
       unsubs.push(
-        onSnapshot(collection(db, FIRESTORE_COLLECTIONS.ERICSSON_ENGENHARIA), (snap) => {
-          const list = snap.docs.map((d) => ({ id: d.id, ...d.data() } as EricssonEngineeringRow));
-          callbacks.onEricssonEngineering!(list);
-        }, (err) => console.error('Ericsson engenharia snapshot error:', err))
+        onSnapshot(
+          collection(db, FIRESTORE_COLLECTIONS.ERICSSON_ENGENHARIA),
+          (snap) => {
+            const list = snap.docs.map((d) => ({ id: d.id, ...d.data() } as EricssonEngineeringRow));
+            callbacks.onEricssonEngineering!(list);
+          },
+          (err: any) => {
+            console.error('Ericsson engenharia snapshot error:', err);
+            if (err?.code === 'permission-denied') {
+              notificarPermissaoNegadaUmaVez('ericsson_engenharia');
+            }
+          }
+        )
       );
     }
     if (callbacks.onEricssonFolders) {

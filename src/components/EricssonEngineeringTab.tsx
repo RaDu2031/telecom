@@ -396,21 +396,11 @@ export const EricssonEngineeringTab: React.FC<EricssonEngineeringTabProps> = ({
     return rows.filter((r) => isEricssonRowAssignedToResponsible(r, user));
   }, [rows, isUserRestricted, user]);
 
-  // Compute active executor-scoped rows (excluding finalized for executor table view)
+  // Compute active executor-scoped rows
   const executorScopedRows = useMemo(() => {
     if (!isUserRestricted) return rows;
-    return assignedRowsForUser.filter((r) => {
-      if (isExecutor) {
-        const rawStatus = r.status || r.fields?.['Status'] || '';
-        const isFinalizado =
-          classifyEricssonStatus(rawStatus) === 'Finalizado' ||
-          rawStatus.toLowerCase().includes('finaliz') ||
-          rawStatus.toLowerCase().trim() === 'finalizado';
-        if (isFinalizado) return false;
-      }
-      return true;
-    });
-  }, [assignedRowsForUser, isUserRestricted, isExecutor]);
+    return assignedRowsForUser;
+  }, [assignedRowsForUser, isUserRestricted]);
 
   // Compute live stats for WR, QRF, PPI, BOQ, SMART, SDC exclusively from assigned sites when user is restricted
   const consolidatedStats: EricssonConsolidatedStats = useMemo(() => {

@@ -3,6 +3,7 @@ import {
   TelecomSite,
   TssrRow,
   TSSR_TIM_NOKIA_ORIGINAL_COLUMNS,
+  TSSR_EXECUTOR_VISIBLE_COLUMNS,
   TSSR_SYSTEM_COLUMNS,
   TSSR_ALL_COLUMNS,
   VendorType,
@@ -497,5 +498,5 @@ export function convertSitesToTssrRows(
     });
 }
 
-export { TSSR_ALL_COLUMNS };
+export { TSSR_ALL_COLUMNS, TSSR_EXECUTOR_VISIBLE_COLUMNS };
 
