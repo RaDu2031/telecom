@@ -197,23 +197,18 @@ export const AmetaSidebar: React.FC<AmetaSidebarProps> = React.memo(({
           </button>
         )}
 
-        {/* 3. Duplas & Demanda (Desativado se CLARO) */}
+        {/* 3. Duplas & Demanda */}
         {canSeeDuplasTab && (
           <button
             type="button"
-            disabled={isClaroActive}
-            onClick={() => !isClaroActive && onSelectTab('duplas')}
-            title={isClaroActive ? 'Duplas & Demanda (Indisponível na Claro — em construção)' : (collapsed ? `Duplas & Demanda (${duplasCount})` : undefined)}
-            className={`w-full flex items-center transition-all rounded-xl group relative ${
-              isClaroActive
-                ? 'opacity-40 cursor-not-allowed pointer-events-none'
-                : 'cursor-pointer'
-            } ${
+            onClick={() => onSelectTab('duplas')}
+            title={collapsed ? `Duplas & Demanda (${duplasCount})` : undefined}
+            className={`w-full flex items-center transition-all rounded-xl group relative cursor-pointer ${
               collapsed
                 ? 'justify-center p-3'
                 : 'justify-between px-3 py-2.5 text-xs font-medium'
             } ${
-              isDuplasActive && !isClaroActive
+              isDuplasActive
                 ? 'bg-[#162746] text-white font-bold border border-blue-900/60 shadow-sm'
                 : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
             }`}
@@ -222,7 +217,7 @@ export const AmetaSidebar: React.FC<AmetaSidebarProps> = React.memo(({
               <div className="relative shrink-0">
                 <Users
                   className={`w-4 h-4 transition-colors ${
-                    isDuplasActive && !isClaroActive ? 'text-indigo-400' : 'text-slate-400 group-hover:text-slate-200'
+                    isDuplasActive ? 'text-indigo-400' : 'text-slate-400 group-hover:text-slate-200'
                   }`}
                 />
                 {collapsed && duplasCount > 0 && (
@@ -237,7 +232,7 @@ export const AmetaSidebar: React.FC<AmetaSidebarProps> = React.memo(({
             {!collapsed && (
               <span
                 className={`text-[11px] font-mono tabular-nums px-2 py-0.5 rounded-full font-bold shrink-0 ml-1.5 ${
-                  isDuplasActive && !isClaroActive
+                  isDuplasActive
                     ? 'bg-indigo-950/80 text-indigo-300 border border-indigo-800/60'
                     : 'text-slate-400 bg-slate-800/50'
                 }`}
@@ -299,45 +294,32 @@ export const AmetaSidebar: React.FC<AmetaSidebarProps> = React.memo(({
           </button>
         )}
 
-        {/* 5. Acionamento (Desativado se CLARO) */}
+        {/* 5. Acionamento */}
         {canSeeAcionamento && (
-          isClaroActive ? (
-            <div
-              title="Acionamento (Indisponível na Claro — em construção)"
-              className="w-full flex items-center justify-between px-3 py-2.5 text-xs font-medium text-slate-500 opacity-40 cursor-not-allowed rounded-xl"
-            >
-              <div className="flex items-center gap-3 min-w-0">
-                <Wrench className="w-4 h-4 text-slate-500 shrink-0" />
-                {!collapsed && <span className="truncate">Acionamento</span>}
+          <a
+            href={ACIONAMENTO_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            title={collapsed ? 'Acionamento' : undefined}
+            className={`w-full flex items-center transition-all cursor-pointer rounded-xl group relative text-slate-300 hover:text-white hover:bg-slate-800/60 ${
+              collapsed
+                ? 'justify-center p-3'
+                : 'justify-between px-3 py-2.5 text-xs font-medium'
+            }`}
+          >
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="relative shrink-0">
+                <Wrench className="w-4 h-4 text-slate-400 group-hover:text-slate-200 transition-colors" />
               </div>
-              {!collapsed && <ExternalLink className="w-3.5 h-3.5 text-slate-500 shrink-0 ml-1.5" />}
-            </div>
-          ) : (
-            <a
-              href={ACIONAMENTO_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              title={collapsed ? 'Acionamento' : undefined}
-              className={`w-full flex items-center transition-all cursor-pointer rounded-xl group relative text-slate-300 hover:text-white hover:bg-slate-800/60 ${
-                collapsed
-                  ? 'justify-center p-3'
-                  : 'justify-between px-3 py-2.5 text-xs font-medium'
-              }`}
-            >
-              <div className="flex items-center gap-3 min-w-0">
-                <div className="relative shrink-0">
-                  <Wrench className="w-4 h-4 text-slate-400 group-hover:text-slate-200 transition-colors" />
-                </div>
-                {!collapsed && (
-                  <span className="truncate">Acionamento</span>
-                )}
-              </div>
-
               {!collapsed && (
-                <ExternalLink className="w-3.5 h-3.5 text-slate-400 group-hover:text-slate-200 shrink-0 ml-1.5 transition-colors" />
+                <span className="truncate">Acionamento</span>
               )}
-            </a>
-          )
+            </div>
+
+            {!collapsed && (
+              <ExternalLink className="w-3.5 h-3.5 text-slate-400 group-hover:text-slate-200 shrink-0 ml-1.5 transition-colors" />
+            )}
+          </a>
         )}
       </div>
 
@@ -403,12 +385,9 @@ export const AmetaSidebar: React.FC<AmetaSidebarProps> = React.memo(({
                     ? 'bg-amber-600 text-white shadow-xs font-extrabold'
                     : 'text-amber-400 hover:text-amber-300'
                 }`}
-                title="Nokia · Claro (em construção)"
+                title="Nokia · Claro"
               >
                 <span>Claro</span>
-                <span className="text-[8px] font-extrabold uppercase px-1 rounded bg-amber-950 text-amber-300 border border-amber-800">
-                  constr.
-                </span>
               </button>
             </div>
           )}

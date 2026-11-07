@@ -226,8 +226,10 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = React
     currentOwner: string;
     targetOwner: string;
     siteIds: string[];
-    vendor: 'NOKIA' | 'ERICSSON';
+    vendor: VendorType;
   } | null>(null);
+  const isNokiaOrClaro = activeVendor === 'NOKIA' || activeVendor === 'CLARO_TIM';
+  const targetSiteVendor: VendorType = activeVendor === 'CLARO_TIM' ? 'CLARO_TIM' : 'NOKIA';
   const [sitePickerUf, setSitePickerUf] = useState<string>('ALL');
   const [selectedSiteIds, setSelectedSiteIds] = useState<string[]>([]);
   const [isAssigning, setIsAssigning] = useState<boolean>(false);
@@ -331,16 +333,16 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = React
     await saveDuplaEmails(selectedDupla, current);
   };
 
-  // Nokia Controle Geral sites
+  // Nokia / Claro Controle Geral sites
   const nokiaControleGeralSites = useMemo(
     () =>
       sites.filter(
         (s) =>
-          s.vendor === 'NOKIA' &&
+          s.vendor === targetSiteVendor &&
           s.sheetName === 'Controle Geral' &&
           !isSiteCancelado(s)
       ),
-    [sites]
+    [sites, targetSiteVendor]
   );
 
   // Filtered Duplas in the left sidebar
@@ -354,13 +356,13 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = React
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [equipesDuplas, duplaSearch, duplaEmailsMap, allRegisteredUsers]);
 
-  // Nokia sites for a given Dupla
+  // Nokia / Claro sites for a given Dupla
   const getNokiaSitesForDupla = (duplaName: string): TelecomSite[] => {
     const cleanDupla = (duplaName || '').trim();
     if (!cleanDupla) return [];
     const linkedEmails = getLinkedEmailsForDupla(cleanDupla);
     const matched = sites.filter((s) => {
-      if (s.vendor !== 'NOKIA' || s.sheetName !== 'Controle Geral' || isSiteCancelado(s)) {
+      if (s.vendor !== targetSiteVendor || s.sheetName !== 'Controle Geral' || isSiteCancelado(s)) {
         return false;
       }
       if (!temEquipeDemandadaSite(s)) return false;
@@ -418,7 +420,7 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = React
   // Available UFs for activeVendor
   const availableUfs = useMemo(() => {
     const set = new Set<string>();
-    if (activeVendor === 'NOKIA') {
+    if (isNokiaOrClaro) {
       nokiaControleGeralSites.forEach((s) => {
         const u = (getCellValueForColumn(s, 'UF') || s.uf || '').trim().toUpperCase();
         if (u && u !== '—') set.add(u);
@@ -430,7 +432,7 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = React
       });
     }
     return Array.from(set).sort();
-  }, [activeVendor, nokiaControleGeralSites, ericssonRows]);
+  }, [isNokiaOrClaro, nokiaControleGeralSites, ericssonRows]);
 
   // Candidate TIM/Nokia sites in the left picker panel
   const pickerNokiaSites = useMemo(() => {
@@ -534,18 +536,18 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = React
   ]);
 
   const activePickerCount =
-    activeVendor === 'NOKIA' ? pickerNokiaSites.length : pickerEricssonRows.length;
+    isNokiaOrClaro ? pickerNokiaSites.length : pickerEricssonRows.length;
   const activeAssignedCount =
-    activeVendor === 'NOKIA'
+    isNokiaOrClaro
       ? assignedNokiaSitesForSelectedDupla.length
       : assignedEricssonRowsForSelectedDupla.length;
 
   const unassignedVisibleCount = useMemo(() => {
-    if (activeVendor === 'NOKIA') {
+    if (isNokiaOrClaro) {
       return pickerNokiaSites.filter((s) => !temEquipeDemandadaSite(s)).length;
     }
     return pickerEricssonRows.filter((r) => !temEquipeDemandadaSite(r)).length;
-  }, [activeVendor, pickerNokiaSites, pickerEricssonRows]);
+  }, [isNokiaOrClaro, pickerNokiaSites, pickerEricssonRows]);
 
   const toggleSelectSite = (token: string) => {
     setSelectedSiteIds((prev) =>
@@ -555,7 +557,7 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = React
 
   const handleSelectAllVisiblePicker = () => {
     const visibleUnassigned =
-      activeVendor === 'NOKIA'
+      isNokiaOrClaro
         ? pickerNokiaSites
             .filter((s) => !temEquipeDemandadaSite(s))
             .map((s) => s.id)
@@ -599,7 +601,7 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = React
     const ownedItems: Array<{ id: string; name: string; owner: string }> = [];
     const freeItemIds: string[] = [];
 
-    if (activeVendor === 'NOKIA') {
+    if (isNokiaOrClaro) {
       pickerNokiaSites.forEach((s) => {
         if (selectedSiteIds.includes(s.id)) {
           const cur = getCurrentSiteResponsible(s);
@@ -651,7 +653,7 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = React
     setIsClearing(true);
     try {
       const tokensToClear =
-        activeVendor === 'NOKIA'
+        isNokiaOrClaro
           ? assignedNokiaSitesForSelectedDupla.flatMap((s) => [s.id, s.siteId])
           : assignedEricssonRowsForSelectedDupla.map((r) => r.id);
       await onClearDuplaSites(selectedDupla, tokensToClear, activeVendor);
@@ -852,7 +854,7 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = React
             let fazerCount = 0;
             let notasCount = 0;
 
-            if (activeVendor === 'NOKIA') {
+            if (isNokiaOrClaro) {
               const duplaSites = getNokiaSitesForDupla(dupla);
               totalSitesCount = duplaSites.length;
               feitosCount = duplaSites.filter((s) => isSiteFeito(s)).length;
@@ -1359,7 +1361,7 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = React
 
             {/* Scrollable Picker List */}
             <div className="divide-y divide-slate-100 max-h-[450px] overflow-y-auto">
-              {activeVendor === 'NOKIA'
+              {isNokiaOrClaro
                 ? pickerNokiaSites.slice(0, 120).map((site) => {
                     const isChecked = selectedSiteIds.includes(site.id);
                     const currentEq = (
@@ -1433,7 +1435,7 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = React
                                     currentOwner: currentEq,
                                     targetOwner: selectedDupla,
                                     siteIds: [site.id],
-                                    vendor: 'NOKIA',
+                                    vendor: targetSiteVendor,
                                   });
                                   return;
                                 }
@@ -1441,7 +1443,7 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = React
                                   [site.id],
                                   selectedDupla,
                                   activeDuplaLinkedEmails,
-                                  'NOKIA',
+                                  targetSiteVendor,
                                   false
                                 );
                               }}
@@ -1623,11 +1625,11 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = React
             </div>
 
             <div className="divide-y divide-slate-100 max-h-[515px] overflow-y-auto">
-              {activeVendor === 'NOKIA'
+              {isNokiaOrClaro
                 ? filteredAssignedNokiaSites.map((site) => {
                     const feito = isSiteFeito(site);
                     const notaPend = isSiteNotaPendente(site);
-                    const acionamento = getAcionamentoForSite?.('NOKIA', site.siteId, 'VISTORIA');
+                    const acionamento = getAcionamentoForSite?.(targetSiteVendor, site.siteId, 'VISTORIA');
                     const isRecusado = acionamento?.status === 'Recusado';
 
                     return (
@@ -1703,10 +1705,10 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = React
                                 await onUnassignSitesFromDupla(
                                   [site.id, site.siteId],
                                   selectedDupla,
-                                  'NOKIA'
+                                  targetSiteVendor
                                 );
                               } catch (err) {
-                                console.error('Erro ao desvincular site Nokia da dupla:', err);
+                                console.error('Erro ao desvincular site da dupla:', err);
                               }
                             }}
                             className="p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-md cursor-pointer"
@@ -1813,7 +1815,7 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = React
                     );
                   })}
 
-              {((activeVendor === 'NOKIA' && filteredAssignedNokiaSites.length === 0) ||
+              {((isNokiaOrClaro && filteredAssignedNokiaSites.length === 0) ||
                 (activeVendor === 'ERICSSON' && filteredAssignedEricssonRows.length === 0)) && (
                 <div className="p-8 text-center space-y-2">
                   <div className="text-xs font-semibold text-slate-600">

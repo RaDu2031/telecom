@@ -73,6 +73,59 @@ export const CONTROLE_GERAL_COLUMNS: string[] = [
   'Observações/Motivo',
 ];
 
+export const CLARO_CONTROLE_GERAL_COLUMNS: string[] = [
+  'Oc Site Pre',
+  'SITE ID',
+  'END ID',
+  'SMP',
+  'ID. DETENTORA',
+  'REG.',
+  'UF',
+  'MUNICÍPIO',
+  'PROJETO',
+  'Prioridade',
+  'STATUS',
+  'ACIONAMENTO',
+  'APOIO',
+  'CallOff Solicitado',
+  'DEC',
+  'EQUIPE EXECUTANTE',
+  'SI Planned',
+  'SI Executed',
+  'Executor',
+  'NDPd',
+  'Report',
+  'Comentários',
+  'Improdutiva',
+  'Pendência Engenharia',
+  'Data do Abono',
+  'Escopo',
+  'SI REPLANNED',
+  'MOTIVO REPLAN',
+  'Tipo Site',
+  'Modelo De Site',
+  'Prioridade Engenharia',
+  'Swap Cluster',
+  'CRQ',
+  'IMP Detentora',
+  'ID detentora',
+  'Acesso',
+  'Data',
+  'Comentários do Acesso',
+  'Lib. Fat. ASP',
+  'Lib. Fat. TalonView',
+  'ITEM',
+  'SPO',
+  'SGR',
+  'N° da NF',
+  'DATA NF',
+  'Envio Edcom',
+  'Status Financeiro',
+  'Observações/Motivo',
+  'Check',
+  'Informações p/ NF',
+];
+
 export const CONTROLE_CANCELADOS_COLUMNS: string[] = [
   'Oc Site Pre',
   'SITE ID',
@@ -194,7 +247,13 @@ export interface TelecomSite {
 export interface ImportHistoryEntry {
   id: string;
   fileName: string;
-  target: 'NOKIA_SITES' | 'NOKIA_TSSR' | 'ERICSSON_SITES' | 'ERICSSON_ENGENHARIA';
+  target:
+    | 'NOKIA_SITES'
+    | 'NOKIA_TSSR'
+    | 'ERICSSON_SITES'
+    | 'ERICSSON_ENGENHARIA'
+    | 'CLARO_SITES'
+    | 'CLARO_ENGENHARIA';
   sheetName?: string;
   importCode: string;
   importedAt: string;
@@ -282,7 +341,12 @@ export function normalizeUserRole(
 }
 
 export function hasFullSpreadsheetAccess(role: UserRole): boolean {
-  return role === 'ADM' || role === 'Coordenador Geral';
+  return role === 'ADM' || role === 'Coordenador Geral' || role === 'Coordenador Engenharia';
+}
+
+export function isGestorRole(role?: UserRole | string | null): boolean {
+  if (!role) return false;
+  return role === 'ADM' || role === 'Coordenador Geral' || role === 'Coordenador Engenharia';
 }
 
 export function isEngineeringCoordinatorRole(role: UserRole): boolean {
@@ -1443,6 +1507,53 @@ export function buildAcionamentoId(
     }
   }
   return `${v}_${s}_${t}`;
+}
+
+export interface ClaroSiteRow {
+  id: string;
+  siteId: string;
+  vendor: VendorType; // 'CLARO_TIM'
+  sheetName: string;
+  fields: Record<string, string>;
+  executor?: string;
+  equipe?: string;
+  responsavelDemand?: string;
+  responsaveisUids?: string[];
+  responsaveisEmails?: string[];
+  fileName?: string;
+  rowNumberInFile?: number;
+  importCode?: string;
+  createdAt?: string;
+  updatedAt: string;
+  updatedBy?: string;
+}
+
+export interface ClaroEngenhariaRow {
+  id: string;
+  siteId: string;
+  vendor: VendorType; // 'CLARO_TIM'
+  sheetName: string;
+  fields: Record<string, string>;
+  executor?: string;
+  equipe?: string;
+  responsavelDemand?: string;
+  responsaveisUids?: string[];
+  responsaveisEmails?: string[];
+  fileName?: string;
+  rowNumberInFile?: number;
+  importCode?: string;
+  createdAt?: string;
+  updatedAt: string;
+  updatedBy?: string;
+}
+
+export interface ClaroSheetMeta {
+  id: 'sites' | 'engenharia';
+  columns: string[];
+  sourceFileName?: string;
+  sheetName?: string;
+  lastSyncAt: string;
+  totalRows?: number;
 }
 
 

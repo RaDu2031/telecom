@@ -130,24 +130,41 @@ export const BulkPasteModal: React.FC<BulkPasteModalProps> = ({
     }
   }, [initialPastedText]);
 
-  const isNokiaSites =
+  const isClaroDestination =
     (isFixedDestination &&
+      (fixedDestinationVendor === 'CLARO_TIM' ||
+        fixedDestinationType === 'CLARO_SITES' ||
+        fixedDestinationType === 'CLARO_ENGENHARIA')) ||
+    (!isFixedDestination && vendor === 'CLARO_TIM');
+
+  const isClaroSites =
+    isClaroDestination &&
+    (!isFixedDestination || fixedDestinationType !== 'CLARO_ENGENHARIA');
+
+  const isNokiaSites =
+    !isClaroDestination &&
+    ((isFixedDestination &&
       (fixedDestinationType === 'NOKIA_SITES' ||
-       fixedDestinationVendor === 'NOKIA' ||
-       fixedDestinationTitle?.includes('Nokia') ||
-       fixedDestinationTitle?.includes('Sites'))) ||
-    (!isFixedDestination && vendor === 'NOKIA');
+        fixedDestinationVendor === 'NOKIA' ||
+        fixedDestinationTitle?.includes('Nokia'))) ||
+      (!isFixedDestination && vendor === 'NOKIA'));
 
   const vendorSheets = sheets.filter((s) => s.vendor === vendor);
-  const effectiveSheetName = isNokiaSites
+  const effectiveSheetName = isNokiaSites || isClaroSites
     ? 'Controle Geral'
+    : isClaroDestination
+    ? selectedExcelTab || fixedDestinationTitle || 'Claro'
     : targetSheet === '__NEW__'
     ? customSheetName.trim() || selectedExcelTab || `Controle Geral`
     : targetSheet || `Controle Geral`;
 
   const parsedFromPaste =
     tab === 'paste' && rawText.trim()
-      ? parseClipboardOrCsvText(rawText, vendor, effectiveSheetName)
+      ? parseClipboardOrCsvText(
+          rawText,
+          isFixedDestination ? fixedDestinationVendor : vendor,
+          effectiveSheetName
+        )
       : { sites: [], detectedColumns: [] };
 
   const rawParsedSites: Partial<TelecomSite>[] =
@@ -157,7 +174,9 @@ export const BulkPasteModal: React.FC<BulkPasteModalProps> = ({
       ? excelSheetsMap[selectedExcelTab]
       : [];
 
-  const destSheetName = isNokiaSites
+  const destSheetName = isClaroSites
+    ? 'Controle Geral'
+    : isNokiaSites
     ? normalizeNokiaSitesSheetName(tab === 'paste' ? 'Controle Geral' : selectedExcelTab || 'Controle Geral')
     : isFixedDestination
     ? fixedDestinationTitle
@@ -168,23 +187,39 @@ export const BulkPasteModal: React.FC<BulkPasteModalProps> = ({
     : effectiveSheetName;
 
   const parsedSites: Partial<TelecomSite>[] = useMemo(() => {
+    if (isClaroSites) {
+      return rawParsedSites.map((s) => ({
+        ...s,
+        vendor: 'CLARO_TIM',
+        sheetName: 'Controle Geral',
+      }));
+    }
     if (isNokiaSites) {
       return rawParsedSites.map((s) => ({
         ...s,
         sheetName: destSheetName,
       }));
     }
+    if (isClaroDestination) {
+      const sheetLabel = tab === 'excel' && selectedExcelTab ? selectedExcelTab : destSheetName;
+      return rawParsedSites.map((s) => ({
+        ...s,
+        sheetName: sheetLabel,
+      }));
+    }
     return rawParsedSites;
-  }, [rawParsedSites, isNokiaSites, destSheetName]);
+  }, [rawParsedSites, isClaroSites, isNokiaSites, isClaroDestination, destSheetName, tab, selectedExcelTab]);
 
   const detectedColumns: string[] =
     tab === 'paste'
       ? parsedFromPaste.detectedColumns
       : selectedExcelTab && excelColumnsMap[selectedExcelTab]
       ? excelColumnsMap[selectedExcelTab]
+      : isClaroDestination
+      ? []
       : CONTROLE_GERAL_COLUMNS;
 
-  // Pre-calculate preview summary: novas, já existiam, com erro
+  // Pre-calculate preview summary: novas, já existiam, com erro, uniqueSitesCount, repeatedSitesCount
   const previewStats = useMemo(() => {
     const existingKeys = new Set(
       existingSites.map((s) => (s.siteId || s.id || '').toString().trim().toUpperCase()).filter(Boolean)
@@ -193,15 +228,26 @@ export const BulkPasteModal: React.FC<BulkPasteModalProps> = ({
     let novas = 0;
     let jaExistiam = 0;
     let comErro = 0;
+    const seenInBatch = new Set<string>();
+    let uniqueSitesCount = 0;
+    let repeatedSitesCount = 0;
 
     for (const s of parsedSites) {
       const key = (s.siteId || s.id || '').toString().trim().toUpperCase();
       if (!key) {
         comErro++;
-      } else if (existingKeys.has(key)) {
-        jaExistiam++;
       } else {
-        novas++;
+        if (seenInBatch.has(key)) {
+          repeatedSitesCount++;
+        } else {
+          seenInBatch.add(key);
+          uniqueSitesCount++;
+        }
+        if (existingKeys.has(key)) {
+          jaExistiam++;
+        } else {
+          novas++;
+        }
       }
     }
 
@@ -210,6 +256,8 @@ export const BulkPasteModal: React.FC<BulkPasteModalProps> = ({
       novas,
       jaExistiam,
       comErro,
+      uniqueSitesCount,
+      repeatedSitesCount,
     };
   }, [parsedSites, existingSites]);
 
@@ -223,15 +271,17 @@ export const BulkPasteModal: React.FC<BulkPasteModalProps> = ({
 
     try {
       const buffer = await file.arrayBuffer();
-      const targetType = isFixedDestination ? fixedDestinationType : (vendor === 'ERICSSON' ? 'ERICSSON_SITES' : 'NOKIA_SITES');
-      const check = validarCompatibilidadePlanilha(buffer, targetType, file.name);
-      if (isFixedDestination && check.shouldBlock) {
-        setError(check.blockMessage || 'Planilha incompatível!');
-        if (fileInputRef.current) fileInputRef.current.value = '';
-        return;
-      }
-      if (check.warningMessage) {
-        showToast(check.warningMessage);
+      const targetType = isFixedDestination ? fixedDestinationType : (vendor === 'ERICSSON' ? 'ERICSSON_SITES' : vendor === 'CLARO_TIM' ? 'CLARO_SITES' : 'NOKIA_SITES');
+      if (!isClaroDestination) {
+        const check = validarCompatibilidadePlanilha(buffer, targetType, file.name);
+        if (isFixedDestination && check.shouldBlock) {
+          setError(check.blockMessage || 'Planilha incompatível!');
+          if (fileInputRef.current) fileInputRef.current.value = '';
+          return;
+        }
+        if (check.warningMessage) {
+          showToast(check.warningMessage);
+        }
       }
 
       const { sheetNames, sheetsData, sheetsColumns } = await parseExcelWorkbookFile(file, isFixedDestination ? fixedDestinationVendor : vendor);
@@ -292,14 +342,16 @@ export const BulkPasteModal: React.FC<BulkPasteModalProps> = ({
       return;
     }
 
-    const targetType = isFixedDestination ? fixedDestinationType : (vendor === 'ERICSSON' ? 'ERICSSON_SITES' : 'NOKIA_SITES');
-    const check = validarCompatibilidadePlanilha(detectedColumns, targetType, tab === 'excel' ? uploadedFileName : undefined);
-    if (isFixedDestination && check.shouldBlock) {
-      setError(check.blockMessage || 'Planilha incompatível!');
-      return;
-    }
-    if (check.warningMessage) {
-      showToast(check.warningMessage);
+    const targetType = isFixedDestination ? fixedDestinationType : (vendor === 'ERICSSON' ? 'ERICSSON_SITES' : vendor === 'CLARO_TIM' ? 'CLARO_SITES' : 'NOKIA_SITES');
+    if (!isClaroDestination) {
+      const check = validarCompatibilidadePlanilha(detectedColumns, targetType, tab === 'excel' ? uploadedFileName : undefined);
+      if (isFixedDestination && check.shouldBlock) {
+        setError(check.blockMessage || 'Planilha incompatível!');
+        return;
+      }
+      if (check.warningMessage) {
+        showToast(check.warningMessage);
+      }
     }
 
     setError(null);
@@ -557,24 +609,53 @@ export const BulkPasteModal: React.FC<BulkPasteModalProps> = ({
                 </span>
               </div>
 
-              {/* Requirement: "Mostre no resumo antes de gravar: 'Aba de destino: Controle Geral'" */}
+              {/* Requirement: "Mostre no resumo antes de gravar: 'Aba de destino: ...'" */}
               <div className="p-2.5 bg-slate-900 border border-slate-800 rounded-lg flex items-center justify-between text-xs">
-                <span className="text-slate-400 font-medium">Aba de destino:</span>
+                <span className="text-slate-400 font-medium">Destino:</span>
                 <span className="font-bold font-mono text-emerald-400">
                   {destSheetName}
+                  {tab === 'excel' && selectedExcelTab && isClaroDestination
+                    ? ` (Aba: ${selectedExcelTab})`
+                    : ''}
                 </span>
               </div>
 
-              <div className="grid grid-cols-2 gap-2 pt-0.5 font-mono text-[11px]">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-0.5 font-mono text-[11px]">
                 <div className="p-2 bg-emerald-950/40 border border-emerald-800/60 rounded text-center">
-                  <span className="text-[10px] text-emerald-400 block font-sans">LINHAS PARA ADICIONAR</span>
+                  <span className="text-[10px] text-emerald-400 block font-sans">LINHAS ENCONTRADAS</span>
                   <strong className="text-emerald-300 text-base">+{previewStats.total}</strong>
                 </div>
-                <div className="p-2 bg-slate-900 border border-slate-800 rounded text-center">
-                  <span className="text-[10px] text-slate-400 block font-sans">REGRA</span>
-                  <strong className="text-slate-300 text-xs">Somente Acrescentar</strong>
+                <div className="p-2 bg-blue-950/40 border border-blue-800/60 rounded text-center">
+                  <span className="text-[10px] text-blue-400 block font-sans">COLUNAS</span>
+                  <strong className="text-blue-300 text-base">{detectedColumns.length}</strong>
+                </div>
+                <div className="p-2 bg-indigo-950/40 border border-indigo-800/60 rounded text-center">
+                  <span className="text-[10px] text-indigo-400 block font-sans">SITES ÚNICOS</span>
+                  <strong className="text-indigo-300 text-base">{previewStats.uniqueSitesCount}</strong>
+                </div>
+                <div className="p-2 bg-amber-950/40 border border-amber-800/60 rounded text-center">
+                  <span className="text-[10px] text-amber-400 block font-sans">REPETIDOS (INDEPENDENTES)</span>
+                  <strong className="text-amber-300 text-base">{previewStats.repeatedSitesCount}</strong>
                 </div>
               </div>
+
+              {detectedColumns.length > 0 && (
+                <div className="p-2.5 bg-slate-900 border border-slate-800 rounded-lg space-y-1.5">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
+                    Colunas na ordem original ({detectedColumns.length}):
+                  </span>
+                  <div className="flex flex-wrap gap-1 max-h-24 overflow-y-auto">
+                    {detectedColumns.map((col, idx) => (
+                      <span
+                        key={`${col}_${idx}`}
+                        className="px-2 py-0.5 rounded bg-slate-950 border border-slate-700 text-[10px] font-mono text-slate-200"
+                      >
+                        {idx + 1}. {col}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -618,13 +699,32 @@ export const BulkPasteModal: React.FC<BulkPasteModalProps> = ({
         isOpen={preImportModalOpen}
         title="Confirmar Importação de Planilha"
         fileName={tab === 'excel' && uploadedFileName ? uploadedFileName : 'Colagem Direta Ctrl+V'}
-        sheetName={destSheetName}
+        sheetName={
+          isClaroSites
+            ? `Claro – Sites (Controle Geral)`
+            : tab === 'excel' && selectedExcelTab && isClaroDestination
+            ? `${destSheetName} (Aba: ${selectedExcelTab})`
+            : destSheetName
+        }
         linhasLidas={parsedSites.length}
         linhasAdicionadas={parsedSites.length}
         linhasIgnoradas={0}
+        uniqueSitesCount={previewStats.uniqueSitesCount}
+        repeatedSitesCount={previewStats.repeatedSitesCount}
         isPreviouslyImported={historyCheckResult.isPreviouslyImported}
         previousImportDate={dataService.formatImportDate(historyCheckResult.lastImportedAt)}
         isSaving={submitting}
+        detectedColumns={detectedColumns}
+        availableSheets={
+          tab === 'excel' && Object.keys(excelSheetsMap).length > 1
+            ? Object.keys(excelSheetsMap).map((k) => ({
+                name: k,
+                count: excelSheetsMap[k]?.length || 0,
+              }))
+            : []
+        }
+        selectedSheetName={selectedExcelTab}
+        onSelectSheetName={(sName) => setSelectedExcelTab(sName)}
         onConfirm={handleConfirmImport}
         onCancel={() => setPreImportModalOpen(false)}
       />

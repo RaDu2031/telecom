@@ -752,7 +752,7 @@ export const demandaSharedService = {
 
         let candidateFound = false;
 
-        if (params.vendor === 'NOKIA') {
+        if (params.vendor === 'NOKIA' || params.vendor === 'CLARO_TIM') {
           if (isExecutor) {
             const candidates = (params.currentTssrRows || []).filter((r) => {
               if (assignedIds.has(r.id.toUpperCase())) return false;
@@ -768,7 +768,7 @@ export const demandaSharedService = {
             }
           } else {
             const candidates = params.currentSites.filter((s) => {
-              if (s.vendor !== 'NOKIA') return false;
+              if (s.vendor !== params.vendor) return false;
               if (assignedIds.has(s.id.toUpperCase())) return false;
               if (temEquipeDemandadaSite(s)) return false;
               const sTokens = extractSiteTokens(s);
@@ -1033,7 +1033,7 @@ export const demandaSharedService = {
         siteTokens: rawTokens,
         responsibleName: cleanResponsible,
         linkedEmails: cleanEmails,
-        vendor: params.vendor === 'ERICSSON' ? 'ERICSSON' : 'NOKIA',
+        vendor: params.vendor,
         demandDate: targetDate,
         actorEmail: params.actorEmail,
         actorName: params.actorName,
@@ -1085,7 +1085,7 @@ export const demandaSharedService = {
         const cleanTk = String(tk || '').trim().toUpperCase();
         if (!cleanTk || cleanTk === '—' || cleanTk === '-') return;
 
-        if (params.vendor === 'NOKIA') {
+        if (params.vendor === 'NOKIA' || params.vendor === 'CLARO_TIM') {
           if (isExecutor) {
             const candidates = (params.currentTssrRows || [])
               .filter((r) => {
@@ -1102,7 +1102,7 @@ export const demandaSharedService = {
           } else {
             const candidates = params.currentSites
               .filter((s) => {
-                if (s.vendor !== 'NOKIA') return false;
+                if (s.vendor !== params.vendor) return false;
                 if (unassignedIds.has(s.id.toUpperCase())) return false;
                 if (!temEquipeDemandadaSite(s)) return false;
                 return extractSiteTokens(s).includes(cleanTk);
@@ -1316,7 +1316,7 @@ export const demandaSharedService = {
     try {
       await dataService.desvincularDemandaSites({
         siteTokens: rawTokens,
-        vendor: params.vendor === 'ERICSSON' ? 'ERICSSON' : 'NOKIA',
+        vendor: params.vendor,
         targetScope: params.targetScope,
       });
     } catch (err) {
@@ -1331,7 +1331,7 @@ export const demandaSharedService = {
       updatedEricssonRows: nextEricssonRows,
       affectedTokens: rawTokens,
       count:
-        params.vendor === 'NOKIA'
+        params.vendor === 'NOKIA' || params.vendor === 'CLARO_TIM'
           ? Math.max(updatedSitesCount, updatedTssrCount, params.siteTokens.length)
           : Math.max(updatedSitesCount, updatedEricssonCount, updatedEricssonSitesCount, params.siteTokens.length),
     };
@@ -1543,7 +1543,7 @@ export const demandaSharedService = {
     try {
       await dataService.limparTodosSitesDemanda({
         responsibleName: cleanResponsible,
-        vendor: params.vendor === 'ERICSSON' ? 'ERICSSON' : 'NOKIA',
+        vendor: params.vendor,
         siteTokens: rawTokensToClear,
         targetScope: params.targetScope,
       });

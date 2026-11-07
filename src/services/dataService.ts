@@ -45,6 +45,9 @@ import {
   buildAcionamentoId,
   normalizeSiteIdForDoc,
   ImportHistoryEntry,
+  ClaroSiteRow,
+  ClaroEngenhariaRow,
+  ClaroSheetMeta,
 } from '../types/telecom';
 import { hashString, createSaltedHash } from '../utils/authUtils';
 import {
@@ -54,6 +57,8 @@ import {
   normalizeAccents,
   matchesDuplaName,
   normalizeNokiaSitesSheetName,
+  resolveClaroSiteIdFromFields,
+  resolveClaroExecutorFromFields,
 } from '../utils/spreadsheetUtils';
 import { showToast } from '../utils/toast';
 import { INITIAL_SITES } from '../data/initialSites';
@@ -97,6 +102,9 @@ export const FIRESTORE_COLLECTIONS = {
   AUDIT_LOGS: 'audit_logs',
   ACIONAMENTOS: 'acionamentos',
   HISTORICO_IMPORTACOES: 'historico_importacoes',
+  CLARO_SITES: 'claro_sites',
+  CLARO_ENGENHARIA: 'claro_engenharia',
+  CLARO_META: 'claro_meta',
 } as const;
 
 export function sanitizeFirestoreData<T>(data: T): T {
@@ -321,6 +329,7 @@ export interface IDataService {
     duplaEmailsMap?: Record<string, string[]>,
     options?: {
       mode?: 'append_only';
+      vendor?: 'NOKIA' | 'CLARO_TIM';
       sourceFileName?: string;
       fileName?: string;
       sheetName?: string;
@@ -339,6 +348,8 @@ export interface IDataService {
   }>;
   zerarTodasPlanilhas(): Promise<{ deletedCount: number }>;
   zerarEricssonPlanilhas(): Promise<{ deletedCount: number }>;
+  zerarClaroSites(): Promise<{ deletedCount: number }>;
+  zerarNokiaSites(): Promise<{ deletedCount: number }>;
   importarSitesEricssonEmLote(
     rows: EricssonRow[],
     users?: AmetaUser[],
@@ -388,7 +399,7 @@ export interface IDataService {
     users?: AmetaUser[],
     duplaEmailsMap?: Record<string, string[]>
   ): Promise<void>;
-  excluirSiteNokia(siteId: string): Promise<void>;
+  excluirSiteNokia(siteId: string, vendor?: VendorType): Promise<void>;
   carregarSitesNokia(): Promise<TelecomSite[]>;
   salvarSiteEricsson(
     row: EricssonRow,
@@ -423,7 +434,13 @@ export interface IDataService {
   formatImportDate(isoString?: string): string;
   verificarHistoricoArquivo(
     fileName: string,
-    target: 'NOKIA_SITES' | 'NOKIA_TSSR' | 'ERICSSON_SITES' | 'ERICSSON_ENGENHARIA'
+    target:
+      | 'NOKIA_SITES'
+      | 'NOKIA_TSSR'
+      | 'ERICSSON_SITES'
+      | 'ERICSSON_ENGENHARIA'
+      | 'CLARO_SITES'
+      | 'CLARO_ENGENHARIA'
   ): Promise<{
     isPreviouslyImported: boolean;
     jaImportado: boolean;
@@ -436,9 +453,53 @@ export interface IDataService {
   carregarEricssonReprovacoes(): Promise<any[]>;
   salvarEricssonEngenhariaRow(row: any): Promise<void>;
   atualizarMetaEricssonEngenharia(row: EricssonEngineeringRow, novaMeta: string): Promise<void>;
+  atualizarStatusEricssonEngenharia(row: EricssonEngineeringRow, novoStatus: string): Promise<void>;
   excluirEricssonEngenhariaRow(rowId: string): Promise<void>;
   salvarEricssonReprovacao(record: any): Promise<void>;
   excluirEricssonReprovacao(recordId: string): Promise<void>;
+  salvarClaroMeta(meta: ClaroSheetMeta): Promise<void>;
+  importarSitesClaroEmLote(
+    rowsInput: Array<Partial<TelecomSite> | Partial<ClaroSiteRow>>,
+    options?: {
+      columns?: string[];
+      fileName?: string;
+      sheetName?: string;
+      actorEmail?: string;
+      onProgress?: (info: { gravados: number; total: number; lote: number; totalLotes: number }) => void;
+    }
+  ): Promise<{
+    totalAnalisados: number;
+    novas: number;
+    jaExistiam: number;
+    comErro: number;
+    totalGravados: number;
+    lotesExecutados: number;
+    novosRegistros: ClaroSiteRow[];
+    errorMessage?: string;
+  }>;
+  importarEngenhariaClaroEmLote(
+    rowsInput: Array<Partial<TelecomSite> | Partial<ClaroEngenhariaRow>>,
+    options?: {
+      columns?: string[];
+      fileName?: string;
+      sheetName?: string;
+      actorEmail?: string;
+      onProgress?: (info: { gravados: number; total: number; lote: number; totalLotes: number }) => void;
+    }
+  ): Promise<{
+    totalAnalisados: number;
+    novas: number;
+    jaExistiam: number;
+    comErro: number;
+    totalGravados: number;
+    lotesExecutados: number;
+    novosRegistros: ClaroEngenhariaRow[];
+    errorMessage?: string;
+  }>;
+  salvarClaroSiteRow(row: ClaroSiteRow): Promise<void>;
+  excluirClaroSiteRow(rowId: string): Promise<void>;
+  salvarClaroEngenhariaRow(row: ClaroEngenhariaRow): Promise<void>;
+  excluirClaroEngenhariaRow(rowId: string): Promise<void>;
   salvarPastaNokia(folder: EngineeringFolder): Promise<void>;
   excluirPastaNokia(folderId: string): Promise<void>;
   salvarArquivoNokia(
@@ -473,7 +534,7 @@ export interface IDataService {
     siteTokens: string[];
     responsibleName: string;
     linkedEmails?: string[];
-    vendor: 'NOKIA' | 'ERICSSON';
+    vendor: 'NOKIA' | 'ERICSSON' | 'CLARO_TIM';
     actorEmail?: string;
     actorName?: string;
     allowTransfer?: boolean;
@@ -486,50 +547,50 @@ export interface IDataService {
   ): Promise<string[]>;
   desvincularDemandaSites(params: {
     siteTokens: string[];
-    vendor: 'NOKIA' | 'ERICSSON';
+    vendor: 'NOKIA' | 'ERICSSON' | 'CLARO_TIM';
     targetScope?: 'equipe' | 'executor';
   }): Promise<{ updatedCount: number }>;
   limparTodosSitesDemanda(params: {
     responsibleName: string;
     siteTokens?: string[];
-    vendor: 'NOKIA' | 'ERICSSON';
+    vendor: 'NOKIA' | 'ERICSSON' | 'CLARO_TIM';
     targetScope?: 'equipe' | 'executor';
   }): Promise<{ updatedCount: number }>;
   renomearEquipeDupla(params: {
     oldName: string;
     newName: string;
-    vendor?: 'NOKIA' | 'ERICSSON';
+    vendor?: 'NOKIA' | 'ERICSSON' | 'CLARO_TIM';
   }): Promise<void>;
   vincularEmailsDupla(params: {
     duplaName: string;
     emails: string[];
-    vendor?: 'NOKIA' | 'ERICSSON';
+    vendor?: 'NOKIA' | 'ERICSSON' | 'CLARO_TIM';
   }): Promise<void>;
   desvincularEmailsDupla(params: {
     duplaName: string;
-    vendor?: 'NOKIA' | 'ERICSSON';
+    vendor?: 'NOKIA' | 'ERICSSON' | 'CLARO_TIM';
   }): Promise<void>;
   renomearEmailsDupla(params: {
     oldName: string;
     newName: string;
-    vendor?: 'NOKIA' | 'ERICSSON';
+    vendor?: 'NOKIA' | 'ERICSSON' | 'CLARO_TIM';
   }): Promise<void>;
   renomearExecutorEngenharia(params: {
     oldName: string;
     newName: string;
-    vendor: 'NOKIA' | 'ERICSSON';
+    vendor: 'NOKIA' | 'ERICSSON' | 'CLARO_TIM';
   }): Promise<{ updatedCount: number }>;
   adicionarEquipeExcluida(params: {
     duplaName: string;
-    vendor: 'NOKIA' | 'ERICSSON';
+    vendor: 'NOKIA' | 'ERICSSON' | 'CLARO_TIM';
   }): Promise<void>;
   removerEquipeExcluida(params: {
     duplaName: string;
-    vendor: 'NOKIA' | 'ERICSSON';
+    vendor: 'NOKIA' | 'ERICSSON' | 'CLARO_TIM';
   }): Promise<void>;
   limparTodasLinhasEquipeDupla(params: {
     duplaName: string;
-    vendor: 'NOKIA' | 'ERICSSON';
+    vendor: 'NOKIA' | 'ERICSSON' | 'CLARO_TIM';
     siteIds?: string[];
   }): Promise<{ updatedCount: number }>;
   importarDadosIniciais(onProgress?: (msg: string) => void): Promise<{
@@ -601,6 +662,9 @@ export interface IDataService {
       }) => void;
       onNotificacoes?: (notifs: AmetaNotification[]) => void;
       onAcionamentos?: (acionamentos: Acionamento[]) => void;
+      onClaroSites?: (rows: TelecomSite[]) => void;
+      onClaroEngenharia?: (rows: ClaroEngenhariaRow[]) => void;
+      onClaroMeta?: (meta: { sites?: ClaroSheetMeta; engenharia?: ClaroSheetMeta }) => void;
     }
   ): Unsubscribe;
   salvarOuAtualizarAcionamento(
@@ -629,7 +693,7 @@ export interface IDataService {
   resolverDestinatariosEmails(params: {
     responsibleName: string;
     linkedEmails?: string[];
-    vendor?: 'NOKIA' | 'ERICSSON';
+    vendor?: 'NOKIA' | 'ERICSSON' | 'CLARO_TIM';
     tipoDestinatario: 'VISTORIA' | 'EXECUTOR';
   }): Promise<string[]>;
 }
@@ -777,7 +841,13 @@ class FirebaseDataService implements IDataService {
 
   async verificarHistoricoArquivo(
     fileName: string,
-    target: 'NOKIA_SITES' | 'NOKIA_TSSR' | 'ERICSSON_SITES' | 'ERICSSON_ENGENHARIA'
+    target:
+      | 'NOKIA_SITES'
+      | 'NOKIA_TSSR'
+      | 'ERICSSON_SITES'
+      | 'ERICSSON_ENGENHARIA'
+      | 'CLARO_SITES'
+      | 'CLARO_ENGENHARIA'
   ): Promise<{
     isPreviouslyImported: boolean;
     jaImportado: boolean;
@@ -833,6 +903,8 @@ class FirebaseDataService implements IDataService {
       if (target === 'NOKIA_TSSR') colName = FIRESTORE_COLLECTIONS.NOKIA_TSSR;
       else if (target === 'ERICSSON_SITES') colName = FIRESTORE_COLLECTIONS.ERICSSON_SITES;
       else if (target === 'ERICSSON_ENGENHARIA') colName = FIRESTORE_COLLECTIONS.ERICSSON_ENGENHARIA;
+      else if (target === 'CLARO_SITES') colName = FIRESTORE_COLLECTIONS.CLARO_SITES;
+      else if (target === 'CLARO_ENGENHARIA') colName = FIRESTORE_COLLECTIONS.CLARO_ENGENHARIA;
 
       const snap = await getDocs(collection(db, colName));
       for (const d of snap.docs) {
@@ -875,7 +947,9 @@ class FirebaseDataService implements IDataService {
     _duplaEmailsMap?: Record<string, string[]>,
     options?: {
       mode?: 'append_only';
+      vendor?: 'NOKIA' | 'CLARO_TIM';
       sourceFileName?: string;
+      fileName?: string;
       sheetName?: string;
       importCode?: string;
       onProgress?: (info: { gravados: number; total: number; lote: number; totalLotes: number }) => void;
@@ -890,15 +964,25 @@ class FirebaseDataService implements IDataService {
     novosRegistros: TelecomSite[];
     errorMessage?: string;
   }> {
+    const isClaro =
+      options?.vendor === 'CLARO_TIM' ||
+      (sites.length > 0 && sites[0]?.vendor === 'CLARO_TIM');
+    const targetVendor: VendorType = isClaro ? 'CLARO_TIM' : 'NOKIA';
+    const targetCollection = isClaro
+      ? FIRESTORE_COLLECTIONS.CLARO_SITES
+      : FIRESTORE_COLLECTIONS.NOKIA_SITES;
     const importCode = options?.importCode || generateImportCode();
-    const fileName = options?.sourceFileName || 'Planilha Nokia Sites';
+    const fileName =
+      options?.sourceFileName ||
+      options?.fileName ||
+      (isClaro ? 'Planilha Claro Sites' : 'Planilha Nokia Sites');
     let comErro = 0;
     let lotes = 0;
     let totalGravados = 0;
 
     try {
       // 1. Fetch from Firestore existing IDs
-      const snap = await getDocs(collection(db, FIRESTORE_COLLECTIONS.NOKIA_SITES));
+      const snap = await getDocs(collection(db, targetCollection));
       const existingIds = new Set<string>(snap.docs.map((d) => d.id));
 
       const usedIdsInThisImport = new Set<string>();
@@ -920,9 +1004,12 @@ class FirebaseDataService implements IDataService {
           continue;
         }
 
-        const normalizedSheet = normalizeNokiaSitesSheetName(site.sheetName || options?.sheetName || 'Controle Geral');
+        const normalizedSheet = isClaro
+          ? 'Controle Geral'
+          : normalizeNokiaSitesSheetName(site.sheetName || options?.sheetName || 'Controle Geral');
         const cleanSiteId = (site.customFields?.['SITE ID'] || site.siteId || site.id || '').toString().trim();
-        const baseDocId = sanitizeSiteDocId(cleanSiteId || `NK_${rowNumberInFile}`, normalizedSheet);
+        const fallbackPrefix = isClaro ? 'CLA' : 'NK';
+        const baseDocId = sanitizeSiteDocId(cleanSiteId || `${fallbackPrefix}_${rowNumberInFile}`, normalizedSheet);
 
         // REGRA 2: If base ID does NOT exist yet and not used by another line in same import, use base ID.
         // Otherwise, create unique ID: baseDocId + "__" + importCode + "_" + rowNumberInFile.
@@ -936,6 +1023,7 @@ class FirebaseDataService implements IDataService {
         const newSiteRecord: TelecomSite = {
           ...site,
           id: finalDocId,
+          vendor: targetVendor,
           siteId: site.siteId || cleanSiteId || finalDocId,
           fileName,
           sheetName: normalizedSheet,
@@ -960,7 +1048,7 @@ class FirebaseDataService implements IDataService {
         const chunk = docsToWrite.slice(i, i + chunkSize);
         const batch = writeBatch(db);
         for (const item of chunk) {
-          batch.set(doc(db, FIRESTORE_COLLECTIONS.NOKIA_SITES, item.id), item.data);
+          batch.set(doc(db, targetCollection, item.id), item.data);
         }
         await batch.commit();
         totalGravados += chunk.length;
@@ -976,10 +1064,10 @@ class FirebaseDataService implements IDataService {
       }
 
       await this.registrarHistoricoImportacao({
-        id: `imp_${importCode}_nokia_sites`,
+        id: `imp_${importCode}_${isClaro ? 'claro_sites' : 'nokia_sites'}`,
         fileName,
-        target: 'NOKIA_SITES',
-        sheetName: options?.sheetName || 'Controle Geral',
+        target: isClaro ? 'CLARO_SITES' : 'NOKIA_SITES',
+        sheetName: isClaro ? 'Controle Geral' : (options?.sheetName || 'Controle Geral'),
         importCode,
         importedAt: new Date().toISOString(),
         totalLidas: sites.length,
@@ -997,8 +1085,8 @@ class FirebaseDataService implements IDataService {
         novosRegistros: docsToWrite.map((d) => d.data),
       };
     } catch (err: any) {
-      console.error('Erro no lote nokia_sites:', err);
-      const errMsg = `[Coleção: ${FIRESTORE_COLLECTIONS.NOKIA_SITES}] Código: ${err.code || 'desconhecido'} - ${err.message || String(err)}`;
+      console.error(`Erro no lote ${targetCollection}:`, err);
+      const errMsg = `[Coleção: ${targetCollection}] Código: ${err.code || 'desconhecido'} - ${err.message || String(err)}`;
       return {
         totalAnalisados: sites.length,
         novas: 0,
@@ -1501,6 +1589,33 @@ class FirebaseDataService implements IDataService {
     }
   }
 
+  async atualizarStatusEricssonEngenharia(row: EricssonEngineeringRow, novoStatus: string): Promise<void> {
+    const docId = row.id;
+    const nowIso = new Date().toISOString();
+    const docRef = doc(db, FIRESTORE_COLLECTIONS.ERICSSON_ENGENHARIA, docId);
+    try {
+      await updateDoc(docRef, {
+        status: novoStatus,
+        'fields.Status': novoStatus,
+        updatedAt: nowIso,
+      });
+    } catch {
+      await setDoc(
+        docRef,
+        sanitizeFirestoreData({
+          ...row,
+          status: novoStatus,
+          fields: {
+            ...(row.fields || {}),
+            Status: novoStatus,
+          },
+          updatedAt: nowIso,
+        }),
+        { merge: true }
+      );
+    }
+  }
+
   async excluirEricssonEngenhariaRow(rowId: string): Promise<void> {
     await deleteDoc(doc(db, FIRESTORE_COLLECTIONS.ERICSSON_ENGENHARIA, rowId));
   }
@@ -1518,20 +1633,433 @@ class FirebaseDataService implements IDataService {
     await deleteDoc(doc(db, FIRESTORE_COLLECTIONS.ERICSSON_REPROVACOES, recordId));
   }
 
+  async salvarClaroMeta(meta: ClaroSheetMeta): Promise<void> {
+    await setDoc(
+      doc(db, FIRESTORE_COLLECTIONS.CLARO_META, meta.id),
+      sanitizeFirestoreData({
+        ...meta,
+        lastSyncAt: meta.lastSyncAt || new Date().toISOString(),
+      }),
+      { merge: true }
+    );
+  }
+
+  async importarSitesClaroEmLote(
+    rowsInput: Array<Partial<TelecomSite> | Partial<ClaroSiteRow>>,
+    options?: {
+      columns?: string[];
+      fileName?: string;
+      sheetName?: string;
+      actorEmail?: string;
+      onProgress?: (info: { gravados: number; total: number; lote: number; totalLotes: number }) => void;
+    }
+  ): Promise<{
+    totalAnalisados: number;
+    novas: number;
+    jaExistiam: number;
+    comErro: number;
+    totalGravados: number;
+    lotesExecutados: number;
+    novosRegistros: ClaroSiteRow[];
+    errorMessage?: string;
+  }> {
+    let comErro = 0;
+    let totalGravados = 0;
+    let lotes = 0;
+    const importCode = new Date().toISOString().slice(0, 10).replace(/-/g, '') + '_' + Math.random().toString(36).slice(2, 6);
+    const fileName = options?.fileName || 'Planilha Claro Sites';
+    const sheetName = options?.sheetName || 'Claro – Sites';
+
+    try {
+      const snap = await getDocs(collection(db, FIRESTORE_COLLECTIONS.CLARO_SITES));
+      const existingById = new Set<string>(snap.docs.map((d) => d.id));
+      const seenInBatch = new Set<string>();
+      const orderedColumns: string[] = options?.columns ? [...options.columns] : [];
+
+      const docsToWrite: Array<{ id: string; data: ClaroSiteRow }> = [];
+
+      for (let idx = 0; idx < rowsInput.length; idx++) {
+        const raw = rowsInput[idx] as any;
+        const fields: Record<string, string> = {
+          ...(raw.fields || raw.customFields || {}),
+        };
+
+        // Ignore completely empty rows; all other rows enter
+        const hasAnyContent = Object.values(fields).some(
+          (val) => val !== undefined && val !== null && String(val).trim() !== ''
+        );
+        if (!hasAnyContent) {
+          comErro++;
+          continue;
+        }
+
+        // Ensure any new headers in fields are tracked in orderedColumns
+        for (const k of Object.keys(fields)) {
+          if (k && !orderedColumns.includes(k)) {
+            orderedColumns.push(k);
+          }
+        }
+
+        const rowNumberInFile = raw.rowNumberInFile || idx + 2;
+        const resolvedSiteId =
+          resolveClaroSiteIdFromFields(fields, orderedColumns, rowNumberInFile) ||
+          String(raw.siteId || rowNumberInFile).trim();
+        const resolvedExecutor =
+          resolveClaroExecutorFromFields(fields, orderedColumns) ||
+          (raw.executor || raw.responsavelCampo || raw.equipe || '').trim();
+
+        const cleanSiteKey = resolvedSiteId
+          .trim()
+          .toUpperCase()
+          .replace(/[^A-Z0-9_-]/g, '_')
+          .replace(/_+/g, '_')
+          .replace(/^_|_$/g, '');
+        const baseDocId = `CLARO_SITE_${cleanSiteKey || `ROW_${rowNumberInFile}`}`;
+
+        // Repeated rows are independent (unique ID with suffix)
+        let finalDocId = baseDocId;
+        if (existingById.has(baseDocId) || seenInBatch.has(baseDocId)) {
+          finalDocId = `${baseDocId}__${importCode}_${rowNumberInFile}`;
+        }
+        seenInBatch.add(finalDocId);
+
+        const nowIso = new Date().toISOString();
+        const newRecord: ClaroSiteRow = {
+          id: finalDocId,
+          siteId: resolvedSiteId,
+          vendor: 'CLARO_TIM',
+          sheetName,
+          fields,
+          executor: resolvedExecutor,
+          equipe: resolvedExecutor,
+          responsavelDemand: raw.responsavelDemand || '',
+          responsaveisUids: Array.isArray(raw.responsaveisUids) ? raw.responsaveisUids : [],
+          responsaveisEmails: Array.isArray(raw.responsaveisEmails) ? raw.responsaveisEmails : [],
+          fileName,
+          rowNumberInFile,
+          importCode,
+          createdAt: raw.createdAt || nowIso,
+          updatedAt: nowIso,
+          updatedBy: options?.actorEmail || raw.updatedBy || 'Importação Claro',
+        };
+
+        docsToWrite.push({
+          id: finalDocId,
+          data: sanitizeFirestoreData(newRecord),
+        });
+      }
+
+      const chunkSize = 20;
+      const totalLotes = Math.ceil(docsToWrite.length / chunkSize) || 1;
+
+      for (let i = 0; i < docsToWrite.length; i += chunkSize) {
+        const chunk = docsToWrite.slice(i, i + chunkSize);
+        const batch = writeBatch(db);
+        for (const item of chunk) {
+          batch.set(doc(db, FIRESTORE_COLLECTIONS.CLARO_SITES, item.id), item.data);
+        }
+        await batch.commit();
+        totalGravados += chunk.length;
+        lotes++;
+        if (options?.onProgress) {
+          options.onProgress({
+            gravados: totalGravados,
+            total: docsToWrite.length,
+            lote: lotes,
+            totalLotes,
+          });
+        }
+      }
+
+      // Save column order metadata in claro_meta/sites
+      if (orderedColumns.length > 0) {
+        await this.salvarClaroMeta({
+          id: 'sites',
+          columns: orderedColumns,
+          sourceFileName: fileName,
+          sheetName,
+          lastSyncAt: new Date().toISOString(),
+          totalRows: snap.size + docsToWrite.length,
+        });
+      }
+
+      await this.registrarHistoricoImportacao({
+        id: `imp_${importCode}_claro_sites`,
+        fileName,
+        target: 'CLARO_SITES',
+        sheetName,
+        importCode,
+        importedAt: new Date().toISOString(),
+        totalLidas: rowsInput.length,
+        totalAdicionadas: docsToWrite.length,
+        totalIgnoradas: comErro,
+      });
+
+      return {
+        totalAnalisados: rowsInput.length,
+        novas: docsToWrite.length,
+        jaExistiam: 0,
+        comErro,
+        totalGravados: docsToWrite.length,
+        lotesExecutados: lotes || 1,
+        novosRegistros: docsToWrite.map((d) => d.data),
+      };
+    } catch (err: any) {
+      console.error('Erro no lote claro_sites:', err);
+      const errMsg = `[Coleção: ${FIRESTORE_COLLECTIONS.CLARO_SITES}] Código: ${err.code || 'desconhecido'} - ${err.message || String(err)}`;
+      return {
+        totalAnalisados: rowsInput.length,
+        novas: 0,
+        jaExistiam: 0,
+        comErro,
+        totalGravados: 0,
+        lotesExecutados: lotes,
+        novosRegistros: [],
+        errorMessage: errMsg,
+      };
+    }
+  }
+
+  async importarEngenhariaClaroEmLote(
+    rowsInput: Array<Partial<TelecomSite> | Partial<ClaroEngenhariaRow>>,
+    options?: {
+      columns?: string[];
+      fileName?: string;
+      sheetName?: string;
+      actorEmail?: string;
+      onProgress?: (info: { gravados: number; total: number; lote: number; totalLotes: number }) => void;
+    }
+  ): Promise<{
+    totalAnalisados: number;
+    novas: number;
+    jaExistiam: number;
+    comErro: number;
+    totalGravados: number;
+    lotesExecutados: number;
+    novosRegistros: ClaroEngenhariaRow[];
+    errorMessage?: string;
+  }> {
+    let comErro = 0;
+    let totalGravados = 0;
+    let lotes = 0;
+    const importCode = new Date().toISOString().slice(0, 10).replace(/-/g, '') + '_' + Math.random().toString(36).slice(2, 6);
+    const fileName = options?.fileName || 'Planilha Claro Engenharia';
+    const sheetName = options?.sheetName || 'Claro – Engenharia';
+
+    try {
+      const snap = await getDocs(collection(db, FIRESTORE_COLLECTIONS.CLARO_ENGENHARIA));
+      const existingById = new Set<string>(snap.docs.map((d) => d.id));
+      const seenInBatch = new Set<string>();
+      const orderedColumns: string[] = options?.columns ? [...options.columns] : [];
+
+      const docsToWrite: Array<{ id: string; data: ClaroEngenhariaRow }> = [];
+
+      for (let idx = 0; idx < rowsInput.length; idx++) {
+        const raw = rowsInput[idx] as any;
+        const fields: Record<string, string> = {
+          ...(raw.fields || raw.customFields || {}),
+        };
+
+        // Ignore completely empty rows; all other rows enter
+        const hasAnyContent = Object.values(fields).some(
+          (val) => val !== undefined && val !== null && String(val).trim() !== ''
+        );
+        if (!hasAnyContent) {
+          comErro++;
+          continue;
+        }
+
+        for (const k of Object.keys(fields)) {
+          if (k && !orderedColumns.includes(k)) {
+            orderedColumns.push(k);
+          }
+        }
+
+        const rowNumberInFile = raw.rowNumberInFile || idx + 2;
+        const resolvedSiteId =
+          resolveClaroSiteIdFromFields(fields, orderedColumns, rowNumberInFile) ||
+          String(raw.siteId || rowNumberInFile).trim();
+        const resolvedExecutor =
+          resolveClaroExecutorFromFields(fields, orderedColumns) ||
+          (raw.executor || raw.responsavelCampo || raw.equipe || '').trim();
+
+        const cleanSiteKey = resolvedSiteId
+          .trim()
+          .toUpperCase()
+          .replace(/[^A-Z0-9_-]/g, '_')
+          .replace(/_+/g, '_')
+          .replace(/^_|_$/g, '');
+        const baseDocId = `CLARO_ENG_${cleanSiteKey || `ROW_${rowNumberInFile}`}`;
+
+        // Repeated rows are independent (unique ID with suffix)
+        let finalDocId = baseDocId;
+        if (existingById.has(baseDocId) || seenInBatch.has(baseDocId)) {
+          finalDocId = `${baseDocId}__${importCode}_${rowNumberInFile}`;
+        }
+        seenInBatch.add(finalDocId);
+
+        const nowIso = new Date().toISOString();
+        const newRecord: ClaroEngenhariaRow = {
+          id: finalDocId,
+          siteId: resolvedSiteId,
+          vendor: 'CLARO_TIM',
+          sheetName,
+          fields,
+          executor: resolvedExecutor,
+          equipe: resolvedExecutor,
+          responsavelDemand: raw.responsavelDemand || '',
+          responsaveisUids: Array.isArray(raw.responsaveisUids) ? raw.responsaveisUids : [],
+          responsaveisEmails: Array.isArray(raw.responsaveisEmails) ? raw.responsaveisEmails : [],
+          fileName,
+          rowNumberInFile,
+          importCode,
+          createdAt: raw.createdAt || nowIso,
+          updatedAt: nowIso,
+          updatedBy: options?.actorEmail || raw.updatedBy || 'Importação Claro',
+        };
+
+        docsToWrite.push({
+          id: finalDocId,
+          data: sanitizeFirestoreData(newRecord),
+        });
+      }
+
+      const chunkSize = 20;
+      const totalLotes = Math.ceil(docsToWrite.length / chunkSize) || 1;
+
+      for (let i = 0; i < docsToWrite.length; i += chunkSize) {
+        const chunk = docsToWrite.slice(i, i + chunkSize);
+        const batch = writeBatch(db);
+        for (const item of chunk) {
+          batch.set(doc(db, FIRESTORE_COLLECTIONS.CLARO_ENGENHARIA, item.id), item.data);
+        }
+        await batch.commit();
+        totalGravados += chunk.length;
+        lotes++;
+        if (options?.onProgress) {
+          options.onProgress({
+            gravados: totalGravados,
+            total: docsToWrite.length,
+            lote: lotes,
+            totalLotes,
+          });
+        }
+      }
+
+      // Save column order metadata in claro_meta/engenharia
+      if (orderedColumns.length > 0) {
+        await this.salvarClaroMeta({
+          id: 'engenharia',
+          columns: orderedColumns,
+          sourceFileName: fileName,
+          sheetName,
+          lastSyncAt: new Date().toISOString(),
+          totalRows: snap.size + docsToWrite.length,
+        });
+      }
+
+      await this.registrarHistoricoImportacao({
+        id: `imp_${importCode}_claro_eng`,
+        fileName,
+        target: 'CLARO_ENGENHARIA',
+        sheetName,
+        importCode,
+        importedAt: new Date().toISOString(),
+        totalLidas: rowsInput.length,
+        totalAdicionadas: docsToWrite.length,
+        totalIgnoradas: comErro,
+      });
+
+      return {
+        totalAnalisados: rowsInput.length,
+        novas: docsToWrite.length,
+        jaExistiam: 0,
+        comErro,
+        totalGravados: docsToWrite.length,
+        lotesExecutados: lotes || 1,
+        novosRegistros: docsToWrite.map((d) => d.data),
+      };
+    } catch (err: any) {
+      console.error('Erro no lote claro_engenharia:', err);
+      const errMsg = `[Coleção: ${FIRESTORE_COLLECTIONS.CLARO_ENGENHARIA}] Código: ${err.code || 'desconhecido'} - ${err.message || String(err)}`;
+      return {
+        totalAnalisados: rowsInput.length,
+        novas: 0,
+        jaExistiam: 0,
+        comErro,
+        totalGravados: 0,
+        lotesExecutados: lotes,
+        novosRegistros: [],
+        errorMessage: errMsg,
+      };
+    }
+  }
+
+  async salvarClaroSiteRow(row: ClaroSiteRow): Promise<void> {
+    const docId = row.id || `CLARO_SITE_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+    await setDoc(
+      doc(db, FIRESTORE_COLLECTIONS.CLARO_SITES, docId),
+      sanitizeFirestoreData({
+        ...row,
+        id: docId,
+        updatedAt: new Date().toISOString(),
+      }),
+      { merge: true }
+    );
+  }
+
+  async excluirClaroSiteRow(rowId: string): Promise<void> {
+    await deleteDoc(doc(db, FIRESTORE_COLLECTIONS.CLARO_SITES, rowId));
+  }
+
+  async salvarClaroEngenhariaRow(row: ClaroEngenhariaRow): Promise<void> {
+    const docId = row.id || `CLARO_ENG_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+    await setDoc(
+      doc(db, FIRESTORE_COLLECTIONS.CLARO_ENGENHARIA, docId),
+      sanitizeFirestoreData({
+        ...row,
+        id: docId,
+        updatedAt: new Date().toISOString(),
+      }),
+      { merge: true }
+    );
+  }
+
+  async excluirClaroEngenhariaRow(rowId: string): Promise<void> {
+    await deleteDoc(doc(db, FIRESTORE_COLLECTIONS.CLARO_ENGENHARIA, rowId));
+  }
+
   async salvarSiteNokia(
     site: TelecomSite,
     _users?: AmetaUser[],
     _duplaEmailsMap?: Record<string, string[]>
   ): Promise<void> {
-    const docId = sanitizeSiteDocId(site.siteId || site.id, site.sheetName);
-    await setDoc(doc(db, FIRESTORE_COLLECTIONS.NOKIA_SITES, docId), sanitizeFirestoreData({
-      ...site,
-      id: docId,
-    }), { merge: true });
+    const isClaro = site.vendor === 'CLARO_TIM';
+    const targetCollection = isClaro
+      ? FIRESTORE_COLLECTIONS.CLARO_SITES
+      : FIRESTORE_COLLECTIONS.NOKIA_SITES;
+    const docId =
+      site.id && site.id.includes('__')
+        ? site.id
+        : sanitizeSiteDocId(site.id || site.siteId, isClaro ? 'Controle Geral' : site.sheetName);
+    await setDoc(
+      doc(db, targetCollection, docId),
+      sanitizeFirestoreData({
+        ...site,
+        id: docId,
+        vendor: isClaro ? 'CLARO_TIM' : (site.vendor || 'NOKIA'),
+        sheetName: isClaro ? 'Controle Geral' : (site.sheetName || 'Controle Geral'),
+      }),
+      { merge: true }
+    );
   }
 
-  async excluirSiteNokia(siteId: string): Promise<void> {
-    await deleteDoc(doc(db, FIRESTORE_COLLECTIONS.NOKIA_SITES, siteId));
+  async excluirSiteNokia(siteId: string, vendor?: VendorType): Promise<void> {
+    if (vendor === 'CLARO_TIM') {
+      await deleteDoc(doc(db, FIRESTORE_COLLECTIONS.CLARO_SITES, siteId));
+    } else {
+      await deleteDoc(doc(db, FIRESTORE_COLLECTIONS.NOKIA_SITES, siteId));
+    }
   }
 
   async carregarSitesNokia(): Promise<TelecomSite[]> {
@@ -2172,7 +2700,7 @@ class FirebaseDataService implements IDataService {
     siteTokens: string[];
     responsibleName: string;
     linkedEmails?: string[];
-    vendor: 'NOKIA' | 'ERICSSON';
+    vendor: 'NOKIA' | 'ERICSSON' | 'CLARO_TIM';
     actorEmail?: string;
     actorName?: string;
     allowTransfer?: boolean;
@@ -2366,7 +2894,12 @@ class FirebaseDataService implements IDataService {
         sitesWithoutEmailCount: destinatariosEmails.length === 0 ? count : 0,
       };
     } else {
-      // NOKIA
+      // NOKIA or CLARO_TIM
+      const isClaro = params.vendor === 'CLARO_TIM';
+      const targetSitesCollection = isClaro
+        ? FIRESTORE_COLLECTIONS.CLARO_SITES
+        : FIRESTORE_COLLECTIONS.NOKIA_SITES;
+      const targetVendor: VendorType = isClaro ? 'CLARO_TIM' : 'NOKIA';
       const tokens = new Set(params.siteTokens.map((t) => t.trim().toUpperCase()).filter(Boolean));
       const recordsToSync: Array<{ siteId: string; registroId: string; rowNumberInFile?: number }> = [];
 
@@ -2412,8 +2945,8 @@ class FirebaseDataService implements IDataService {
           await batch.commit();
         }
       } else {
-        // Write ONLY to NOKIA_SITES
-        const sitesSnap = await getDocs(collection(db, FIRESTORE_COLLECTIONS.NOKIA_SITES));
+        // Write ONLY to NOKIA_SITES or CLARO_SITES
+        const sitesSnap = await getDocs(collection(db, targetSitesCollection));
         const batch1 = writeBatch(db);
         const matchedTokens = new Set<string>();
 
@@ -2464,43 +2997,45 @@ class FirebaseDataService implements IDataService {
           }
         }
 
-        // Ensure fallback initial Nokia sites not yet in Firestore are created
-        for (const tk of tokens) {
-          if (matchedTokens.has(tk)) continue;
-          const fallback = initialNokiaSitesMap.get(tk);
-          if (fallback) {
-            const docId = sanitizeSiteDocId(fallback.siteId || fallback.id || tk, fallback.sheetName);
-            const docRef = doc(db, FIRESTORE_COLLECTIONS.NOKIA_SITES, docId);
-            const sId = (fallback.siteId || fallback.id || tk).toString().trim().toUpperCase();
-            recordsToSync.push({ siteId: sId, registroId: docId, rowNumberInFile: fallback.rowNumberInFile });
+        // Ensure fallback initial Nokia sites not yet in Firestore are created (only for NOKIA)
+        if (!isClaro) {
+          for (const tk of tokens) {
+            if (matchedTokens.has(tk)) continue;
+            const fallback = initialNokiaSitesMap.get(tk);
+            if (fallback) {
+              const docId = sanitizeSiteDocId(fallback.siteId || fallback.id || tk, fallback.sheetName);
+              const docRef = doc(db, FIRESTORE_COLLECTIONS.NOKIA_SITES, docId);
+              const sId = (fallback.siteId || fallback.id || tk).toString().trim().toUpperCase();
+              recordsToSync.push({ siteId: sId, registroId: docId, rowNumberInFile: fallback.rowNumberInFile });
 
-            batch1.set(
-              docRef,
-              sanitizeFirestoreData({
-                ...fallback,
-                responsavelDemand: params.responsibleName,
-                equipeParceira: params.responsibleName,
-                responsavelCampo: params.responsibleName,
-                equipe: params.responsibleName,
-                ...(params.linkedEmails && params.linkedEmails.length > 0
-                  ? { responsaveisEmails: params.linkedEmails }
-                  : {}),
-                customFields: {
-                  ...(fallback.customFields || {}),
-                  'EQUIPE EXECUTANTE': params.responsibleName,
-                  EQUIPE: params.responsibleName,
-                  Executor: params.responsibleName,
-                  Responsável: params.responsibleName,
-                  'TalonView Executor': params.responsibleName,
-                  'Data de demanda': targetDate,
-                  'Data Demanda': targetDate,
-                  ...(emailStr ? { 'E-MAIL DUPLA': emailStr } : {}),
-                },
-                updatedAt: nowIso,
-              }),
-              { merge: true }
-            );
-            count++;
+              batch1.set(
+                docRef,
+                sanitizeFirestoreData({
+                  ...fallback,
+                  responsavelDemand: params.responsibleName,
+                  equipeParceira: params.responsibleName,
+                  responsavelCampo: params.responsibleName,
+                  equipe: params.responsibleName,
+                  ...(params.linkedEmails && params.linkedEmails.length > 0
+                    ? { responsaveisEmails: params.linkedEmails }
+                    : {}),
+                  customFields: {
+                    ...(fallback.customFields || {}),
+                    'EQUIPE EXECUTANTE': params.responsibleName,
+                    EQUIPE: params.responsibleName,
+                    Executor: params.responsibleName,
+                    Responsável: params.responsibleName,
+                    'TalonView Executor': params.responsibleName,
+                    'Data de demanda': targetDate,
+                    'Data Demanda': targetDate,
+                    ...(emailStr ? { 'E-MAIL DUPLA': emailStr } : {}),
+                  },
+                  updatedAt: nowIso,
+                }),
+                { merge: true }
+              );
+              count++;
+            }
           }
         }
 
@@ -2515,29 +3050,30 @@ class FirebaseDataService implements IDataService {
             siteId: rec.siteId,
             registroId: rec.registroId,
             rowNumberInFile: rec.rowNumberInFile,
-            vendor: 'NOKIA',
+            vendor: targetVendor,
             tipoDestinatario,
             equipe: params.responsibleName,
             destinatariosEmails,
-            demandadoPorNome: params.actorName || 'Engenharia TIM/Nokia',
+            demandadoPorNome: params.actorName || (isClaro ? 'Coordenação Claro' : 'Engenharia TIM/Nokia'),
             demandadoPorEmail: params.actorEmail || '',
             demandadoEm: nowIso,
             dataDemanda: targetDate,
           });
         } catch (acErr) {
-          console.warn('Erro ao sincronizar acionamento Nokia:', acErr);
+          console.warn(`Erro ao sincronizar acionamento ${targetVendor}:`, acErr);
         }
       }
     }
 
     if (count > 0) {
+      const isClaro = params.vendor === 'CLARO_TIM';
       const notifRef = doc(collection(db, FIRESTORE_COLLECTIONS.NOTIFICACOES));
       await setDoc(notifRef, sanitizeFirestoreData({
         id: notifRef.id,
-        title: `Nova Demanda: ${count} site(s) TIM/Nokia`,
+        title: `Nova Demanda: ${count} site(s) ${isClaro ? 'Claro' : 'TIM/Nokia'}`,
         message: `${count} site(s) atribuído(s) à demanda da equipe "${params.responsibleName}".`,
         type: 'SITE_DEMANDADO_EXECUTOR',
-        vendor: 'NOKIA',
+        vendor: isClaro ? 'CLARO_TIM' : 'NOKIA',
         read: false,
         readByEmails: [],
         createdAt: new Date().toISOString(),
@@ -2545,7 +3081,7 @@ class FirebaseDataService implements IDataService {
         targetEquipes: [params.responsibleName],
         targetEmails: params.linkedEmails || [],
         actorEmail: params.actorEmail || '',
-        actorName: params.actorName || 'Engenharia TIM/Nokia',
+        actorName: params.actorName || (isClaro ? 'Coordenação Claro' : 'Engenharia TIM/Nokia'),
       }));
     }
 
@@ -2688,7 +3224,7 @@ class FirebaseDataService implements IDataService {
 
   async desvincularDemandaSites(params: {
     siteTokens: string[];
-    vendor: 'NOKIA' | 'ERICSSON';
+    vendor: 'NOKIA' | 'ERICSSON' | 'CLARO_TIM';
     targetScope?: 'equipe' | 'executor';
   }): Promise<{ updatedCount: number }> {
     const nowIso = new Date().toISOString();
@@ -2786,7 +3322,12 @@ class FirebaseDataService implements IDataService {
       }
       return { updatedCount: count };
     } else {
-      // NOKIA
+      // NOKIA or CLARO_TIM
+      const isClaro = params.vendor === 'CLARO_TIM';
+      const targetSitesCollection = isClaro
+        ? FIRESTORE_COLLECTIONS.CLARO_SITES
+        : FIRESTORE_COLLECTIONS.NOKIA_SITES;
+      const targetVendor: VendorType = isClaro ? 'CLARO_TIM' : 'NOKIA';
       const tokens = new Set(params.siteTokens.map((t) => t.trim().toUpperCase()).filter(Boolean));
 
       if (isExecutor) {
@@ -2830,7 +3371,7 @@ class FirebaseDataService implements IDataService {
           count += tssrCount;
         }
       } else {
-        const sitesSnap = await getDocs(collection(db, FIRESTORE_COLLECTIONS.NOKIA_SITES));
+        const sitesSnap = await getDocs(collection(db, targetSitesCollection));
         const batch1 = writeBatch(db);
         for (const d of sitesSnap.docs) {
           const data = d.data();
@@ -2840,7 +3381,7 @@ class FirebaseDataService implements IDataService {
           if (tokens.has(docId) || (rowKey && tokens.has(rowKey)) || (sId && tokens.has(sId))) {
             const cancelId = sId || docId;
             try {
-              await this.cancelarAcionamento(buildAcionamentoId('NOKIA', cancelId, 'VISTORIA', d.id), { motivo: 'Demanda desvinculada / removida' });
+              await this.cancelarAcionamento(buildAcionamentoId(targetVendor, cancelId, 'VISTORIA', d.id), { motivo: 'Demanda desvinculada / removida' });
             } catch (err: any) {
               showToast(`Não foi possível cancelar o acionamento do site ${cancelId}: ${err?.message || String(err)}`);
             }
@@ -2877,7 +3418,7 @@ class FirebaseDataService implements IDataService {
   async limparTodosSitesDemanda(params: {
     responsibleName: string;
     siteTokens?: string[];
-    vendor: 'NOKIA' | 'ERICSSON';
+    vendor: 'NOKIA' | 'ERICSSON' | 'CLARO_TIM';
     targetScope?: 'equipe' | 'executor';
   }): Promise<{ updatedCount: number }> {
     const isExecutor = params.targetScope === 'executor';
@@ -2978,7 +3519,12 @@ class FirebaseDataService implements IDataService {
       return { updatedCount: count };
     }
 
-    // NOKIA
+    // NOKIA or CLARO_TIM
+    const isClaro = params.vendor === 'CLARO_TIM';
+    const targetSitesCollection = isClaro
+      ? FIRESTORE_COLLECTIONS.CLARO_SITES
+      : FIRESTORE_COLLECTIONS.NOKIA_SITES;
+    const targetVendor: VendorType = isClaro ? 'CLARO_TIM' : 'NOKIA';
     const target = params.responsibleName.trim().toUpperCase();
 
     if (isExecutor) {
@@ -2992,7 +3538,7 @@ class FirebaseDataService implements IDataService {
           const sId = (data.siteId || data.id || d.id || '').toString().trim().toUpperCase();
           if (sId) {
             try {
-              await this.cancelarAcionamento(buildAcionamentoId('NOKIA', sId, 'EXECUTOR'), { motivo: 'Demanda desvinculada / removida' });
+              await this.cancelarAcionamento(buildAcionamentoId('NOKIA', sId, 'EXECUTOR', d.id), { motivo: 'Demanda desvinculada / removida' });
             } catch (err: any) {
               showToast(`Não foi possível cancelar o acionamento do site ${sId}: ${err?.message || String(err)}`);
             }
@@ -3020,7 +3566,7 @@ class FirebaseDataService implements IDataService {
         await batch.commit();
       }
     } else {
-      const snap = await getDocs(collection(db, FIRESTORE_COLLECTIONS.NOKIA_SITES));
+      const snap = await getDocs(collection(db, targetSitesCollection));
       const batch = writeBatch(db);
 
       for (const d of snap.docs) {
@@ -3030,7 +3576,7 @@ class FirebaseDataService implements IDataService {
           const sId = (data.siteId || data.id || d.id || '').toString().trim().toUpperCase();
           if (sId) {
             try {
-              await this.cancelarAcionamento(buildAcionamentoId('NOKIA', sId, 'VISTORIA'), { motivo: 'Demanda desvinculada / removida' });
+              await this.cancelarAcionamento(buildAcionamentoId(targetVendor, sId, 'VISTORIA', d.id), { motivo: 'Demanda desvinculada / removida' });
             } catch (err: any) {
               showToast(`Não foi possível cancelar o acionamento do site ${sId}: ${err?.message || String(err)}`);
             }
@@ -3067,11 +3613,16 @@ class FirebaseDataService implements IDataService {
   async renomearEquipeDupla(params: {
     oldName: string;
     newName: string;
-    vendor?: 'NOKIA' | 'ERICSSON';
+    vendor?: 'NOKIA' | 'ERICSSON' | 'CLARO_TIM';
   }): Promise<void> {
-    const vendors = params.vendor ? [params.vendor] : (['NOKIA', 'ERICSSON'] as const);
+    const vendors = params.vendor ? [params.vendor] : (['NOKIA', 'ERICSSON', 'CLARO_TIM'] as const);
     for (const v of vendors) {
-      const colName = v === 'ERICSSON' ? FIRESTORE_COLLECTIONS.ERICSSON_SITES : FIRESTORE_COLLECTIONS.NOKIA_SITES;
+      const colName =
+        v === 'ERICSSON'
+          ? FIRESTORE_COLLECTIONS.ERICSSON_SITES
+          : v === 'CLARO_TIM'
+          ? FIRESTORE_COLLECTIONS.CLARO_SITES
+          : FIRESTORE_COLLECTIONS.NOKIA_SITES;
       const snap = await getDocs(collection(db, colName));
       const batch = writeBatch(db);
       let count = 0;
@@ -3106,7 +3657,7 @@ class FirebaseDataService implements IDataService {
   async vincularEmailsDupla(params: {
     duplaName: string;
     emails: string[];
-    vendor?: 'NOKIA' | 'ERICSSON';
+    vendor?: 'NOKIA' | 'ERICSSON' | 'CLARO_TIM';
   }): Promise<void> {
     const isEricsson = params.vendor === 'ERICSSON';
     const fieldName = isEricsson ? 'ericssonDuplaEmailsMap' : 'duplaEmailsMap';
@@ -3120,7 +3671,7 @@ class FirebaseDataService implements IDataService {
 
   async desvincularEmailsDupla(params: {
     duplaName: string;
-    vendor?: 'NOKIA' | 'ERICSSON';
+    vendor?: 'NOKIA' | 'ERICSSON' | 'CLARO_TIM';
   }): Promise<void> {
     const isEricsson = params.vendor === 'ERICSSON';
     const fieldName = isEricsson ? 'ericssonDuplaEmailsMap' : 'duplaEmailsMap';
@@ -3159,7 +3710,7 @@ class FirebaseDataService implements IDataService {
 
   async adicionarEquipeExcluida(params: {
     duplaName: string;
-    vendor: 'NOKIA' | 'ERICSSON';
+    vendor: 'NOKIA' | 'ERICSSON' | 'CLARO_TIM';
   }): Promise<void> {
     const isEricsson = params.vendor === 'ERICSSON';
     const fieldName = isEricsson ? 'excludedDuplasEricsson' : 'excludedDuplasNokia';
@@ -3176,7 +3727,7 @@ class FirebaseDataService implements IDataService {
 
   async removerEquipeExcluida(params: {
     duplaName: string;
-    vendor: 'NOKIA' | 'ERICSSON';
+    vendor: 'NOKIA' | 'ERICSSON' | 'CLARO_TIM';
   }): Promise<void> {
     const isEricsson = params.vendor === 'ERICSSON';
     const fieldName = isEricsson ? 'excludedDuplasEricsson' : 'excludedDuplasNokia';
@@ -3190,10 +3741,11 @@ class FirebaseDataService implements IDataService {
 
   async limparTodasLinhasEquipeDupla(params: {
     duplaName: string;
-    vendor: 'NOKIA' | 'ERICSSON';
+    vendor: 'NOKIA' | 'ERICSSON' | 'CLARO_TIM';
     siteIds?: string[];
   }): Promise<{ updatedCount: number }> {
     const isEricsson = params.vendor === 'ERICSSON';
+    const isClaro = params.vendor === 'CLARO_TIM';
     let totalUpdated = 0;
     const nowIso = new Date().toISOString();
 
@@ -3249,8 +3801,11 @@ class FirebaseDataService implements IDataService {
       }
       return { updatedCount: totalUpdated };
     } else {
-      // 1. NOKIA_SITES
-      const sitesSnap = await getDocs(collection(db, FIRESTORE_COLLECTIONS.NOKIA_SITES));
+      // 1. NOKIA_SITES or CLARO_SITES
+      const targetSitesCol = isClaro
+        ? FIRESTORE_COLLECTIONS.CLARO_SITES
+        : FIRESTORE_COLLECTIONS.NOKIA_SITES;
+      const sitesSnap = await getDocs(collection(db, targetSitesCol));
       let batch = writeBatch(db);
       let batchCount = 0;
 
@@ -3497,6 +4052,9 @@ class FirebaseDataService implements IDataService {
       onEricssonEngineering?: (rows: EricssonEngineeringRow[]) => void;
       onEricssonFolders?: (folders: EngineeringFolder[]) => void;
       onEricssonFiles?: (files: EngineeringFile[]) => void;
+      onClaroSites?: (rows: TelecomSite[]) => void;
+      onClaroEngenharia?: (rows: ClaroEngenhariaRow[]) => void;
+      onClaroMeta?: (metaMap: { sites?: ClaroSheetMeta; engenharia?: ClaroSheetMeta }) => void;
       onUsuarios?: (users: AmetaUser[]) => void;
       onDuplasConfig?: (config: {
         duplaEmailsMap?: Record<string, string[]>;
@@ -3632,6 +4190,82 @@ class FirebaseDataService implements IDataService {
         }, (err) => console.error('Ericsson files snapshot error:', err))
       );
     }
+    if (callbacks.onClaroSites) {
+      unsubs.push(
+        onSnapshot(
+          collection(db, FIRESTORE_COLLECTIONS.CLARO_SITES),
+          (snap) => {
+            const list = snap.docs.map((d) => {
+              const raw = d.data() as Record<string, any>;
+              const customFields = (raw.customFields || raw.fields || {}) as Record<string, string>;
+              const siteId = (
+                raw.siteId ||
+                customFields['SITE ID'] ||
+                customFields['Site ID'] ||
+                d.id
+              )
+                .toString()
+                .trim();
+              return {
+                ...raw,
+                id: d.id,
+                siteId,
+                siteName: raw.siteName || customFields['END ID'] || siteId,
+                vendor: 'CLARO_TIM' as VendorType,
+                sheetName: 'Controle Geral',
+                uf: raw.uf || customFields['UF'] || '',
+                municipio: raw.municipio || customFields['MUNICÍPIO'] || customFields['CIDADE'] || '',
+                regional: raw.regional || customFields['REG.'] || '',
+                status: raw.status || customFields['STATUS'] || 'Vistoria - A Executar',
+                progressoRollout: typeof raw.progressoRollout === 'number' ? raw.progressoRollout : 65,
+                customFields,
+              } as TelecomSite;
+            });
+            callbacks.onClaroSites!(list);
+          },
+          (err: any) => {
+            console.error('Claro sites snapshot error:', err);
+            if (err?.code === 'permission-denied') {
+              notificarPermissaoNegadaUmaVez('claro_sites');
+            }
+          }
+        )
+      );
+    }
+    if (callbacks.onClaroEngenharia) {
+      unsubs.push(
+        onSnapshot(
+          collection(db, FIRESTORE_COLLECTIONS.CLARO_ENGENHARIA),
+          (snap) => {
+            const list = snap.docs.map((d) => ({ id: d.id, ...d.data() } as ClaroEngenhariaRow));
+            callbacks.onClaroEngenharia!(list);
+          },
+          (err: any) => {
+            console.error('Claro engenharia snapshot error:', err);
+            if (err?.code === 'permission-denied') {
+              notificarPermissaoNegadaUmaVez('claro_engenharia');
+            }
+          }
+        )
+      );
+    }
+    if (callbacks.onClaroMeta) {
+      unsubs.push(
+        onSnapshot(
+          collection(db, FIRESTORE_COLLECTIONS.CLARO_META),
+          (snap) => {
+            const map: { sites?: ClaroSheetMeta; engenharia?: ClaroSheetMeta } = {};
+            snap.docs.forEach((d) => {
+              const data = { id: d.id as 'sites' | 'engenharia', ...d.data() } as ClaroSheetMeta;
+              if (d.id === 'sites') map.sites = data;
+              else if (d.id === 'engenharia') map.engenharia = data;
+            });
+            callbacks.onClaroMeta!(map);
+          },
+          (err) => console.error('Claro meta snapshot error:', err)
+        )
+      );
+    }
     if (callbacks.onUsuarios) {
       const isCoordOrAdmin =
         user.role === 'ADM' ||
@@ -3703,7 +4337,7 @@ class FirebaseDataService implements IDataService {
   async resolverDestinatariosEmails(params: {
     responsibleName: string;
     linkedEmails?: string[];
-    vendor?: 'NOKIA' | 'ERICSSON';
+    vendor?: 'NOKIA' | 'ERICSSON' | 'CLARO_TIM';
     tipoDestinatario: 'VISTORIA' | 'EXECUTOR';
   }): Promise<string[]> {
     const candidateEmails = new Set<string>();
@@ -3984,7 +4618,12 @@ class FirebaseDataService implements IDataService {
     }
 
     // NOVO ACIONAMENTO (não existia ou estava cancelado)
-    const vPrefix = payload.vendor === 'ERICSSON' ? 'ERI' : 'NOK';
+    const vPrefix =
+      payload.vendor === 'ERICSSON'
+        ? 'ERI'
+        : payload.vendor === 'CLARO_TIM'
+        ? 'CLA'
+        : 'NOK';
     const sClean = normalizeSiteIdForDoc(payload.siteId);
     const protoRandom = Math.floor(1000 + Math.random() * 9000);
     const protocolo = existing?.protocolo || `AC-${vPrefix}-${sClean.slice(-8)}-${protoRandom}`;
@@ -4151,6 +4790,9 @@ class FirebaseDataService implements IDataService {
       FIRESTORE_COLLECTIONS.ERICSSON_SITES,
       FIRESTORE_COLLECTIONS.ERICSSON_ENGENHARIA,
       FIRESTORE_COLLECTIONS.ERICSSON_REPROVACOES,
+      FIRESTORE_COLLECTIONS.CLARO_SITES,
+      FIRESTORE_COLLECTIONS.CLARO_ENGENHARIA,
+      FIRESTORE_COLLECTIONS.CLARO_META,
     ];
 
     let totalDeleted = 0;
@@ -4181,8 +4823,82 @@ class FirebaseDataService implements IDataService {
       localStorage.removeItem('ameta_cached_ericsson_eng');
       localStorage.removeItem('ameta_cached_sheets');
       localStorage.removeItem('ameta_cached_ericsson_meta');
+      localStorage.removeItem('ameta_cached_claro_sites');
+      localStorage.removeItem('ameta_cached_claro_eng');
+      localStorage.removeItem('ameta_cached_claro_meta');
     } catch (err) {
       console.warn('Erro ao limpar localStorage no zerarTodasPlanilhas:', err);
+    }
+
+    return { deletedCount: totalDeleted };
+  }
+
+  async zerarClaroSites(): Promise<{ deletedCount: number }> {
+    let totalDeleted = 0;
+    try {
+      const snap = await getDocs(collection(db, FIRESTORE_COLLECTIONS.CLARO_SITES));
+      if (!snap.empty) {
+        const docs = snap.docs;
+        const chunkSize = 400;
+        for (let i = 0; i < docs.length; i += chunkSize) {
+          const batch = writeBatch(db);
+          const chunk = docs.slice(i, i + chunkSize);
+          chunk.forEach((d) => batch.delete(d.ref));
+          await batch.commit();
+          totalDeleted += chunk.length;
+        }
+      }
+    } catch (err) {
+      console.error('Erro ao zerar claro_sites:', err);
+      throw err;
+    }
+
+    try {
+      const metaSnap = await getDocs(collection(db, FIRESTORE_COLLECTIONS.CLARO_META));
+      if (!metaSnap.empty) {
+        const batch = writeBatch(db);
+        metaSnap.docs.forEach((d) => batch.delete(d.ref));
+        await batch.commit();
+      }
+    } catch (err) {
+      console.warn('Erro ao limpar claro_meta:', err);
+    }
+
+    try {
+      localStorage.removeItem('ameta_cached_claro_sites');
+      localStorage.removeItem('ameta_cached_claro_meta');
+    } catch (err) {
+      console.warn('Erro ao limpar localStorage Claro:', err);
+    }
+
+    return { deletedCount: totalDeleted };
+  }
+
+  async zerarNokiaSites(): Promise<{ deletedCount: number }> {
+    let totalDeleted = 0;
+    try {
+      const snap = await getDocs(collection(db, FIRESTORE_COLLECTIONS.NOKIA_SITES));
+      if (!snap.empty) {
+        const docs = snap.docs;
+        const chunkSize = 400;
+        for (let i = 0; i < docs.length; i += chunkSize) {
+          const batch = writeBatch(db);
+          const chunk = docs.slice(i, i + chunkSize);
+          chunk.forEach((d) => batch.delete(d.ref));
+          await batch.commit();
+          totalDeleted += chunk.length;
+        }
+      }
+    } catch (err) {
+      console.error('Erro ao zerar nokia_sites:', err);
+      throw err;
+    }
+
+    try {
+      localStorage.removeItem('ameta_cached_sites');
+      localStorage.removeItem('ameta_cached_sheets');
+    } catch (err) {
+      console.warn('Erro ao limpar localStorage Nokia Sites:', err);
     }
 
     return { deletedCount: totalDeleted };

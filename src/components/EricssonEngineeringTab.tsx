@@ -235,6 +235,44 @@ export const EricssonEngineeringTab: React.FC<EricssonEngineeringTabProps> = ({
     }
   };
 
+  const getAvailableStatusesForRow = (row: EricssonEngineeringRow) => {
+    const docGroup = classifyEricssonDocGroup(row.tipoDoc || row.fields?.['Tipo doc'] || '');
+    const predefined = (docGroup && ERICSSON_REAL_STATUSES_BY_DOC[docGroup]) ? ERICSSON_REAL_STATUSES_BY_DOC[docGroup] : [];
+    const currentStatus = (row.status || row.fields?.['Status'] || '').trim();
+    const list = [...predefined];
+    if (currentStatus && !list.some((s) => s.toLowerCase() === currentStatus.toLowerCase())) {
+      list.unshift(currentStatus);
+    }
+    return list;
+  };
+
+  const handleInlineStatusChange = async (row: EricssonEngineeringRow, newStatus: string) => {
+    const prevStatus = (row.status || row.fields?.['Status'] || '').trim();
+    const cleanStatus = newStatus.trim();
+    if (cleanStatus === prevStatus) return;
+
+    const updatedRow: EricssonEngineeringRow = {
+      ...row,
+      status: cleanStatus,
+      fields: {
+        ...(row.fields || {}),
+        Status: cleanStatus,
+      },
+      updatedAt: new Date().toISOString(),
+    };
+
+    setRows((prev) => prev.map((r) => (r.id === row.id ? updatedRow : r)));
+
+    try {
+      await dataService.atualizarStatusEricssonEngenharia(row, cleanStatus);
+      showToast(`Status atualizado para "${cleanStatus}"`);
+    } catch (err: any) {
+      console.error('Erro ao atualizar status em ericsson_engenharia:', err);
+      setRows((prev) => prev.map((r) => (r.id === row.id ? row : r)));
+      showToast(`Erro ao atualizar status: ${err?.message || err}`);
+    }
+  };
+
   // Reprovados filter state
   const [selectedReprovadoExecutor, setSelectedReprovadoExecutor] = useState<string | null>(null);
   const [selectedReprovadoDocGroup, setSelectedReprovadoDocGroup] = useState<EricssonDocGroup | null>(null);

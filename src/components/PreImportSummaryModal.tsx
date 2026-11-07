@@ -19,9 +19,15 @@ export interface PreImportSummaryModalProps {
   linhasAdicionadas: number;
   linhasIgnoradas: number;
   motivoIgnoradas?: string;
+  uniqueSitesCount?: number;
+  repeatedSitesCount?: number;
   isPreviouslyImported: boolean;
   previousImportDate?: string;
   isSaving?: boolean;
+  detectedColumns?: string[];
+  availableSheets?: Array<{ name: string; count: number }>;
+  selectedSheetName?: string;
+  onSelectSheetName?: (name: string) => void;
   onConfirm: () => void;
   onCancel: () => void;
 }
@@ -35,9 +41,15 @@ export const PreImportSummaryModal: React.FC<PreImportSummaryModalProps> = ({
   linhasAdicionadas,
   linhasIgnoradas,
   motivoIgnoradas = 'por estarem vazias',
+  uniqueSitesCount,
+  repeatedSitesCount,
   isPreviouslyImported,
   previousImportDate,
   isSaving = false,
+  detectedColumns = [],
+  availableSheets = [],
+  selectedSheetName,
+  onSelectSheetName,
   onConfirm,
   onCancel,
 }) => {
@@ -49,9 +61,9 @@ export const PreImportSummaryModal: React.FC<PreImportSummaryModalProps> = ({
       aria-modal="true"
       className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/70 backdrop-blur-xs p-4 animate-in fade-in duration-200"
     >
-      <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full border border-slate-200 overflow-hidden flex flex-col">
+      <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full border border-slate-200 overflow-hidden flex flex-col max-h-[90vh]">
         {/* Header */}
-        <div className="px-6 py-4 bg-gradient-to-r from-slate-900 to-[#223585] text-white flex items-center justify-between">
+        <div className="px-6 py-4 bg-gradient-to-r from-slate-900 to-[#223585] text-white flex items-center justify-between shrink-0">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-white/10 rounded-lg">
               <FileSpreadsheet className="w-5 h-5 text-teal-300" />
@@ -59,7 +71,7 @@ export const PreImportSummaryModal: React.FC<PreImportSummaryModalProps> = ({
             <div>
               <h3 className="font-bold text-base leading-tight">{title}</h3>
               <p className="text-xs text-slate-300 truncate max-w-xs sm:max-w-sm mt-0.5">
-                {fileName} · Aba de destino: <strong className="text-white">{sheetName || 'Controle Geral'}</strong>
+                {fileName} · Destino: <strong className="text-white">{sheetName || 'Controle Geral'}</strong>
               </p>
             </div>
           </div>
@@ -75,14 +87,39 @@ export const PreImportSummaryModal: React.FC<PreImportSummaryModalProps> = ({
         </div>
 
         {/* Body */}
-        <div className="p-6 space-y-4">
+        <div className="p-6 space-y-4 overflow-y-auto">
           {/* Aba de destino highlight */}
           <div className="p-2.5 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between text-xs text-slate-700">
-            <span className="font-medium">Aba de destino:</span>
+            <span className="font-medium">Destino:</span>
             <span className="font-mono font-bold text-emerald-800 bg-emerald-50 border border-emerald-300 px-2.5 py-0.5 rounded-md">
               {sheetName || 'Controle Geral'}
             </span>
           </div>
+
+          {/* Multi-sheet selector when workbook has multiple sheets */}
+          {availableSheets.length > 1 && onSelectSheetName && (
+            <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-1.5">
+              <div className="text-[11px] font-bold text-slate-600">
+                Abas encontradas no arquivo (escolha a aba para importar):
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {availableSheets.map((s) => (
+                  <button
+                    key={s.name}
+                    type="button"
+                    onClick={() => onSelectSheetName(s.name)}
+                    className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-colors cursor-pointer ${
+                      selectedSheetName === s.name
+                        ? 'bg-[#223585] text-white'
+                        : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-100'
+                    }`}
+                  >
+                    {s.name} ({s.count} linhas)
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Warning Banner if previously imported */}
           {isPreviouslyImported && (
@@ -109,7 +146,7 @@ export const PreImportSummaryModal: React.FC<PreImportSummaryModalProps> = ({
             <div className="grid grid-cols-3 gap-3 text-center">
               {/* Linhas Lidas */}
               <div className="p-3 bg-white rounded-lg border border-slate-200 shadow-xs">
-                <div className="text-xs text-slate-500 font-medium">Linhas lidas</div>
+                <div className="text-xs text-slate-500 font-medium">Linhas encontradas</div>
                 <div className="text-xl font-bold text-slate-900 mt-1">{linhasLidas}</div>
               </div>
 
@@ -126,6 +163,19 @@ export const PreImportSummaryModal: React.FC<PreImportSummaryModalProps> = ({
               </div>
             </div>
 
+            {typeof uniqueSitesCount === 'number' && typeof repeatedSitesCount === 'number' && (
+              <div className="grid grid-cols-2 gap-3 text-center mt-2.5">
+                <div className="p-2.5 bg-blue-50 rounded-lg border border-blue-200 shadow-xs">
+                  <div className="text-[11px] text-blue-700 font-medium">Sites únicos (SITE ID)</div>
+                  <div className="text-base font-bold text-blue-900 mt-0.5">{uniqueSitesCount}</div>
+                </div>
+                <div className="p-2.5 bg-amber-50 rounded-lg border border-amber-200 shadow-xs">
+                  <div className="text-[11px] text-amber-800 font-medium">Linhas de sites repetidos (independentes)</div>
+                  <div className="text-base font-bold text-amber-900 mt-0.5">{repeatedSitesCount}</div>
+                </div>
+              </div>
+            )}
+
             {/* Formula verification */}
             <div className="mt-3 pt-3 border-t border-slate-200 flex items-center justify-between text-xs text-slate-600">
               <span className="flex items-center gap-1.5 font-medium">
@@ -137,6 +187,28 @@ export const PreImportSummaryModal: React.FC<PreImportSummaryModalProps> = ({
               </span>
             </div>
           </div>
+
+          {/* Detected Columns Preview */}
+          {detectedColumns.length > 0 && (
+            <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5 space-y-2">
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-semibold text-slate-600 uppercase tracking-wider">
+                  Colunas Identificadas ({detectedColumns.length})
+                </span>
+                <span className="text-[11px] text-slate-500">Ordem preservada</span>
+              </div>
+              <div className="flex flex-wrap gap-1 max-h-28 overflow-y-auto pr-1">
+                {detectedColumns.map((col, idx) => (
+                  <span
+                    key={`${col}_${idx}`}
+                    className="px-2 py-0.5 rounded bg-white border border-slate-200 text-[11px] font-mono text-slate-700"
+                  >
+                    {idx + 1}. {col}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Rules Confirmation Box */}
           <div className="p-3.5 bg-teal-50 border border-teal-200 rounded-xl flex items-start gap-2.5 text-teal-900">

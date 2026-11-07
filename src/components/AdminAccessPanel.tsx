@@ -3398,7 +3398,7 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
                 <div className="space-y-1">
                   <p className="font-bold text-amber-900">Atenção: Esta ação é irreversível!</p>
                   <p>
-                    Todas as linhas gravadas no Firestore para Nokia Sites, Nokia TSSR, Ericsson Sites e Ericsson Engenharia serão permanentemente excluídas do banco de dados.
+                    Todas as linhas gravadas no Firestore para Nokia Sites, Nokia TSSR, Claro Sites, Claro Engenharia, Ericsson Sites e Ericsson Engenharia serão permanentemente excluídas do banco de dados.
                   </p>
                 </div>
               </div>

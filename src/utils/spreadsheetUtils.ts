@@ -4,16 +4,23 @@ import {
   VendorType,
   SiteStatus,
   CONTROLE_GERAL_COLUMNS,
+  CLARO_CONTROLE_GERAL_COLUMNS,
   EngineeringFile,
   EngineeringFolder,
   EricssonRow,
 } from '../types/telecom';
+import {
+  CLARO_SITE_ID_CANDIDATES,
+  CLARO_EXECUTOR_COLUMN_CANDIDATES,
+} from '../config/claroConfig';
 
 export type SpreadsheetDestinationType =
   | 'NOKIA_SITES'
   | 'NOKIA_TSSR'
   | 'ERICSSON_SITES'
   | 'ERICSSON_ENGENHARIA'
+  | 'CLARO_SITES'
+  | 'CLARO_ENGENHARIA'
   | 'UNKNOWN';
 
 export function normalizeHeaderSignature(str: unknown): string {
@@ -51,6 +58,8 @@ export function avaliarHeaders(
     NOKIA_TSSR: 0,
     ERICSSON_SITES: 0,
     ERICSSON_ENGENHARIA: 0,
+    CLARO_SITES: 0,
+    CLARO_ENGENHARIA: 0,
     UNKNOWN: 0,
   };
 
@@ -59,6 +68,8 @@ export function avaliarHeaders(
     NOKIA_TSSR: [],
     ERICSSON_SITES: [],
     ERICSSON_ENGENHARIA: [],
+    CLARO_SITES: [],
+    CLARO_ENGENHARIA: [],
     UNKNOWN: [],
   };
 
@@ -232,8 +243,24 @@ export function avaliarTipoPlanilha(
   if (!input) {
     return {
       detectedType: 'UNKNOWN',
-      scores: { NOKIA_SITES: 0, NOKIA_TSSR: 0, ERICSSON_SITES: 0, ERICSSON_ENGENHARIA: 0, UNKNOWN: 0 },
-      motivatingColumns: { NOKIA_SITES: [], NOKIA_TSSR: [], ERICSSON_SITES: [], ERICSSON_ENGENHARIA: [], UNKNOWN: [] },
+      scores: {
+        NOKIA_SITES: 0,
+        NOKIA_TSSR: 0,
+        ERICSSON_SITES: 0,
+        ERICSSON_ENGENHARIA: 0,
+        CLARO_SITES: 0,
+        CLARO_ENGENHARIA: 0,
+        UNKNOWN: 0,
+      },
+      motivatingColumns: {
+        NOKIA_SITES: [],
+        NOKIA_TSSR: [],
+        ERICSSON_SITES: [],
+        ERICSSON_ENGENHARIA: [],
+        CLARO_SITES: [],
+        CLARO_ENGENHARIA: [],
+        UNKNOWN: [],
+      },
       topMotivatingColumns: [],
     };
   }
@@ -328,6 +355,15 @@ export function validarCompatibilidadePlanilha(
   warningMessage?: string;
   topMotivatingColumns: string[];
 } {
+  if (targetType === 'CLARO_SITES' || targetType === 'CLARO_ENGENHARIA') {
+    return {
+      shouldBlock: false,
+      detectedType: targetType,
+      targetType,
+      topMotivatingColumns: [],
+    };
+  }
+
   const { detectedType, scores, topMotivatingColumns } = avaliarTipoPlanilha(input, fileName, sheetName);
 
   if (detectedType === 'UNKNOWN' || detectedType === targetType) {
@@ -375,6 +411,10 @@ export function getNomeTipoPlanilha(type: SpreadsheetDestinationType): string {
       return 'Ericsson – Sites';
     case 'ERICSSON_ENGENHARIA':
       return 'Ericsson – Engenharia';
+    case 'CLARO_SITES':
+      return 'Claro – Sites';
+    case 'CLARO_ENGENHARIA':
+      return 'Claro – Engenharia';
     default:
       return 'Desconhecido / Outro';
   }
@@ -627,8 +667,47 @@ export function getCellValueForColumn(site: TelecomSite, colHeader: string): str
       ''
     ).trim();
   }
+  if (colHeader === 'ID detentora') {
+    return site.customFields?.['ID detentora'] ?? '';
+  }
+  if (colHeader === 'NDPd') {
+    return (
+      site.customFields?.['NDPd'] ??
+      site.customFields?.['NDPc TalonView'] ??
+      ''
+    );
+  }
+  if (colHeader === 'NDPc TalonView') {
+    return (
+      site.customFields?.['NDPc TalonView'] ??
+      site.customFields?.['NDPd'] ??
+      ''
+    );
+  }
+  if (colHeader === 'Report') {
+    return (
+      site.customFields?.['Report'] ??
+      site.customFields?.['SI Report GDC Portal'] ??
+      ''
+    );
+  }
+  if (colHeader === 'SI Report GDC Portal') {
+    return (
+      site.customFields?.['SI Report GDC Portal'] ??
+      site.customFields?.['Report'] ??
+      ''
+    );
+  }
   if (site.customFields && colHeader in site.customFields) {
     return site.customFields[colHeader] ?? '';
+  }
+  if (site.customFields) {
+    const caseInsensitiveKey = Object.keys(site.customFields).find(
+      (k) => k.trim().toLowerCase() === colHeader.trim().toLowerCase()
+    );
+    if (caseInsensitiveKey && colHeader !== 'ID. DETENTORA' && colHeader !== 'ID detentora') {
+      return site.customFields[caseInsensitiveKey] ?? '';
+    }
   }
   const mappedField = HEADER_FIELD_MAP[norm];
   if (mappedField && mappedField !== 'customFields') {
@@ -647,9 +726,23 @@ export function syncSiteColumnUpdate(
     ...(site.customFields || {}),
     [colHeader]: newValue,
   };
+  if (colHeader === 'NDPd') {
+    updatedCustomFields['NDPc TalonView'] = newValue;
+  } else if (colHeader === 'NDPc TalonView') {
+    updatedCustomFields['NDPd'] = newValue;
+  } else if (colHeader === 'Report') {
+    updatedCustomFields['SI Report GDC Portal'] = newValue;
+  } else if (colHeader === 'SI Report GDC Portal') {
+    updatedCustomFields['Report'] = newValue;
+  }
+
   const updates: Partial<TelecomSite> = {
     customFields: updatedCustomFields,
   };
+
+  if (colHeader === 'ID detentora') {
+    return updates;
+  }
 
   const norm = normalizeKey(colHeader);
   if (norm === 'siteid' || colHeader.toUpperCase() === 'SITE ID' || colHeader === 'Coluna B') {
@@ -736,9 +829,11 @@ export function mapRecordToSite(
   defaultSheetName: string,
   index: number
 ): Partial<TelecomSite> {
+  const effectiveSheetName =
+    defaultVendor === 'CLARO_TIM' ? 'Controle Geral' : defaultSheetName;
   const result: Partial<TelecomSite> = {
     vendor: defaultVendor,
-    sheetName: defaultSheetName,
+    sheetName: effectiveSheetName,
     customFields: {},
   };
 
@@ -747,20 +842,53 @@ export function mapRecordToSite(
     const val = formatExcelCellValue(rawVal);
     if (!cleanHeader) continue;
 
-    // Always store exact column in customFields so Column A -> Observação table view has 100% of columns
-    result.customFields = {
+    const nextCustomFields: Record<string, string> = {
       ...(result.customFields || {}),
       [cleanHeader]: val,
     };
+
+    const lowerH = cleanHeader.toLowerCase();
+    if (lowerH === 'ndpd') {
+      nextCustomFields['NDPd'] = val;
+      if (!nextCustomFields['NDPc TalonView']) {
+        nextCustomFields['NDPc TalonView'] = val;
+      }
+    } else if (lowerH === 'ndpc talonview') {
+      nextCustomFields['NDPc TalonView'] = val;
+      if (!nextCustomFields['NDPd']) {
+        nextCustomFields['NDPd'] = val;
+      }
+    } else if (lowerH === 'report') {
+      nextCustomFields['Report'] = val;
+      if (!nextCustomFields['SI Report GDC Portal']) {
+        nextCustomFields['SI Report GDC Portal'] = val;
+      }
+    } else if (lowerH === 'si report gdc portal') {
+      nextCustomFields['SI Report GDC Portal'] = val;
+      if (!nextCustomFields['Report']) {
+        nextCustomFields['Report'] = val;
+      }
+    }
+
+    result.customFields = nextCustomFields;
+
+    // Keep 'ID. DETENTORA' and 'ID detentora' distinct so empty 'ID detentora' never overwrites modulosRf
+    if (cleanHeader === 'ID detentora') {
+      continue;
+    }
 
     const normKey = normalizeKey(cleanHeader);
     const mappedField = HEADER_FIELD_MAP[normKey];
 
     if (mappedField && val !== '') {
       if (mappedField === 'vendor') {
-        const vUpper = val.toUpperCase();
-        if (vUpper.includes('ERIC')) result.vendor = 'ERICSSON';
-        else if (vUpper.includes('NOK')) result.vendor = 'NOKIA';
+        if (defaultVendor === 'CLARO_TIM') {
+          result.vendor = 'CLARO_TIM';
+        } else {
+          const vUpper = val.toUpperCase();
+          if (vUpper.includes('ERIC')) result.vendor = 'ERICSSON';
+          else if (vUpper.includes('NOK')) result.vendor = 'NOKIA';
+        }
       } else if (mappedField === 'status') {
         result.status = preserveOrNormalizeStatus(val);
       } else if (mappedField === 'progressoRollout') {
@@ -772,7 +900,7 @@ export function mapRecordToSite(
     }
   }
 
-  // Coluna B ("SITE ID") takes absolute priority for Nokia sites
+  // Coluna B ("SITE ID") takes absolute priority for Nokia / Claro sites
   const colBSiteId = (
     result.customFields?.['SITE ID'] ||
     result.customFields?.['Site ID'] ||
@@ -793,7 +921,12 @@ export function mapRecordToSite(
     if (fromCustom) {
       result.siteId = fromCustom;
     } else {
-      const prefix = (result.vendor || defaultVendor) === 'NOKIA' ? 'NK' : 'ER';
+      const prefix =
+        (result.vendor || defaultVendor) === 'CLARO_TIM'
+          ? 'CLA'
+          : (result.vendor || defaultVendor) === 'NOKIA'
+          ? 'NK'
+          : 'ER';
       const ufPart = (result.uf || 'SP').toUpperCase().slice(0, 2);
       result.siteId = `${prefix}-${ufPart}-${String(100 + index + 1)}`;
     }
@@ -809,7 +942,7 @@ export function mapRecordToSite(
 
   if (!result.status) {
     result.status =
-      defaultSheetName.toLowerCase().includes('cancelad')
+      effectiveSheetName.toLowerCase().includes('cancelad')
         ? 'Site Cancelado'
         : 'Vistoria - Finalizada';
   }
@@ -827,33 +960,64 @@ export function mapRecordToSite(
   return result;
 }
 
+export function buildClaroDetectedColumns(fileHeaders: string[]): string[] {
+  const cols = [...CLARO_CONTROLE_GERAL_COLUMNS];
+  for (const rawH of fileHeaders) {
+    const clean = String(rawH || '').replace(/\r?\n/g, ' ').replace(/\s+/g, ' ').trim();
+    if (!clean || /^Coluna\s+[A-Z]+$/i.test(clean)) continue;
+    const alreadyExists = cols.some((c) => c.trim().toLowerCase() === clean.toLowerCase());
+    if (!alreadyExists) {
+      cols.push(clean);
+    }
+  }
+  return cols;
+}
+
 /**
- * Finds the header row and slices columns from Column A (index 0) up to the "Observação" column (inclusive)
- * if an Observação column exists on that row.
+ * Finds the header row (prioritizing the first row that contains "SITE ID", ignoring count rows above it)
+ * and slices columns from Column A (index 0) up to the last non-empty header column (or "Observação" column).
  */
 export function detectHeaderAndSliceUpToObservacao(rows: unknown[][]): {
   headerRowIdx: number;
   maxColIdx: number;
   headers: string[];
 } {
-  let headerRowIdx = 0;
+  let headerRowIdx = -1;
   let obsColIdx = -1;
 
-  for (let r = 0; r < Math.min(8, rows.length); r++) {
+  // 1. First priority: find the first row containing "SITE ID" (e.g. Row 2 when Row 1 only has count numbers)
+  for (let r = 0; r < Math.min(10, rows.length); r++) {
     const row = rows[r] || [];
-    const foundObsIdx = row.findIndex((cell) => {
-      const norm = normalizeKey(String(cell ?? ''));
-      return norm.includes('observac') || norm === 'obs';
+    const hasSiteId = row.some((cell) => {
+      const cleaned = String(cell ?? '').replace(/\r?\n/g, ' ').replace(/\s+/g, ' ').trim();
+      const norm = normalizeKey(cleaned);
+      return norm === 'siteid' || cleaned.toUpperCase() === 'SITE ID';
     });
-    if (foundObsIdx !== -1) {
+    if (hasSiteId) {
       headerRowIdx = r;
-      obsColIdx = foundObsIdx;
       break;
     }
   }
 
-  // If no explicit "Observação" column was found, look for the row with "SITE ID" or most known headers
-  if (obsColIdx === -1) {
+  // 2. Second priority: look for a row containing "Observação" / "Observações/Motivo"
+  if (headerRowIdx === -1) {
+    for (let r = 0; r < Math.min(8, rows.length); r++) {
+      const row = rows[r] || [];
+      const foundObsIdx = row.findIndex((cell) => {
+        const norm = normalizeKey(String(cell ?? ''));
+        return norm.includes('observac') || norm === 'obs';
+      });
+      if (foundObsIdx !== -1) {
+        headerRowIdx = r;
+        obsColIdx = foundObsIdx;
+        break;
+      }
+    }
+  }
+
+  // 3. Fallback: row with most known headers
+  if (headerRowIdx === -1) {
+    headerRowIdx = 0;
     let bestScore = -1;
     for (let r = 0; r < Math.min(6, rows.length); r++) {
       const row = rows[r] || [];
@@ -867,15 +1031,24 @@ export function detectHeaderAndSliceUpToObservacao(rows: unknown[][]): {
         headerRowIdx = r;
       }
     }
-    const headerRow = rows[headerRowIdx] || [];
-    let lastNonEmpty = headerRow.length - 1;
-    while (lastNonEmpty > 0 && !String(headerRow[lastNonEmpty] ?? '').trim()) {
-      lastNonEmpty--;
-    }
-    obsColIdx = Math.max(0, lastNonEmpty);
   }
 
-  const rawHeaders = (rows[headerRowIdx] || []).slice(0, obsColIdx + 1);
+  const headerRow = rows[headerRowIdx] || [];
+  if (obsColIdx === -1) {
+    obsColIdx = headerRow.findIndex((cell) => {
+      const norm = normalizeKey(String(cell ?? ''));
+      return norm.includes('observac') || norm === 'obs';
+    });
+  }
+
+  let lastNonEmpty = headerRow.length - 1;
+  while (lastNonEmpty > 0 && !String(headerRow[lastNonEmpty] ?? '').trim()) {
+    lastNonEmpty--;
+  }
+
+  const maxColIdx = Math.max(obsColIdx, lastNonEmpty, 0);
+
+  const rawHeaders = headerRow.slice(0, maxColIdx + 1);
   const headers = rawHeaders.map((h, colIdx) => {
     const cleaned = String(h ?? '')
       .replace(/\r?\n/g, ' ')
@@ -895,9 +1068,53 @@ export function detectHeaderAndSliceUpToObservacao(rows: unknown[][]): {
 
   return {
     headerRowIdx,
-    maxColIdx: obsColIdx,
+    maxColIdx,
     headers,
   };
+}
+
+export function resolveClaroSiteIdFromFields(
+  fields: Record<string, string>,
+  orderedHeaders: string[],
+  rowNumber: number
+): string {
+  for (const candidate of CLARO_SITE_ID_CANDIDATES) {
+    const exactMatch = orderedHeaders.find((h) => h === candidate);
+    const caseMatch =
+      exactMatch ||
+      orderedHeaders.find((h) => h.trim().toLowerCase() === candidate.trim().toLowerCase());
+    if (caseMatch) {
+      const val = (fields[caseMatch] || '').trim();
+      return val || String(rowNumber);
+    }
+  }
+  for (const candidate of CLARO_SITE_ID_CANDIDATES) {
+    const keyMatch = Object.keys(fields).find(
+      (k) => k === candidate || k.trim().toLowerCase() === candidate.trim().toLowerCase()
+    );
+    if (keyMatch) {
+      const val = (fields[keyMatch] || '').trim();
+      return val || String(rowNumber);
+    }
+  }
+  return String(rowNumber);
+}
+
+export function resolveClaroExecutorFromFields(
+  fields: Record<string, string>,
+  orderedHeaders?: string[]
+): string {
+  const keys = orderedHeaders && orderedHeaders.length > 0 ? orderedHeaders : Object.keys(fields);
+  for (const candidate of CLARO_EXECUTOR_COLUMN_CANDIDATES) {
+    const match =
+      keys.find((h) => h === candidate) ||
+      keys.find((h) => h.trim().toLowerCase() === candidate.trim().toLowerCase());
+    if (match) {
+      const val = (fields[match] || '').trim();
+      if (val) return val;
+    }
+  }
+  return '';
 }
 
 export function parseClipboardOrCsvText(
@@ -928,10 +1145,12 @@ export function parseClipboardOrCsvText(
     line.split(delimiter).map((cell) => cell.trim().replace(/^"|"$/g, ''));
 
   const matrix = lines.map(splitLine);
+  const targetSheetName =
+    defaultVendor === 'CLARO_TIM' ? 'Controle Geral' : defaultSheetName;
 
-  // Check if any of the first 4 rows has headers (including when Row 1 is Excel SUBTOTAL counts)
+  // Check if any of the first 6 rows has headers (including when Row 1 is Excel SUBTOTAL counts)
   let hasHeaderRow = false;
-  for (let r = 0; r < Math.min(4, matrix.length); r++) {
+  for (let r = 0; r < Math.min(6, matrix.length); r++) {
     const rowCells = matrix[r];
     const matches = rowCells.filter((c) => HEADER_FIELD_MAP[normalizeKey(c)]).length;
     const hasObsOrSite = rowCells.some((c) => {
@@ -955,21 +1174,28 @@ export function parseClipboardOrCsvText(
       headers.forEach((h, colIdx) => {
         record[h] = rowSlice[colIdx] ?? '';
       });
-      // Ensure Coluna B (index 1) is captured as SITE ID for Nokia sites
+      // Ensure Coluna B (index 1) is captured as SITE ID for Nokia/Claro sites
       if (rowSlice.length > 1 && rowSlice[1] !== undefined && rowSlice[1] !== null) {
         const valB = String(rowSlice[1]).trim();
         if (valB && (!record['SITE ID'] || headers[1]?.toUpperCase() === 'SITE ID')) {
           record['SITE ID'] = valB;
         }
       }
-      sites.push(mapRecordToSite(record, defaultVendor, defaultSheetName, sites.length));
+      const mapped = mapRecordToSite(record, defaultVendor, targetSheetName, sites.length);
+      mapped.rowNumberInFile = r + 1;
+      sites.push(mapped);
     }
 
-    return { sites, detectedColumns: headers };
+    return {
+      sites,
+      detectedColumns:
+        defaultVendor === 'CLARO_TIM' ? buildClaroDetectedColumns(headers) : headers,
+    };
   }
 
-  // Positional fallback using CONTROLE_GERAL_COLUMNS (Coluna A até Observações/Motivo)
-  const positionalHeaders = CONTROLE_GERAL_COLUMNS;
+  // Positional fallback using CLARO_CONTROLE_GERAL_COLUMNS or CONTROLE_GERAL_COLUMNS
+  const positionalHeaders =
+    defaultVendor === 'CLARO_TIM' ? CLARO_CONTROLE_GERAL_COLUMNS : CONTROLE_GERAL_COLUMNS;
   const sites: Partial<TelecomSite>[] = [];
   let maxColsFound = 0;
 
@@ -987,12 +1213,17 @@ export function parseClipboardOrCsvText(
       const valB = String(sliced[1]).trim();
       if (valB) record['SITE ID'] = valB;
     }
-    sites.push(mapRecordToSite(record, defaultVendor, defaultSheetName, rowIdx));
+    const mapped = mapRecordToSite(record, defaultVendor, targetSheetName, rowIdx);
+    mapped.rowNumberInFile = rowIdx + 1;
+    sites.push(mapped);
   });
 
   return {
     sites,
-    detectedColumns: positionalHeaders.slice(0, Math.max(1, maxColsFound)),
+    detectedColumns:
+      defaultVendor === 'CLARO_TIM'
+        ? positionalHeaders
+        : positionalHeaders.slice(0, Math.max(1, maxColsFound)),
   };
 }
 
@@ -1020,6 +1251,8 @@ export function parseExcelWorkbookBuffer(
 
     const { headerRowIdx, maxColIdx, headers } = detectHeaderAndSliceUpToObservacao(rows);
     const parsedRows: Partial<TelecomSite>[] = [];
+    const targetSheetName =
+      defaultVendor === 'CLARO_TIM' ? 'Controle Geral' : sheetName;
 
     for (let r = headerRowIdx + 1; r < rows.length; r++) {
       const rowSlice = (rows[r] || []).slice(0, maxColIdx + 1).map(formatExcelCellValue);
@@ -1029,19 +1262,22 @@ export function parseExcelWorkbookBuffer(
       headers.forEach((h, colIdx) => {
         record[h] = rowSlice[colIdx] ?? '';
       });
-      // Ensure Coluna B (index 1) is captured as SITE ID for Nokia sites
+      // Ensure Coluna B (index 1) is captured as SITE ID for Nokia/Claro sites
       if (rowSlice.length > 1 && rowSlice[1] !== undefined && rowSlice[1] !== null) {
         const valB = String(rowSlice[1]).trim();
         if (valB && (!record['SITE ID'] || headers[1]?.toUpperCase() === 'SITE ID')) {
           record['SITE ID'] = valB;
         }
       }
-      parsedRows.push(mapRecordToSite(record, defaultVendor, sheetName, parsedRows.length));
+      const mapped = mapRecordToSite(record, defaultVendor, targetSheetName, parsedRows.length);
+      mapped.rowNumberInFile = r + 1;
+      parsedRows.push(mapped);
     }
 
     if (parsedRows.length > 0) {
       sheetsData[sheetName] = parsedRows;
-      sheetsColumns[sheetName] = headers;
+      sheetsColumns[sheetName] =
+        defaultVendor === 'CLARO_TIM' ? buildClaroDetectedColumns(headers) : headers;
     }
   }
 

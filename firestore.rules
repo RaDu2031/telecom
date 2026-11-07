@@ -154,6 +154,19 @@ service cloud.firestore {
       allow read, write, delete: if isSignedIn() && (canAccessNokia() || isCoordinatorOrAdmin() || isAdmin());
     }
 
+    // Platform collections (Claro)
+    match /claro_sites/{docId} {
+      allow read: if isSignedIn() && (canAccessNokia() || isCoordinatorOrAdmin() || isAdmin());
+      allow create, update, delete: if isSignedIn() && (isCoordinatorOrAdmin() || isAdmin() || canAccessNokia());
+    }
+    match /claro_engenharia/{docId} {
+      allow read, write, delete: if isSignedIn() && (canAccessNokia() || isCoordinatorOrAdmin() || isAdmin());
+    }
+    match /claro_meta/{docId} {
+      allow read: if isSignedIn();
+      allow write, delete: if isSignedIn() && (isCoordinatorOrAdmin() || isAdmin() || canAccessNokia());
+    }
+
     // Platform collections (Ericsson)
     match /ericsson_sites/{docId} {
       allow read: if isSignedIn() && (canAccessEricsson() || isCoordinatorOrAdmin() || isAdmin());
