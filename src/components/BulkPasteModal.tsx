@@ -115,6 +115,7 @@ export const BulkPasteModal: React.FC<BulkPasteModalProps> = ({
   React.useEffect(() => {
     setVendor(activeVendor);
     setTargetSheet(activeSheetName);
+    setError(null);
   }, [activeVendor, activeSheetName]);
 
   React.useEffect(() => {
@@ -197,6 +198,7 @@ export const BulkPasteModal: React.FC<BulkPasteModalProps> = ({
     if (isNokiaSites) {
       return rawParsedSites.map((s) => ({
         ...s,
+        vendor: 'NOKIA',
         sheetName: destSheetName,
       }));
     }

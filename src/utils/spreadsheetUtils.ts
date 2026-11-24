@@ -344,20 +344,7 @@ export function detectarTipoPlanilha(
 
 export function isClaroSiteRecord(s?: Partial<TelecomSite> | null): boolean {
   if (!s) return false;
-  if (s.vendor === 'CLARO_TIM') return true;
-  const fn = (s.fileName || '').toLowerCase();
-  if (fn.includes('claro')) return true;
-  const oc = (s.customFields?.['Oc Site Pre'] || s.ordemServico || '')
-    .toString()
-    .trim()
-    .toUpperCase();
-  if (oc.startsWith('CLATCM') || oc.startsWith('CLA-')) return true;
-  if (s.customFields) {
-    if ('Informações p/ NF' in s.customFields || 'CRQ' in s.customFields) {
-      return true;
-    }
-  }
-  return false;
+  return s.vendor === 'CLARO_TIM';
 }
 
 export function validarCompatibilidadePlanilha(
@@ -373,36 +360,19 @@ export function validarCompatibilidadePlanilha(
   warningMessage?: string;
   topMotivatingColumns: string[];
 } {
-  if (targetType === 'CLARO_SITES' || targetType === 'CLARO_ENGENHARIA') {
+  // Não bloquear o envio nas abas de Sites (Nokia TIM / Claro) nem Claro Engenharia:
+  // o isolamento é garantido exclusivamente pela aba/coleção de destino (nokia_sites x claro_sites).
+  if (
+    targetType === 'NOKIA_SITES' ||
+    targetType === 'CLARO_SITES' ||
+    targetType === 'CLARO_ENGENHARIA'
+  ) {
     return {
       shouldBlock: false,
       detectedType: targetType,
       targetType,
       topMotivatingColumns: [],
     };
-  }
-
-  // Prevent importing a Claro Sites spreadsheet into Nokia TIM (NOKIA_SITES)
-  if (targetType === 'NOKIA_SITES') {
-    const fnLower = (fileName || '').toLowerCase();
-    const hasClaroInFileName = fnLower.includes('claro');
-    let hasClaroExclusiveCols = false;
-    if (Array.isArray(input) && input.length > 0 && typeof input[0] === 'string') {
-      const upperCols = new Set((input as string[]).map((c) => String(c || '').trim().toUpperCase()));
-      if (upperCols.has('CRQ') || upperCols.has('INFORMAÇÕES P/ NF') || upperCols.has('NDPD')) {
-        hasClaroExclusiveCols = true;
-      }
-    }
-    if (hasClaroInFileName || hasClaroExclusiveCols) {
-      return {
-        shouldBlock: true,
-        detectedType: 'CLARO_SITES',
-        targetType,
-        blockMessage:
-          'Planilha incompatível! Este arquivo pertence a "Claro – Sites", mas você está na aba "Nokia – TIM". Selecione o botão "CLARO" no topo antes de importar para não misturar as planilhas.',
-        topMotivatingColumns: ['CRQ', 'NDPd', 'Informações p/ NF'],
-      };
-    }
   }
 
   const { detectedType, scores, topMotivatingColumns } = avaliarTipoPlanilha(input, fileName, sheetName);
