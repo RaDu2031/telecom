@@ -872,14 +872,14 @@ export const ExecutoresInteractiveView: React.FC<ExecutoresInteractiveViewProps>
           ERICSSON TOP BAR: SELETOR DE PROJETO COM CONTAGEM DE DEMANDAS
          ===================================================================== */}
       {activeVendor === 'ERICSSON' && (
-        <div className="bg-slate-900 border-2 border-amber-500/50 rounded-2xl p-3 sm:p-4 shadow-lg text-white space-y-3">
+        <div className="bg-[#0B1530] border border-slate-800 rounded-[12px] p-3.5 sm:p-4 shadow-md text-white space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 pb-2.5">
             <div className="flex items-center gap-2">
               <Layers className="w-5 h-5 text-amber-400 shrink-0" />
               <div>
-                <h3 className="text-sm font-black text-white flex items-center gap-2">
+                <h3 className="text-sm font-bold text-white flex items-center gap-2">
                   <span>Demandar Executores — Engenharia Ericsson</span>
-                  <span className="px-2 py-0.5 bg-amber-500/20 border border-amber-500/40 text-amber-300 text-[11px] rounded-lg font-mono">
+                  <span className="px-2 py-0.5 bg-amber-500/20 border border-amber-500/40 text-amber-300 text-[11px] rounded-[6px] font-mono tabular-nums">
                     {ericssonRows.length} linhas na Engenharia
                   </span>
                 </h3>
@@ -917,15 +917,15 @@ export const ExecutoresInteractiveView: React.FC<ExecutoresInteractiveViewProps>
                       setEricssonProjectFilter(proj.id);
                       setEricssonStatusFilter('ALL');
                     }}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 border ${
+                    className={`px-3 py-1.5 rounded-[8px] text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 border tabular-nums ${
                       isSelected
-                        ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-md scale-105'
+                        ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-sm'
                         : 'bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700'
                     }`}
                   >
                     <span>{proj.label}</span>
                     <span
-                      className={`px-1.5 py-0.2 rounded-md text-[10px] font-mono ${
+                      className={`px-1.5 py-0.2 rounded-[6px] text-[10px] font-mono tabular-nums ${
                         isSelected
                           ? 'bg-slate-950 text-amber-300 font-bold'
                           : 'bg-slate-900 text-slate-400'
@@ -944,9 +944,9 @@ export const ExecutoresInteractiveView: React.FC<ExecutoresInteractiveViewProps>
       {/* =====================================================================
           MOBILE QUICK BAR (lg:hidden): OPÇÕES BEM APARENTES NO MOBILE
          ===================================================================== */}
-      <div className="lg:hidden bg-slate-900 text-white border border-slate-800 rounded-2xl p-3.5 shadow-md space-y-3">
+      <div className="lg:hidden bg-[#0B1530] text-white border border-slate-800 rounded-[12px] p-3.5 shadow-md space-y-3">
         <div className="flex items-center justify-between gap-2">
-          <span className="text-xs font-black uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
+          <span className="text-xs font-bold uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
             <HardHat className="w-4 h-4 text-amber-400 shrink-0" />
             <span>
               1. Executor Selecionado (
@@ -956,7 +956,7 @@ export const ExecutoresInteractiveView: React.FC<ExecutoresInteractiveViewProps>
               )
             </span>
           </span>
-          <span className="px-2.5 py-1 bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 rounded-lg text-xs font-mono font-black">
+          <span className="px-2.5 py-1 bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 rounded-[8px] text-xs font-mono font-bold tabular-nums">
             {activeAssignedCount} site(s)
           </span>
         </div>
@@ -967,7 +967,7 @@ export const ExecutoresInteractiveView: React.FC<ExecutoresInteractiveViewProps>
             setSelectedExecutor(e.target.value);
             setSelectedRowIds([]);
           }}
-          className="w-full px-3.5 py-3 bg-white text-slate-950 font-black rounded-xl text-sm border-2 border-amber-400 focus:outline-none shadow-sm"
+          className="w-full px-3.5 py-2.5 bg-white text-slate-900 font-bold rounded-[8px] text-sm border border-amber-400 focus:outline-none focus:ring-2 focus:ring-[#223585]/20 shadow-sm"
         >
           {executoresList.map((ex) => (
             <option key={ex} value={ex}>
@@ -976,7 +976,7 @@ export const ExecutoresInteractiveView: React.FC<ExecutoresInteractiveViewProps>
           ))}
         </select>
 
-        <div className="grid grid-cols-2 gap-2 text-xs font-black">
+        <div className="grid grid-cols-2 gap-2 text-xs font-semibold">
           {(
             [
               { id: 'ALL', label: 'Ver Tudo na Tela' },
@@ -989,10 +989,10 @@ export const ExecutoresInteractiveView: React.FC<ExecutoresInteractiveViewProps>
               key={tab.id}
               type="button"
               onClick={() => setMobileSection(tab.id)}
-              className={`py-2.5 px-2.5 rounded-xl text-center truncate transition-all cursor-pointer border ${
+              className={`py-2 px-2.5 rounded-[8px] text-center truncate transition-all cursor-pointer border ${
                 mobileSection === tab.id
-                  ? 'bg-amber-400 text-slate-950 border-amber-300 shadow-sm font-black'
-                  : 'bg-slate-800 text-slate-200 border-slate-700 hover:bg-slate-700'
+                  ? 'bg-amber-400 text-slate-950 border-amber-300 shadow-sm font-bold'
+                  : 'bg-slate-800/80 text-slate-200 border-slate-700 hover:bg-slate-700'
               }`}
             >
               {tab.label}
@@ -1006,16 +1006,16 @@ export const ExecutoresInteractiveView: React.FC<ExecutoresInteractiveViewProps>
             LEFT COLUMN (4 COLS): LISTA INTERATIVA DE EXECUTORES + CRIAR NOVO
            ===================================================================== */}
         <div
-          className={`lg:col-span-4 bg-white border border-slate-200 rounded-xl shadow-2xs overflow-hidden flex flex-col ${
+          className={`lg:col-span-4 bg-white border border-slate-200 rounded-[12px] shadow-[0_1px_2px_rgba(15,23,42,0.04)] overflow-hidden flex flex-col ${
             mobileSection !== 'ALL' && mobileSection !== 'EXECUTORES' ? 'hidden lg:flex' : 'flex'
           }`}
         >
-          <div className="p-4 bg-slate-900 text-white space-y-3">
+          <div className="p-4 bg-[#0B1530] text-white space-y-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <HardHat className="w-4 h-4 text-amber-400" />
                 <div>
-                  <h2 className="text-xs font-bold">
+                  <h2 className="text-xs font-bold tracking-tight">
                     1. Selecionar Executor ({executoresList.length})
                   </h2>
                   <p className="text-[11px] text-slate-400">
@@ -1043,7 +1043,7 @@ export const ExecutoresInteractiveView: React.FC<ExecutoresInteractiveViewProps>
                   }
                 }}
                 placeholder="Novo executor (ex: Felipe Pimentel)..."
-                className="flex-1 px-2.5 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-xs text-white placeholder-slate-400 focus:outline-none focus:border-amber-400"
+                className="flex-1 px-2.5 py-1.5 bg-slate-900/70 border border-slate-700 rounded-[8px] text-xs text-white placeholder-slate-400 focus:outline-none focus:border-amber-400"
               />
               <button
                 type="button"
@@ -1054,7 +1054,7 @@ export const ExecutoresInteractiveView: React.FC<ExecutoresInteractiveViewProps>
                   setSelectedExecutor(clean);
                   setNewExecutorName('');
                 }}
-                className="px-3 py-1.5 bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold rounded-lg flex items-center gap-1 cursor-pointer shrink-0"
+                className="px-3 py-1.5 bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold rounded-[8px] flex items-center gap-1 cursor-pointer shrink-0 transition-colors"
               >
                 <Plus className="w-3.5 h-3.5" />
                 <span>Criar</span>
@@ -1069,7 +1069,7 @@ export const ExecutoresInteractiveView: React.FC<ExecutoresInteractiveViewProps>
                 value={executorSearch}
                 onChange={(e) => setExecutorSearch(e.target.value)}
                 placeholder="Buscar executor ou e-mail vinculado..."
-                className="w-full pl-8 pr-2.5 py-1.5 bg-slate-800/80 border border-slate-700 rounded-lg text-xs text-white placeholder-slate-400 focus:outline-none focus:border-amber-400"
+                className="w-full pl-8 pr-2.5 py-1.5 bg-slate-900/70 border border-slate-700 rounded-[8px] text-xs text-white placeholder-slate-400 focus:outline-none focus:border-amber-400"
               />
             </div>
           </div>
@@ -1077,7 +1077,7 @@ export const ExecutoresInteractiveView: React.FC<ExecutoresInteractiveViewProps>
           {/* Scrollable List of Executores */}
           <div className="divide-y divide-slate-100 max-h-72 lg:max-h-[640px] overflow-y-auto p-2 space-y-1">
             {filteredExecutores.length === 0 && (
-              <div className="p-4 text-center space-y-2 text-xs text-slate-500 bg-slate-50 rounded-xl border border-dashed border-slate-200">
+              <div className="p-4 text-center space-y-2 text-xs text-slate-500 bg-[#F8FAFC] rounded-[10px] border border-dashed border-slate-200">
                 <p className="font-bold text-slate-700">Nenhum executor cadastrado ainda</p>
                 <p className="text-[11px] leading-relaxed">
                   Adicione um executor acima ou registre usuários com o perfil Executor.
@@ -1115,7 +1115,7 @@ export const ExecutoresInteractiveView: React.FC<ExecutoresInteractiveViewProps>
                     setSelectedExecutor(executor);
                     setSelectedRowIds([]);
                   }}
-                  className={`p-2.5 rounded-xl cursor-pointer transition-all border ${
+                  className={`p-2.5 rounded-[10px] cursor-pointer transition-all border ${
                     isSelected
                       ? 'bg-amber-50/80 border-amber-400 shadow-2xs ring-1 ring-amber-400'
                       : 'bg-white hover:bg-slate-50 border-slate-200/80'
@@ -1130,7 +1130,7 @@ export const ExecutoresInteractiveView: React.FC<ExecutoresInteractiveViewProps>
                         type="text"
                         value={editingExecutorValue}
                         onChange={(e) => setEditingExecutorValue(e.target.value)}
-                        className="flex-1 px-2 py-1 border border-amber-500 rounded text-xs focus:outline-none"
+                        className="flex-1 px-2 py-1 border border-amber-500 rounded-[6px] text-xs focus:outline-none"
                         autoFocus
                       />
                       <button
@@ -1144,14 +1144,14 @@ export const ExecutoresInteractiveView: React.FC<ExecutoresInteractiveViewProps>
                           }
                           setEditingExecutor(null);
                         }}
-                        className="px-2 py-1 bg-emerald-600 text-white rounded text-xs font-semibold cursor-pointer"
+                        className="px-2 py-1 bg-emerald-600 text-white rounded-[6px] text-xs font-semibold cursor-pointer"
                       >
                         Salvar
                       </button>
                       <button
                         type="button"
                         onClick={() => setEditingExecutor(null)}
-                        className="px-2 py-1 bg-slate-200 text-slate-700 rounded text-xs cursor-pointer"
+                        className="px-2 py-1 bg-slate-200 text-slate-700 rounded-[6px] text-xs cursor-pointer"
                       >
                         Cancelar
                       </button>
@@ -1164,7 +1164,7 @@ export const ExecutoresInteractiveView: React.FC<ExecutoresInteractiveViewProps>
                             <span className="font-bold text-xs text-slate-900 truncate">
                               {executor}
                             </span>
-                            <span className="px-1.5 py-0.2 bg-amber-100 text-amber-900 rounded text-[10px] font-mono font-bold">
+                            <span className="px-1.5 py-0.2 bg-amber-100 text-amber-900 rounded-[6px] text-[10px] font-mono font-bold tabular-nums">
                               {totalSitesCount} demandas
                             </span>
                           </div>
@@ -1220,15 +1220,15 @@ export const ExecutoresInteractiveView: React.FC<ExecutoresInteractiveViewProps>
                         </div>
                       </div>
                       {/* Mini stats row */}
-                      <div className="flex items-center gap-1.5 text-[10px] font-mono pt-1 border-t border-slate-200/60">
-                        <span className="px-1.5 py-0.5 rounded bg-amber-50 text-amber-800 border border-amber-200/80">
+                      <div className="flex items-center gap-1.5 text-[10px] font-mono pt-1 border-t border-slate-200/60 tabular-nums">
+                        <span className="px-1.5 py-0.5 rounded-[6px] bg-amber-50 text-amber-800 border border-amber-200/80">
                           Pendente: {fazerCount}
                         </span>
-                        <span className="px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-800 border border-emerald-200/80">
+                        <span className="px-1.5 py-0.5 rounded-[6px] bg-emerald-50 text-emerald-800 border border-emerald-200/80">
                           Entregue: {entreguesCount}
                         </span>
                         {aguardandoCount > 0 && (
-                          <span className="px-1.5 py-0.5 rounded bg-purple-50 text-purple-800 border border-purple-200/80">
+                          <span className="px-1.5 py-0.5 rounded-[6px] bg-purple-50 text-purple-800 border border-purple-200/80">
                             Aguardando: {aguardandoCount}
                           </span>
                         )}
@@ -1250,10 +1250,10 @@ export const ExecutoresInteractiveView: React.FC<ExecutoresInteractiveViewProps>
           }`}
         >
           {/* Card A: Selected Executor Header & Profile Email Linker */}
-          <div className="bg-white border border-slate-200 rounded-xl p-3.5 sm:p-4 shadow-2xs space-y-4">
+          <div className="bg-white border border-slate-200 rounded-[12px] p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04)] space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3.5">
               <div className="flex items-center gap-3 min-w-0">
-                <div className="w-10 h-10 rounded-xl bg-amber-500 text-slate-950 font-black text-sm flex items-center justify-center shadow-2xs shrink-0">
+                <div className="w-10 h-10 rounded-[10px] bg-amber-500 text-slate-950 font-bold text-sm flex items-center justify-center shadow-2xs shrink-0">
                   <HardHat className="w-5 h-5 text-slate-950" />
                 </div>
                 <div className="min-w-0">
@@ -1261,7 +1261,7 @@ export const ExecutoresInteractiveView: React.FC<ExecutoresInteractiveViewProps>
                     <h3 className="text-sm font-bold text-slate-900 truncate">
                       Executor Selecionado: {selectedExecutor}
                     </h3>
-                    <span className="px-2 py-0.5 bg-amber-100 border border-amber-300 text-amber-900 rounded-md text-[11px] font-mono font-bold">
+                    <span className="px-2.5 py-0.5 bg-amber-50 border border-amber-200 text-amber-900 rounded-full text-[11px] font-mono font-semibold tabular-nums">
                       {activeAssignedCount} demanda(s) da Engenharia
                     </span>
                   </div>
@@ -1275,7 +1275,7 @@ export const ExecutoresInteractiveView: React.FC<ExecutoresInteractiveViewProps>
                 <button
                   type="button"
                   onClick={handleSimulateSelectedExecutor}
-                  className="w-full sm:w-auto justify-center px-3.5 py-2.5 sm:py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold rounded-xl flex items-center gap-2 cursor-pointer shadow-2xs"
+                  className="w-full sm:w-auto justify-center px-3.5 py-2 bg-[#0B1530] hover:bg-slate-800 text-white text-xs font-semibold rounded-[8px] flex items-center gap-2 cursor-pointer shadow-2xs transition-colors"
                   title="Ver exatamente como a planilha e os sites aparecem quando este executor entra no sistema"
                 >
                   <Eye className="w-4 h-4 text-amber-400 shrink-0" />
@@ -1285,7 +1285,7 @@ export const ExecutoresInteractiveView: React.FC<ExecutoresInteractiveViewProps>
             </div>
 
             {/* Profile Email Linker Box */}
-            <div className="p-3.5 sm:p-4 bg-amber-50/60 border-2 border-amber-300 rounded-2xl space-y-3">
+            <div className="p-3.5 sm:p-4 bg-amber-50/60 border border-amber-200 rounded-[12px] space-y-3">
               <div className="flex items-center gap-2">
                 <div className="w-7 h-7 rounded-lg bg-amber-500 text-slate-950 flex items-center justify-center shrink-0">
                   <Link2 className="w-4 h-4" />
@@ -1310,21 +1310,21 @@ export const ExecutoresInteractiveView: React.FC<ExecutoresInteractiveViewProps>
                     return (
                       <span
                         key={email}
-                        className="inline-flex flex-wrap items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border-2 border-amber-400 text-slate-900 text-xs font-bold shadow-2xs max-w-full"
+                        className="inline-flex flex-wrap items-center gap-1.5 px-3 py-1.5 rounded-[10px] bg-white border border-amber-400 text-slate-900 text-xs font-bold shadow-2xs max-w-full"
                       >
                         <Mail className="w-4 h-4 text-amber-600 shrink-0" />
                         <span className="font-mono font-bold break-all sm:break-normal">
                           {email}
                         </span>
                         {matchedProfile && (
-                          <span className="text-[10px] px-2 py-0.5 bg-amber-100 text-amber-900 font-bold rounded-md">
+                          <span className="text-[10px] px-2 py-0.5 bg-amber-100 text-amber-900 font-bold rounded-[6px]">
                             {matchedProfile.name} ({matchedProfile.role})
                           </span>
                         )}
                         <button
                           type="button"
                           onClick={() => handleRemoveEmailLink(email)}
-                          className="text-red-500 hover:text-red-700 ml-1 p-1 bg-red-50 rounded-md cursor-pointer"
+                          className="text-red-500 hover:text-red-700 ml-1 p-1 bg-red-50 rounded-[6px] cursor-pointer"
                           title="Desvincular este e-mail do executor"
                         >
                           <X className="w-4 h-4" />
@@ -1333,7 +1333,7 @@ export const ExecutoresInteractiveView: React.FC<ExecutoresInteractiveViewProps>
                     );
                   })
                 ) : (
-                  <span className="text-xs font-semibold text-amber-900 bg-amber-100/80 border border-amber-300 px-3 py-1.5 rounded-lg">
+                  <span className="text-xs font-semibold text-amber-900 bg-amber-100/80 border border-amber-300 px-3 py-1.5 rounded-[8px]">
                     Nenhum e-mail vinculado ainda. Escolha um perfil abaixo:
                   </span>
                 )}
@@ -1349,14 +1349,14 @@ export const ExecutoresInteractiveView: React.FC<ExecutoresInteractiveViewProps>
                       value={emailSearchQuery}
                       onChange={(e) => setEmailSearchQuery(e.target.value)}
                       placeholder="Buscar por nome, e-mail ou perfil..."
-                      className="w-full pl-9 pr-3 py-2.5 sm:py-2 bg-white border-2 border-amber-300 rounded-xl text-xs sm:text-sm font-semibold text-slate-900 placeholder-slate-400 focus:outline-none focus:border-amber-500 shadow-2xs"
+                      className="w-full pl-9 pr-3 py-2.5 sm:py-2 bg-white border border-amber-300 rounded-[8px] text-xs sm:text-sm font-semibold text-slate-900 placeholder-slate-400 focus:outline-none focus:border-[#223585] focus:ring-2 focus:ring-[#223585]/15 shadow-2xs"
                     />
                   </div>
 
                   <select
                     value={selectedUserEmailToLink}
                     onChange={(e) => setSelectedUserEmailToLink(e.target.value)}
-                    className="w-full sm:w-auto px-3 py-2.5 sm:py-2 bg-white border-2 border-amber-300 rounded-xl text-xs sm:text-sm font-bold text-slate-900 focus:outline-none focus:border-amber-500 shadow-2xs"
+                    className="w-full sm:w-auto px-3 py-2.5 sm:py-2 bg-white border border-amber-300 rounded-[8px] text-xs sm:text-sm font-bold text-slate-900 focus:outline-none focus:border-[#223585] shadow-2xs"
                   >
                     <option value="">-- Escolher Usuário Cadastrado --</option>
                     {filteredRegisteredUsers.map((u) => {
@@ -1379,14 +1379,14 @@ export const ExecutoresInteractiveView: React.FC<ExecutoresInteractiveViewProps>
                       setEmailSearchQuery('');
                     }}
                     disabled={!selectedUserEmailToLink || isLinkingEmail}
-                    className="w-full sm:w-auto px-4 py-3 sm:py-2 bg-slate-900 hover:bg-slate-800 disabled:opacity-50 text-white text-xs font-black uppercase tracking-wide rounded-xl whitespace-nowrap cursor-pointer shadow-sm"
+                    className="w-full sm:w-auto px-4 py-3 sm:py-2 bg-[#0B1530] hover:bg-[#223585] disabled:opacity-50 text-white text-xs font-black uppercase tracking-wide rounded-[8px] whitespace-nowrap cursor-pointer shadow-sm transition-colors"
                   >
                     {isLinkingEmail ? 'Vinculando...' : '+ Vincular E-mail'}
                   </button>
                 </div>
 
                 {emailSearchQuery.trim().length > 0 && (
-                  <div className="bg-white border-2 border-amber-300 rounded-xl shadow-md max-h-56 overflow-y-auto divide-y divide-slate-100">
+                  <div className="bg-white border border-amber-300 rounded-[10px] shadow-md max-h-56 overflow-y-auto divide-y divide-slate-100">
                     {filteredRegisteredUsers.length === 0 ? (
                       <div className="px-3.5 py-3 text-xs font-semibold text-slate-500">
                         Nenhum perfil encontrado para "{emailSearchQuery}".
@@ -1404,7 +1404,7 @@ export const ExecutoresInteractiveView: React.FC<ExecutoresInteractiveViewProps>
                             <div className="min-w-0">
                               <div className="font-bold text-slate-900 flex flex-wrap items-center gap-1.5">
                                 <span>{u.name}</span>
-                                <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-900 font-bold">
+                                <span className="text-[10px] px-1.5 py-0.5 rounded-[6px] bg-amber-100 text-amber-900 font-bold">
                                   {u.role}
                                 </span>
                               </div>
@@ -1424,7 +1424,7 @@ export const ExecutoresInteractiveView: React.FC<ExecutoresInteractiveViewProps>
                                   setEmailSearchQuery('');
                                 }}
                                 disabled={isLinkingEmail}
-                                className="w-full sm:w-auto px-4 py-2 sm:py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black rounded-lg shrink-0 cursor-pointer text-center shadow-2xs"
+                                className="w-full sm:w-auto px-4 py-2 sm:py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black rounded-[8px] shrink-0 cursor-pointer text-center shadow-2xs transition-colors"
                               >
                                 + Vincular Este E-mail
                               </button>
@@ -1443,7 +1443,7 @@ export const ExecutoresInteractiveView: React.FC<ExecutoresInteractiveViewProps>
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
             {/* PANEL 1: SELECIONAR SITES DA ENGENHARIA PARA MANDAR PARA O EXECUTOR */}
             <div
-              className={`bg-white border border-slate-200 rounded-xl shadow-2xs overflow-hidden flex flex-col ${
+              className={`bg-white border border-slate-200 rounded-[12px] shadow-[0_1px_2px_rgba(15,23,42,0.04)] overflow-hidden flex flex-col ${
                 mobileSection === 'VINCULADOS' ? 'hidden lg:flex' : 'flex'
               }`}
             >
@@ -1464,7 +1464,7 @@ export const ExecutoresInteractiveView: React.FC<ExecutoresInteractiveViewProps>
                         : 'Somente sites da planilha TSSR TIM Nokia da Engenharia'}
                     </p>
                   </div>
-                  <span className="px-2 py-0.5 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded text-[11px] font-mono font-bold">
+                  <span className="px-2 py-0.5 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-[6px] text-[11px] font-mono font-bold tabular-nums">
                     {activePickerCount} disponíveis
                   </span>
                 </div>
@@ -1481,7 +1481,7 @@ export const ExecutoresInteractiveView: React.FC<ExecutoresInteractiveViewProps>
                         ? 'Buscar Intervenção Claro, Regional, Tipo Site, Status, Comentário...'
                         : 'Buscar Site Id, Oc Site Pre, Enderecoid, Cidade...'
                     }
-                    className="w-full pl-8 pr-7 py-1.5 bg-[#F3F4F6] border border-slate-200 rounded-lg text-xs text-slate-900 placeholder-slate-400 focus:bg-white focus:outline-none focus:border-amber-500"
+                    className="w-full pl-8 pr-7 py-1.5 bg-[#F4F6FA] border border-slate-200 rounded-[8px] text-xs text-slate-900 placeholder-slate-400 focus:bg-white focus:outline-none focus:border-[#223585]"
                   />
                   {sitePickerSearch && (
                     <button
@@ -1510,10 +1510,10 @@ export const ExecutoresInteractiveView: React.FC<ExecutoresInteractiveViewProps>
                         key={f.id}
                         type="button"
                         onClick={() => setSitePickerFilter(f.id)}
-                        className={`px-2 py-1 rounded-md text-[11px] font-medium cursor-pointer transition-colors ${
+                        className={`px-2 py-1 rounded-[6px] text-[11px] font-medium cursor-pointer transition-colors ${
                           sitePickerFilter === f.id
-                            ? 'bg-slate-900 text-white font-semibold shadow-xs'
-                            : 'bg-[#F3F4F6] hover:bg-slate-200 text-slate-600'
+                            ? 'bg-[#223585] text-white font-semibold shadow-xs'
+                            : 'bg-[#F4F6FA] hover:bg-slate-200 text-slate-600'
                         }`}
                       >
                         {f.label}
@@ -1527,7 +1527,7 @@ export const ExecutoresInteractiveView: React.FC<ExecutoresInteractiveViewProps>
                       <select
                         value={ericssonStatusFilter}
                         onChange={(e) => setEricssonStatusFilter(e.target.value)}
-                        className="px-2 py-1 bg-[#F3F4F6] border border-slate-200 rounded-md text-[11px] font-semibold text-slate-700 flex-1 min-w-[120px]"
+                        className="px-2 py-1 bg-[#F4F6FA] border border-slate-200 rounded-[6px] text-[11px] font-semibold text-slate-700 flex-1 min-w-[120px]"
                       >
                         <option value="ALL">Status: Todos ({ericssonProjectFilter})</option>
                         {ericssonAvailableStatuses.map((st) => (
@@ -1541,7 +1541,7 @@ export const ExecutoresInteractiveView: React.FC<ExecutoresInteractiveViewProps>
                       <select
                         value={ericssonRegionalFilter}
                         onChange={(e) => setEricssonRegionalFilter(e.target.value)}
-                        className="px-2 py-1 bg-[#F3F4F6] border border-slate-200 rounded-md text-[11px] font-semibold text-slate-700 min-w-[100px]"
+                        className="px-2 py-1 bg-[#F4F6FA] border border-slate-200 rounded-[6px] text-[11px] font-semibold text-slate-700 min-w-[100px]"
                       >
                         <option value="ALL">Regional: Todas</option>
                         {availableRegionals.map((r) => (
@@ -1555,7 +1555,7 @@ export const ExecutoresInteractiveView: React.FC<ExecutoresInteractiveViewProps>
                       <select
                         value={ericssonTipoSiteFilter}
                         onChange={(e) => setEricssonTipoSiteFilter(e.target.value)}
-                        className="px-2 py-1 bg-[#F3F4F6] border border-slate-200 rounded-md text-[11px] font-semibold text-slate-700 min-w-[100px]"
+                        className="px-2 py-1 bg-[#F4F6FA] border border-slate-200 rounded-[6px] text-[11px] font-semibold text-slate-700 min-w-[100px]"
                       >
                         <option value="ALL">Tipo Site: Todos</option>
                         {availableTipoSites.map((ts) => (
@@ -1570,7 +1570,7 @@ export const ExecutoresInteractiveView: React.FC<ExecutoresInteractiveViewProps>
                       <select
                         value={sitePickerUf}
                         onChange={(e) => setSitePickerUf(e.target.value)}
-                        className="px-2 py-1 bg-[#F3F4F6] border border-slate-200 rounded-md text-[11px] font-semibold text-slate-700"
+                        className="px-2 py-1 bg-[#F4F6FA] border border-slate-200 rounded-[6px] text-[11px] font-semibold text-slate-700"
                       >
                         <option value="ALL">Todas UFs</option>
                         {availableUfs.map((u) => (
@@ -1583,7 +1583,7 @@ export const ExecutoresInteractiveView: React.FC<ExecutoresInteractiveViewProps>
                       <select
                         value={sitePickerProjeto}
                         onChange={(e) => setSitePickerProjeto(e.target.value)}
-                        className="px-2 py-1 bg-[#F3F4F6] border border-slate-200 rounded-md text-[11px] font-semibold text-slate-700 max-w-[120px] truncate"
+                        className="px-2 py-1 bg-[#F4F6FA] border border-slate-200 rounded-[6px] text-[11px] font-semibold text-slate-700 max-w-[120px] truncate"
                       >
                         <option value="ALL">Projetos</option>
                         {availableProjetos.map((p) => (
@@ -1601,7 +1601,7 @@ export const ExecutoresInteractiveView: React.FC<ExecutoresInteractiveViewProps>
                   <button
                     type="button"
                     onClick={handleSelectAllVisiblePicker}
-                    className="py-2 px-2.5 bg-slate-100 hover:bg-slate-200 rounded-lg text-xs font-bold text-slate-800 flex items-center justify-center sm:justify-start gap-1.5 cursor-pointer"
+                    className="py-2 px-2.5 bg-slate-100 hover:bg-slate-200 rounded-[8px] text-xs font-bold text-slate-800 flex items-center justify-center sm:justify-start gap-1.5 cursor-pointer tabular-nums"
                   >
                     <CheckSquare className="w-4 h-4 text-amber-600 shrink-0" />
                     <span>
@@ -1615,7 +1615,7 @@ export const ExecutoresInteractiveView: React.FC<ExecutoresInteractiveViewProps>
                     type="button"
                     disabled={selectedRowIds.length === 0 || isAssigning || !selectedExecutor}
                     onClick={handleConfirmAssignSelected}
-                    className="w-full sm:w-auto justify-center px-4 py-3 sm:py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white text-xs font-black uppercase tracking-wide rounded-xl flex items-center gap-1.5 cursor-pointer shadow-sm"
+                    className="w-full sm:w-auto justify-center px-4 py-3 sm:py-2 bg-[#1E8E8D] hover:bg-[#177170] disabled:opacity-40 text-white text-xs font-black uppercase tracking-wide rounded-[8px] flex items-center gap-1.5 cursor-pointer shadow-sm transition-colors tabular-nums"
                   >
                     <span>
                       Demandar {selectedRowIds.length > 0 ? `${selectedRowIds.length} ` : ''}linha(s)
@@ -1671,25 +1671,25 @@ export const ExecutoresInteractiveView: React.FC<ExecutoresInteractiveViewProps>
                             </span>
 
                             {tipoDoc && (
-                              <span className="px-1.5 py-0.5 bg-amber-100 text-amber-900 rounded text-[10px] font-mono font-bold">
+                              <span className="px-1.5 py-0.5 bg-amber-100 text-amber-900 rounded-[6px] text-[10px] font-mono font-bold">
                                 {tipoDoc}
                               </span>
                             )}
 
                             {regional && (
-                              <span className="px-1.5 py-0.5 bg-slate-100 text-slate-700 rounded text-[10px] font-bold">
+                              <span className="px-1.5 py-0.5 bg-slate-100 text-slate-700 rounded-[6px] text-[10px] font-bold">
                                 Reg: {regional}
                               </span>
                             )}
 
                             {tipoSite && (
-                              <span className="px-1.5 py-0.5 bg-blue-50 text-blue-800 rounded text-[10px] font-bold">
+                              <span className="px-1.5 py-0.5 bg-[#EEF2FF] text-[#223585] rounded-[6px] text-[10px] font-bold">
                                 {tipoSite}
                               </span>
                             )}
 
                             <span
-                              className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
+                              className={`px-1.5 py-0.5 rounded-[6px] text-[10px] font-bold ${
                                 isFinalizado
                                   ? 'bg-emerald-100 text-emerald-900 border border-emerald-300'
                                   : 'bg-purple-50 text-purple-900 border border-purple-200'
@@ -1699,13 +1699,13 @@ export const ExecutoresInteractiveView: React.FC<ExecutoresInteractiveViewProps>
                             </span>
 
                             {row.isUnlinked && (
-                              <span className="px-1.5 py-0.5 bg-red-100 text-red-800 border border-red-300 rounded text-[10px] font-bold">
+                              <span className="px-1.5 py-0.5 bg-red-100 text-red-800 border border-red-300 rounded-[6px] text-[10px] font-bold">
                                 sem vínculo
                               </span>
                             )}
 
                             {row.isRemovedRow && (
-                              <span className="px-1.5 py-0.5 bg-red-100 text-red-800 border border-red-300 rounded text-[10px] font-bold">
+                              <span className="px-1.5 py-0.5 bg-red-100 text-red-800 border border-red-300 rounded-[6px] text-[10px] font-bold">
                                 linha removida da Engenharia
                               </span>
                             )}
@@ -1748,7 +1748,7 @@ export const ExecutoresInteractiveView: React.FC<ExecutoresInteractiveViewProps>
                             e.stopPropagation();
                             setDrawerRow(row);
                           }}
-                          className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg cursor-pointer"
+                          className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-[8px] cursor-pointer"
                           title="Ver detalhes completos da linha"
                         >
                           <ExternalLink className="w-3.5 h-3.5" />
@@ -1776,10 +1776,10 @@ export const ExecutoresInteractiveView: React.FC<ExecutoresInteractiveViewProps>
                                 }
                                 await onAssignRowsToExecutor(tokens, selectedExecutor, undefined, false);
                               }}
-                              className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-colors flex items-center gap-1 shrink-0 cursor-pointer shadow-2xs ${
+                              className={`px-2.5 py-1 rounded-[8px] text-[11px] font-bold transition-colors flex items-center gap-1 shrink-0 cursor-pointer shadow-2xs ${
                                 isOwned
                                   ? 'bg-amber-50 hover:bg-amber-600 hover:text-white text-amber-800 border border-amber-300'
-                                  : 'bg-white hover:bg-emerald-600 hover:text-white text-emerald-700 border border-emerald-300'
+                                  : 'bg-white hover:bg-[#1E8E8D] hover:text-white text-[#1E8E8D] border border-[#1E8E8D]/40'
                               }`}
                               title={
                                 isOwned
@@ -1802,7 +1802,7 @@ export const ExecutoresInteractiveView: React.FC<ExecutoresInteractiveViewProps>
                     <button
                       type="button"
                       onClick={() => setPickerDisplayLimit((prev) => prev + 150)}
-                      className="px-4 py-1.5 text-xs font-semibold text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-100 cursor-pointer shadow-2xs"
+                      className="px-4 py-1.5 text-xs font-semibold text-slate-700 bg-white border border-slate-300 rounded-[8px] hover:bg-slate-100 cursor-pointer shadow-2xs tabular-nums"
                     >
                       Mostrar mais 150 linhas ({pickerDisplayLimit} de {pickerEngineeringRows.length} exibidas)
                     </button>
@@ -1819,14 +1819,14 @@ export const ExecutoresInteractiveView: React.FC<ExecutoresInteractiveViewProps>
 
             {/* PANEL 2: SITES DA ENGENHARIA VINCULADOS AO EXECUTOR */}
             <div
-              className={`bg-white border border-slate-200 rounded-xl shadow-2xs overflow-hidden flex flex-col ${
+              className={`bg-white border border-slate-200 rounded-[12px] shadow-[0_1px_2px_rgba(15,23,42,0.04)] overflow-hidden flex flex-col ${
                 mobileSection === 'DEMANDAR' ? 'hidden lg:flex' : 'flex'
               }`}
             >
-              <div className="p-3.5 bg-slate-900 text-white space-y-2.5">
+              <div className="p-3.5 bg-[#0B1530] text-white space-y-2.5">
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
-                    <UserCheck className="w-4 h-4 text-emerald-400" />
+                    <UserCheck className="w-4 h-4 text-[#1E8E8D]" />
                     <div>
                       <h4 className="text-xs font-bold">
                         3. Demandas de "{selectedExecutor}" ({activeAssignedCount})
@@ -1842,7 +1842,7 @@ export const ExecutoresInteractiveView: React.FC<ExecutoresInteractiveViewProps>
                       type="button"
                       disabled={isClearing}
                       onClick={handleClearAllForSelectedExecutor}
-                      className="px-2.5 py-1 bg-red-600/90 hover:bg-red-600 disabled:opacity-50 text-white rounded-lg text-[11px] font-semibold transition-colors cursor-pointer shrink-0 shadow-2xs"
+                      className="px-2.5 py-1 bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white rounded-[8px] text-[11px] font-semibold transition-colors cursor-pointer shrink-0 shadow-2xs"
                     >
                       {isClearing ? 'Limpando...' : `Desvincular Todos (${activeAssignedCount})`}
                     </button>
@@ -1856,7 +1856,7 @@ export const ExecutoresInteractiveView: React.FC<ExecutoresInteractiveViewProps>
                     value={assignedSearch}
                     onChange={(e) => setAssignedSearch(e.target.value)}
                     placeholder={`Filtrar nas ${activeAssignedCount} demandas deste executor...`}
-                    className="w-full pl-8 pr-2.5 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-xs text-white placeholder-slate-400 focus:outline-none focus:border-amber-400"
+                    className="w-full pl-8 pr-2.5 py-1.5 bg-slate-900/70 border border-slate-700 rounded-[8px] text-xs text-white placeholder-slate-400 focus:outline-none focus:border-amber-400"
                   />
                 </div>
               </div>
@@ -1896,25 +1896,25 @@ export const ExecutoresInteractiveView: React.FC<ExecutoresInteractiveViewProps>
                           </span>
 
                           {tipoDoc && (
-                            <span className="px-1.5 py-0.5 bg-amber-100 text-amber-900 rounded text-[10px] font-mono font-bold">
+                            <span className="px-1.5 py-0.5 bg-amber-100 text-amber-900 rounded-[6px] text-[10px] font-mono font-bold">
                               {tipoDoc}
                             </span>
                           )}
 
                           {regional && (
-                            <span className="px-1.5 py-0.5 bg-slate-100 text-slate-700 rounded text-[10px] font-bold">
+                            <span className="px-1.5 py-0.5 bg-slate-100 text-slate-700 rounded-[6px] text-[10px] font-bold">
                               Reg: {regional}
                             </span>
                           )}
 
                           {tipoSite && (
-                            <span className="px-1.5 py-0.5 bg-blue-50 text-blue-800 rounded text-[10px] font-bold">
+                            <span className="px-1.5 py-0.5 bg-[#EEF2FF] text-[#223585] rounded-[6px] text-[10px] font-bold">
                               {tipoSite}
                             </span>
                           )}
 
                           <span
-                            className={`px-1.5 py-0.5 rounded text-[10px] font-bold inline-flex items-center gap-1 ${
+                            className={`px-1.5 py-0.5 rounded-[6px] text-[10px] font-bold inline-flex items-center gap-1 ${
                               isFinalizado
                                 ? 'bg-emerald-100 text-emerald-900 border border-emerald-300'
                                 : 'bg-purple-50 text-purple-900 border border-purple-200'
@@ -1933,13 +1933,13 @@ export const ExecutoresInteractiveView: React.FC<ExecutoresInteractiveViewProps>
                           )}
 
                           {row.isUnlinked && (
-                            <span className="px-1.5 py-0.5 bg-red-100 text-red-800 border border-red-300 rounded text-[10px] font-bold">
+                            <span className="px-1.5 py-0.5 bg-red-100 text-red-800 border border-red-300 rounded-[6px] text-[10px] font-bold">
                               sem vínculo
                             </span>
                           )}
 
                           {row.isRemovedRow && (
-                            <span className="px-1.5 py-0.5 bg-red-100 text-red-800 border border-red-300 rounded text-[10px] font-bold">
+                            <span className="px-1.5 py-0.5 bg-red-100 text-red-800 border border-red-300 rounded-[6px] text-[10px] font-bold">
                               linha removida da Engenharia
                             </span>
                           )}
@@ -1957,9 +1957,9 @@ export const ExecutoresInteractiveView: React.FC<ExecutoresInteractiveViewProps>
 
                         <div className="text-[11px] text-slate-600 space-y-0.5">
                           {(planejado || entregue || demandDate) && (
-                            <div className="flex flex-wrap items-center gap-2 text-[10px] text-slate-500 font-mono">
+                            <div className="flex flex-wrap items-center gap-2 text-[10px] text-slate-500 font-mono tabular-nums">
                               {demandDate && (
-                                <span className="bg-amber-50 text-amber-900 px-1.5 py-0.2 rounded border border-amber-200">
+                                <span className="bg-amber-50 text-amber-900 px-1.5 py-0.2 rounded-[6px] border border-amber-200">
                                   Demanda: {demandDate}
                                 </span>
                               )}
@@ -1981,7 +1981,7 @@ export const ExecutoresInteractiveView: React.FC<ExecutoresInteractiveViewProps>
                         <button
                           type="button"
                           onClick={() => setDrawerRow(row)}
-                          className="px-2 py-1 bg-[#F3F4F6] hover:bg-slate-200 text-slate-700 rounded-md text-[11px] font-medium flex items-center gap-1 cursor-pointer"
+                          className="px-2 py-1 bg-[#F4F6FA] hover:bg-slate-200 border border-slate-200/80 text-slate-700 rounded-[6px] text-[11px] font-medium flex items-center gap-1 cursor-pointer transition-colors"
                           title="Abrir ficha com todas as colunas da planilha"
                         >
                           <ExternalLink className="w-3 h-3" />
@@ -1994,7 +1994,7 @@ export const ExecutoresInteractiveView: React.FC<ExecutoresInteractiveViewProps>
                             const tokens = [row.id];
                             onUnassignRowsFromExecutor(tokens, selectedExecutor);
                           }}
-                          className="px-2 py-1 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 rounded-md text-[11px] font-medium cursor-pointer"
+                          className="px-2 py-1 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 rounded-[6px] text-[11px] font-medium cursor-pointer transition-colors"
                           title={`Desvincular ${intervencao} deste executor`}
                         >
                           Remover
@@ -2009,7 +2009,7 @@ export const ExecutoresInteractiveView: React.FC<ExecutoresInteractiveViewProps>
                     <button
                       type="button"
                       onClick={() => setAssignedDisplayLimit((prev) => prev + 150)}
-                      className="px-4 py-1.5 text-xs font-semibold text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-100 cursor-pointer shadow-2xs"
+                      className="px-4 py-1.5 text-xs font-semibold text-slate-700 bg-white border border-slate-300 rounded-[8px] hover:bg-slate-100 cursor-pointer shadow-2xs tabular-nums"
                     >
                       Mostrar mais 150 demandas ({assignedDisplayLimit} de {filteredAssignedRows.length} exibidas)
                     </button>
@@ -2031,20 +2031,20 @@ export const ExecutoresInteractiveView: React.FC<ExecutoresInteractiveViewProps>
           SLIDE-OVER DRAWER: DETALHES COMPLETOS DA LINHA DA ENGENHARIA ERICSSON
          ===================================================================== */}
       {drawerRow && (
-        <div className="fixed inset-0 z-50 overflow-hidden flex justify-end bg-black/50 backdrop-blur-2xs animate-fadeIn">
-          <div className="w-full max-w-xl bg-white h-full shadow-2xl flex flex-col z-50 overflow-hidden">
+        <div className="ameta-modal-backdrop fixed inset-0 z-50 overflow-hidden flex justify-end bg-slate-950/55 backdrop-blur-xs">
+          <div className="ameta-modal-panel w-full max-w-xl bg-white h-full shadow-2xl flex flex-col z-50 overflow-hidden">
             {/* Drawer Header */}
-            <div className="p-4 bg-slate-900 text-white flex items-center justify-between gap-3">
+            <div className="p-4 bg-[#0B1530] text-white flex items-center justify-between gap-3">
               <div className="flex items-center gap-2.5 min-w-0">
-                <div className="w-9 h-9 rounded-xl bg-amber-500 text-slate-950 flex items-center justify-center font-black">
+                <div className="w-9 h-9 rounded-[8px] bg-amber-500 text-slate-950 flex items-center justify-center font-bold">
                   <HardHat className="w-5 h-5" />
                 </div>
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
-                    <h3 className="font-mono font-black text-sm text-white truncate">
+                    <h3 className="font-mono font-bold text-sm text-white truncate">
                       {drawerRow.intervencaoClaro || drawerRow.siteId}
                     </h3>
-                    <span className="px-2 py-0.5 bg-amber-400 text-slate-950 rounded text-[10px] font-bold">
+                    <span className="px-2 py-0.5 bg-amber-400 text-slate-950 rounded-[6px] text-[10px] font-bold">
                       {drawerRow.tipoDoc || drawerRow.tabName || 'Engenharia Ericsson'}
                     </span>
                   </div>
@@ -2058,7 +2058,7 @@ export const ExecutoresInteractiveView: React.FC<ExecutoresInteractiveViewProps>
               <button
                 type="button"
                 onClick={() => setDrawerRow(null)}
-                className="p-1.5 rounded-lg bg-slate-800 text-slate-400 hover:text-white cursor-pointer"
+                className="p-1.5 rounded-[8px] bg-slate-800 text-slate-400 hover:text-white cursor-pointer transition-colors"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -2067,8 +2067,8 @@ export const ExecutoresInteractiveView: React.FC<ExecutoresInteractiveViewProps>
             {/* Drawer Body: All Engineering Fields */}
             <div className="flex-1 overflow-y-auto p-4 space-y-4 text-xs">
               {/* Highlight Card: Executor & Demanda Status */}
-              <div className="p-3.5 bg-amber-50/80 border-2 border-amber-300 rounded-xl space-y-2">
-                <span className="text-[10px] font-black uppercase text-amber-900 tracking-wider">
+              <div className="p-3.5 bg-amber-50/70 border border-amber-200 rounded-[12px] space-y-2">
+                <span className="text-[10px] font-bold uppercase text-amber-900 tracking-wider">
                   Status da Demanda do Executor
                 </span>
                 <div className="grid grid-cols-2 gap-2 text-xs">
@@ -2086,17 +2086,17 @@ export const ExecutoresInteractiveView: React.FC<ExecutoresInteractiveViewProps>
                   </div>
                   <div>
                     <span className="text-slate-500 block text-[10px]">STATUS Engenharia:</span>
-                    <span className="font-bold text-purple-900 bg-purple-100 px-1.5 py-0.5 rounded inline-block">
+                    <span className="font-semibold text-indigo-800 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-full inline-block text-[11px]">
                       {drawerRow.status || drawerRow.fields?.['Status'] || '—'}
                     </span>
                   </div>
                   <div>
                     <span className="text-slate-500 block text-[10px]">Situação:</span>
                     <span
-                      className={`font-bold px-1.5 py-0.5 rounded inline-block ${
+                      className={`font-semibold px-2 py-0.5 rounded-full border inline-block text-[11px] ${
                         drawerRow.status === 'Finalizado' || drawerRow.vistoriaStatus === 'Entregue'
-                          ? 'bg-emerald-100 text-emerald-900'
-                          : 'bg-amber-100 text-amber-900'
+                          ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                          : 'bg-amber-50 text-amber-800 border-amber-200'
                       }`}
                     >
                       {drawerRow.status === 'Finalizado' || drawerRow.vistoriaStatus === 'Entregue'
@@ -2109,44 +2109,44 @@ export const ExecutoresInteractiveView: React.FC<ExecutoresInteractiveViewProps>
 
               {/* Identificação & Projeto */}
               <div className="space-y-2">
-                <h4 className="font-bold text-slate-900 flex items-center gap-1.5 border-b pb-1">
+                <h4 className="font-bold text-slate-900 flex items-center gap-1.5 border-b border-slate-200 pb-1.5">
                   <Tag className="w-4 h-4 text-slate-500" />
                   <span>Informações da Engenharia Ericsson</span>
                 </h4>
                 <div className="grid grid-cols-2 gap-2">
-                  <div className="p-2 bg-slate-50 rounded-lg">
+                  <div className="p-2.5 bg-slate-50 border border-slate-100 rounded-[8px]">
                     <span className="text-[10px] text-slate-500 block">Intervenção Claro:</span>
                     <span className="font-mono font-bold text-slate-900">
                       {drawerRow.intervencaoClaro || drawerRow.siteId}
                     </span>
                   </div>
-                  <div className="p-2 bg-slate-50 rounded-lg">
+                  <div className="p-2.5 bg-slate-50 border border-slate-100 rounded-[8px]">
                     <span className="text-[10px] text-slate-500 block">Tipo de Doc (Projeto):</span>
                     <span className="font-bold text-slate-900">
                       {drawerRow.tipoDoc || drawerRow.fields?.['Tipo doc'] || '—'}
                     </span>
                   </div>
-                  <div className="p-2 bg-slate-50 rounded-lg">
+                  <div className="p-2.5 bg-slate-50 border border-slate-100 rounded-[8px]">
                     <span className="text-[10px] text-slate-500 block">Regional:</span>
                     <span className="font-bold text-slate-900">
                       {drawerRow.regional || drawerRow.fields?.['Regional'] || '—'}
                     </span>
                   </div>
-                  <div className="p-2 bg-slate-50 rounded-lg">
+                  <div className="p-2.5 bg-slate-50 border border-slate-100 rounded-[8px]">
                     <span className="text-[10px] text-slate-500 block">Tipo Site:</span>
                     <span className="font-bold text-slate-900">
                       {drawerRow.tipoSite || drawerRow.fields?.['TIPO SITE'] || '—'}
                     </span>
                   </div>
-                  <div className="p-2 bg-slate-50 rounded-lg">
+                  <div className="p-2.5 bg-slate-50 border border-slate-100 rounded-[8px]">
                     <span className="text-[10px] text-slate-500 block">Data Planejada:</span>
                     <span className="font-mono text-slate-800">
                       {drawerRow.planejado || drawerRow.fields?.['Planejado'] || '—'}
                     </span>
                   </div>
-                  <div className="p-2 bg-slate-50 rounded-lg">
+                  <div className="p-2.5 bg-slate-50 border border-slate-100 rounded-[8px]">
                     <span className="text-[10px] text-slate-500 block">Data Entregue:</span>
-                    <span className="font-mono text-emerald-800 font-bold">
+                    <span className="font-mono text-emerald-700 font-bold">
                       {drawerRow.entregue || drawerRow.fields?.['Entregue'] || '—'}
                     </span>
                   </div>
@@ -2155,11 +2155,11 @@ export const ExecutoresInteractiveView: React.FC<ExecutoresInteractiveViewProps>
 
               {/* Comentário */}
               <div className="space-y-2">
-                <h4 className="font-bold text-slate-900 flex items-center gap-1.5 border-b pb-1">
+                <h4 className="font-bold text-slate-900 flex items-center gap-1.5 border-b border-slate-200 pb-1.5">
                   <MessageSquare className="w-4 h-4 text-slate-500" />
                   <span>Comentário</span>
                 </h4>
-                <div className="p-3 bg-slate-50 rounded-xl text-slate-700 leading-relaxed font-sans">
+                <div className="p-3 bg-slate-50 border border-slate-100 rounded-[10px] text-slate-700 leading-relaxed font-sans">
                   {drawerRow.comentario || drawerRow.fields?.['Comentário'] || drawerRow.fields?.['Comentários'] || (
                     <span className="text-slate-400 italic">Nenhum comentário registrado.</span>
                   )}
@@ -2168,12 +2168,12 @@ export const ExecutoresInteractiveView: React.FC<ExecutoresInteractiveViewProps>
 
               {/* Arquivos do Projeto */}
               <div className="space-y-2">
-                <h4 className="font-bold text-slate-900 flex items-center gap-1.5 border-b pb-1">
+                <h4 className="font-bold text-slate-900 flex items-center gap-1.5 border-b border-slate-200 pb-1.5">
                   <FileSpreadsheet className="w-4 h-4 text-slate-500" />
                   <span>Arquivos do Projeto</span>
                 </h4>
                 {drawerRow.vistoriaFileName ? (
-                  <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl space-y-1">
+                  <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-[10px] space-y-1">
                     <div className="font-bold text-emerald-950 flex items-center gap-1.5">
                       <CheckCircle2 className="w-4 h-4 text-emerald-600" />
                       <span className="truncate">{drawerRow.vistoriaFileName}</span>
@@ -2183,7 +2183,7 @@ export const ExecutoresInteractiveView: React.FC<ExecutoresInteractiveViewProps>
                         href={drawerRow.vistoriaDownloadUrl}
                         target="_blank"
                         rel="noreferrer"
-                        className="inline-block mt-1 px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-[11px] font-bold"
+                        className="inline-block mt-1 px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-[8px] text-[11px] font-semibold"
                       >
                         Baixar Arquivo
                       </a>
@@ -2196,11 +2196,11 @@ export const ExecutoresInteractiveView: React.FC<ExecutoresInteractiveViewProps>
             </div>
 
             {/* Drawer Footer */}
-            <div className="p-3 bg-slate-50 border-t border-slate-200 flex justify-end">
+            <div className="p-3.5 bg-slate-50 border-t border-slate-200 flex justify-end">
               <button
                 type="button"
                 onClick={() => setDrawerRow(null)}
-                className="px-4 py-2 bg-slate-900 text-white rounded-xl text-xs font-bold cursor-pointer"
+                className="px-4 py-2 bg-[#223585] hover:bg-[#1B2A6B] text-white rounded-[8px] text-xs font-semibold cursor-pointer transition-colors"
               >
                 Fechar Ficha
               </button>
@@ -2211,11 +2211,11 @@ export const ExecutoresInteractiveView: React.FC<ExecutoresInteractiveViewProps>
 
       {/* Batch Transfer Modal */}
       {batchTransferModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-2xs animate-fadeIn">
-          <div className="bg-white rounded-2xl max-w-lg w-full p-5 shadow-2xl border border-slate-200 space-y-4">
+        <div className="ameta-modal-backdrop fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/55 backdrop-blur-xs">
+          <div className="ameta-modal-panel bg-white rounded-[12px] max-w-lg w-full p-5 shadow-2xl border border-slate-200 space-y-4">
             <div className="flex items-start gap-3">
-              <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center shrink-0">
-                <AlertCircle className="w-6 h-6 text-amber-600" />
+              <div className="w-10 h-10 rounded-[10px] bg-amber-100 text-amber-800 flex items-center justify-center shrink-0">
+                <AlertCircle className="w-5 h-5 text-amber-600" />
               </div>
               <div className="min-w-0 flex-1">
                 <h4 className="text-sm font-bold text-slate-900">
@@ -2228,19 +2228,19 @@ export const ExecutoresInteractiveView: React.FC<ExecutoresInteractiveViewProps>
               <button
                 type="button"
                 onClick={() => setBatchTransferModal(null)}
-                className="text-slate-400 hover:text-slate-700 cursor-pointer"
+                className="p-1 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-[8px] cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl space-y-2 text-xs">
+            <div className="p-3 bg-amber-50 border border-amber-200 rounded-[10px] space-y-2 text-xs">
               <p className="font-bold text-amber-900">
                 {batchTransferModal.ownedRows.length} linha(s) já possuem outro responsável ativo:
               </p>
               <div className="max-h-36 overflow-y-auto space-y-1 pr-1">
                 {batchTransferModal.ownedRows.map((r) => (
-                  <div key={r.id} className="flex items-center justify-between text-[11px] bg-white px-2 py-1 rounded border border-amber-200">
+                  <div key={r.id} className="flex items-center justify-between text-[11px] bg-white px-2.5 py-1 rounded-[8px] border border-amber-200">
                     <span className="font-mono font-bold text-slate-800">{r.name}</span>
                     <span className="text-amber-800 font-semibold">Atual: {r.owner}</span>
                   </div>
@@ -2257,11 +2257,11 @@ export const ExecutoresInteractiveView: React.FC<ExecutoresInteractiveViewProps>
               Deseja transferir todas as linhas para <strong>"{selectedExecutor}"</strong> ou ignorar as que já possuem dono e demandar apenas as linhas livres?
             </p>
 
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-2 pt-2 border-t border-slate-100">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-2 pt-3 border-t border-slate-100">
               <button
                 type="button"
                 onClick={() => setBatchTransferModal(null)}
-                className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold cursor-pointer"
+                className="px-3.5 py-2 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-[8px] text-xs font-semibold cursor-pointer"
               >
                 Cancelar
               </button>
@@ -2273,7 +2273,7 @@ export const ExecutoresInteractiveView: React.FC<ExecutoresInteractiveViewProps>
                     setBatchTransferModal(null);
                     await executeAssign(freeIds, false);
                   }}
-                  className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold cursor-pointer"
+                  className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-[8px] text-xs font-semibold cursor-pointer"
                 >
                   Demandar apenas livres ({batchTransferModal.freeRowIds.length})
                 </button>
@@ -2285,7 +2285,7 @@ export const ExecutoresInteractiveView: React.FC<ExecutoresInteractiveViewProps>
                   setBatchTransferModal(null);
                   await executeAssign(allIds, true);
                 }}
-                className="px-3.5 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold cursor-pointer"
+                className="px-3.5 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-[8px] text-xs font-semibold cursor-pointer"
               >
                 Transferir todas ({batchTransferModal.allRowIds.length})
               </button>
@@ -2296,11 +2296,11 @@ export const ExecutoresInteractiveView: React.FC<ExecutoresInteractiveViewProps>
 
       {/* Single Transfer Modal */}
       {singleTransferModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-2xs animate-fadeIn">
-          <div className="bg-white rounded-2xl max-w-md w-full p-5 shadow-2xl border border-slate-200 space-y-4">
+        <div className="ameta-modal-backdrop fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/55 backdrop-blur-xs">
+          <div className="ameta-modal-panel bg-white rounded-[12px] max-w-md w-full p-5 shadow-2xl border border-slate-200 space-y-4">
             <div className="flex items-start gap-3">
-              <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center shrink-0">
-                <AlertCircle className="w-6 h-6 text-amber-600" />
+              <div className="w-10 h-10 rounded-[10px] bg-amber-100 text-amber-800 flex items-center justify-center shrink-0">
+                <AlertCircle className="w-5 h-5 text-amber-600" />
               </div>
               <div className="min-w-0 flex-1">
                 <h4 className="text-sm font-bold text-slate-900">
@@ -2313,16 +2313,16 @@ export const ExecutoresInteractiveView: React.FC<ExecutoresInteractiveViewProps>
               <button
                 type="button"
                 onClick={() => setSingleTransferModal(null)}
-                className="text-slate-400 hover:text-slate-700 cursor-pointer"
+                className="p-1 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-[8px] cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <div className="p-3.5 bg-amber-50 border border-amber-200 rounded-xl space-y-2 text-xs">
+            <div className="p-3.5 bg-amber-50 border border-amber-200 rounded-[10px] space-y-2 text-xs">
               <p className="text-slate-700 leading-relaxed text-xs">
                 Este site já está demandado para{' '}
-                <strong className="text-amber-900 bg-amber-100/90 px-1.5 py-0.5 rounded border border-amber-300 font-bold">
+                <strong className="text-amber-900 bg-amber-100/90 px-1.5 py-0.5 rounded-[6px] border border-amber-300 font-bold">
                   {singleTransferModal.currentOwner}
                 </strong>
                 . Deseja transferir para{' '}
@@ -2336,11 +2336,11 @@ export const ExecutoresInteractiveView: React.FC<ExecutoresInteractiveViewProps>
               </p>
             </div>
 
-            <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+            <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
               <button
                 type="button"
                 onClick={() => setSingleTransferModal(null)}
-                className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold cursor-pointer"
+                className="px-3.5 py-2 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-[8px] text-xs font-semibold cursor-pointer"
               >
                 Cancelar
               </button>
@@ -2351,7 +2351,7 @@ export const ExecutoresInteractiveView: React.FC<ExecutoresInteractiveViewProps>
                   setSingleTransferModal(null);
                   await onAssignRowsToExecutor(tokens, targetOwner, undefined, true);
                 }}
-                className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold cursor-pointer shadow-xs"
+                className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-[8px] text-xs font-semibold cursor-pointer shadow-xs"
               >
                 Confirmar Transferência
               </button>
@@ -2362,11 +2362,11 @@ export const ExecutoresInteractiveView: React.FC<ExecutoresInteractiveViewProps>
 
       {/* Warning Notice Modal */}
       {warningNotice && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-2xs animate-fadeIn">
-          <div className="bg-white rounded-2xl max-w-md w-full p-5 shadow-2xl border border-slate-200 space-y-4">
+        <div className="ameta-modal-backdrop fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/55 backdrop-blur-xs">
+          <div className="ameta-modal-panel bg-white rounded-[12px] max-w-md w-full p-5 shadow-2xl border border-slate-200 space-y-4">
             <div className="flex items-start gap-3">
-              <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center shrink-0">
-                <AlertCircle className="w-6 h-6 text-amber-600" />
+              <div className="w-10 h-10 rounded-[10px] bg-amber-100 text-amber-800 flex items-center justify-center shrink-0">
+                <AlertCircle className="w-5 h-5 text-amber-600" />
               </div>
               <div className="min-w-0 flex-1">
                 <h4 className="text-sm font-bold text-slate-900">
@@ -2379,16 +2379,16 @@ export const ExecutoresInteractiveView: React.FC<ExecutoresInteractiveViewProps>
               <button
                 type="button"
                 onClick={() => setWarningNotice(null)}
-                className="text-slate-400 hover:text-slate-700 cursor-pointer"
+                className="p-1 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-[8px] cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
-            <div className="flex items-center justify-end pt-2 border-t border-slate-100">
+            <div className="flex items-center justify-end pt-3 border-t border-slate-100">
               <button
                 type="button"
                 onClick={() => setWarningNotice(null)}
-                className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold cursor-pointer"
+                className="px-4 py-2 bg-[#223585] hover:bg-[#1B2A6B] text-white rounded-[8px] text-xs font-semibold cursor-pointer"
               >
                 OK
               </button>

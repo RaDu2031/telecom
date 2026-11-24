@@ -235,11 +235,11 @@ export const EngineeringInteractiveChart: React.FC<EngineeringInteractiveChartPr
   }, [stats.allExecutors, showCompletedExecutors, activeExecutorFilter]);
 
   return (
-    <div className="bg-white border border-slate-200 rounded-xl shadow-2xs overflow-hidden">
+    <div className="bg-white border border-slate-200 rounded-[12px] shadow-[0_1px_2px_rgba(15,23,42,0.04)] overflow-hidden">
       {/* =====================================================================
           HEADER BAR: CONTROLE / MINIMIZAÇÃO / TÍTULO DA ABA DE GRÁFICOS
          ===================================================================== */}
-      <div className="px-4 py-2.5 bg-white border-b border-slate-200 flex flex-wrap items-center justify-between gap-3">
+      <div className="px-4 py-3 bg-white border-b border-slate-200 flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-2.5">
           <button
             type="button"
@@ -251,14 +251,14 @@ export const EngineeringInteractiveChart: React.FC<EngineeringInteractiveChartPr
                 : 'Clique para minimizar'
             }
           >
-            <div className="w-7 h-7 rounded-lg bg-amber-500 group-hover:bg-amber-600 transition-colors text-slate-950 font-bold flex items-center justify-center shrink-0">
-              <HardHat className="w-4 h-4" />
+            <div className="w-7 h-7 rounded-[8px] bg-[#223585]/10 group-hover:bg-[#223585]/15 transition-colors flex items-center justify-center shrink-0">
+              <HardHat className="w-4 h-4 text-[#223585]" />
             </div>
             <div className="flex items-center gap-2">
               <span className="text-xs font-bold text-slate-900">
                 Executores & STATUS Engenharia (TSSR TIM Nokia)
               </span>
-              <span className="px-2 py-0.5 bg-[#F3F4F6] border border-slate-200 rounded-md text-[11px] text-slate-700 font-mono font-semibold tabular-nums">
+              <span className="px-2 py-0.5 bg-slate-100 border border-slate-200 rounded-full text-[11px] text-slate-600 font-mono font-semibold tabular-nums">
                 {stats.total} sites
               </span>
             </div>
@@ -276,7 +276,7 @@ export const EngineeringInteractiveChart: React.FC<EngineeringInteractiveChartPr
                 }
                 className={`px-2 py-0.5 rounded-md border cursor-pointer transition-colors ${
                   activeCategoryFilter === 'A_FAZER'
-                    ? 'bg-amber-500 text-slate-950 border-amber-600 font-bold'
+                    ? 'bg-amber-600 text-white border-amber-600 font-bold'
                     : 'bg-amber-50 text-amber-800 border-amber-200 hover:bg-amber-100'
                 }`}
               >
@@ -291,8 +291,8 @@ export const EngineeringInteractiveChart: React.FC<EngineeringInteractiveChartPr
                 }
                 className={`px-2 py-0.5 rounded-md border cursor-pointer transition-colors ${
                   activeCategoryFilter === 'AGUARDANDO'
-                    ? 'bg-blue-600 text-white border-blue-700 font-bold'
-                    : 'bg-blue-50 text-blue-800 border-blue-200 hover:bg-blue-100'
+                    ? 'bg-[#223585] text-white border-[#223585] font-bold'
+                    : 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100'
                 }`}
               >
                 Aguardando Aprovação: {stats.aguardandoTotal}
@@ -306,8 +306,8 @@ export const EngineeringInteractiveChart: React.FC<EngineeringInteractiveChartPr
                 }
                 className={`px-2 py-0.5 rounded-md border cursor-pointer transition-colors ${
                   activeCategoryFilter === 'FEITOS'
-                    ? 'bg-emerald-600 text-white border-emerald-700 font-bold'
-                    : 'bg-emerald-50 text-emerald-800 border-emerald-200 hover:bg-emerald-100'
+                    ? 'bg-emerald-600 text-white border-emerald-600 font-bold'
+                    : 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'
                 }`}
               >
                 Feitos/Aprovados: {stats.concluidosTotal}
@@ -318,7 +318,7 @@ export const EngineeringInteractiveChart: React.FC<EngineeringInteractiveChartPr
           {/* Active Filter Indicator */}
           {hasAnyFilter && (
             <div className="flex flex-wrap items-center gap-1.5">
-              <span className="px-2.5 py-0.5 bg-amber-50 text-amber-900 border border-amber-300 rounded-md text-[11px] font-semibold flex items-center gap-1">
+              <span className="px-2.5 py-0.5 bg-amber-50 text-amber-800 border border-amber-200 rounded-[6px] text-[11px] font-semibold flex items-center gap-1">
                 <Filter className="w-3 h-3 text-amber-600" />
                 <span>
                   Filtro ativo
@@ -343,7 +343,7 @@ export const EngineeringInteractiveChart: React.FC<EngineeringInteractiveChartPr
               <button
                 type="button"
                 onClick={clearAllChartFilters}
-                className="px-2 py-0.5 bg-[#F3F4F6] hover:bg-slate-200 text-slate-700 rounded-md text-[11px] font-medium flex items-center gap-1 cursor-pointer"
+                className="px-2 py-0.5 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-[6px] text-[11px] font-medium flex items-center gap-1 cursor-pointer transition-colors"
               >
                 <RotateCcw className="w-3 h-3" />
                 <span>Limpar filtro</span>
@@ -358,13 +358,13 @@ export const EngineeringInteractiveChart: React.FC<EngineeringInteractiveChartPr
             <button
               type="button"
               onClick={() => setIsBarsMinimized((prev) => !prev)}
-              className="px-2.5 py-1 bg-[#F3F4F6] hover:bg-slate-200/80 border border-slate-200 rounded-lg text-[11px] font-medium text-slate-700 flex items-center gap-1 cursor-pointer"
+              className="px-2.5 py-1 bg-white hover:bg-slate-50 border border-slate-200 rounded-[8px] text-[11px] font-medium text-slate-600 flex items-center gap-1 cursor-pointer transition-colors"
             >
               <span>{isBarsMinimized ? 'Mostrar Cards' : 'Ocultar Cards'}</span>
               {isBarsMinimized ? (
-                <ChevronDown className="w-3.5 h-3.5 text-slate-500" />
+                <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
               ) : (
-                <ChevronUp className="w-3.5 h-3.5 text-slate-500" />
+                <ChevronUp className="w-3.5 h-3.5 text-slate-400" />
               )}
             </button>
           )}
@@ -372,10 +372,10 @@ export const EngineeringInteractiveChart: React.FC<EngineeringInteractiveChartPr
           <button
             type="button"
             onClick={() => setIsMinimized((prev) => !prev)}
-            className={`px-3 py-1 rounded-lg text-xs font-semibold flex items-center gap-1.5 border transition-colors cursor-pointer ${
+            className={`px-3 py-1 rounded-[8px] text-xs font-semibold flex items-center gap-1.5 border transition-colors cursor-pointer ${
               isMinimized
-                ? 'bg-amber-500 hover:bg-amber-400 text-slate-950 border-amber-500 font-bold'
-                : 'bg-[#F3F4F6] hover:bg-slate-200 text-slate-800 border-slate-200'
+                ? 'bg-[#223585] hover:bg-[#1B2A6B] text-white border-transparent'
+                : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200'
             }`}
           >
             {isMinimized ? (
@@ -396,14 +396,14 @@ export const EngineeringInteractiveChart: React.FC<EngineeringInteractiveChartPr
       </div>
 
       {/* =====================================================================
-          EXPANDED BANNER: COMPARATIVO HORIZONTAL EXATAMENTE IGUAL AO SCREENSHOT
+          EXPANDED BANNER: COMPARATIVO HORIZONTAL CORPORATE
          ===================================================================== */}
       {!isMinimized && !isBarsMinimized && (
-        <div className="p-3.5 sm:p-4 bg-white border-b border-slate-200 space-y-3">
-          {/* Top Bar of the Chart (Title, 100% Feitos saem automático, Legend, Mode Buttons) */}
+        <div className="p-4 bg-slate-50/60 space-y-3">
+          {/* Top Bar of the Chart */}
           <div className="flex flex-wrap items-center justify-between gap-2.5">
             <div className="flex flex-wrap items-center gap-2.5 text-xs">
-              <span className="font-bold text-slate-800">
+              <span className="font-bold text-slate-900">
                 {breakdownMode === 'EXECUTOR' &&
                   'Executores com Sites da Engenharia Pendentes:'}
                 {breakdownMode === 'UF' &&
@@ -416,7 +416,7 @@ export const EngineeringInteractiveChart: React.FC<EngineeringInteractiveChartPr
                 <button
                   type="button"
                   onClick={() => setShowCompletedExecutors((prev) => !prev)}
-                  className="px-2.5 py-0.5 rounded-md bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 text-[11px] font-semibold cursor-pointer transition-colors"
+                  className="px-2.5 py-0.5 rounded-full bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 text-[11px] font-semibold cursor-pointer transition-colors tabular-nums"
                   title="Clique para alternar a exibição de executores com 100% concluídos"
                 >
                   {showCompletedExecutors
@@ -425,7 +425,7 @@ export const EngineeringInteractiveChart: React.FC<EngineeringInteractiveChartPr
                 </button>
               )}
 
-              {/* Legend with interactive click to filter by category */}
+              {/* Legend */}
               <div className="flex flex-wrap items-center gap-3 text-[11px] text-slate-600">
                 <button
                   type="button"
@@ -434,13 +434,13 @@ export const EngineeringInteractiveChart: React.FC<EngineeringInteractiveChartPr
                       activeCategoryFilter === 'A_FAZER' ? 'ALL' : 'A_FAZER'
                     )
                   }
-                  className={`inline-flex items-center gap-1.5 font-bold cursor-pointer transition-all ${
+                  className={`inline-flex items-center gap-1.5 font-semibold cursor-pointer transition-all ${
                     activeCategoryFilter === 'A_FAZER'
-                      ? 'text-amber-900 bg-amber-100 px-2 py-0.5 rounded border border-amber-300'
-                      : 'text-amber-800 hover:text-amber-950'
+                      ? 'text-amber-800 bg-amber-50 px-2 py-0.5 rounded border border-amber-300'
+                      : 'text-amber-700 hover:text-amber-900'
                   }`}
                 >
-                  <span className="w-2.5 h-2.5 rounded-xs bg-amber-500 inline-block" />
+                  <span className="w-2 h-2 rounded-full bg-amber-500 inline-block" />
                   <span>1º Pendentes (A Fazer): {stats.aFazerTotal}</span>
                 </button>
 
@@ -451,13 +451,13 @@ export const EngineeringInteractiveChart: React.FC<EngineeringInteractiveChartPr
                       activeCategoryFilter === 'AGUARDANDO' ? 'ALL' : 'AGUARDANDO'
                     )
                   }
-                  className={`inline-flex items-center gap-1.5 font-bold cursor-pointer transition-all ${
+                  className={`inline-flex items-center gap-1.5 font-semibold cursor-pointer transition-all ${
                     activeCategoryFilter === 'AGUARDANDO'
-                      ? 'text-blue-900 bg-blue-100 px-2 py-0.5 rounded border border-blue-300'
-                      : 'text-blue-800 hover:text-blue-950'
+                      ? 'text-blue-800 bg-blue-50 px-2 py-0.5 rounded border border-blue-300'
+                      : 'text-blue-700 hover:text-blue-900'
                   }`}
                 >
-                  <span className="w-2.5 h-2.5 rounded-xs bg-blue-600 inline-block" />
+                  <span className="w-2 h-2 rounded-full bg-[#223585] inline-block" />
                   <span>Aguardando Aprovação: {stats.aguardandoTotal}</span>
                 </button>
 
@@ -468,13 +468,13 @@ export const EngineeringInteractiveChart: React.FC<EngineeringInteractiveChartPr
                       activeCategoryFilter === 'FEITOS' ? 'ALL' : 'FEITOS'
                     )
                   }
-                  className={`inline-flex items-center gap-1.5 font-bold cursor-pointer transition-all ${
+                  className={`inline-flex items-center gap-1.5 font-semibold cursor-pointer transition-all ${
                     activeCategoryFilter === 'FEITOS'
-                      ? 'text-emerald-900 bg-emerald-100 px-2 py-0.5 rounded border border-emerald-300'
-                      : 'text-emerald-800 hover:text-emerald-950'
+                      ? 'text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-300'
+                      : 'text-emerald-700 hover:text-emerald-900'
                   }`}
                 >
-                  <span className="w-2.5 h-2.5 rounded-xs bg-emerald-600 inline-block" />
+                  <span className="w-2 h-2 rounded-full bg-[#1E8E8D] inline-block" />
                   <span>2º Aprovados / Feitos: {stats.concluidosTotal}</span>
                 </button>
 
@@ -485,26 +485,26 @@ export const EngineeringInteractiveChart: React.FC<EngineeringInteractiveChartPr
                       activeCategoryFilter === 'CANCELADOS' ? 'ALL' : 'CANCELADOS'
                     )
                   }
-                  className={`inline-flex items-center gap-1.5 font-bold cursor-pointer transition-all ${
+                  className={`inline-flex items-center gap-1.5 font-semibold cursor-pointer transition-all ${
                     activeCategoryFilter === 'CANCELADOS'
-                      ? 'text-slate-900 bg-slate-200 px-2 py-0.5 rounded border border-slate-300'
-                      : 'text-slate-600 hover:text-slate-900'
+                      ? 'text-slate-900 bg-slate-200/80 px-2 py-0.5 rounded border border-slate-300'
+                      : 'text-slate-500 hover:text-slate-800'
                   }`}
                 >
-                  <span className="w-2.5 h-2.5 rounded-xs bg-slate-400 inline-block" />
+                  <span className="w-2 h-2 rounded-full bg-slate-400 inline-block" />
                   <span>Cancelados: {stats.canceladosTotal}</span>
                 </button>
               </div>
             </div>
 
-            {/* Right Toggle Buttons: Por Executor | Por UF | Por Status */}
-            <div className="flex flex-wrap items-center p-0.5 bg-[#F3F4F6] border border-slate-200 rounded-lg text-[11px]">
+            {/* Right Toggle Buttons */}
+            <div className="flex flex-wrap items-center p-1 bg-slate-100 border border-slate-200 rounded-[8px] text-[11px] gap-0.5">
               <button
                 type="button"
                 onClick={() => setBreakdownMode('EXECUTOR')}
-                className={`px-2.5 py-1 rounded-md font-medium flex items-center gap-1 cursor-pointer transition-all ${
+                className={`px-2.5 py-1 rounded-[6px] font-medium flex items-center gap-1 cursor-pointer transition-all tabular-nums ${
                   breakdownMode === 'EXECUTOR'
-                    ? 'bg-amber-400 text-slate-950 font-black shadow-2xs border border-amber-300'
+                    ? 'bg-white text-slate-900 font-semibold shadow-2xs'
                     : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
@@ -515,9 +515,9 @@ export const EngineeringInteractiveChart: React.FC<EngineeringInteractiveChartPr
               <button
                 type="button"
                 onClick={() => setBreakdownMode('UF')}
-                className={`px-2.5 py-1 rounded-md font-medium flex items-center gap-1 cursor-pointer transition-all ${
+                className={`px-2.5 py-1 rounded-[6px] font-medium flex items-center gap-1 cursor-pointer transition-all tabular-nums ${
                   breakdownMode === 'UF'
-                    ? 'bg-white text-slate-900 font-bold shadow-2xs border border-slate-200/70'
+                    ? 'bg-white text-slate-900 font-semibold shadow-2xs'
                     : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
@@ -528,9 +528,9 @@ export const EngineeringInteractiveChart: React.FC<EngineeringInteractiveChartPr
               <button
                 type="button"
                 onClick={() => setBreakdownMode('STATUS')}
-                className={`px-2.5 py-1 rounded-md font-medium flex items-center gap-1 cursor-pointer transition-all ${
+                className={`px-2.5 py-1 rounded-[6px] font-medium flex items-center gap-1 cursor-pointer transition-all tabular-nums ${
                   breakdownMode === 'STATUS'
-                    ? 'bg-white text-slate-900 font-bold shadow-2xs border border-slate-200/70'
+                    ? 'bg-white text-slate-900 font-semibold shadow-2xs'
                     : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
@@ -540,9 +540,7 @@ export const EngineeringInteractiveChart: React.FC<EngineeringInteractiveChartPr
             </div>
           </div>
 
-          {/* =====================================================================
-              MODE 1: POR EXECUTOR (EXATAMENTE COMO NA FOTO)
-             ===================================================================== */}
+          {/* MODE 1: POR EXECUTOR */}
           {breakdownMode === 'EXECUTOR' && (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
               {displayedExecutors.map((item) => {
@@ -560,25 +558,20 @@ export const EngineeringInteractiveChart: React.FC<EngineeringInteractiveChartPr
                     onClick={() => {
                       onSelectExecutorFilter(isSelected ? 'ALL' : item.executor);
                     }}
-                    className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
+                    className={`p-3 rounded-[10px] border text-left transition-all cursor-pointer ${
                       isSelected
-                        ? 'bg-amber-500 text-slate-950 border-amber-600 ring-2 ring-amber-400 shadow-sm'
-                        : 'bg-white hover:bg-slate-50 border-slate-200 shadow-2xs'
+                        ? 'bg-[#223585]/5 text-slate-900 border-[#223585] ring-2 ring-[#223585]/15'
+                        : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-900'
                     }`}
                   >
-                    <div className="flex items-center justify-between gap-2 text-xs mb-1">
+                    <div className="flex items-center justify-between gap-2 text-xs mb-1.5">
                       <span className="font-bold truncate">{item.executor}</span>
-                      <span
-                        className={`font-mono text-[11px] font-black shrink-0 ${
-                          isSelected ? 'text-slate-950 font-black' : 'text-amber-700'
-                        }`}
-                      >
+                      <span className="font-mono text-[11px] font-bold shrink-0 text-amber-600">
                         {item.aFazer} pendente{item.aFazer !== 1 ? 's' : ''}
                       </span>
                     </div>
 
-                    {/* Multi-segmented Progress Bar */}
-                    <div className="w-full h-2 rounded-full overflow-hidden flex bg-slate-200 mb-1.5 shadow-2xs">
+                    <div className="w-full h-2 rounded-full overflow-hidden flex bg-slate-100 mb-1.5">
                       {aFazerW > 0 && (
                         <div
                           style={{ width: `${aFazerW}%` }}
@@ -589,14 +582,14 @@ export const EngineeringInteractiveChart: React.FC<EngineeringInteractiveChartPr
                       {aguardandoW > 0 && (
                         <div
                           style={{ width: `${aguardandoW}%` }}
-                          className="bg-blue-600 h-full"
+                          className="bg-[#223585] h-full"
                           title={`Aguardando Aprovação: ${item.aguardando}`}
                         />
                       )}
                       {feitoW > 0 && (
                         <div
                           style={{ width: `${feitoW}%` }}
-                          className="bg-emerald-600 h-full"
+                          className="bg-[#1E8E8D] h-full"
                           title={`Feitos / Aprovados: ${item.concluidos}`}
                         />
                       )}
@@ -609,23 +602,18 @@ export const EngineeringInteractiveChart: React.FC<EngineeringInteractiveChartPr
                       )}
                     </div>
 
-                    {/* Bottom stats row */}
-                    <div
-                      className={`flex flex-wrap items-center justify-between gap-1 text-[10px] font-mono ${
-                        isSelected ? 'text-slate-900 font-semibold' : 'text-slate-600'
-                      }`}
-                    >
-                      <span className="font-bold text-amber-800">
+                    <div className="flex flex-wrap items-center justify-between gap-1 text-[10px] font-mono text-slate-500">
+                      <span className="font-semibold text-amber-700">
                         A Fazer: {item.aFazer}
                       </span>
-                      <span className="font-semibold text-blue-800">
+                      <span className="font-semibold text-blue-700">
                         Aguardando: {item.aguardando}
                       </span>
                       {item.concluidos > 0 && (
-                        <span className="text-emerald-800">Feitos: {item.concluidos}</span>
+                        <span className="text-emerald-700">Feitos: {item.concluidos}</span>
                       )}
                       {item.cancelados > 0 && (
-                        <span className="text-slate-500">Canc: {item.cancelados}</span>
+                        <span className="text-slate-400">Canc: {item.cancelados}</span>
                       )}
                     </div>
                   </button>
@@ -634,9 +622,7 @@ export const EngineeringInteractiveChart: React.FC<EngineeringInteractiveChartPr
             </div>
           )}
 
-          {/* =====================================================================
-              MODE 2: POR REGIONAL / UF
-             ===================================================================== */}
+          {/* MODE 2: POR REGIONAL / UF */}
           {breakdownMode === 'UF' && (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
               {stats.allUfs.map((item) => {
@@ -653,50 +639,33 @@ export const EngineeringInteractiveChart: React.FC<EngineeringInteractiveChartPr
                     onClick={() => {
                       onSelectUfFilter(isSelected ? 'ALL' : item.uf);
                     }}
-                    className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
+                    className={`p-3 rounded-[10px] border text-left transition-all cursor-pointer ${
                       isSelected
-                        ? 'bg-slate-900 text-white border-slate-900 ring-2 ring-blue-400 shadow-sm'
-                        : 'bg-white hover:bg-slate-50 border-slate-200 shadow-2xs'
+                        ? 'bg-[#223585]/5 text-slate-900 border-[#223585] ring-2 ring-[#223585]/15'
+                        : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-900'
                     }`}
                   >
-                    <div className="flex items-center justify-between gap-2 text-xs mb-1">
+                    <div className="flex items-center justify-between gap-2 text-xs mb-1.5">
                       <span className="font-bold truncate">UF: {item.uf}</span>
-                      <span
-                        className={`font-mono text-[11px] font-black shrink-0 ${
-                          isSelected ? 'text-amber-300' : 'text-amber-700'
-                        }`}
-                      >
+                      <span className="font-mono text-[11px] font-bold shrink-0 text-amber-600">
                         {item.aFazer} pendente{item.aFazer !== 1 ? 's' : ''}
                       </span>
                     </div>
 
-                    <div className="w-full h-2 rounded-full overflow-hidden flex bg-slate-200 mb-1.5 shadow-2xs">
+                    <div className="w-full h-2 rounded-full overflow-hidden flex bg-slate-100 mb-1.5">
                       {aFazerW > 0 && (
-                        <div
-                          style={{ width: `${aFazerW}%` }}
-                          className="bg-amber-500 h-full"
-                        />
+                        <div style={{ width: `${aFazerW}%` }} className="bg-amber-500 h-full" />
                       )}
                       {aguardandoW > 0 && (
-                        <div
-                          style={{ width: `${aguardandoW}%` }}
-                          className="bg-blue-600 h-full"
-                        />
+                        <div style={{ width: `${aguardandoW}%` }} className="bg-[#223585] h-full" />
                       )}
                       {feitoW > 0 && (
-                        <div
-                          style={{ width: `${feitoW}%` }}
-                          className="bg-emerald-600 h-full"
-                        />
+                        <div style={{ width: `${feitoW}%` }} className="bg-[#1E8E8D] h-full" />
                       )}
                     </div>
 
-                    <div
-                      className={`flex flex-wrap items-center justify-between gap-1 text-[10px] font-mono ${
-                        isSelected ? 'text-slate-300' : 'text-slate-600'
-                      }`}
-                    >
-                      <span className="font-bold">A Fazer: {item.aFazer}</span>
+                    <div className="flex flex-wrap items-center justify-between gap-1 text-[10px] font-mono text-slate-500">
+                      <span className="font-semibold text-amber-700">A Fazer: {item.aFazer}</span>
                       <span>Aguardando: {item.aguardando}</span>
                       <span>Total: {item.total}</span>
                     </div>
@@ -706,9 +675,7 @@ export const EngineeringInteractiveChart: React.FC<EngineeringInteractiveChartPr
             </div>
           )}
 
-          {/* =====================================================================
-              MODE 3: POR STATUS ENGENHARIA
-             ===================================================================== */}
+          {/* MODE 3: POR STATUS ENGENHARIA */}
           {breakdownMode === 'STATUS' && (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
               {stats.allStatuses.map((item) => {
@@ -724,21 +691,21 @@ export const EngineeringInteractiveChart: React.FC<EngineeringInteractiveChartPr
                     onClick={() => {
                       onSelectEngStatusFilter(isSelected ? 'ALL' : item.status);
                     }}
-                    className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
+                    className={`p-3 rounded-[10px] border text-left transition-all cursor-pointer ${
                       isSelected
-                        ? 'bg-slate-900 text-white border-slate-900 ring-2 ring-blue-400 shadow-sm'
+                        ? 'bg-[#223585]/5 text-slate-900 border-[#223585] ring-2 ring-[#223585]/15'
                         : isAguardando
-                        ? 'bg-blue-50/70 hover:bg-blue-100/70 border-blue-200'
+                        ? 'bg-blue-50/70 hover:bg-blue-50 border-blue-200 text-blue-900'
                         : isCancelado
-                        ? 'bg-slate-100 hover:bg-slate-200 border-slate-300 text-slate-700'
+                        ? 'bg-white hover:bg-slate-50 border-slate-200 text-slate-700'
                         : isFeito
-                        ? 'bg-emerald-50/70 hover:bg-emerald-100/70 border-emerald-200'
-                        : 'bg-amber-50/70 hover:bg-amber-100/70 border-amber-200'
+                        ? 'bg-emerald-50/70 hover:bg-emerald-50 border-emerald-200 text-emerald-900'
+                        : 'bg-amber-50/70 hover:bg-amber-50 border-amber-200 text-amber-900'
                     }`}
                   >
                     <div className="flex items-center justify-between gap-2 text-xs mb-1">
                       <span className="font-bold truncate">{item.status}</span>
-                      <span className="font-mono text-xs font-black tabular-nums">
+                      <span className="font-mono text-xs font-bold tabular-nums">
                         {item.count}
                       </span>
                     </div>

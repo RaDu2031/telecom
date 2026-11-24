@@ -373,18 +373,18 @@ export const EricssonEngineeringDrawer: React.FC<EricssonEngineeringDrawerProps>
     <div className="fixed inset-0 z-50 overflow-hidden">
       {/* Backdrop overlay */}
       <div
-        className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs transition-opacity animate-in fade-in"
+        className="fixed inset-0 bg-slate-900/55 ameta-modal-backdrop transition-opacity"
         onClick={onClose}
       />
 
       {/* Side Drawer Panel */}
       <div className="fixed inset-y-0 right-0 max-w-full flex">
-        <div className="w-screen max-w-2xl bg-white shadow-2xl flex flex-col z-50 border-l border-slate-200 animate-in slide-in-from-right duration-200 max-sm:w-full">
+        <div className="w-screen max-w-2xl bg-white shadow-2xl flex flex-col z-50 border-l border-slate-200 ameta-modal-panel max-sm:w-full">
           
           {/* =====================================================================
               1. DRAWER HEADER
              ===================================================================== */}
-          <div className="p-4 sm:p-6 bg-slate-900 text-white flex flex-col gap-3 border-b border-slate-800 shrink-0">
+          <div className="p-4 sm:p-6 bg-gradient-to-r from-[#0B1530] to-[#162755] text-white flex flex-col gap-3 border-b border-slate-800 shrink-0">
             <div className="flex items-start justify-between gap-3">
               <div className="space-y-1">
                 <div className="flex items-center gap-2 flex-wrap">
@@ -511,10 +511,10 @@ export const EricssonEngineeringDrawer: React.FC<EricssonEngineeringDrawerProps>
                 <button
                   type="button"
                   onClick={() => setActiveTab('geral')}
-                  className={`px-3 py-1.5 rounded-lg transition-colors cursor-pointer ${
+                  className={`px-3 py-1.5 rounded-[8px] transition-colors cursor-pointer ${
                     activeTab === 'geral'
-                      ? 'bg-teal-500 text-white font-bold shadow-2xs'
-                      : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                      ? 'bg-[#1E8E8D] text-white font-bold shadow-2xs'
+                      : 'text-slate-300 hover:text-white hover:bg-white/10'
                   }`}
                 >
                   Visão Geral
@@ -522,10 +522,10 @@ export const EricssonEngineeringDrawer: React.FC<EricssonEngineeringDrawerProps>
                 <button
                   type="button"
                   onClick={() => setActiveTab('docs')}
-                  className={`px-3 py-1.5 rounded-lg transition-colors cursor-pointer ${
+                  className={`px-3 py-1.5 rounded-[8px] transition-colors cursor-pointer ${
                     activeTab === 'docs'
-                      ? 'bg-teal-500 text-white font-bold shadow-2xs'
-                      : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                      ? 'bg-[#1E8E8D] text-white font-bold shadow-2xs'
+                      : 'text-slate-300 hover:text-white hover:bg-white/10'
                   }`}
                 >
                   Documentação ({currentDocGroup})
@@ -533,10 +533,10 @@ export const EricssonEngineeringDrawer: React.FC<EricssonEngineeringDrawerProps>
                 <button
                   type="button"
                   onClick={() => setActiveTab('campos')}
-                  className={`px-3 py-1.5 rounded-lg transition-colors cursor-pointer ${
+                  className={`px-3 py-1.5 rounded-[8px] transition-colors cursor-pointer ${
                     activeTab === 'campos'
-                      ? 'bg-teal-500 text-white font-bold shadow-2xs'
-                      : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                      ? 'bg-[#1E8E8D] text-white font-bold shadow-2xs'
+                      : 'text-slate-300 hover:text-white hover:bg-white/10'
                   }`}
                 >
                   Planilha ({allFieldEntries.length})
@@ -544,10 +544,10 @@ export const EricssonEngineeringDrawer: React.FC<EricssonEngineeringDrawerProps>
                 <button
                   type="button"
                   onClick={() => setActiveTab('historico')}
-                  className={`px-3 py-1.5 rounded-lg transition-colors cursor-pointer ${
+                  className={`px-3 py-1.5 rounded-[8px] transition-colors cursor-pointer ${
                     activeTab === 'historico'
-                      ? 'bg-teal-500 text-white font-bold shadow-2xs'
-                      : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                      ? 'bg-[#1E8E8D] text-white font-bold shadow-2xs'
+                      : 'text-slate-300 hover:text-white hover:bg-white/10'
                   }`}
                 >
                   Histórico ({historyList.length})
@@ -562,7 +562,7 @@ export const EricssonEngineeringDrawer: React.FC<EricssonEngineeringDrawerProps>
                       <button
                         type="button"
                         onClick={() => setIsEditing(false)}
-                        className="px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-300 hover:bg-slate-800 cursor-pointer"
+                        className="px-3 py-1.5 rounded-[8px] text-xs font-semibold text-slate-300 hover:bg-white/10 cursor-pointer"
                       >
                         Cancelar
                       </button>
@@ -570,7 +570,7 @@ export const EricssonEngineeringDrawer: React.FC<EricssonEngineeringDrawerProps>
                         type="button"
                         disabled={isSaving}
                         onClick={handleSave}
-                        className="px-3.5 py-1.5 rounded-lg text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white shadow-xs cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
+                        className="px-3.5 py-1.5 rounded-[8px] text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white shadow-xs cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
                       >
                         <Save className="w-3.5 h-3.5" />
                         <span>{isSaving ? 'Salvando...' : 'Salvar'}</span>
@@ -580,7 +580,7 @@ export const EricssonEngineeringDrawer: React.FC<EricssonEngineeringDrawerProps>
                     <button
                       type="button"
                       onClick={() => setIsEditing(true)}
-                      className="px-3 py-1.5 rounded-lg text-xs font-bold bg-[#1E8E8D] hover:bg-[#177271] text-white shadow-xs cursor-pointer flex items-center gap-1.5"
+                      className="px-3 py-1.5 rounded-[8px] text-xs font-bold bg-[#1E8E8D] hover:bg-[#177271] text-white shadow-xs cursor-pointer flex items-center gap-1.5"
                     >
                       <Edit3 className="w-3.5 h-3.5" />
                       <span>Editar Site</span>
@@ -598,7 +598,7 @@ export const EricssonEngineeringDrawer: React.FC<EricssonEngineeringDrawerProps>
           {/* =====================================================================
               2. DRAWER BODY CONTENT
              ===================================================================== */}
-          <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6 bg-slate-50/50">
+          <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6 bg-[#F4F6FA]">
             
             {/* TAB: VISÃO GERAL */}
             {activeTab === 'geral' && (
@@ -1211,17 +1211,19 @@ export const EricssonEngineeringDrawer: React.FC<EricssonEngineeringDrawerProps>
           {/* =====================================================================
               3. DRAWER FOOTER
              ===================================================================== */}
-          <div className="p-4 bg-slate-50 border-t border-slate-200 flex items-center justify-between gap-3 shrink-0 text-xs">
+          <div className="p-4 bg-[#F4F6FA] border-t border-slate-200 flex items-center justify-between gap-3 shrink-0 text-xs">
             <span className="text-slate-500">
               Site <strong>{row.intervencaoClaro}</strong> • Última atualização:{' '}
-              {new Date(row.updatedAt || Date.now()).toLocaleDateString('pt-BR')}
+              <span className="font-mono tabular-nums">
+                {new Date(row.updatedAt || Date.now()).toLocaleDateString('pt-BR')}
+              </span>
             </span>
 
             <div className="flex items-center gap-2">
               <button
                 type="button"
                 onClick={onClose}
-                className="px-4 py-2 rounded-xl border border-slate-200 bg-white font-semibold text-slate-700 hover:bg-slate-100 cursor-pointer"
+                className="px-4 py-2 rounded-[8px] border border-slate-200 bg-white font-semibold text-slate-700 hover:bg-slate-100 cursor-pointer"
               >
                 Fechar
               </button>
@@ -1230,7 +1232,7 @@ export const EricssonEngineeringDrawer: React.FC<EricssonEngineeringDrawerProps>
                   type="button"
                   disabled={isSaving}
                   onClick={handleSave}
-                  className="px-5 py-2 rounded-xl font-bold bg-[#1E8E8D] hover:bg-[#177271] text-white shadow-xs cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
+                  className="px-5 py-2 rounded-[8px] font-bold bg-[#1E8E8D] hover:bg-[#177271] text-white shadow-xs cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
                 >
                   <Save className="w-3.5 h-3.5" />
                   <span>{isSaving ? 'Salvando...' : 'Salvar Alterações'}</span>

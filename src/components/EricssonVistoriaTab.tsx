@@ -181,19 +181,19 @@ export const EricssonVistoriaTab: React.FC<EricssonVistoriaTabProps> = ({
       {/* =====================================================================
           1. HEADER BAR: Title, Subtitle & Counters
          ===================================================================== */}
-      <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs space-y-4">
+      <div className="bg-white border border-slate-200 rounded-[12px] p-5 shadow-xs space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-2xl bg-teal-50 border border-teal-200/80 flex items-center justify-center text-teal-700 shadow-2xs shrink-0">
-              <FileSpreadsheet className="w-6 h-6" />
+            <div className="w-11 h-11 rounded-[10px] bg-teal-50 border border-teal-200/80 flex items-center justify-center text-[#1E8E8D] shadow-2xs shrink-0">
+              <FileSpreadsheet className="w-5 h-5" />
             </div>
             <div>
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-teal-700">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-[#1E8E8D]">
                   ERICSSON · CLARO
                 </span>
                 <span className="text-slate-300">•</span>
-                <h1 className="text-base font-black text-slate-900">
+                <h1 className="text-lg font-bold text-slate-900 tracking-tight">
                   Demandas Engenharia Ericsson Claro
                 </h1>
               </div>
@@ -205,23 +205,23 @@ export const EricssonVistoriaTab: React.FC<EricssonVistoriaTabProps> = ({
 
           {/* Quick Counter Pills */}
           <div className="flex flex-wrap items-center gap-2">
-            <div className="px-3 py-1.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-semibold flex items-center gap-2">
+            <div className="px-3 py-1.5 rounded-[8px] bg-[#F4F6FA] border border-slate-200 text-xs font-semibold flex items-center gap-2">
               <span className="text-slate-500">Total Atribuído:</span>
-              <span className="font-mono font-bold text-slate-900 px-1.5 py-0.5 rounded bg-slate-200/70">
+              <span className="font-mono tabular-nums font-bold text-slate-900 px-1.5 py-0.5 rounded-[6px] bg-slate-200/70">
                 {stats.total}
               </span>
             </div>
-            <div className="px-3 py-1.5 rounded-xl bg-amber-50 border border-amber-200 text-xs font-semibold flex items-center gap-2 text-amber-900">
+            <div className="px-3 py-1.5 rounded-[8px] bg-amber-50 border border-amber-200 text-xs font-semibold flex items-center gap-2 text-amber-900">
               <Clock className="w-3.5 h-3.5 text-amber-600" />
               <span>Pendentes:</span>
-              <span className="font-mono font-bold px-1.5 py-0.5 rounded bg-amber-200/70">
+              <span className="font-mono tabular-nums font-bold px-1.5 py-0.5 rounded-[6px] bg-amber-200/70">
                 {stats.pendentes}
               </span>
             </div>
-            <div className="px-3 py-1.5 rounded-xl bg-emerald-50 border border-emerald-200 text-xs font-semibold flex items-center gap-2 text-emerald-900">
+            <div className="px-3 py-1.5 rounded-[8px] bg-emerald-50 border border-emerald-200 text-xs font-semibold flex items-center gap-2 text-emerald-900">
               <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
               <span>Finalizados:</span>
-              <span className="font-mono font-bold px-1.5 py-0.5 rounded bg-emerald-200/70">
+              <span className="font-mono tabular-nums font-bold px-1.5 py-0.5 rounded-[6px] bg-emerald-200/70">
                 {stats.finalizados}
               </span>
             </div>
@@ -233,12 +233,12 @@ export const EricssonVistoriaTab: React.FC<EricssonVistoriaTabProps> = ({
           2. BODY: Empty State or Mirrored Table
          ===================================================================== */}
       {executorAssignedEngRows.length === 0 ? (
-        <div className="bg-white border border-slate-200 rounded-2xl p-10 text-center space-y-4 shadow-2xs">
-          <div className="w-14 h-14 mx-auto rounded-2xl bg-teal-50 border border-teal-200 flex items-center justify-center text-teal-700">
+        <div className="bg-white border border-slate-200 rounded-[12px] p-10 text-center space-y-4 shadow-xs">
+          <div className="w-14 h-14 mx-auto rounded-[12px] bg-teal-50 border border-teal-200 flex items-center justify-center text-[#1E8E8D]">
             <FileSpreadsheet className="w-7 h-7" />
           </div>
           <div className="max-w-md mx-auto space-y-1.5">
-            <h3 className="text-base font-black text-slate-900">
+            <h3 className="text-base font-bold text-slate-900">
               Nenhuma demanda de Engenharia atribuída a você no momento
             </h3>
             <p className="text-xs text-slate-500 leading-relaxed">
@@ -249,7 +249,7 @@ export const EricssonVistoriaTab: React.FC<EricssonVistoriaTabProps> = ({
                 <button
                   type="button"
                   onClick={onOpenSitesTab}
-                  className="px-4 py-2 bg-teal-700 text-white rounded-xl font-bold text-xs shadow-xs hover:bg-teal-800 transition-colors cursor-pointer"
+                  className="px-4 py-2 bg-[#1E8E8D] text-white rounded-[8px] font-bold text-xs shadow-xs hover:bg-[#177372] transition-colors cursor-pointer"
                 >
                   Ver Meus Sites Demandados
                 </button>
@@ -261,9 +261,9 @@ export const EricssonVistoriaTab: React.FC<EricssonVistoriaTabProps> = ({
         /* =====================================================================
             DEMANDAS TABLE & FILTERS VIEW
            ===================================================================== */
-        <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs space-y-4 w-full min-w-0 max-w-full overflow-hidden">
+        <div className="bg-white border border-slate-200 rounded-[12px] p-5 shadow-xs space-y-4 w-full min-w-0 max-w-full overflow-hidden">
           {/* Filters Bar */}
-          <div className="flex flex-wrap items-center justify-between gap-3 bg-slate-50 p-3.5 rounded-xl border border-slate-200">
+          <div className="flex flex-wrap items-center justify-between gap-3 bg-[#F4F6FA] p-3.5 rounded-[12px] border border-slate-200">
             <div className="flex flex-wrap items-center gap-2.5 flex-1 min-w-[280px]">
               {/* Tipo de Doc Filter */}
               <div className="flex items-center gap-1.5">
@@ -274,7 +274,7 @@ export const EricssonVistoriaTab: React.FC<EricssonVistoriaTabProps> = ({
                     setExecutorDocTypeFilter(e.target.value);
                     setExecutorStatusFilter('ALL');
                   }}
-                  className="px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-800 focus:outline-none focus:border-teal-600 cursor-pointer"
+                  className="px-2.5 py-1.5 bg-white border border-slate-200 rounded-[8px] text-xs font-bold text-slate-800 focus:outline-none focus:border-[#223585] cursor-pointer"
                 >
                   <option value="ALL">Todos os Tipos</option>
                   <option value="WR">WR</option>
@@ -292,7 +292,7 @@ export const EricssonVistoriaTab: React.FC<EricssonVistoriaTabProps> = ({
                 <select
                   value={executorStatusFilter}
                   onChange={(e) => setExecutorStatusFilter(e.target.value)}
-                  className="px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-800 focus:outline-none focus:border-teal-600 cursor-pointer max-w-[240px]"
+                  className="px-2.5 py-1.5 bg-white border border-slate-200 rounded-[8px] text-xs font-bold text-slate-800 focus:outline-none focus:border-[#223585] cursor-pointer max-w-[240px]"
                 >
                   <option value="ALL">Pendentes / Em Aberto (Oculta Finalizados)</option>
                   <option value="TODOS_INCLUINDO_FINALIZADOS">Todos os Status (Inclui Finalizados)</option>
@@ -310,7 +310,7 @@ export const EricssonVistoriaTab: React.FC<EricssonVistoriaTabProps> = ({
                 <select
                   value={executorRegionalFilter}
                   onChange={(e) => setExecutorRegionalFilter(e.target.value)}
-                  className="px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-800 focus:outline-none focus:border-teal-600 cursor-pointer"
+                  className="px-2.5 py-1.5 bg-white border border-slate-200 rounded-[8px] text-xs font-bold text-slate-800 focus:outline-none focus:border-[#223585] cursor-pointer"
                 >
                   <option value="ALL">Todas ({distinctRegionals.length})</option>
                   {distinctRegionals.map((reg) => (
@@ -327,7 +327,7 @@ export const EricssonVistoriaTab: React.FC<EricssonVistoriaTabProps> = ({
                 <select
                   value={executorTipoSiteFilter}
                   onChange={(e) => setExecutorTipoSiteFilter(e.target.value)}
-                  className="px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-800 focus:outline-none focus:border-teal-600 cursor-pointer"
+                  className="px-2.5 py-1.5 bg-white border border-slate-200 rounded-[8px] text-xs font-bold text-slate-800 focus:outline-none focus:border-[#223585] cursor-pointer"
                 >
                   <option value="ALL">Todos ({distinctTipoSites.length})</option>
                   {distinctTipoSites.map((ts) => (
@@ -352,7 +352,7 @@ export const EricssonVistoriaTab: React.FC<EricssonVistoriaTabProps> = ({
                     setExecutorTipoSiteFilter('ALL');
                     setExecutorIntervencaoSearch('');
                   }}
-                  className="px-2.5 py-1 text-xs font-bold text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
+                  className="px-2.5 py-1 text-xs font-bold text-red-600 hover:bg-red-50 rounded-[8px] transition-colors cursor-pointer"
                 >
                   Limpar Filtros
                 </button>
@@ -367,7 +367,7 @@ export const EricssonVistoriaTab: React.FC<EricssonVistoriaTabProps> = ({
                 value={executorIntervencaoSearch}
                 onChange={(e) => setExecutorIntervencaoSearch(e.target.value)}
                 placeholder="Buscar por Intervenção..."
-                className="w-full pl-8 pr-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs text-slate-800 focus:outline-none focus:border-teal-600"
+                className="w-full pl-8 pr-3 py-1.5 bg-white border border-slate-200 rounded-[8px] text-xs text-slate-800 focus:outline-none focus:border-[#223585]"
               />
               {executorIntervencaoSearch && (
                 <button
@@ -382,11 +382,11 @@ export const EricssonVistoriaTab: React.FC<EricssonVistoriaTabProps> = ({
           </div>
 
           {/* Table (9 COLUMNS IN EXACT ORDER) */}
-          <div className="border border-slate-200 rounded-xl overflow-hidden shadow-xs w-full min-w-0 max-w-full">
+          <div className="border border-slate-200 rounded-[12px] overflow-hidden shadow-xs w-full min-w-0 max-w-full">
             <div className="overflow-x-auto w-full min-w-0 max-w-full max-h-[70vh] overflow-y-auto">
-              <table className="w-full text-left text-xs border-collapse">
+              <table className="w-full text-left text-[13px] border-collapse">
                 <thead className="sticky top-0 z-20">
-                  <tr className="bg-slate-900 text-white font-bold text-[11px] uppercase tracking-wider divide-x divide-slate-800">
+                  <tr className="bg-[#0B1530] text-white font-bold text-[11px] uppercase tracking-wider divide-x divide-slate-800">
                     <th className="py-3 px-3">Intervenção</th>
                     <th className="py-3 px-3">Tipo de site</th>
                     <th className="py-3 px-3">Regional</th>
@@ -398,7 +398,7 @@ export const EricssonVistoriaTab: React.FC<EricssonVistoriaTabProps> = ({
                     <th className="py-3 px-3">Observação</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100 bg-white">
+                <tbody className="divide-y divide-slate-100 bg-white ameta-table-zebra">
                   {filteredExecutorEngRows.length === 0 ? (
                     <tr>
                       <td colSpan={9} className="py-12 text-center text-slate-400 font-semibold">
@@ -459,21 +459,26 @@ export const EricssonVistoriaTab: React.FC<EricssonVistoriaTabProps> = ({
                           onClick={() => setSelectedDrawerRow(r)}
                           className="hover:bg-teal-50/50 cursor-pointer transition-colors divide-x divide-slate-100"
                         >
-                          <td className="py-2.5 px-3 font-bold text-slate-900 font-mono">
+                          <td className="py-2.5 px-3 font-bold text-slate-900 font-mono tabular-nums">
                             {interv}
                           </td>
                           <td className="py-2.5 px-3 text-slate-700">{tipoSite}</td>
                           <td className="py-2.5 px-3 text-slate-700 font-semibold">{regional}</td>
-                          <td className="py-2.5 px-3 font-bold text-teal-700">{tipoDoc}</td>
+                          <td className="py-2.5 px-3 font-bold text-[#1E8E8D]">{tipoDoc}</td>
                           <td className="py-2.5 px-3">
                             <span
-                              className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold ${
+                              className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
                                 isDone
                                   ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
                                   : 'bg-amber-50 text-amber-800 border border-amber-200'
                               }`}
                             >
-                              {statusReal}
+                              <span
+                                className={`w-1.5 h-1.5 rounded-full ${
+                                  isDone ? 'bg-emerald-500' : 'bg-amber-500'
+                                }`}
+                              />
+                              <span>{statusReal}</span>
                             </span>
                           </td>
                           <td
@@ -482,8 +487,8 @@ export const EricssonVistoriaTab: React.FC<EricssonVistoriaTabProps> = ({
                           >
                             {comentario}
                           </td>
-                          <td className="py-2.5 px-3 text-slate-600 font-mono">{planejado}</td>
-                          <td className="py-2.5 px-3 text-slate-600 font-mono">{entregue}</td>
+                          <td className="py-2.5 px-3 text-slate-600 font-mono tabular-nums">{planejado}</td>
+                          <td className="py-2.5 px-3 text-slate-600 font-mono tabular-nums">{entregue}</td>
                           <td
                             className="py-2.5 px-3 text-slate-600 max-w-[180px] truncate"
                             title={observacao}

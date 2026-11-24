@@ -1003,7 +1003,11 @@ export const demandaSharedService = {
 
     // 6. Update localStorage caches
     try {
-      localStorage.setItem('ameta_cached_sites', JSON.stringify(nextSites));
+      if (params.vendor === 'CLARO_TIM') {
+        localStorage.setItem('ameta_cached_claro_sites', JSON.stringify(nextSites));
+      } else if (params.vendor === 'NOKIA') {
+        localStorage.setItem('ameta_cached_sites', JSON.stringify(nextSites));
+      }
     } catch {}
 
     if (params.vendor === 'NOKIA' && nextTssrRows.length > 0) {
@@ -1293,7 +1297,11 @@ export const demandaSharedService = {
 
     // LocalStorage caches
     try {
-      localStorage.setItem('ameta_cached_sites', JSON.stringify(nextSites));
+      if (params.vendor === 'CLARO_TIM') {
+        localStorage.setItem('ameta_cached_claro_sites', JSON.stringify(nextSites));
+      } else if (params.vendor === 'NOKIA') {
+        localStorage.setItem('ameta_cached_sites', JSON.stringify(nextSites));
+      }
     } catch {}
     if (params.vendor === 'NOKIA' && nextTssrRows.length > 0) {
       try {
@@ -1515,7 +1523,11 @@ export const demandaSharedService = {
 
     // LocalStorage caches
     try {
-      localStorage.setItem('ameta_cached_sites', JSON.stringify(nextSites));
+      if (params.vendor === 'CLARO_TIM') {
+        localStorage.setItem('ameta_cached_claro_sites', JSON.stringify(nextSites));
+      } else if (params.vendor === 'NOKIA') {
+        localStorage.setItem('ameta_cached_sites', JSON.stringify(nextSites));
+      }
     } catch {}
     if (params.vendor === 'NOKIA' && nextTssrRows.length > 0) {
       try {

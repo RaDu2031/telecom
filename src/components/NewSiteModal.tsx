@@ -166,38 +166,38 @@ export const NewSiteModal: React.FC<NewSiteModalProps> = ({
       className={
         inlineTabMode
           ? 'w-full'
-          : 'fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-xs'
+          : 'fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/45 ameta-modal-backdrop'
       }
     >
       <div
         className={
           inlineTabMode
-            ? 'w-full max-w-4xl mx-auto bg-slate-900 border border-slate-800 rounded-xl overflow-hidden flex flex-col shadow-sm'
-            : 'w-full max-w-2xl bg-slate-900 border border-slate-800 rounded-xl overflow-hidden flex flex-col max-h-[90vh]'
+            ? 'w-full max-w-4xl mx-auto bg-white border border-slate-200 rounded-[12px] overflow-hidden flex flex-col shadow-xs'
+            : 'w-full max-w-2xl bg-white border border-slate-200 rounded-[12px] shadow-2xl overflow-hidden flex flex-col max-h-[90vh] ameta-modal-panel'
         }
       >
-        <div className="px-6 py-4 bg-slate-950 border-b border-slate-800 flex items-center justify-between">
+        <div className="px-6 py-4 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
           <div>
-            <h2 className="text-lg font-bold text-white">
+            <h2 className="text-base sm:text-lg font-bold text-slate-900">
               Adicionar Novo Site na Planilha ({vendor})
             </h2>
-            <p className="text-xs text-slate-400 mt-0.5">
+            <p className="text-xs text-slate-500 mt-0.5">
               O registro será inserido e sincronizado imediatamente em tempo real.
             </p>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-colors cursor-pointer"
+            className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-200/70 rounded-[8px] transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-4">
+        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-4 bg-white">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs text-slate-400 mb-1">Fabricante</label>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Fabricante</label>
               <select
                 value={vendor}
                 onChange={(e) => {
@@ -206,7 +206,7 @@ export const NewSiteModal: React.FC<NewSiteModalProps> = ({
                   const firstSheet = sheets.find((s) => s.vendor === v);
                   if (firstSheet) setSheetName(firstSheet.name);
                 }}
-                className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-sm text-white focus:outline-none focus:border-blue-500"
+                className="w-full px-3 py-2 bg-white border border-slate-200 rounded-[8px] text-sm text-slate-900 focus:outline-none focus:border-[#223585] focus:ring-2 focus:ring-[#223585]/15"
               >
                 <option value="NOKIA">NOKIA</option>
                 <option value="ERICSSON">ERICSSON</option>
@@ -214,11 +214,11 @@ export const NewSiteModal: React.FC<NewSiteModalProps> = ({
             </div>
 
             <div>
-              <label className="block text-xs text-slate-400 mb-1">Planilha Destino</label>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Planilha Destino</label>
               <select
                 value={sheetName}
                 onChange={(e) => setSheetName(e.target.value)}
-                className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-sm text-white focus:outline-none focus:border-blue-500"
+                className="w-full px-3 py-2 bg-white border border-slate-200 rounded-[8px] text-sm text-slate-900 focus:outline-none focus:border-[#223585] focus:ring-2 focus:ring-[#223585]/15"
               >
                 {vendorSheets.map((s) => (
                   <option key={s.id} value={s.name}>
@@ -229,57 +229,57 @@ export const NewSiteModal: React.FC<NewSiteModalProps> = ({
             </div>
 
             <div>
-              <label className="block text-xs text-slate-400 mb-1">Site ID *</label>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Site ID *</label>
               <input
                 type="text"
                 required
                 value={siteId}
                 onChange={(e) => setSiteId(e.target.value)}
                 placeholder="Ex: NK-SP-0199"
-                className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-sm font-mono text-white focus:outline-none focus:border-blue-500 tabular-nums"
+                className="w-full px-3 py-2 bg-white border border-slate-200 rounded-[8px] text-sm font-mono text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-[#223585] focus:ring-2 focus:ring-[#223585]/15 tabular-nums"
               />
             </div>
 
             <div>
-              <label className="block text-xs text-slate-400 mb-1">Nome da Estação *</label>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Nome da Estação *</label>
               <input
                 type="text"
                 required
                 value={siteName}
                 onChange={(e) => setSiteName(e.target.value)}
                 placeholder="Ex: SP_JARDINS_NORTE_01"
-                className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-sm font-mono text-white focus:outline-none focus:border-blue-500"
+                className="w-full px-3 py-2 bg-white border border-slate-200 rounded-[8px] text-sm font-mono text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-[#223585] focus:ring-2 focus:ring-[#223585]/15"
               />
             </div>
 
             <div className="grid grid-cols-3 gap-2">
               <div>
-                <label className="block text-xs text-slate-400 mb-1">UF</label>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">UF</label>
                 <input
                   type="text"
                   maxLength={2}
                   value={uf}
                   onChange={(e) => setUf(e.target.value.toUpperCase())}
-                  className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-sm font-mono text-white focus:outline-none focus:border-blue-500"
+                  className="w-full px-3 py-2 bg-white border border-slate-200 rounded-[8px] text-sm font-mono text-slate-900 focus:outline-none focus:border-[#223585] focus:ring-2 focus:ring-[#223585]/15"
                 />
               </div>
               <div className="col-span-2">
-                <label className="block text-xs text-slate-400 mb-1">Município</label>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Município</label>
                 <input
                   type="text"
                   value={municipio}
                   onChange={(e) => setMunicipio(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-sm text-white focus:outline-none focus:border-blue-500"
+                  className="w-full px-3 py-2 bg-white border border-slate-200 rounded-[8px] text-sm text-slate-900 focus:outline-none focus:border-[#223585] focus:ring-2 focus:ring-[#223585]/15"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-xs text-slate-400 mb-1">Status Operacional</label>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Status Operacional</label>
               <select
                 value={status}
                 onChange={(e) => setStatus(e.target.value as SiteStatus)}
-                className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-sm text-white focus:outline-none focus:border-blue-500"
+                className="w-full px-3 py-2 bg-white border border-slate-200 rounded-[8px] text-sm text-slate-900 focus:outline-none focus:border-[#223585] focus:ring-2 focus:ring-[#223585]/15"
               >
                 <option value="Vistoria - A Executar">Vistoria - A Executar</option>
                 <option value="Vistoria - Em Andamento">Vistoria - Em Andamento</option>
@@ -294,14 +294,14 @@ export const NewSiteModal: React.FC<NewSiteModalProps> = ({
             </div>
 
             <div>
-              <label className="block text-xs text-emerald-400 font-semibold mb-1 flex items-center gap-1">
+              <label className="block text-xs text-emerald-700 font-semibold mb-1 flex items-center gap-1">
                 <Receipt className="w-3.5 h-3.5" />
                 <span>Status Financeiro</span>
               </label>
               <select
                 value={statusFinanceiro}
                 onChange={(e) => setStatusFinanceiro(e.target.value)}
-                className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-sm text-white focus:outline-none focus:border-blue-500"
+                className="w-full px-3 py-2 bg-white border border-slate-200 rounded-[8px] text-sm text-slate-900 focus:outline-none focus:border-[#223585] focus:ring-2 focus:ring-[#223585]/15"
               >
                 {STATUS_FINANCEIRO_OPTIONS.map((fin) => (
                   <option key={fin} value={fin}>
@@ -312,7 +312,7 @@ export const NewSiteModal: React.FC<NewSiteModalProps> = ({
             </div>
 
             <div>
-              <label className="block text-xs text-blue-400 font-semibold mb-1 flex items-center gap-1">
+              <label className="block text-xs text-[#223585] font-semibold mb-1 flex items-center gap-1">
                 <UserCheck className="w-3.5 h-3.5" />
                 <span>Responsável (Demanda do Usuário)</span>
               </label>
@@ -327,7 +327,7 @@ export const NewSiteModal: React.FC<NewSiteModalProps> = ({
                   }
                 }}
                 placeholder="Ex: Magno, Mateus, Gilvan, Luchini..."
-                className="w-full px-3 py-2 bg-slate-950 border border-blue-500/50 rounded-lg text-sm text-white focus:outline-none focus:border-blue-500"
+                className="w-full px-3 py-2 bg-white border border-[#223585]/35 rounded-[8px] text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-[#223585] focus:ring-2 focus:ring-[#223585]/15"
               />
               <datalist id="ameta-responsavel-list">
                 <option value="Magno" />
@@ -351,67 +351,67 @@ export const NewSiteModal: React.FC<NewSiteModalProps> = ({
             </div>
 
             <div>
-              <label className="block text-xs text-slate-400 mb-1">Equipe Executante</label>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Equipe Executante</label>
               <input
                 type="text"
                 value={equipeParceira}
                 onChange={(e) => setEquipeParceira(e.target.value)}
                 placeholder="Ex: Magno/Luchini, Magno/Gilvan, Mateus/Oglio"
-                className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-sm text-white focus:outline-none focus:border-blue-500"
+                className="w-full px-3 py-2 bg-white border border-slate-200 rounded-[8px] text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-[#223585] focus:ring-2 focus:ring-[#223585]/15"
               />
             </div>
 
             <div>
-              <label className="block text-xs text-slate-400 mb-1">SMP / Gabinete</label>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">SMP / Gabinete</label>
               <input
                 type="text"
                 value={gabineteBbu}
                 onChange={(e) => setGabineteBbu(e.target.value)}
-                className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-sm text-white focus:outline-none focus:border-blue-500"
+                className="w-full px-3 py-2 bg-white border border-slate-200 rounded-[8px] text-sm text-slate-900 focus:outline-none focus:border-[#223585] focus:ring-2 focus:ring-[#223585]/15"
               />
             </div>
 
             <div>
-              <label className="block text-xs text-slate-400 mb-1">ID Detentora / RF</label>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">ID Detentora / RF</label>
               <input
                 type="text"
                 value={modulosRf}
                 onChange={(e) => setModulosRf(e.target.value)}
-                className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-sm text-white focus:outline-none focus:border-blue-500"
+                className="w-full px-3 py-2 bg-white border border-slate-200 rounded-[8px] text-sm text-slate-900 focus:outline-none focus:border-[#223585] focus:ring-2 focus:ring-[#223585]/15"
               />
             </div>
 
             <div className="sm:col-span-2">
-              <label className="block text-xs text-slate-400 mb-1">Observações / Motivo</label>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Observações / Motivo</label>
               <input
                 type="text"
                 value={observacoes}
                 onChange={(e) => setObservacoes(e.target.value)}
                 placeholder="Observações do site..."
-                className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-sm text-white focus:outline-none focus:border-blue-500"
+                className="w-full px-3 py-2 bg-white border border-slate-200 rounded-[8px] text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-[#223585] focus:ring-2 focus:ring-[#223585]/15"
               />
             </div>
           </div>
 
-          <div className="p-3 rounded-lg bg-blue-950/40 border border-blue-800/50 text-xs text-blue-200 flex items-center gap-2">
-            <Sparkles className="w-4 h-4 text-blue-400 shrink-0" />
+          <div className="p-3 rounded-[8px] bg-teal-50 border border-teal-200 text-xs text-teal-900 flex items-center gap-2">
+            <Sparkles className="w-4 h-4 text-[#1E8E8D] shrink-0" />
             <span>
-              Este site entrará marcado como <strong>NOVO</strong> e aparecerá automaticamente na demanda do responsável <strong>{responsavelCampo || 'Magno'}</strong>.
+              Este site entrará marcado como <strong>NOVO</strong> e aparecerá automaticamente na demanda do responsável <strong className="text-[#1E8E8D]">{responsavelCampo || 'Magno'}</strong>.
             </span>
           </div>
 
-          <div className="pt-4 border-t border-slate-800 flex items-center justify-end gap-3">
+          <div className="pt-4 border-t border-slate-200 flex items-center justify-end gap-3">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 bg-slate-950 hover:bg-slate-800 border border-slate-800 text-slate-300 text-xs font-medium rounded-lg transition-colors cursor-pointer"
+              className="px-4 py-2 bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 text-xs font-semibold rounded-[8px] transition-colors cursor-pointer"
             >
               Cancelar
             </button>
             <button
               type="submit"
               disabled={submitting}
-              className="px-5 py-2 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-xs font-semibold rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer"
+              className="px-5 py-2 bg-[#223585] hover:bg-[#1B2A6B] disabled:opacity-50 text-white text-xs font-bold rounded-[8px] transition-colors flex items-center gap-1.5 cursor-pointer shadow-xs"
             >
               <Plus className="w-4 h-4" />
               <span>{submitting ? 'Adicionando...' : 'Adicionar Site na Planilha'}</span>

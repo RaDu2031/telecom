@@ -1,48 +1,44 @@
 @import "tailwindcss";
+@import "./styles/theme.css";
 
 @theme {
-  /* Ameta Serviços Brand Navy Palette (#223585) */
-  --color-blue-50: #f0f3fb;
-  --color-blue-100: #dde4f6;
-  --color-blue-200: #c1cef0;
-  --color-blue-300: #96abe3;
-  --color-blue-400: #6481d2;
-  --color-blue-500: #3855b7;
+  /* Ameta Telecom — Corporate Navy & Teal Palette */
+  --color-blue-50: #eff6ff;
+  --color-blue-100: #dbeafe;
+  --color-blue-200: #bfdbfe;
+  --color-blue-300: #93c5fd;
+  --color-blue-400: #60a5fa;
+  --color-blue-500: #3b82f6;
   --color-blue-600: #223585;
   --color-blue-700: #1b2a6b;
-  --color-blue-800: #152156;
-  --color-blue-900: #111b46;
-  --color-blue-950: #0b112e;
+  --color-blue-800: #162256;
+  --color-blue-900: #0f1a42;
+  --color-blue-950: #0b1530;
 
-  /* Ameta Serviços Brand Teal Palette (#1E8E8D) */
-  --color-emerald-50: #eefafa;
-  --color-emerald-100: #d3f2f2;
-  --color-emerald-200: #aae5e5;
-  --color-emerald-300: #73d1d1;
-  --color-emerald-400: #41b5b4;
-  --color-emerald-500: #259f9e;
-  --color-emerald-600: #1e8e8d;
-  --color-emerald-700: #177170;
-  --color-emerald-800: #145b5a;
-  --color-emerald-900: #124b4a;
-  --color-emerald-950: #082b2b;
+  /* Brand Emerald / Teal Accents (#1E8E8D) */
+  --color-emerald-50: #ecfdf5;
+  --color-emerald-100: #d1fae5;
+  --color-emerald-200: #a7f3d0;
+  --color-emerald-300: #6ee7b7;
+  --color-emerald-400: #34d399;
+  --color-emerald-500: #10b981;
+  --color-emerald-600: #059669;
+  --color-emerald-700: #047857;
+  --color-emerald-800: #065f46;
+  --color-emerald-900: #064e3b;
+  --color-emerald-950: #022c22;
 
-  --color-teal-50: #eefafa;
-  --color-teal-100: #d3f2f2;
-  --color-teal-200: #aae5e5;
-  --color-teal-300: #73d1d1;
-  --color-teal-400: #41b5b4;
-  --color-teal-500: #259f9e;
+  --color-teal-50: #f0fdfa;
+  --color-teal-100: #ccfbf1;
+  --color-teal-200: #99f6e4;
+  --color-teal-300: #5eead4;
+  --color-teal-400: #2dd4bf;
+  --color-teal-500: #14b8a6;
   --color-teal-600: #1e8e8d;
-  --color-teal-700: #177170;
-  --color-teal-800: #145b5a;
-  --color-teal-900: #124b4a;
-  --color-teal-950: #082b2b;
-
-  /* Deep Navy Slate Overrides for Headers, Badges & Primary Surfaces */
-  --color-slate-800: #223585;
-  --color-slate-900: #192766;
-  --color-slate-950: #101942;
+  --color-teal-700: #177070;
+  --color-teal-800: #115e59;
+  --color-teal-900: #134e4a;
+  --color-teal-950: #042f2e;
 }
 
 @layer base {
@@ -50,37 +46,56 @@
     --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
     --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
     --ameta-navy: #223585;
-    --ameta-navy-dark: #192766;
+    --ameta-navy-dark: #0B1530;
     --ameta-teal: #1E8E8D;
-    --ameta-teal-dark: #16706F;
+    --ameta-teal-dark: #177070;
+    color-scheme: light;
   }
 
   body {
     font-family: var(--font-sans);
+    background-color: #F4F6FA;
+    color: #0F172A;
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 
   code, pre, .font-mono, .tabular-nums {
     font-family: var(--font-mono);
     font-variant-numeric: tabular-nums;
   }
+
+  select option {
+    background-color: #FFFFFF;
+    color: #0F172A;
+  }
+
+  button:focus-visible,
+  a:focus-visible,
+  input:focus-visible,
+  select:focus-visible,
+  textarea:focus-visible {
+    outline: 2px solid #223585;
+    outline-offset: 2px;
+  }
 }
 
-/* Custom subtle scrollbars with Ameta Navy & Teal accents */
+/* Clean corporate light scrollbars */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 7px;
+  height: 7px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #f0f3fb;
+  background: #F1F5F9;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #96abe3;
-  border-radius: 4px;
+  background: #CBD5E1;
+  border-radius: 9999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #1E8E8D;
+  background: #94A3B8;
 }

@@ -129,20 +129,20 @@ export const NotificationBellDropdown: React.FC<NotificationBellDropdownProps> =
         return {
           label: 'Site Demandado → Campo',
           icon: Send,
-          color: 'bg-sky-500/15 text-sky-300 border-sky-500/30',
+          color: 'bg-blue-50 text-blue-700 border-blue-200',
         };
       case 'EXECUTOR_ATUALIZOU_EQUIPE':
         return {
           label: 'Equipe Atualizada → Coordenador',
           icon: Users,
-          color: 'bg-amber-500/15 text-amber-300 border-amber-500/30',
+          color: 'bg-amber-50 text-amber-800 border-amber-200',
         };
       case 'PERMISSAO_LIBERADA_ADM':
       default:
         return {
           label: 'Permissão Liberada (ADM Dono)',
           icon: ShieldCheck,
-          color: 'bg-indigo-500/15 text-indigo-300 border-indigo-500/30',
+          color: 'bg-indigo-50 text-indigo-700 border-indigo-200',
         };
     }
   };
@@ -154,36 +154,36 @@ export const NotificationBellDropdown: React.FC<NotificationBellDropdownProps> =
       <button
         type="button"
         onClick={() => setOpen((prev) => !prev)}
-        className={`relative flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs font-semibold transition-all ${
+        className={`relative flex items-center gap-1.5 px-2.5 py-1.5 rounded-[8px] border text-xs font-semibold transition-all duration-150 cursor-pointer ${
           unreadCount > 0
-            ? 'bg-amber-500/15 border-amber-500/40 text-amber-200 hover:bg-amber-500/25 shadow-sm shadow-amber-500/10'
-            : 'bg-slate-900/90 border-slate-700/80 text-slate-300 hover:text-white hover:border-slate-600'
+            ? 'bg-amber-50 border-amber-300 text-amber-900 hover:bg-amber-100 shadow-2xs'
+            : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50 hover:text-slate-900 shadow-2xs'
         }`}
         title="Central de Notificações do Usuário"
       >
-        <Bell className={`w-3.5 h-3.5 ${unreadCount > 0 ? 'text-amber-400 animate-pulse' : 'text-slate-400'}`} />
+        <Bell className={`w-3.5 h-3.5 ${unreadCount > 0 ? 'text-amber-600' : 'text-slate-500'}`} />
         <span className="hidden sm:inline">Notificações</span>
         {unreadCount > 0 && (
-          <span className="px-1.5 py-0.2 rounded-full bg-amber-500 text-slate-950 font-black text-[10px] leading-tight">
+          <span className="px-1.5 py-0.2 rounded-full bg-amber-600 text-white font-bold font-mono tabular-nums text-[10px] leading-tight">
             {unreadCount}
           </span>
         )}
       </button>
 
       {open && (
-        <div className="fixed inset-x-3 top-14 sm:inset-x-auto sm:top-auto sm:absolute sm:right-0 sm:mt-2 sm:w-[440px] max-h-[82vh] flex flex-col rounded-xl bg-slate-900 border border-slate-700/90 shadow-2xl z-50 overflow-hidden">
+        <div className="fixed inset-x-3 top-14 sm:inset-x-auto sm:top-auto sm:absolute sm:right-0 sm:mt-2 sm:w-[440px] max-h-[82vh] flex flex-col rounded-[12px] bg-white border border-slate-200 shadow-[0_16px_40px_-10px_rgba(15,23,42,0.18)] z-50 overflow-hidden ameta-modal-panel">
           {/* Header */}
-          <div className="px-4 py-3 bg-slate-950/90 border-b border-slate-800 flex items-center justify-between gap-2">
+          <div className="px-4 py-3 bg-slate-50 border-b border-slate-200 flex items-center justify-between gap-2">
             <div>
               <div className="flex items-center gap-2">
-                <Bell className="w-4 h-4 text-amber-400" />
-                <h3 className="text-xs font-bold uppercase tracking-wider text-white">
+                <Bell className="w-4 h-4 text-[#223585]" />
+                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-900">
                   Notificações ({effectiveUser?.role || 'Usuário'})
                 </h3>
               </div>
-              <p className="text-[11px] text-slate-400 mt-0.5">
-                Visão: <span className="text-slate-200 font-semibold">{effectiveUser?.name}</span> •{' '}
-                <span className="text-sky-400 font-semibold">
+              <p className="text-[11px] text-slate-500 mt-0.5">
+                Visão: <span className="text-slate-800 font-semibold">{effectiveUser?.name}</span> •{' '}
+                <span className="text-[#1E8E8D] font-semibold">
                   {effectiveUser?.assignedPlatform === 'ERICSSON'
                     ? 'Ericsson'
                     : effectiveUser?.assignedPlatform === 'BOTH'
@@ -197,7 +197,7 @@ export const NotificationBellDropdown: React.FC<NotificationBellDropdownProps> =
                 <button
                   type="button"
                   onClick={() => handleMarkRead(undefined, true)}
-                  className="flex items-center gap-1 px-2 py-1 rounded bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 text-emerald-300 text-[10px] font-semibold transition-colors"
+                  className="flex items-center gap-1 px-2.5 py-1 rounded-[8px] bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-700 text-[10px] font-semibold transition-colors cursor-pointer"
                   title="Marcar todas como lidas"
                 >
                   <CheckCheck className="w-3 h-3" />
@@ -207,7 +207,7 @@ export const NotificationBellDropdown: React.FC<NotificationBellDropdownProps> =
               <button
                 type="button"
                 onClick={() => setOpen(false)}
-                className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800"
+                className="p-1.5 rounded-[8px] text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 transition-colors cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -215,7 +215,7 @@ export const NotificationBellDropdown: React.FC<NotificationBellDropdownProps> =
           </div>
 
           {/* Filter Pills */}
-          <div className="px-3 py-2 bg-slate-900/95 border-b border-slate-800 flex items-center gap-1 overflow-x-auto no-scrollbar">
+          <div className="px-3 py-2 bg-white border-b border-slate-200 flex items-center gap-1.5 overflow-x-auto no-scrollbar">
             {[
               { id: 'ALL', label: `Todas (${visibleNotifications.length})` },
               { id: 'UNREAD', label: `Não lidas (${unreadCount})` },
@@ -226,10 +226,10 @@ export const NotificationBellDropdown: React.FC<NotificationBellDropdownProps> =
                 key={tab.id}
                 type="button"
                 onClick={() => setActiveFilter(tab.id as typeof activeFilter)}
-                className={`px-2 py-1 rounded text-[10px] font-semibold whitespace-nowrap transition-colors ${
+                className={`px-2.5 py-1 rounded-[8px] text-[10px] font-semibold whitespace-nowrap transition-colors cursor-pointer ${
                   activeFilter === tab.id
-                    ? 'bg-sky-500 text-slate-950 font-bold'
-                    : 'bg-slate-800/80 text-slate-300 hover:bg-slate-700'
+                    ? 'bg-[#223585] text-white font-bold shadow-2xs'
+                    : 'bg-slate-100 text-slate-600 border border-slate-200 hover:bg-slate-200/70 hover:text-slate-900'
                 }`}
               >
                 {tab.label}
@@ -238,14 +238,16 @@ export const NotificationBellDropdown: React.FC<NotificationBellDropdownProps> =
           </div>
 
           {/* Notification Items */}
-          <div className="flex-1 overflow-y-auto divide-y divide-slate-800/80 max-h-[420px]">
+          <div className="flex-1 overflow-y-auto divide-y divide-slate-100 max-h-[420px]">
             {filteredList.length === 0 ? (
               <div className="py-10 px-6 text-center">
-                <Bell className="w-8 h-8 text-slate-600 mx-auto mb-2 opacity-60" />
-                <p className="text-xs font-semibold text-slate-300">
+                <div className="w-11 h-11 rounded-[12px] bg-slate-50 border border-slate-200 flex items-center justify-center mx-auto mb-2.5">
+                  <Bell className="w-5 h-5 text-slate-400" />
+                </div>
+                <p className="text-xs font-semibold text-slate-800">
                   Nenhuma notificação neste filtro
                 </p>
-                <p className="text-[11px] text-slate-500 mt-1">
+                <p className="text-[11px] text-slate-500 mt-1 leading-relaxed">
                   {effectiveUser?.role === 'Executor' || effectiveUser?.role === 'Vistoriador'
                     ? 'Você será notificado assim que um novo site for demandado para sua equipe.'
                     : 'Você receberá alertas de demandas de sites e atualização de equipes.'}
@@ -276,49 +278,49 @@ export const NotificationBellDropdown: React.FC<NotificationBellDropdownProps> =
                     }}
                     className={`p-3.5 transition-colors cursor-pointer flex items-start gap-3 ${
                       isUnread
-                        ? 'bg-slate-800/60 hover:bg-slate-800/90'
-                        : 'bg-slate-900/40 hover:bg-slate-800/40 opacity-80'
+                        ? 'bg-blue-50/40 hover:bg-blue-50/70'
+                        : 'bg-white hover:bg-slate-50 opacity-85'
                     }`}
                   >
                     <div
-                      className={`p-2 rounded-lg border shrink-0 mt-0.5 ${meta.color}`}
+                      className={`p-2 rounded-[8px] border shrink-0 mt-0.5 ${meta.color}`}
                     >
                       <IconComp className="w-4 h-4" />
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between gap-2">
                         <span
-                          className={`inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold border ${meta.color}`}
+                          className={`inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-bold border ${meta.color}`}
                         >
                           {meta.label}
                         </span>
                         <div className="flex items-center gap-1.5 shrink-0">
                           <span
-                            className={`px-1.5 py-0.5 rounded text-[9px] font-bold ${
+                            className={`px-1.5 py-0.5 rounded-[6px] text-[9px] font-bold ${
                               notif.vendor === 'ERICSSON'
-                                ? 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/30'
-                                : 'bg-sky-500/20 text-sky-300 border border-sky-500/30'
+                                ? 'bg-teal-50 text-teal-700 border border-teal-200'
+                                : 'bg-blue-50 text-[#223585] border border-blue-200'
                             }`}
                           >
                             {notif.vendor === 'ERICSSON' ? 'ERICSSON' : 'TIM / NOKIA'}
                           </span>
-                          <span className="text-[10px] text-slate-500">{formattedTime}</span>
+                          <span className="text-[10px] font-mono text-slate-400 tabular-nums">{formattedTime}</span>
                         </div>
                       </div>
 
-                      <h4 className="text-xs font-bold text-white mt-1.5 flex items-center gap-1.5">
+                      <h4 className="text-xs font-bold text-slate-900 mt-1.5 flex items-center gap-1.5">
                         {isUnread && (
-                          <span className="w-2 h-2 rounded-full bg-amber-400 shrink-0" />
+                          <span className="w-2 h-2 rounded-full bg-[#223585] shrink-0" />
                         )}
                         <span className="truncate">{notif.title}</span>
                       </h4>
-                      <p className="text-[11px] text-slate-300 mt-0.5 leading-relaxed">
+                      <p className="text-[11px] text-slate-600 mt-0.5 leading-relaxed">
                         {notif.message}
                       </p>
 
-                      <div className="flex items-center justify-between mt-2 pt-1.5 border-t border-slate-800/60 text-[10px] text-slate-400">
+                      <div className="flex items-center justify-between mt-2 pt-1.5 border-t border-slate-100 text-[10px] text-slate-500">
                         <span>
-                          Por: <strong className="text-slate-300">{notif.actorName}</strong>
+                          Por: <strong className="text-slate-700">{notif.actorName}</strong>
                         </span>
                         <div className="flex items-center gap-2">
                           {isUnread && (
@@ -328,7 +330,7 @@ export const NotificationBellDropdown: React.FC<NotificationBellDropdownProps> =
                                 e.stopPropagation();
                                 handleMarkRead(notif.id, false);
                               }}
-                              className="text-sky-400 hover:text-sky-300 font-semibold"
+                              className="text-[#223585] hover:underline font-semibold cursor-pointer"
                             >
                               Marcar lida
                             </button>
@@ -337,7 +339,7 @@ export const NotificationBellDropdown: React.FC<NotificationBellDropdownProps> =
                             <button
                               type="button"
                               onClick={(e) => handleDeleteNotification(notif.id, e)}
-                              className="text-rose-400 hover:text-rose-300 p-0.5"
+                              className="text-rose-500 hover:text-rose-700 p-0.5 cursor-pointer"
                               title="Excluir notificação"
                             >
                               <Trash2 className="w-3 h-3" />

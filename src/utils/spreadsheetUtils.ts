@@ -342,6 +342,24 @@ export function detectarTipoPlanilha(
   return ev.detectedType;
 }
 
+export function isClaroSiteRecord(s?: Partial<TelecomSite> | null): boolean {
+  if (!s) return false;
+  if (s.vendor === 'CLARO_TIM') return true;
+  const fn = (s.fileName || '').toLowerCase();
+  if (fn.includes('claro')) return true;
+  const oc = (s.customFields?.['Oc Site Pre'] || s.ordemServico || '')
+    .toString()
+    .trim()
+    .toUpperCase();
+  if (oc.startsWith('CLATCM') || oc.startsWith('CLA-')) return true;
+  if (s.customFields) {
+    if ('Informações p/ NF' in s.customFields || 'CRQ' in s.customFields) {
+      return true;
+    }
+  }
+  return false;
+}
+
 export function validarCompatibilidadePlanilha(
   input: unknown,
   targetType: SpreadsheetDestinationType,
@@ -362,6 +380,29 @@ export function validarCompatibilidadePlanilha(
       targetType,
       topMotivatingColumns: [],
     };
+  }
+
+  // Prevent importing a Claro Sites spreadsheet into Nokia TIM (NOKIA_SITES)
+  if (targetType === 'NOKIA_SITES') {
+    const fnLower = (fileName || '').toLowerCase();
+    const hasClaroInFileName = fnLower.includes('claro');
+    let hasClaroExclusiveCols = false;
+    if (Array.isArray(input) && input.length > 0 && typeof input[0] === 'string') {
+      const upperCols = new Set((input as string[]).map((c) => String(c || '').trim().toUpperCase()));
+      if (upperCols.has('CRQ') || upperCols.has('INFORMAÇÕES P/ NF') || upperCols.has('NDPD')) {
+        hasClaroExclusiveCols = true;
+      }
+    }
+    if (hasClaroInFileName || hasClaroExclusiveCols) {
+      return {
+        shouldBlock: true,
+        detectedType: 'CLARO_SITES',
+        targetType,
+        blockMessage:
+          'Planilha incompatível! Este arquivo pertence a "Claro – Sites", mas você está na aba "Nokia – TIM". Selecione o botão "CLARO" no topo antes de importar para não misturar as planilhas.',
+        topMotivatingColumns: ['CRQ', 'NDPd', 'Informações p/ NF'],
+      };
+    }
   }
 
   const { detectedType, scores, topMotivatingColumns } = avaliarTipoPlanilha(input, fileName, sheetName);
@@ -848,25 +889,27 @@ export function mapRecordToSite(
     };
 
     const lowerH = cleanHeader.toLowerCase();
-    if (lowerH === 'ndpd') {
-      nextCustomFields['NDPd'] = val;
-      if (!nextCustomFields['NDPc TalonView']) {
-        nextCustomFields['NDPc TalonView'] = val;
-      }
-    } else if (lowerH === 'ndpc talonview') {
-      nextCustomFields['NDPc TalonView'] = val;
-      if (!nextCustomFields['NDPd']) {
+    if (defaultVendor === 'CLARO_TIM') {
+      if (lowerH === 'ndpd') {
         nextCustomFields['NDPd'] = val;
-      }
-    } else if (lowerH === 'report') {
-      nextCustomFields['Report'] = val;
-      if (!nextCustomFields['SI Report GDC Portal']) {
-        nextCustomFields['SI Report GDC Portal'] = val;
-      }
-    } else if (lowerH === 'si report gdc portal') {
-      nextCustomFields['SI Report GDC Portal'] = val;
-      if (!nextCustomFields['Report']) {
+        if (!nextCustomFields['NDPc TalonView']) {
+          nextCustomFields['NDPc TalonView'] = val;
+        }
+      } else if (lowerH === 'ndpc talonview') {
+        nextCustomFields['NDPc TalonView'] = val;
+        if (!nextCustomFields['NDPd']) {
+          nextCustomFields['NDPd'] = val;
+        }
+      } else if (lowerH === 'report') {
         nextCustomFields['Report'] = val;
+        if (!nextCustomFields['SI Report GDC Portal']) {
+          nextCustomFields['SI Report GDC Portal'] = val;
+        }
+      } else if (lowerH === 'si report gdc portal') {
+        nextCustomFields['SI Report GDC Portal'] = val;
+        if (!nextCustomFields['Report']) {
+          nextCustomFields['Report'] = val;
+        }
       }
     }
 

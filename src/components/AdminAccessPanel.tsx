@@ -20,9 +20,10 @@ import {
   ChevronUp,
   UserCheck,
   RefreshCw,
-  Copy,
   FileSpreadsheet,
+  ArrowRightLeft,
 } from 'lucide-react';
+import { StatusBadge, EmptyStateCard } from './ui';
 import {
   AmetaUser,
   UserRole,
@@ -47,7 +48,7 @@ import {
   addMonthsToIsoDate,
 } from '../utils/documentOcrUtils';
 import { db, firebaseConfig, handleFirestoreError, OperationType, createAuthAccountSecondary } from '../lib/firebase';
-import { collection, onSnapshot, doc, setDoc, deleteDoc, updateDoc, writeBatch } from 'firebase/firestore';
+import { collection, onSnapshot, doc, setDoc, deleteDoc, updateDoc } from 'firebase/firestore';
 import { createSaltedHash } from '../utils/authUtils';
 import { confirmar } from '../hooks/useConfirm';
 import { showToast } from '../utils/toast';
@@ -59,6 +60,7 @@ interface AdminAccessPanelProps {
   onTestUserView?: (targetUser: AmetaUser) => void;
   initialExpandedUserId?: string | null;
   onNokiaSitesUpdated?: (novosSites: TelecomSite[], idsRemovidos: string[]) => void;
+  onClaroMovedFromNokia?: (novosClaroSites: TelecomSite[], idsRemovidosNokia: string[]) => void;
 }
 
 const ROLE_OPTIONS: Array<{
@@ -141,6 +143,7 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
   onTestUserView,
   initialExpandedUserId,
   onNokiaSitesUpdated,
+  onClaroMovedFromNokia,
 }) => {
   const [firestoreUsers, setFirestoreUsers] = useState<AmetaUser[] | null>(null);
   const [firestoreError, setFirestoreError] = useState<{ code: string; message: string } | null>(null);
@@ -247,22 +250,6 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
   const [saving, setSaving] = useState(false);
   const [updatingUserId, setUpdatingUserId] = useState<string | null>(null);
 
-  // --- Estados e Lógicas do Modal "Zerar Cadastros" ---
-  const [zerarModalOpen, setZerarModalOpen] = useState(false);
-  const [zerarConfirmationInput, setZerarConfirmationInput] = useState('');
-  const [isExecutingZerar, setIsExecutingZerar] = useState(false);
-  const [zerarResult, setZerarResult] = useState<{
-    deletedCount: number;
-    keptCount: number;
-    keptEmails: string[];
-  } | null>(null);
-  const [copiedEmailsNotice, setCopiedEmailsNotice] = useState(false);
-
-  // --- Estados e Lógicas do Modal "Zerar Planilhas" ---
-  const [zerarPlanilhasModalOpen, setZerarPlanilhasModalOpen] = useState(false);
-  const [zerarPlanilhasConfirmation, setZerarPlanilhasConfirmation] = useState('');
-  const [isExecutingZerarPlanilhas, setIsExecutingZerarPlanilhas] = useState(false);
-
   // --- Estados e Lógicas do Modal "Corrigir Linhas com Aba Errada (Nokia Sites)" ---
   const [corrigirModalOpen, setCorrigirModalOpen] = useState(false);
   const [carregandoDiagnostico, setCarregandoDiagnostico] = useState(false);
@@ -275,6 +262,19 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
   const [resultadoCorrecao, setResultadoCorrecao] = useState<{
     movidos: number;
     detalhesPorAba: Record<string, number>;
+  } | null>(null);
+
+  // --- Estados e Lógicas do Modal "Mover registros da Claro que ficaram em nokia_sites" ---
+  const [moverClaroModalOpen, setMoverClaroModalOpen] = useState(false);
+  const [carregandoDiagnosticoClaro, setCarregandoDiagnosticoClaro] = useState(false);
+  const [diagnosticoClaroEmNokia, setDiagnosticoClaroEmNokia] = useState<{
+    total: number;
+    docs: Array<{ id: string; siteId: string; sheetName?: string }>;
+  } | null>(null);
+  const [moverClaroConfirmacaoInput, setMoverClaroConfirmacaoInput] = useState('');
+  const [executandoMoverClaro, setExecutandoMoverClaro] = useState(false);
+  const [resultadoMoverClaro, setResultadoMoverClaro] = useState<{
+    movidos: number;
   } | null>(null);
 
   // Verifica se o usuário logado é Dono (situacao 'dono' ou configurado em isOwnerAdmUser)
@@ -339,115 +339,40 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
     }
   };
 
-  // Separa usuários em "Serão MANTIDOS" e "Serão APAGADOS"
-  const { toKeepList, toDeleteList } = useMemo(() => {
-    const keep: AmetaUser[] = [];
-    const del: AmetaUser[] = [];
-
-    const curEmail = (currentUser?.email || '').trim().toLowerCase();
-    const curUid = currentUser?.uid || currentUser?.id;
-
-    // e-mails protegidos (sempre mantidos)
-    const PROTECTED_EMAILS = new Set([
-      'rafael.araujo@ametaservicos.com.br',
-      'eduardo.teruya@ametaservicos.com.br',
-    ]);
-
-    users.forEach((u) => {
-      const uEmail = (u.email || '').trim().toLowerCase();
-      const uUid = u.uid || u.id;
-
-      // 1. E-mails explicitamente protegidos: rafael.araujo@ametaservicos.com.br e eduardo.teruya@ametaservicos.com.br
-      const isProtectedEmail = PROTECTED_EMAILS.has(uEmail);
-
-      // 2. Nunca apaga o documento do usuário logado
-      const isSelf =
-        Boolean(curUid && uUid && curUid === uUid) ||
-        Boolean(curEmail && uEmail && curEmail === uEmail);
-
-      // 3. Qualquer usuário com situacao 'dono'
-      const isDono =
-        u.situacao === 'dono' ||
-        isOwnerAdmUser(u.email, u.situacao) ||
-        isUserDono(u);
-
-      if (isProtectedEmail || isSelf || isDono) {
-        keep.push(u);
-      } else {
-        del.push(u);
-      }
-    });
-
-    return { toKeepList: keep, toDeleteList: del };
-  }, [users, currentUser]);
-
-  // Executa exclusão em lote no Firestore
-  const handleExecuteZerarCadastros = async () => {
-    if (zerarConfirmationInput.trim().toUpperCase() !== 'ZERAR') return;
-    if (toDeleteList.length === 0) {
-      showToast('Nenhum cadastro a apagar.');
-      return;
-    }
-
-    setIsExecutingZerar(true);
+  const handleAbrirModalMoverClaro = async () => {
+    setError(null);
+    setMoverClaroConfirmacaoInput('');
+    setResultadoMoverClaro(null);
+    setCarregandoDiagnosticoClaro(true);
+    setMoverClaroModalOpen(true);
     try {
-      const deleteOps: Array<{ ref: any }> = [];
-      toDeleteList.forEach((u) => {
-        const uid = u.uid || u.id;
-        if (!uid) return;
-        // Subdocumento usuarios/{uid}/privado/dados
-        deleteOps.push({ ref: doc(db, 'usuarios', uid, 'privado', 'dados') });
-        // Documento usuarios/{uid}
-        deleteOps.push({ ref: doc(db, 'usuarios', uid) });
+      const diag = await dataService.verificarRegistrosClaroEmNokiaSites();
+      setDiagnosticoClaroEmNokia({
+        total: diag.total,
+        docs: diag.docs,
       });
-
-      // Executa em lotes (writeBatch) de até 400 operações
-      const BATCH_LIMIT = 400;
-      let totalDeletedOps = 0;
-
-      for (let i = 0; i < deleteOps.length; i += BATCH_LIMIT) {
-        const batchChunk = deleteOps.slice(i, i + BATCH_LIMIT);
-        const batch = writeBatch(db);
-        batchChunk.forEach((op) => {
-          batch.delete(op.ref);
-        });
-        await batch.commit();
-        totalDeletedOps += batchChunk.length;
-      }
-
-      const deletedUsersCount = Math.floor(totalDeletedOps / 2);
-      const keptEmails = toKeepList
-        .map((u) => (u.email || '').trim())
-        .filter(Boolean);
-
-      setZerarResult({
-        deletedCount: deletedUsersCount,
-        keptCount: toKeepList.length,
-        keptEmails,
-      });
-
-      showToast(`${deletedUsersCount} cadastros apagados com sucesso! ${toKeepList.length} mantidos.`);
     } catch (err: any) {
-      console.error('Erro ao zerar cadastros:', err);
-      showToast(`Erro ao zerar cadastros: ${err?.message || err}`);
+      setError(`Erro ao verificar registros da Claro em nokia_sites: ${err?.message || String(err)}`);
     } finally {
-      setIsExecutingZerar(false);
+      setCarregandoDiagnosticoClaro(false);
     }
   };
 
-  const handleExecuteZerarPlanilhas = async () => {
-    if (zerarPlanilhasConfirmation.trim().toUpperCase() !== 'ZERAR') return;
-    setIsExecutingZerarPlanilhas(true);
+  const handleExecutarMoverClaro = async () => {
+    if (moverClaroConfirmacaoInput.trim().toUpperCase() !== 'MOVER') return;
+    setExecutandoMoverClaro(true);
+    setError(null);
     try {
-      const res = await dataService.zerarTodasPlanilhas();
-      showToast(`Todas as planilhas do Firestore foram zeradas (${res.deletedCount} registros excluídos).`);
-      setZerarPlanilhasModalOpen(false);
-      setZerarPlanilhasConfirmation('');
+      const res = await dataService.moverRegistrosClaroDeNokiaSites();
+      setResultadoMoverClaro({ movidos: res.movidos });
+      if (onClaroMovedFromNokia && (res.novosClaroSites.length > 0 || res.idsRemovidosNokia.length > 0)) {
+        onClaroMovedFromNokia(res.novosClaroSites, res.idsRemovidosNokia);
+      }
+      showToast(`Migração concluída: ${res.movidos} registro(s) da Claro movido(s) para claro_sites!`);
     } catch (err: any) {
-      console.error('Erro ao zerar planilhas:', err);
-      showToast(`Erro ao zerar planilhas: ${err?.message || err}`);
+      setError(`Erro ao mover registros da Claro: ${err?.message || String(err)}`);
     } finally {
-      setIsExecutingZerarPlanilhas(false);
+      setExecutandoMoverClaro(false);
     }
   };
 
@@ -1336,12 +1261,12 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
     <div className="w-full space-y-4">
       {/* Firestore Connection / Error Banner */}
       {firestoreError && (
-        <div className="bg-red-50 border-2 border-red-400 rounded-xl p-4 text-red-900 shadow-sm space-y-1.5">
+        <div className="bg-red-50 border border-red-300 rounded-[12px] p-4 text-red-900 shadow-xs space-y-1.5">
           <div className="flex items-center gap-2 font-bold text-sm">
             <AlertTriangle className="w-5 h-5 text-red-600 shrink-0" />
             <span>Erro na leitura em tempo real da coleção "usuarios" no Firestore</span>
           </div>
-          <div className="text-xs font-mono">
+          <div className="text-xs font-mono tabular-nums">
             Código do erro: <strong className="text-red-700">{firestoreError.code}</strong>
           </div>
           <div className="text-xs text-red-800">{firestoreError.message}</div>
@@ -1354,16 +1279,16 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
       )}
 
       {/* Minimalist Top Bar */}
-      <div className="bg-white border border-slate-200 rounded-xl p-4 sm:p-5 flex flex-wrap items-center justify-between gap-4">
+      <div className="bg-white border border-slate-200 rounded-[12px] p-4 sm:p-5 shadow-xs flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-3.5 min-w-0">
-          <div className="w-10 h-10 rounded-xl bg-slate-900 text-white flex items-center justify-center shrink-0">
-            <ShieldCheck className="w-5 h-5" />
+          <div className="w-10 h-10 rounded-[10px] bg-[#0B1530] text-white flex items-center justify-center shrink-0 shadow-xs">
+            <ShieldCheck className="w-5 h-5 text-teal-400" />
           </div>
           <div className="min-w-0">
-            <h2 className="text-sm font-bold text-slate-900">
+            <h2 className="text-base font-bold text-slate-900 tracking-tight">
               Recursos Cadastrados, Perfis & Controle de Documentos
             </h2>
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-slate-500 mt-0.5">
               Clique em <strong>Abrir Documentos</strong> em qualquer linha para abrir a tela oculta em colunas (NR 10, NR 35, ASO, PCMSO, PGR, 1º Socorros, Contrato, RG) ou marcar como <strong>Dispensado</strong>.
             </p>
           </div>
@@ -1391,7 +1316,7 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
                     };
                   onTestUserView(vist);
                 }}
-                className="px-3 py-2 bg-amber-50 hover:bg-amber-100 border border-amber-300 text-amber-900 text-xs font-semibold rounded-lg flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
+                className="px-3 py-2 bg-amber-50 hover:bg-amber-100 border border-amber-300 text-amber-900 text-xs font-semibold rounded-[8px] flex items-center gap-1.5 cursor-pointer whitespace-nowrap transition-colors"
                 title="Simular tela de Vistoriador (8 colunas + SI Executed liberado)"
               >
                 <Eye className="w-3.5 h-3.5" />
@@ -1416,7 +1341,7 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
                     };
                   onTestUserView(exec);
                 }}
-                className="px-3 py-2 bg-blue-50 hover:bg-blue-100 border border-blue-300 text-blue-800 text-xs font-semibold rounded-lg flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
+                className="px-3 py-2 bg-blue-50 hover:bg-blue-100 border border-blue-300 text-blue-800 text-xs font-semibold rounded-[8px] flex items-center gap-1.5 cursor-pointer whitespace-nowrap transition-colors"
                 title="Simular tela de Executor de Teste"
               >
                 <Eye className="w-3.5 h-3.5" />
@@ -1429,7 +1354,7 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
             type="button"
             onClick={handleImportInitialData}
             disabled={importingInitial}
-            className="px-3.5 py-2 bg-emerald-700 hover:bg-emerald-800 disabled:opacity-50 text-white text-xs font-semibold rounded-lg flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
+            className="px-3.5 py-2 bg-emerald-700 hover:bg-emerald-800 disabled:opacity-50 text-white text-xs font-semibold rounded-[8px] flex items-center gap-1.5 cursor-pointer whitespace-nowrap shadow-xs transition-colors"
             title="Importar base completa de dados iniciais (Sites Nokia, Ericsson, Usuários e Duplas) para o Firestore"
           >
             {importingInitial ? (
@@ -1447,7 +1372,7 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
               resetNewResourceForm();
               setAddModalOpen(true);
             }}
-            className="px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold rounded-lg flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
+            className="px-3.5 py-2 bg-[#0B1530] hover:bg-[#17254E] text-white text-xs font-semibold rounded-[8px] flex items-center gap-1.5 cursor-pointer whitespace-nowrap shadow-xs transition-colors"
           >
             <Plus className="w-3.5 h-3.5" />
             <span>Cadastrar Recurso</span>
@@ -1460,6 +1385,7 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
               setAuthDefaultPassword('ameta2026');
               setBulkAuthModalOpen(true);
             }}
+            className="px-3.5 py-2 bg-[#223585] hover:bg-[#192868] text-white text-xs font-semibold rounded-[8px] flex items-center gap-1.5 cursor-pointer whitespace-nowrap shadow-xs transition-colors"
             title="Criar contas de acesso no Firebase Authentication para colaboradores pendentes ou cadastrados no Firestore"
           >
             <ShieldCheck className="w-3.5 h-3.5" />
@@ -1467,46 +1393,25 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
           </button>
 
           {isAdmOrOwner && (
-            <button
-              type="button"
-              onClick={handleAbrirModalCorrecaoAba}
-              className="px-3.5 py-2 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold rounded-lg flex items-center gap-1.5 cursor-pointer whitespace-nowrap shadow-2xs transition-colors"
-              title="Corrigir documentos de Nokia Sites importados com aba diferente de Controle Geral, Controle Cancelados ou Equipes"
-            >
-              <FileSpreadsheet className="w-3.5 h-3.5 text-amber-200" />
-              <span>Corrigir linhas importadas com aba errada (Nokia Sites)</span>
-            </button>
-          )}
-
-          {isOwnerUser && (
             <>
               <button
                 type="button"
-                onClick={() => {
-                  setError(null);
-                  setZerarConfirmationInput('');
-                  setZerarResult(null);
-                  setZerarModalOpen(true);
-                }}
-                className="px-3.5 py-2 bg-red-700 hover:bg-red-800 text-white text-xs font-bold rounded-lg flex items-center gap-1.5 cursor-pointer whitespace-nowrap shadow-2xs transition-colors"
-                title="Zerar cadastros do sistema mantendo apenas Admins, Coordenadores e o Dono"
+                onClick={handleAbrirModalCorrecaoAba}
+                className="px-3.5 py-2 bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold rounded-[8px] flex items-center gap-1.5 cursor-pointer whitespace-nowrap shadow-xs transition-colors"
+                title="Corrigir documentos de Nokia Sites importados com aba diferente de Controle Geral, Controle Cancelados ou Equipes"
               >
-                <Trash2 className="w-3.5 h-3.5" />
-                <span>Zerar Cadastros</span>
+                <FileSpreadsheet className="w-3.5 h-3.5 text-amber-200" />
+                <span>Corrigir linhas importadas com aba errada (Nokia Sites)</span>
               </button>
 
               <button
                 type="button"
-                onClick={() => {
-                  setError(null);
-                  setZerarPlanilhasConfirmation('');
-                  setZerarPlanilhasModalOpen(true);
-                }}
-                className="px-3.5 py-2 bg-rose-900 hover:bg-rose-950 text-white text-xs font-bold rounded-lg flex items-center gap-1.5 cursor-pointer whitespace-nowrap shadow-2xs transition-colors"
-                title="Apagar todas as coleções de planilhas no Firestore (Nokia e Ericsson)"
+                onClick={handleAbrirModalMoverClaro}
+                className="px-3.5 py-2 bg-[#1E8E8D] hover:bg-[#177372] text-white text-xs font-semibold rounded-[8px] flex items-center gap-1.5 cursor-pointer whitespace-nowrap shadow-xs transition-colors"
+                title="Mover documentos com vendor CLARO_TIM de nokia_sites para claro_sites"
               >
-                <FileSpreadsheet className="w-3.5 h-3.5 text-rose-300" />
-                <span>Zerar Planilhas</span>
+                <ArrowRightLeft className="w-3.5 h-3.5 text-teal-100" />
+                <span>Mover registros da Claro que ficaram em nokia_sites</span>
               </button>
             </>
           )}
@@ -1515,7 +1420,7 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
 
       {/* Aviso pós-importação da base inicial */}
       {initialImportSuccessNotice && (
-        <div className="p-4 rounded-xl bg-amber-50 border-2 border-amber-400 text-amber-950 flex items-start justify-between gap-3 shadow-sm">
+        <div className="p-4 rounded-[12px] bg-amber-50 border border-amber-300 text-amber-950 flex items-start justify-between gap-3 shadow-xs">
           <div className="flex items-start gap-3">
             <span className="text-xl">⚠️</span>
             <div>
@@ -1531,7 +1436,7 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
           <button
             type="button"
             onClick={() => setInitialImportSuccessNotice(null)}
-            className="p-1.5 text-amber-800 hover:text-amber-950 hover:bg-amber-200/60 rounded-lg cursor-pointer"
+            className="p-1.5 text-amber-800 hover:text-amber-950 hover:bg-amber-200/60 rounded-[8px] cursor-pointer"
             title="Fechar aviso"
           >
             <X className="w-4 h-4" />
@@ -1540,7 +1445,7 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
       )}
 
       {/* Painel de Liberação de Novos Usuários que Solicitam Cadastro */}
-      <div id="pending-approvals-section" className="bg-amber-50/90 border-2 border-amber-300 rounded-xl p-4 space-y-3 shadow-2xs">
+      <div id="pending-approvals-section" className="bg-amber-50/80 border border-amber-300 rounded-[12px] p-4 space-y-3 shadow-xs">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2.5">
             <span className="px-2.5 py-0.5 rounded-full bg-amber-600 text-white font-black text-xs">
@@ -1558,7 +1463,7 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
         </div>
 
         {pendingApprovalUsers.length === 0 ? (
-          <div className="p-3 rounded-lg bg-white/90 border border-amber-200 text-xs text-slate-600">
+          <div className="p-3 rounded-[8px] bg-white/95 border border-amber-200 text-xs text-slate-600">
             Nenhuma solicitação pendente no momento. Quando um colaborador criar conta com{' '}
             <strong className="text-slate-900">@ametaservicos.com.br</strong> na tela de login, ele aparecerá aqui para você aprovar e definir a dupla/função.
           </div>
@@ -1572,30 +1477,31 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
                 <div
                   key={u.id}
                   id={cardId}
-                  className="p-3.5 rounded-xl bg-white border border-amber-300 flex flex-col lg:flex-row lg:items-center justify-between gap-3 shadow-2xs transition-all duration-300"
+                  className="p-3.5 rounded-[12px] bg-white border border-amber-300 flex flex-col lg:flex-row lg:items-center justify-between gap-3 shadow-xs transition-all duration-300"
                 >
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-bold text-sm text-slate-900">{u.name}</span>
-                      <span className="px-2 py-0.5 rounded bg-amber-100 border border-amber-300 text-amber-900 text-[10px] font-bold uppercase">
-                        {u.situacao === 'bloqueado' ? 'Bloqueado (Liberar)' : 'Aguardando Liberação'}
-                      </span>
+                      <StatusBadge
+                        label={u.situacao === 'bloqueado' ? 'Bloqueado (Liberar)' : 'Aguardando Liberação'}
+                        tone={u.situacao === 'bloqueado' ? 'danger' : 'warning'}
+                      />
                     </div>
                     <div className="text-xs font-mono text-slate-600 mt-0.5">{u.email}</div>
                     
                     {/* Exibição clara do perfil e da plataforma pedidos no cadastro */}
-                    <div className="mt-2 p-2 rounded-lg bg-amber-100/70 border border-amber-300 flex flex-wrap items-center gap-2 text-xs">
+                    <div className="mt-2 p-2 rounded-[8px] bg-amber-50/90 border border-amber-200 flex flex-wrap items-center gap-2 text-xs">
                       <span className="font-bold text-amber-950">📋 Solicitado no cadastro:</span>
-                      <span className="px-2 py-0.5 rounded bg-white text-indigo-700 font-extrabold border border-indigo-200">
+                      <span className="px-2 py-0.5 rounded-[6px] bg-white text-[#223585] font-bold border border-indigo-200">
                         Perfil: {u.role || 'Vistoriador'}
                       </span>
                       {!(u.plataforma || u.assignedPlatform || '').trim() ? (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-amber-200 text-amber-950 font-extrabold border border-amber-400">
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-[6px] bg-amber-200 text-amber-950 font-bold border border-amber-400">
                           <AlertTriangle className="w-3 h-3 text-amber-700 shrink-0" />
                           Sem plataforma
                         </span>
                       ) : (
-                        <span className="px-2 py-0.5 rounded bg-white text-slate-800 font-bold border border-slate-200">
+                        <span className="px-2 py-0.5 rounded-[6px] bg-white text-slate-800 font-bold border border-slate-200">
                           Plataforma: {u.plataforma || u.assignedPlatform}
                         </span>
                       )}
@@ -1604,7 +1510,7 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
 
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 flex-1 max-w-2xl">
                     <div>
-                      <label className="block text-[10px] uppercase text-slate-700 font-extrabold mb-0.5">
+                      <label className="block text-[10px] uppercase text-slate-700 font-bold mb-0.5">
                         Função a Liberar *
                       </label>
                       <select
@@ -1612,7 +1518,7 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
                         onChange={(e) =>
                           updatePendingDraft(u, { role: e.target.value as UserRole })
                         }
-                        className="w-full px-2.5 py-1.5 rounded-lg bg-white border-2 border-indigo-300 focus:border-indigo-600 text-xs font-bold text-slate-900"
+                        className="w-full px-2.5 py-1.5 rounded-[8px] bg-white border border-slate-300 focus:border-[#223585] focus:outline-none text-xs font-semibold text-slate-900"
                       >
                         <option value="Vistoriador">Vistoriador</option>
                         <option value="Executor">Executor</option>
@@ -1622,7 +1528,7 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
                     </div>
 
                     <div>
-                      <label className="block text-[10px] uppercase text-slate-700 font-extrabold mb-0.5">
+                      <label className="block text-[10px] uppercase text-slate-700 font-bold mb-0.5">
                         Plataforma a Liberar *
                       </label>
                       <select
@@ -1632,10 +1538,10 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
                             plataforma: e.target.value as AssignedPlatformScope,
                           })
                         }
-                        className={`w-full px-2.5 py-1.5 rounded-lg bg-white border-2 text-xs font-bold ${
+                        className={`w-full px-2.5 py-1.5 rounded-[8px] bg-white border text-xs font-semibold focus:outline-none ${
                           !draft.plataforma
                             ? 'border-amber-400 text-amber-900 bg-amber-50'
-                            : 'border-indigo-300 focus:border-indigo-600 text-slate-900'
+                            : 'border-slate-300 focus:border-[#223585] text-slate-900'
                         }`}
                       >
                         <option value="">— Selecione a plataforma —</option>
@@ -1654,12 +1560,12 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
                         value={draft.equipe}
                         onChange={(e) => updatePendingDraft(u, { equipe: e.target.value })}
                         placeholder="Ex: Nome 1 / Nome 2"
-                        className="w-full px-2.5 py-1.5 rounded-lg bg-slate-50 border border-slate-300 text-xs text-slate-900"
+                        className="w-full px-2.5 py-1.5 rounded-[8px] bg-slate-50 border border-slate-300 text-xs text-slate-900 focus:outline-none focus:border-[#223585]"
                       />
                     </div>
 
                     <div className="sm:col-span-3 pt-1">
-                      <label className="inline-flex items-center gap-2 text-xs font-bold text-slate-800 cursor-pointer p-1.5 rounded-md hover:bg-amber-100/50">
+                      <label className="inline-flex items-center gap-2 text-xs font-bold text-slate-800 cursor-pointer p-1.5 rounded-[6px] hover:bg-amber-100/50">
                         <input
                           type="checkbox"
                           checked={Boolean(confirmedApprovals[(u.id || u.email).toLowerCase()])}
@@ -1683,7 +1589,7 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
                       type="button"
                       disabled={isBusy || !confirmedApprovals[(u.id || u.email).toLowerCase()]}
                       onClick={() => handleApprovePendingUser(u)}
-                      className="px-3.5 py-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold text-xs flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                      className="px-3.5 py-2.5 rounded-[8px] bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold text-xs flex items-center gap-1.5 cursor-pointer shadow-xs transition-colors"
                       title={
                         !confirmedApprovals[(u.id || u.email).toLowerCase()]
                           ? 'Marque a confirmação obrigatória de Perfil e Plataforma para liberar'
@@ -1697,7 +1603,7 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
                       type="button"
                       disabled={isBusy}
                       onClick={() => handleRejectPendingUser(u)}
-                      className="px-2.5 py-2 rounded-lg bg-red-50 hover:bg-red-100 border border-red-200 text-red-700 text-xs font-bold flex items-center gap-1 cursor-pointer"
+                      className="px-2.5 py-2 rounded-[8px] bg-red-50 hover:bg-red-100 border border-red-200 text-red-700 text-xs font-bold flex items-center gap-1 cursor-pointer transition-colors"
                       title="Recusar e bloquear solicitação"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
@@ -1713,7 +1619,7 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
 
       {/* 30-Day Advance Expiration Alert Banner (only shows if any non-exempt document is expiring in <= 30 days or expired) */}
       {expirationAlerts.length > 0 && (
-        <div className="bg-amber-50/90 border border-amber-300 rounded-xl p-3.5 space-y-2 shadow-2xs">
+        <div className="bg-amber-50/90 border border-amber-300 rounded-[12px] p-3.5 space-y-2 shadow-xs">
           <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
             <div className="flex items-center gap-2 font-bold text-amber-950">
               <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
@@ -1721,11 +1627,11 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
                 Aviso de Vencimento (30 dias antes): {expirationAlerts.length} documento(s) a vencer ou vencidos
               </span>
             </div>
-            <div className="flex items-center gap-2 text-[11px] font-mono">
-              <span className="px-2 py-0.5 rounded bg-red-100 text-red-800 border border-red-200 font-bold">
+            <div className="flex items-center gap-2 text-[11px] font-mono tabular-nums">
+              <span className="px-2 py-0.5 rounded-[6px] bg-red-100 text-red-800 border border-red-200 font-bold">
                 Vencidos: {expirationAlerts.filter((a) => a.status === 'VENCIDO').length}
               </span>
-              <span className="px-2 py-0.5 rounded bg-amber-100 text-amber-900 border border-amber-300 font-bold">
+              <span className="px-2 py-0.5 rounded-[6px] bg-amber-100 text-amber-900 border border-amber-300 font-bold">
                 A Vencer (≤ 30d): {expirationAlerts.filter((a) => a.status === 'A_VENCER').length}
               </span>
             </div>
@@ -1737,7 +1643,7 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
               return (
                 <div
                   key={`${alert.user.id}-${alert.doc.type}-${i}`}
-                  className={`px-2.5 py-1 rounded-lg border text-xs inline-flex items-center gap-2 transition-colors ${
+                  className={`px-2.5 py-1 rounded-[8px] border text-xs inline-flex items-center gap-2 transition-colors ${
                     isExpired
                       ? 'bg-red-50 border-red-200 text-red-900'
                       : 'bg-white border-amber-200 text-slate-900'
@@ -1750,7 +1656,7 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
                   >
                     <span className="font-bold">{alert.user.name}:</span>
                     <span className="font-semibold">{alert.doc.label}</span>
-                    <span className="font-mono text-[11px] opacity-80">
+                    <span className="font-mono text-[11px] opacity-80 tabular-nums">
                       {alert.daysRemaining !== null
                         ? alert.daysRemaining < 0
                           ? `(Vencido há ${Math.abs(alert.daysRemaining)}d)`
@@ -1769,7 +1675,7 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
                       )
                     }
                     title={`Remover / limpar documento ${alert.doc.label} de ${alert.user.name}`}
-                    className="p-0.5 rounded hover:bg-red-200/70 text-red-700 hover:text-red-950 cursor-pointer"
+                    className="p-0.5 rounded-[6px] hover:bg-red-200/70 text-red-700 hover:text-red-950 cursor-pointer"
                   >
                     <X className="w-3.5 h-3.5" />
                   </button>
@@ -1781,8 +1687,8 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
       )}
 
       {/* Filter Bar + Clean Resources Table */}
-      <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
-        <div className="p-4 bg-slate-50 border-b border-slate-200 space-y-3">
+      <div className="bg-white border border-slate-200 rounded-[12px] overflow-hidden shadow-xs">
+        <div className="p-4 bg-slate-50/80 border-b border-slate-200 space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-3">
             {/* Role Filter Buttons */}
             <div className="flex flex-wrap items-center gap-1.5">
@@ -1814,9 +1720,9 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
                   key={item.id}
                   type="button"
                   onClick={() => setRoleFilter(item.id)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all cursor-pointer whitespace-nowrap ${
+                  className={`px-3 py-1.5 rounded-[8px] text-xs font-semibold border transition-all cursor-pointer whitespace-nowrap ${
                     roleFilter === item.id
-                      ? 'bg-slate-900 border-slate-900 text-white'
+                      ? 'bg-[#0B1530] border-[#0B1530] text-white shadow-2xs'
                       : 'bg-white hover:bg-slate-100 border-slate-200 text-slate-700'
                   }`}
                 >
@@ -1835,20 +1741,20 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
             {/* Search & Equipe Filter */}
             <div className="flex flex-wrap items-center gap-2">
               <div className="relative w-64 sm:w-72">
-                <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2" />
+                <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
                 <input
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Buscar recurso por nome, e-mail, equipe..."
-                  className="w-full pl-8 pr-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-600"
+                  className="w-full pl-8 pr-3 py-1.5 bg-white border border-slate-200 rounded-[8px] text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-[#223585]"
                 />
               </div>
 
               <select
                 value={equipeFilter}
                 onChange={(e) => setEquipeFilter(e.target.value)}
-                className="px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs text-slate-700 focus:outline-none focus:border-blue-600"
+                className="px-2.5 py-1.5 bg-white border border-slate-200 rounded-[8px] text-xs text-slate-700 focus:outline-none focus:border-[#223585]"
               >
                 <option value="ALL">Equipe: Todas ({uniqueEquipes.length})</option>
                 {uniqueEquipes.map((eq) => (
@@ -1874,9 +1780,9 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
                 key={st.id}
                 type="button"
                 onClick={() => setStatusFilter(st.id)}
-                className={`px-2.5 py-1 rounded-md text-[11px] font-semibold border cursor-pointer transition-colors whitespace-nowrap ${
+                className={`px-2.5 py-1 rounded-[8px] text-[11px] font-semibold border cursor-pointer transition-colors whitespace-nowrap ${
                   statusFilter === st.id
-                    ? 'bg-slate-900 text-white border-slate-900'
+                    ? 'bg-[#223585] text-white border-[#223585]'
                     : 'bg-white hover:bg-slate-100 text-slate-600 border-slate-200'
                 }`}
               >
@@ -1888,9 +1794,9 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
 
         {/* Clean Resources Table — Full Width with Zero Cutoff */}
         <div className="w-full overflow-x-auto">
-          <table className="w-full text-left border-collapse text-xs">
+          <table className="w-full text-left border-collapse text-[13px]">
             <thead>
-              <tr className="bg-white border-b border-slate-200 text-slate-500 font-semibold">
+              <tr className="bg-slate-50/90 border-b border-slate-200 text-slate-600 text-[11px] font-bold uppercase tracking-wider">
                 <th className="py-2.5 pl-4 pr-2 w-10 text-center font-mono">#</th>
                 <th className="py-2.5 px-3 whitespace-nowrap">Recurso Cadastrado</th>
                 <th className="py-2.5 px-3 whitespace-nowrap">E-mail / Contato</th>
@@ -1902,7 +1808,7 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 bg-white">
+            <tbody className="divide-y divide-slate-100 bg-white ameta-table-zebra">
               {filteredResources.map(({ user: u, docSummary }, idx) => {
                 const uRole = normalizeUserRole(u.role);
                 const isPrimaryAdmin = isOwnerAdmUser(u.email, u.situacao);
@@ -1916,25 +1822,25 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
                     {/* MAIN CLEAN ROW */}
                     <tr
                       className={`transition-colors ${
-                        isExpanded ? 'bg-slate-50' : 'hover:bg-slate-50/80'
+                        isExpanded ? 'ameta-table-row-selected bg-blue-50/60' : 'hover:bg-slate-50/90'
                       }`}
                     >
-                      <td className="py-3 pl-4 pr-2 text-center font-mono text-slate-400 tabular-nums">
+                      <td className="py-3 pl-4 pr-2 text-center font-mono text-xs text-slate-400 tabular-nums">
                         {idx + 1}
                       </td>
 
                       <td className="py-3 px-3">
                         <div className="flex items-center gap-2 whitespace-nowrap">
-                          <span className="font-bold text-slate-900">{u.name}</span>
+                          <span className="font-bold text-slate-900 text-xs">{u.name}</span>
                           {isSelf && (
-                            <span className="text-[10px] font-semibold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded shrink-0">
+                            <span className="text-[10px] font-semibold text-blue-700 bg-blue-50 border border-blue-200 px-1.5 py-0.5 rounded-[6px] shrink-0">
                               Você
                             </span>
                           )}
                           {!(u.plataforma || u.assignedPlatform || '').trim() && (
                             <span
                               title="Usuário sem plataforma definida (Nokia, Ericsson ou Ambas)"
-                              className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-800 bg-amber-100 border border-amber-300 px-1.5 py-0.5 rounded-md shrink-0"
+                              className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-800 bg-amber-100 border border-amber-300 px-1.5 py-0.5 rounded-[6px] shrink-0"
                             >
                               <AlertTriangle className="w-3 h-3 text-amber-600 shrink-0" />
                               Sem plataforma
@@ -1942,26 +1848,26 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
                           )}
                         </div>
                         {u.cpf && (
-                          <div className="text-[11px] text-slate-400 font-mono whitespace-nowrap">
+                          <div className="text-[11px] text-slate-400 font-mono tabular-nums whitespace-nowrap">
                             CPF: {u.cpf}
                           </div>
                         )}
                       </td>
 
                       <td className="py-3 px-3">
-                        <div className="flex items-center gap-1.5 text-slate-700 font-mono whitespace-nowrap">
+                        <div className="flex items-center gap-1.5 text-slate-700 font-mono text-xs whitespace-nowrap">
                           <Mail className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                           <span>{u.email}</span>
                         </div>
                         {u.telefone && (
-                          <div className="flex items-center gap-1.5 text-[11px] text-slate-500 font-mono mt-0.5 whitespace-nowrap">
+                          <div className="flex items-center gap-1.5 text-[11px] text-slate-500 font-mono tabular-nums mt-0.5 whitespace-nowrap">
                             <Phone className="w-3 h-3 text-slate-400 shrink-0" />
                             <span>{u.telefone}</span>
                           </div>
                         )}
                       </td>
 
-                      <td className="py-3 px-3">
+                      <td className="py-3 px-3 text-xs">
                         <div className="font-semibold text-slate-800">{u.equipe || 'Campo'}</div>
                         {u.atividade && (
                           <div className="text-[11px] text-slate-500">{u.atividade}</div>
@@ -1971,28 +1877,16 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
                       {/* CLEAN INITIAL STATUS BADGE: Validado | A Vencer | Vencido | Dispensado */}
                       <td className="py-3 px-3 whitespace-nowrap">
                         {overallStatus === 'DISPENSADO' && (
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-slate-100 text-slate-700 border border-slate-300 whitespace-nowrap">
-                            <UserCheck className="w-3.5 h-3.5 text-slate-500 shrink-0" />
-                            <span>Dispensado</span>
-                          </span>
+                          <StatusBadge label="Dispensado" tone="neutral" />
                         )}
                         {overallStatus === 'VALIDADO' && (
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 whitespace-nowrap">
-                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                            <span>Validado</span>
-                          </span>
+                          <StatusBadge label="Validado" tone="success" />
                         )}
                         {overallStatus === 'A VENCER' && (
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-50 text-amber-800 border border-amber-300 whitespace-nowrap">
-                            <Clock className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-                            <span>A Vencer ({docSummary.aVencer.length})</span>
-                          </span>
+                          <StatusBadge label={`A Vencer (${docSummary.aVencer.length})`} tone="warning" />
                         )}
                         {overallStatus === 'VENCIDO' && (
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-red-50 text-red-700 border border-red-200 whitespace-nowrap">
-                            <AlertTriangle className="w-3.5 h-3.5 text-red-600 shrink-0" />
-                            <span>Vencido ({docSummary.vencidos.length})</span>
-                          </span>
+                          <StatusBadge label={`Vencido (${docSummary.vencidos.length})`} tone="danger" />
                         )}
                       </td>
 
@@ -2003,10 +1897,10 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
                           onClick={() =>
                             setExpandedUserId((prev) => (prev === u.id ? null : u.id))
                           }
-                          className={`px-3 py-1.5 rounded-lg text-xs font-semibold border inline-flex items-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap ${
+                          className={`px-3 py-1.5 rounded-[8px] text-xs font-semibold border inline-flex items-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap ${
                             isExpanded
-                              ? 'bg-slate-900 text-white border-slate-900'
-                              : 'bg-[#F3F4F6] hover:bg-slate-200/80 text-slate-700 border-slate-200'
+                              ? 'bg-[#0B1530] text-white border-[#0B1530]'
+                              : 'bg-slate-100 hover:bg-slate-200/80 text-slate-700 border-slate-200'
                           }`}
                         >
                           <FileText className="w-3.5 h-3.5 shrink-0" />
@@ -2025,7 +1919,7 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
                         <div className="inline-flex items-center justify-end gap-2 flex-nowrap">
                           {/* Direct Profile Selector + Platform + Situação (Dono) */}
                           {isPrimaryAdmin || u.situacao === 'dono' ? (
-                            <span className="px-3 py-1 bg-amber-500 text-slate-950 font-black text-xs rounded-lg shadow-2xs">
+                            <span className="px-3 py-1 bg-amber-500 text-slate-950 font-black text-xs rounded-[8px] shadow-2xs">
                               Dono (Acesso Total)
                             </span>
                           ) : (
@@ -2040,7 +1934,7 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
                                       setAuthDefaultPassword('ameta2026');
                                       setSingleAuthUser(u);
                                     }}
-                                    className="px-2 py-1 rounded-lg text-[11px] font-bold border border-indigo-300 bg-indigo-50 hover:bg-indigo-100 text-indigo-900 transition-colors cursor-pointer whitespace-nowrap"
+                                    className="px-2 py-1 rounded-[8px] text-[11px] font-bold border border-[#DDE4F6] bg-[#EEF2FF] hover:bg-indigo-100 text-[#223585] transition-colors cursor-pointer whitespace-nowrap"
                                     title="Criar conta de acesso no Firebase Authentication para este colaborador"
                                   >
                                     Criar Acesso
@@ -2057,7 +1951,7 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
                                       )
                                     }
                                     title="Selecionar Plataforma (Nokia, Ericsson ou Ambas)"
-                                    className={`px-2 py-1 text-[11px] font-bold rounded-lg border bg-white cursor-pointer ${
+                                    className={`px-2 py-1 text-[11px] font-bold rounded-[8px] border bg-white cursor-pointer focus:outline-none focus:border-[#223585] ${
                                       !(u.plataforma || u.assignedPlatform || '').trim()
                                         ? 'border-amber-400 text-amber-900 bg-amber-50'
                                         : 'border-slate-200 text-slate-800'
@@ -2092,7 +1986,7 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
                                         nextSit
                                       );
                                     }}
-                                    className={`px-2.5 py-1 rounded-lg text-[11px] font-extrabold border cursor-pointer whitespace-nowrap ${
+                                    className={`px-2.5 py-1 rounded-[8px] text-[11px] font-extrabold border cursor-pointer whitespace-nowrap transition-colors ${
                                       u.situacao === 'aguardando' || u.accessReleased === false
                                         ? 'bg-amber-100 hover:bg-emerald-600 text-amber-900 hover:text-white border-amber-300'
                                         : u.situacao === 'bloqueado'
@@ -2116,7 +2010,7 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
                                 </>
                               )}
 
-                              <div className="inline-flex items-center p-0.5 bg-slate-100 border border-slate-200 rounded-lg shrink-0">
+                              <div className="inline-flex items-center p-0.5 bg-slate-100 border border-slate-200 rounded-[8px] shrink-0">
                                 {ROLE_OPTIONS.map((opt) => {
                                   const active = uRole === opt.role;
                                   return (
@@ -2126,7 +2020,7 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
                                       disabled={isUpdating}
                                       onClick={() => handleRoleChange(u.id, opt.role, u.name)}
                                       title={opt.description}
-                                      className={`px-2 py-1 text-[11px] font-semibold rounded-md transition-colors cursor-pointer whitespace-nowrap ${
+                                      className={`px-2 py-1 text-[11px] font-semibold rounded-[6px] transition-colors cursor-pointer whitespace-nowrap ${
                                         active
                                           ? opt.role === 'Coordenador Geral'
                                             ? 'bg-indigo-600 text-white'
@@ -2150,7 +2044,7 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
                             <button
                               type="button"
                               onClick={() => onTestUserView(u)}
-                              className="px-2.5 py-1 bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-800 text-xs font-semibold rounded-lg transition-colors inline-flex items-center gap-1 cursor-pointer whitespace-nowrap shrink-0"
+                              className="px-2.5 py-1 bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-800 text-xs font-semibold rounded-[8px] transition-colors inline-flex items-center gap-1 cursor-pointer whitespace-nowrap shrink-0"
                               title="Ver tela exatamente como este usuário (Sites e Documentos)"
                             >
                               <Eye className="w-3.5 h-3.5 shrink-0" />
@@ -2162,7 +2056,7 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
                             <button
                               type="button"
                               onClick={() => handleDeleteResource(u)}
-                              className="p-1.5 text-red-600 hover:bg-red-50 border border-transparent hover:border-red-200 rounded-lg transition-colors inline-flex items-center justify-center text-xs font-semibold cursor-pointer shrink-0"
+                              className="p-1.5 text-red-600 hover:bg-red-50 border border-transparent hover:border-red-200 rounded-[8px] transition-colors inline-flex items-center justify-center text-xs font-semibold cursor-pointer shrink-0"
                               title="Excluir este usuário"
                             >
                               <Trash2 className="w-4 h-4" />
@@ -2177,11 +2071,11 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
                         SEM CORTAR NADA — CABE 100% NA LARGURA DA TELA
                        ========================================================= */}
                     {isExpanded && (
-                      <tr className="bg-[#F3F4F6]/80 border-b border-slate-200">
+                      <tr className="bg-slate-50/90 border-b border-slate-200">
                         <td colSpan={7} className="p-3 sm:p-4">
-                          <div className="bg-white border border-slate-200 rounded-xl shadow-xs overflow-hidden">
+                          <div className="bg-white border border-slate-200 rounded-[12px] shadow-xs overflow-hidden">
                             {/* Top Control Bar inside the Hidden Screen */}
-                            <div className="px-4 py-3 bg-slate-900 text-white flex flex-wrap items-center justify-between gap-3">
+                            <div className="px-4 py-3 bg-[#0B1530] text-white flex flex-wrap items-center justify-between gap-3">
                               <div className="flex flex-wrap items-center gap-3">
                                 <span className="text-xs font-bold">
                                   Documentos de {u.name}
@@ -2202,9 +2096,9 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
                                       !docSummary.isUserDispensado
                                     )
                                   }
-                                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 border transition-colors cursor-pointer ${
+                                  className={`px-3 py-1.5 rounded-[8px] text-xs font-semibold flex items-center gap-1.5 border transition-colors cursor-pointer ${
                                     docSummary.isUserDispensado
-                                      ? 'bg-blue-600 hover:bg-blue-500 text-white border-blue-500'
+                                      ? 'bg-[#223585] hover:bg-[#1B2A6B] text-white border-[#223585]'
                                       : 'bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700'
                                   }`}
                                 >
@@ -2231,7 +2125,7 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
                                       u.name
                                     )
                                   }
-                                  className="px-2.5 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-xs font-semibold text-white focus:outline-none cursor-pointer"
+                                  className="px-2.5 py-1.5 bg-slate-800 border border-slate-700 rounded-[8px] text-xs font-semibold text-white focus:outline-none cursor-pointer"
                                 >
                                   <option value="VALIDADO">Status: Validado</option>
                                   <option value="A VENCER">Status: A Vencer</option>
@@ -2270,7 +2164,7 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
                                         {shortTitle}
                                       </span>
                                       <span
-                                        className={`px-1.5 py-0.5 rounded text-[9px] font-mono font-bold shrink-0 ${
+                                        className={`px-1.5 py-0.5 rounded-[6px] text-[9px] font-mono font-bold shrink-0 ${
                                           doc.eval.status === 'DISPENSADO'
                                             ? 'bg-slate-200 text-slate-700'
                                             : doc.eval.status === 'VENCIDO'
@@ -2319,7 +2213,7 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
                                                 `Situação de ${doc.label} (${u.name}) atualizada`
                                               )
                                             }
-                                            className="w-full px-1.5 py-1 bg-[#F3F4F6] border border-slate-200 rounded text-[11px] font-semibold text-slate-800 focus:outline-none focus:border-blue-600"
+                                            className="w-full px-1.5 py-1 bg-[#F4F6FA] border border-slate-200 rounded-[6px] text-[11px] font-semibold text-slate-800 focus:outline-none focus:border-[#223585]"
                                           >
                                             <option value="">Automático</option>
                                             <option value="VALIDADO">Validado</option>
@@ -2347,7 +2241,7 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
                                                     `Vencimento lido do documento ${doc.label}`
                                                   )
                                                 }
-                                                className="text-[9px] font-semibold text-blue-600 hover:underline cursor-pointer"
+                                                className="text-[9px] font-semibold text-[#223585] hover:underline cursor-pointer"
                                                 title="Ler novamente a data de vencimento do arquivo anexado"
                                               >
                                                 Auto-ler
@@ -2366,11 +2260,11 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
                                                 `Vencimento de ${doc.label} (${u.name}) atualizado`
                                               )
                                             }
-                                            className="w-full px-1.5 py-1 bg-[#F3F4F6] border border-slate-200 rounded text-[11px] font-mono text-slate-800 disabled:opacity-50 focus:bg-white focus:outline-none focus:border-blue-600"
+                                            className="w-full px-1.5 py-1 bg-[#F4F6FA] border border-slate-200 rounded-[6px] text-[11px] font-mono tabular-nums text-slate-800 disabled:opacity-50 focus:bg-white focus:outline-none focus:border-[#223585]"
                                           />
                                           {!isDocDispensado && days !== null && (
                                             <div
-                                              className={`mt-1 text-[10px] font-mono font-semibold ${
+                                              className={`mt-1 text-[10px] font-mono font-semibold tabular-nums ${
                                                 days < 0
                                                   ? 'text-red-600'
                                                   : days <= 30
@@ -2394,7 +2288,7 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
                                       <div className="pt-2 border-t border-slate-100 space-y-1.5">
                                         {doc.fileName ? (
                                           <div
-                                            className="text-[10px] font-mono text-blue-700 truncate"
+                                            className="text-[10px] font-mono text-[#223585] truncate"
                                             title={doc.notes ? `${doc.fileName} — ${doc.notes}` : doc.fileName}
                                           >
                                             📎 {doc.fileName}
@@ -2407,10 +2301,10 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
 
                                         <div className="flex items-center gap-1">
                                           <label
-                                            className={`flex-1 py-1 px-2 rounded text-[11px] font-semibold flex items-center justify-center gap-1 cursor-pointer transition-colors ${
+                                            className={`flex-1 py-1 px-2 rounded-[6px] text-[11px] font-semibold flex items-center justify-center gap-1 cursor-pointer transition-colors ${
                                               isUploadingThis
-                                                ? 'bg-blue-100 text-blue-800'
-                                                : 'bg-slate-900 hover:bg-slate-800 text-white'
+                                                ? 'bg-[#EEF2FF] text-[#223585]'
+                                                : 'bg-[#223585] hover:bg-[#1B2A6B] text-white'
                                             }`}
                                           >
                                             <Upload className="w-3 h-3 shrink-0" />
@@ -2462,7 +2356,7 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
                                               )}/download`}
                                               target="_blank"
                                               rel="noreferrer"
-                                              className="p-1 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded shrink-0"
+                                              className="p-1 bg-[#EEF2FF] hover:bg-indigo-100 text-[#223585] border border-[#DDE4F6] rounded-[6px] shrink-0"
                                               title={`Baixar ${doc.fileName}`}
                                             >
                                               <Download className="w-3.5 h-3.5" />
@@ -2489,7 +2383,7 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
                                                   `Documento ${doc.label} (${u.name}) removido`
                                                 )
                                               }
-                                              className="p-1 bg-red-50 hover:bg-red-100 text-red-600 hover:text-red-800 border border-red-200 rounded shrink-0 cursor-pointer"
+                                              className="p-1 bg-red-50 hover:bg-red-100 text-red-600 hover:text-red-800 border border-red-200 rounded-[6px] shrink-0 cursor-pointer"
                                               title={`Remover / limpar ${doc.label}`}
                                             >
                                               <Trash2 className="w-3.5 h-3.5" />
@@ -2512,18 +2406,16 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
 
               {filteredResources.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="py-12 text-center text-slate-500">
-                    <div className="flex flex-col items-center justify-center gap-2">
-                      <Users className="w-10 h-10 text-slate-300" />
-                      <div className="text-sm font-bold text-slate-800">
-                        {users.length === 0
+                  <td colSpan={7} className="p-4">
+                    <EmptyStateCard
+                      icon={<Users className="w-7 h-7" />}
+                      title={
+                        users.length === 0
                           ? '0 usuários cadastrados na coleção "usuarios"'
-                          : 'Nenhum recurso encontrado para os filtros selecionados'}
-                      </div>
-                      <div className="text-xs text-slate-500 font-mono">
-                        Projeto Firebase: <strong className="text-slate-700">{firebaseConfig.projectId}</strong> (Banco: {firebaseConfig.firestoreDatabaseId || '(default)'})
-                      </div>
-                    </div>
+                          : 'Nenhum recurso encontrado para os filtros selecionados'
+                      }
+                      description={`Projeto Firebase: ${firebaseConfig.projectId} (Banco: ${firebaseConfig.firestoreDatabaseId || '(default)'})`}
+                    />
                   </td>
                 </tr>
               )}
@@ -2535,22 +2427,22 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
       {/* Modal: Cadastrar Novo Recurso (com opção de Dispensado e Tela Oculta de Documentos) */}
       {addModalOpen && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-[2px]"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 ameta-modal-backdrop"
           onClick={() => setAddModalOpen(false)}
         >
           <div
-            className="w-full max-w-4xl bg-white border border-slate-200 rounded-2xl shadow-xl overflow-hidden flex flex-col max-h-[90vh]"
+            className="w-full max-w-4xl bg-white border border-slate-200 rounded-[12px] shadow-2xl overflow-hidden flex flex-col max-h-[90vh] ameta-modal-panel"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="px-5 py-4 border-b border-slate-200 flex items-center justify-between">
+            <div className="px-5 py-4 border-b border-slate-200 bg-[#0B1530] text-white flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <Users className="w-4 h-4 text-slate-700" />
-                <h3 className="text-sm font-bold text-slate-900">Cadastrar Novo Recurso</h3>
+                <Users className="w-4 h-4 text-teal-400" />
+                <h3 className="text-sm font-bold">Cadastrar Novo Recurso</h3>
               </div>
               <button
                 type="button"
                 onClick={() => setAddModalOpen(false)}
-                className="p-1 text-slate-400 hover:text-slate-700 rounded-lg cursor-pointer"
+                className="p-1 text-slate-300 hover:text-white rounded-[8px] cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -2561,7 +2453,7 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
               className="p-5 space-y-4 overflow-y-auto flex-1"
             >
               {error && (
-                <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700 flex items-center gap-2">
+                <div className="p-3 bg-red-50 border border-red-200 rounded-[10px] text-xs text-red-700 flex items-center gap-2">
                   <AlertCircle className="w-4 h-4 shrink-0" />
                   <span>{error}</span>
                 </div>
@@ -2578,7 +2470,7 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     placeholder="Ex: Magno Rodolfo dos Santos Ribeiro"
-                    className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs text-slate-900 focus:outline-none focus:border-blue-600"
+                    className="w-full px-3 py-2 bg-white border border-slate-200 rounded-[8px] text-xs text-slate-900 focus:outline-none focus:border-[#223585]"
                   />
                 </div>
 
@@ -2592,7 +2484,7 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="recurso@ametaservicos.com.br"
-                    className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs text-slate-900 font-mono focus:outline-none focus:border-blue-600"
+                    className="w-full px-3 py-2 bg-white border border-slate-200 rounded-[8px] text-xs text-slate-900 font-mono focus:outline-none focus:border-[#223585]"
                   />
                 </div>
               </div>
@@ -2607,7 +2499,7 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
                     value={telefone}
                     onChange={(e) => setTelefone(e.target.value)}
                     placeholder="11 99999-0000"
-                    className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs text-slate-900 font-mono focus:outline-none focus:border-blue-600"
+                    className="w-full px-3 py-2 bg-white border border-slate-200 rounded-[8px] text-xs text-slate-900 font-mono focus:outline-none focus:border-[#223585]"
                   />
                 </div>
 
@@ -2620,7 +2512,7 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
                     value={cpf}
                     onChange={(e) => setCpf(e.target.value)}
                     placeholder="000.000.000-00"
-                    className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs text-slate-900 font-mono focus:outline-none focus:border-blue-600"
+                    className="w-full px-3 py-2 bg-white border border-slate-200 rounded-[8px] text-xs text-slate-900 font-mono focus:outline-none focus:border-[#223585]"
                   />
                 </div>
 
@@ -2633,7 +2525,7 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
                     value={equipe}
                     onChange={(e) => setEquipe(e.target.value)}
                     placeholder="Ex: Magno / Mateus"
-                    className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs text-slate-900 focus:outline-none focus:border-blue-600"
+                    className="w-full px-3 py-2 bg-white border border-slate-200 rounded-[8px] text-xs text-slate-900 focus:outline-none focus:border-[#223585]"
                   />
                 </div>
 
@@ -2647,7 +2539,7 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
                     minLength={6}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs text-slate-900 font-mono focus:outline-none focus:border-blue-600"
+                    className="w-full px-3 py-2 bg-white border border-slate-200 rounded-[8px] text-xs text-slate-900 font-mono focus:outline-none focus:border-[#223585]"
                   />
                 </div>
               </div>
@@ -2662,9 +2554,9 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
                       key={opt.role}
                       type="button"
                       onClick={() => setNewRole(opt.role)}
-                      className={`py-2 px-2.5 rounded-lg border text-xs font-semibold transition-all cursor-pointer ${
+                      className={`py-2 px-2.5 rounded-[8px] border text-xs font-semibold transition-all cursor-pointer ${
                         newRole === opt.role
-                          ? 'bg-slate-900 border-slate-900 text-white'
+                          ? 'bg-[#0B1530] border-[#0B1530] text-white'
                           : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
                       }`}
                     >
@@ -2684,10 +2576,10 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
                 <select
                   value={newPlatform}
                   onChange={(e) => setNewPlatform(e.target.value as AssignedPlatformScope | '')}
-                  className={`w-full px-3 py-2 bg-white border rounded-lg text-xs font-semibold focus:outline-none ${
+                  className={`w-full px-3 py-2 bg-white border rounded-[8px] text-xs font-semibold focus:outline-none ${
                     (newRole === 'Executor' || newRole === 'Vistoriador') && !newPlatform
                       ? 'border-amber-400 text-amber-900 bg-amber-50'
-                      : 'border-slate-200 text-slate-800 focus:border-blue-600'
+                      : 'border-slate-200 text-slate-800 focus:border-[#223585]'
                   }`}
                 >
                   <option value="">— Selecione a plataforma —</option>
@@ -2710,7 +2602,7 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
                       type="checkbox"
                       checked={newDispensado}
                       onChange={(e) => setNewDispensado(e.target.checked)}
-                      className="rounded border-slate-300 text-slate-900 focus:ring-slate-900"
+                      className="rounded border-slate-300 text-[#223585] focus:ring-[#223585]"
                     />
                     <span>
                       Esta pessoa está <strong>Dispensada</strong> desses documentos (NR 10, NR 35, ASO, PCMSO, PGR, 1º Socorros, Contrato, RG)
@@ -2721,7 +2613,7 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
                     <button
                       type="button"
                       onClick={() => setShowNewDocsSection((prev) => !prev)}
-                      className="px-3 py-1.5 bg-[#F3F4F6] hover:bg-slate-200 text-slate-800 rounded-lg text-xs font-semibold flex items-center gap-1.5 cursor-pointer"
+                      className="px-3 py-1.5 bg-[#F4F6FA] hover:bg-slate-200 border border-slate-200 text-slate-800 rounded-[8px] text-xs font-semibold flex items-center gap-1.5 cursor-pointer transition-colors"
                     >
                       <FileText className="w-3.5 h-3.5" />
                       <span>
@@ -2739,7 +2631,7 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
                 </div>
 
                 {!newDispensado && showNewDocsSection && (
-                  <div className="border border-slate-200 rounded-xl overflow-hidden bg-white grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-slate-200">
+                  <div className="border border-slate-200 rounded-[10px] overflow-hidden bg-white grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-slate-200">
                     {MANDATORY_USER_DOCUMENTS.map((meta) => {
                       const docState = newProfileDocs[meta.type];
                       return (
@@ -2787,11 +2679,11 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
                                         },
                                       }))
                                     }
-                                    className="w-full px-2 py-1 bg-slate-50 border border-slate-200 rounded text-[11px] font-mono"
+                                    className="w-full px-2 py-1 bg-[#F4F6FA] border border-slate-200 rounded-[6px] text-[11px] font-mono tabular-nums focus:bg-white focus:outline-none focus:border-[#223585]"
                                   />
                                 </div>
 
-                                <label className="w-full py-1 px-2 bg-slate-900 hover:bg-slate-800 text-white rounded text-[11px] font-semibold flex items-center justify-center gap-1 cursor-pointer">
+                                <label className="w-full py-1 px-2 bg-[#223585] hover:bg-[#1B2A6B] text-white rounded-[6px] text-[11px] font-semibold flex items-center justify-center gap-1 cursor-pointer transition-colors">
                                   <Upload className="w-3 h-3 shrink-0" />
                                   <span className="truncate">
                                     {docState?.fileName ? docState.fileName : 'Upload Arquivo'}
@@ -2837,14 +2729,14 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
                 <button
                   type="button"
                   onClick={() => setAddModalOpen(false)}
-                  className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg cursor-pointer"
+                  className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-[8px] cursor-pointer"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
                   disabled={saving}
-                  className="px-4 py-2 bg-slate-900 hover:bg-slate-800 disabled:opacity-50 text-white text-xs font-semibold rounded-lg cursor-pointer"
+                  className="px-4 py-2 bg-[#223585] hover:bg-[#192868] disabled:opacity-50 text-white text-xs font-semibold rounded-[8px] cursor-pointer"
                 >
                   {saving ? 'Salvando...' : 'Salvar Recurso'}
                 </button>
@@ -2856,22 +2748,22 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
       {/* Modal: Criar Acesso de Todos os Pendentes (Lote Auth) */}
       {bulkAuthModalOpen && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-[2px]"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 ameta-modal-backdrop"
           onClick={() => setBulkAuthModalOpen(false)}
         >
           <div
-            className="w-full max-w-lg bg-white border border-slate-200 rounded-2xl shadow-2xl overflow-hidden flex flex-col"
+            className="w-full max-w-lg bg-white border border-slate-200 rounded-[12px] shadow-2xl overflow-hidden flex flex-col ameta-modal-panel"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="px-5 py-4 border-b border-slate-200 flex items-center justify-between bg-indigo-900 text-white">
+            <div className="px-5 py-4 border-b border-slate-200 flex items-center justify-between bg-[#0B1530] text-white">
               <div className="flex items-center gap-2">
-                <ShieldCheck className="w-5 h-5 text-indigo-300" />
+                <ShieldCheck className="w-5 h-5 text-teal-400" />
                 <h3 className="text-sm font-bold">Criar Acesso no Firebase Authentication em Lote</h3>
               </div>
               <button
                 type="button"
                 onClick={() => setBulkAuthModalOpen(false)}
-                className="p-1 text-indigo-200 hover:text-white rounded-lg cursor-pointer"
+                className="p-1 text-slate-300 hover:text-white rounded-[8px] cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -2893,7 +2785,7 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
                   value={authDefaultPassword}
                   onChange={(e) => setAuthDefaultPassword(e.target.value)}
                   placeholder="Ex: ameta2026"
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-mono font-bold text-slate-900 focus:outline-none focus:border-indigo-600"
+                  className="w-full px-3 py-2 bg-[#F4F6FA] border border-slate-200 rounded-[8px] text-xs font-mono font-bold text-slate-900 focus:bg-white focus:outline-none focus:border-[#223585]"
                 />
               </div>
 
@@ -2901,7 +2793,7 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
                 <button
                   type="button"
                   onClick={() => setBulkAuthModalOpen(false)}
-                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-lg cursor-pointer"
+                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-[8px] cursor-pointer"
                 >
                   Cancelar
                 </button>
@@ -2909,7 +2801,7 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
                   type="button"
                   disabled={authProcessing || authDefaultPassword.length < 8}
                   onClick={() => handleRunAuthCreation(users, authDefaultPassword)}
-                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-xs font-bold rounded-lg flex items-center gap-2 cursor-pointer shadow-2xs"
+                  className="px-4 py-2 bg-[#223585] hover:bg-[#1B2A6B] disabled:opacity-50 text-white text-xs font-bold rounded-[8px] flex items-center gap-2 cursor-pointer shadow-2xs transition-colors"
                 >
                   {authProcessing ? (
                     <>
@@ -2929,32 +2821,32 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
       {/* Modal: Criar Acesso Individual */}
       {singleAuthUser && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-[2px]"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 ameta-modal-backdrop"
           onClick={() => setSingleAuthUser(null)}
         >
           <div
-            className="w-full max-w-md bg-white border border-slate-200 rounded-2xl shadow-2xl overflow-hidden flex flex-col"
+            className="w-full max-w-md bg-white border border-slate-200 rounded-[12px] shadow-2xl overflow-hidden flex flex-col ameta-modal-panel"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="px-5 py-4 border-b border-slate-200 flex items-center justify-between bg-slate-900 text-white">
+            <div className="px-5 py-4 border-b border-slate-200 flex items-center justify-between bg-[#0B1530] text-white">
               <div className="flex items-center gap-2">
-                <UserCheck className="w-5 h-5 text-emerald-400" />
+                <UserCheck className="w-5 h-5 text-teal-400" />
                 <h3 className="text-sm font-bold">Criar Acesso Authentication</h3>
               </div>
               <button
                 type="button"
                 onClick={() => setSingleAuthUser(null)}
-                className="p-1 text-slate-400 hover:text-white rounded-lg cursor-pointer"
+                className="p-1 text-slate-300 hover:text-white rounded-[8px] cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
             <div className="p-5 space-y-4">
-              <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs space-y-1">
+              <div className="p-3 bg-[#F4F6FA] border border-slate-200 rounded-[10px] text-xs space-y-1">
                 <div>Colaborador: <strong className="text-slate-900">{singleAuthUser.name}</strong></div>
                 <div>E-mail: <strong className="text-slate-900 font-mono">{singleAuthUser.email}</strong></div>
-                <div>Função: <span className="font-semibold text-indigo-700">{singleAuthUser.role}</span></div>
+                <div>Função: <span className="font-semibold text-[#223585]">{singleAuthUser.role}</span></div>
               </div>
 
               <div>
@@ -2967,7 +2859,7 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
                   minLength={8}
                   value={authDefaultPassword}
                   onChange={(e) => setAuthDefaultPassword(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-mono font-bold text-slate-900 focus:outline-none focus:border-indigo-600"
+                  className="w-full px-3 py-2 bg-[#F4F6FA] border border-slate-200 rounded-[8px] text-xs font-mono font-bold text-slate-900 focus:bg-white focus:outline-none focus:border-[#223585]"
                 />
               </div>
 
@@ -2975,7 +2867,7 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
                 <button
                   type="button"
                   onClick={() => setSingleAuthUser(null)}
-                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-lg cursor-pointer"
+                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-[8px] cursor-pointer"
                 >
                   Cancelar
                 </button>
@@ -2983,7 +2875,7 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
                   type="button"
                   disabled={authProcessing || authDefaultPassword.length < 8}
                   onClick={() => handleRunAuthCreation([singleAuthUser], authDefaultPassword)}
-                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-xs font-bold rounded-lg flex items-center gap-2 cursor-pointer shadow-2xs"
+                  className="px-4 py-2 bg-[#1E8E8D] hover:bg-[#177170] disabled:opacity-50 text-white text-xs font-bold rounded-[8px] flex items-center gap-2 cursor-pointer shadow-2xs transition-colors"
                 >
                   {authProcessing ? (
                     <>
@@ -3003,44 +2895,44 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
       {/* Modal: Relatorio Final de Criacao de Acessos */}
       {authReport && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-[2px]"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 ameta-modal-backdrop"
           onClick={() => setAuthReport(null)}
         >
           <div
-            className="w-full max-w-2xl bg-white border border-slate-200 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh]"
+            className="w-full max-w-2xl bg-white border border-slate-200 rounded-[12px] shadow-2xl overflow-hidden flex flex-col max-h-[85vh] ameta-modal-panel"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="px-5 py-4 border-b border-slate-200 flex items-center justify-between bg-slate-900 text-white">
+            <div className="px-5 py-4 border-b border-slate-200 flex items-center justify-between bg-[#0B1530] text-white">
               <div className="flex items-center gap-2">
-                <ShieldCheck className="w-5 h-5 text-emerald-400" />
+                <ShieldCheck className="w-5 h-5 text-teal-400" />
                 <h3 className="text-sm font-bold">Relatório Final de Criação de Acessos</h3>
               </div>
               <button
                 type="button"
                 onClick={() => setAuthReport(null)}
-                className="p-1 text-slate-400 hover:text-white rounded-lg cursor-pointer"
+                className="p-1 text-slate-300 hover:text-white rounded-[8px] cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
             <div className="p-5 space-y-4 overflow-y-auto">
-              <div className="grid grid-cols-3 gap-3 text-center">
-                <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl">
-                  <div className="text-lg font-black text-emerald-700">{authReport.created}</div>
+              <div className="grid grid-cols-3 gap-3 text-center tabular-nums">
+                <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-[10px]">
+                  <div className="text-lg font-black text-emerald-700 font-mono">{authReport.created}</div>
                   <div className="text-[11px] font-bold text-emerald-800">Criados no Auth</div>
                 </div>
-                <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl">
-                  <div className="text-lg font-black text-blue-700">{authReport.alreadyExisted}</div>
-                  <div className="text-[11px] font-bold text-blue-800">Já Existiam</div>
+                <div className="p-3 bg-[#EEF2FF] border border-[#DDE4F6] rounded-[10px]">
+                  <div className="text-lg font-black text-[#223585] font-mono">{authReport.alreadyExisted}</div>
+                  <div className="text-[11px] font-bold text-[#223585]">Já Existiam</div>
                 </div>
-                <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl">
-                  <div className="text-lg font-black text-rose-700">{authReport.errors}</div>
+                <div className="p-3 bg-rose-50 border border-rose-200 rounded-[10px]">
+                  <div className="text-lg font-black text-rose-700 font-mono">{authReport.errors}</div>
                   <div className="text-[11px] font-bold text-rose-800">Erros</div>
                 </div>
               </div>
 
-              <div className="border border-slate-200 rounded-xl overflow-hidden">
+              <div className="border border-slate-200 rounded-[10px] overflow-hidden">
                 <table className="w-full text-left text-xs">
                   <thead className="bg-slate-100 border-b border-slate-200 text-slate-700 font-bold">
                     <tr>
@@ -3058,17 +2950,17 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
                         </td>
                         <td className="py-2 px-3 whitespace-nowrap">
                           {d.status === 'created' && (
-                            <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-bold text-[10px]">
+                            <span className="px-2 py-0.5 rounded-[6px] bg-emerald-100 text-emerald-800 font-bold text-[10px]">
                               Criado
                             </span>
                           )}
                           {d.status === 'already_exists' && (
-                            <span className="px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 font-bold text-[10px]">
+                            <span className="px-2 py-0.5 rounded-[6px] bg-[#EEF2FF] text-[#223585] font-bold text-[10px]">
                               Já Existia
                             </span>
                           )}
                           {d.status === 'error' && (
-                            <span className="px-2 py-0.5 rounded-full bg-rose-100 text-rose-800 font-bold text-[10px]">
+                            <span className="px-2 py-0.5 rounded-[6px] bg-rose-100 text-rose-800 font-bold text-[10px]">
                               Erro
                             </span>
                           )}
@@ -3085,368 +2977,9 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
               <button
                 type="button"
                 onClick={() => setAuthReport(null)}
-                className="px-4 py-2 bg-slate-900 text-white font-bold text-xs rounded-lg cursor-pointer hover:bg-slate-800"
+                className="px-4 py-2 bg-[#0B1530] text-white font-bold text-xs rounded-[8px] cursor-pointer hover:bg-[#223585] transition-colors"
               >
                 Fechar Relatório
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-      {/* Modal Zerar Cadastros */}
-      {zerarModalOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
-          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-4xl overflow-hidden flex flex-col max-h-[90vh]">
-            {/* Header */}
-            <div className="p-4 sm:p-5 bg-gradient-to-r from-red-900 via-rose-950 to-slate-900 text-white flex items-center justify-between shrink-0">
-              <div className="flex items-center gap-3">
-                <div className="p-2.5 bg-red-800/80 rounded-xl border border-red-600/60 shadow-inner">
-                  <Trash2 className="w-5 h-5 text-red-200" />
-                </div>
-                <div>
-                  <h3 className="font-black text-base sm:text-lg tracking-wide">Zerar Cadastros do Sistema</h3>
-                  <p className="text-xs text-red-200 font-medium">
-                    Limpeza total da coleção de usuários mantendo exclusivamente Dono, Coordenadores e Admins.
-                  </p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => {
-                  if (!isExecutingZerar) {
-                    setZerarModalOpen(false);
-                    setZerarResult(null);
-                  }
-                }}
-                className="p-1.5 text-red-200 hover:text-white hover:bg-white/10 rounded-lg cursor-pointer transition-colors"
-                title="Fechar"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            {/* Body */}
-            <div className="p-4 sm:p-6 overflow-y-auto space-y-5 flex-1">
-              {!zerarResult ? (
-                <>
-                  <div className="p-3.5 bg-amber-50 border border-amber-300 rounded-xl text-xs text-amber-950 flex items-start gap-2.5 shadow-2xs">
-                    <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-                    <div className="space-y-1">
-                      <p className="font-bold">
-                        Atenção: Esta ação excluirá permanentemente da coleção <code className="bg-amber-100 px-1 py-0.5 rounded font-mono border border-amber-300">usuarios</code> os documentos e o subdocumento <code className="bg-amber-100 px-1 py-0.5 rounded font-mono border border-amber-300">privado/dados</code>.
-                      </p>
-                      <p className="text-amber-800">
-                        Nenhuma informação das planilhas e sites (Nokia, Ericsson, Engenharia), incluindo campos de equipe, dupla, executor e "quem fez", nem de <code>duplas_config</code> e <code>acionamentos</code> será alterada ou apagada.
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Listas MANTIDOS vs APAGADOS */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {/* Lista 1: Serão MANTIDOS */}
-                    <div className="bg-emerald-50/80 border-2 border-emerald-300 rounded-xl p-3.5 flex flex-col max-h-[320px]">
-                      <div className="flex items-center justify-between pb-2 border-b border-emerald-200 mb-2 shrink-0">
-                        <div className="flex items-center gap-2">
-                          <CheckCircle2 className="w-4 h-4 text-emerald-700" />
-                          <span className="font-black text-xs uppercase tracking-wide text-emerald-950">
-                            Serão MANTIDOS ({toKeepList.length})
-                          </span>
-                        </div>
-                        <span className="text-[10px] font-bold bg-emerald-200 text-emerald-900 px-2 py-0.5 rounded-full">
-                          Protegidos
-                        </span>
-                      </div>
-
-                      <div className="overflow-y-auto space-y-2 pr-1 flex-1">
-                        {toKeepList.length === 0 ? (
-                          <p className="text-xs text-slate-500 italic p-2">Nenhum usuário na lista de mantidos.</p>
-                        ) : (
-                          toKeepList.map((u) => (
-                            <div
-                              key={u.uid || u.id || u.email}
-                              className="bg-white p-2.5 rounded-lg border border-emerald-200 text-xs shadow-2xs space-y-0.5"
-                            >
-                              <div className="font-bold text-slate-900 truncate">
-                                {u.name || 'Sem nome'}
-                                {(u.uid === currentUser.uid || u.email === currentUser.email) && (
-                                  <span className="ml-1 text-[9px] font-black uppercase text-emerald-700 bg-emerald-100 px-1.5 py-0.2 rounded">
-                                    Você
-                                  </span>
-                                )}
-                              </div>
-                              <div className="font-mono text-[11px] text-slate-600 truncate">{u.email}</div>
-                              <div className="flex items-center gap-1.5 pt-1">
-                                <span className="text-[10px] font-bold px-1.5 py-0.2 bg-emerald-100 text-emerald-900 rounded">
-                                  {u.situacao === 'dono' ? 'DONO' : u.role || 'Sem Cargo'}
-                                </span>
-                              </div>
-                            </div>
-                          ))
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Lista 2: Serão APAGADOS */}
-                    <div className="bg-rose-50/80 border-2 border-rose-300 rounded-xl p-3.5 flex flex-col max-h-[320px]">
-                      <div className="flex items-center justify-between pb-2 border-b border-rose-200 mb-2 shrink-0">
-                        <div className="flex items-center gap-2">
-                          <Trash2 className="w-4 h-4 text-rose-700" />
-                          <span className="font-black text-xs uppercase tracking-wide text-rose-950">
-                            Serão APAGADOS ({toDeleteList.length})
-                          </span>
-                        </div>
-                        <span className="text-[10px] font-bold bg-rose-200 text-rose-900 px-2 py-0.5 rounded-full">
-                          Serão Removidos
-                        </span>
-                      </div>
-
-                      <div className="overflow-y-auto space-y-2 pr-1 flex-1">
-                        {toDeleteList.length === 0 ? (
-                          <p className="text-xs text-slate-500 italic p-2">Nenhum cadastro será apagado.</p>
-                        ) : (
-                          toDeleteList.map((u) => (
-                            <div
-                              key={u.uid || u.id || u.email}
-                              className="bg-white p-2.5 rounded-lg border border-rose-200 text-xs shadow-2xs space-y-0.5"
-                            >
-                              <div className="font-bold text-slate-900 truncate">{u.name || 'Sem nome'}</div>
-                              <div className="font-mono text-[11px] text-slate-600 truncate">{u.email}</div>
-                              <div className="flex items-center gap-1.5 pt-1">
-                                <span className="text-[10px] font-medium px-1.5 py-0.2 bg-rose-100 text-rose-900 rounded">
-                                  {u.role || u.situacao || 'Sem cargo / Pendente'}
-                                </span>
-                              </div>
-                            </div>
-                          ))
-                        )}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Confirmação com palavra ZERAR */}
-                  {toDeleteList.length > 0 && (
-                    <div className="p-4 bg-slate-100 border border-slate-300 rounded-xl space-y-2 shadow-2xs">
-                      <label className="block text-xs font-bold text-slate-800">
-                        Para habilitar o botão de confirmação, digite a palavra <span className="text-red-700 font-mono font-black underline">ZERAR</span> no campo abaixo:
-                      </label>
-                      <input
-                        type="text"
-                        value={zerarConfirmationInput}
-                        onChange={(e) => setZerarConfirmationInput(e.target.value)}
-                        placeholder="Digite ZERAR"
-                        className="w-full px-3.5 py-2 bg-white border border-slate-300 rounded-lg font-mono text-sm uppercase text-slate-900 font-black focus:outline-none focus:border-red-600 shadow-2xs"
-                      />
-                    </div>
-                  )}
-                </>
-              ) : (
-                /* Resultado Final do Zerar Cadastros */
-                <div className="space-y-5">
-                  <div className="p-4 bg-emerald-50 border border-emerald-300 rounded-xl text-emerald-950 flex items-center gap-3 shadow-2xs">
-                    <CheckCircle2 className="w-6 h-6 text-emerald-600 shrink-0" />
-                    <div>
-                      <h4 className="font-black text-sm text-emerald-950">
-                        Limpeza de Cadastros Concluída!
-                      </h4>
-                      <p className="text-xs text-emerald-800">
-                        A coleção de usuários do Firestore foi atualizada em lotes de forma segura.
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Cards de Resumo */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div className="p-4 bg-rose-50 border border-rose-200 rounded-xl text-center shadow-2xs">
-                      <div className="text-3xl font-black text-rose-700">{zerarResult.deletedCount}</div>
-                      <div className="text-xs font-bold text-rose-900 uppercase">Cadastros Apagados</div>
-                    </div>
-                    <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl text-center shadow-2xs">
-                      <div className="text-3xl font-black text-emerald-700">{zerarResult.keptCount}</div>
-                      <div className="text-xs font-bold text-emerald-900 uppercase">Cadastros Mantidos</div>
-                    </div>
-                  </div>
-
-                  {/* Lista de E-mails dos Mantidos */}
-                  <div className="space-y-2">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <label className="text-xs font-bold text-slate-800">
-                        E-mails dos usuários MANTIDOS ({zerarResult.keptEmails.length}):
-                      </label>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          navigator.clipboard.writeText(zerarResult.keptEmails.join('\n'));
-                          setCopiedEmailsNotice(true);
-                          showToast('E-mails copiados para a área de transferência!');
-                          setTimeout(() => setCopiedEmailsNotice(false), 3000);
-                        }}
-                        className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-lg flex items-center gap-1.5 cursor-pointer shadow-2xs transition-colors"
-                      >
-                        <Copy className="w-3.5 h-3.5" />
-                        <span>{copiedEmailsNotice ? 'Copiado com Sucesso!' : 'Copiar E-mails'}</span>
-                      </button>
-                    </div>
-
-                    <textarea
-                      readOnly
-                      value={zerarResult.keptEmails.join('\n')}
-                      rows={Math.min(10, Math.max(4, zerarResult.keptEmails.length))}
-                      className="w-full p-3 font-mono text-xs bg-slate-900 text-emerald-400 rounded-xl border border-slate-700 focus:outline-none select-all leading-relaxed shadow-inner"
-                      onClick={(e) => (e.target as HTMLTextAreaElement).select()}
-                    />
-                    <p className="text-[11px] text-slate-500">
-                      Você pode copiar a lista acima para utilizar no gerenciamento do Firebase Authentication.
-                    </p>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Modal Footer */}
-            <div className="p-4 bg-slate-100 border-t border-slate-200 flex flex-wrap items-center justify-between gap-2 shrink-0">
-              <span className="text-xs text-slate-500 font-medium">
-                {!zerarResult ? `${toDeleteList.length} cadastros pendentes de exclusão` : 'Operação finalizada'}
-              </span>
-
-              <div className="flex items-center gap-2">
-                {!zerarResult ? (
-                  <>
-                    <button
-                      type="button"
-                      disabled={isExecutingZerar}
-                      onClick={() => setZerarModalOpen(false)}
-                      className="px-4 py-2 bg-white border border-slate-300 text-slate-700 font-bold text-xs rounded-xl hover:bg-slate-50 cursor-pointer shadow-2xs"
-                    >
-                      Cancelar
-                    </button>
-                    <button
-                      type="button"
-                      disabled={
-                        zerarConfirmationInput.trim().toUpperCase() !== 'ZERAR' ||
-                        isExecutingZerar ||
-                        toDeleteList.length === 0
-                      }
-                      onClick={handleExecuteZerarCadastros}
-                      className="px-5 py-2 bg-red-700 hover:bg-red-800 disabled:opacity-40 disabled:cursor-not-allowed text-white font-black text-xs rounded-xl shadow-md flex items-center gap-2 cursor-pointer transition-colors"
-                    >
-                      {isExecutingZerar ? (
-                        <>
-                          <RefreshCw className="w-4 h-4 animate-spin" />
-                          <span>Apagando em Lote...</span>
-                        </>
-                      ) : (
-                        <>
-                          <Trash2 className="w-4 h-4" />
-                          <span>Confirmar e Zerar Cadastros</span>
-                        </>
-                      )}
-                    </button>
-                  </>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setZerarModalOpen(false);
-                      setZerarResult(null);
-                    }}
-                    className="px-5 py-2 bg-slate-900 text-white font-bold text-xs rounded-xl hover:bg-slate-800 cursor-pointer shadow-md"
-                  >
-                    Fechar
-                  </button>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-      {/* Modal Zerar Planilhas */}
-      {zerarPlanilhasModalOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
-          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-lg overflow-hidden flex flex-col">
-            {/* Header */}
-            <div className="p-4 sm:p-5 bg-gradient-to-r from-rose-900 to-slate-900 text-white flex items-center justify-between shrink-0">
-              <div className="flex items-center gap-3">
-                <div className="p-2.5 bg-rose-800/80 rounded-xl border border-rose-600/60 shadow-inner">
-                  <FileSpreadsheet className="w-5 h-5 text-rose-200" />
-                </div>
-                <div>
-                  <h3 className="font-black text-base sm:text-lg tracking-wide">Zerar Planilhas do Firestore</h3>
-                  <p className="text-xs text-rose-200 font-medium">
-                    Exclusão permanente de todos os dados de planilhas no Firestore.
-                  </p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => {
-                  if (!isExecutingZerarPlanilhas) {
-                    setZerarPlanilhasModalOpen(false);
-                    setZerarPlanilhasConfirmation('');
-                  }
-                }}
-                className="p-1.5 text-rose-200 hover:text-white hover:bg-white/10 rounded-lg cursor-pointer transition-colors"
-                title="Fechar"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            {/* Body */}
-            <div className="p-5 space-y-4">
-              <div className="p-3.5 bg-amber-50 border border-amber-300 rounded-xl text-xs text-amber-950 flex items-start gap-2.5">
-                <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-                <div className="space-y-1">
-                  <p className="font-bold text-amber-900">Atenção: Esta ação é irreversível!</p>
-                  <p>
-                    Todas as linhas gravadas no Firestore para Nokia Sites, Nokia TSSR, Claro Sites, Claro Engenharia, Ericsson Sites e Ericsson Engenharia serão permanentemente excluídas do banco de dados.
-                  </p>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Digite <span className="font-mono text-rose-700 bg-rose-50 px-1 py-0.5 rounded border border-rose-200">ZERAR</span> para confirmar:
-                </label>
-                <input
-                  type="text"
-                  value={zerarPlanilhasConfirmation}
-                  onChange={(e) => setZerarPlanilhasConfirmation(e.target.value)}
-                  placeholder="ZERAR"
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-mono font-bold text-slate-900 focus:outline-none focus:border-rose-600"
-                />
-              </div>
-            </div>
-
-            {/* Footer */}
-            <div className="p-4 border-t border-slate-200 bg-slate-50 flex items-center justify-end gap-2">
-              <button
-                type="button"
-                disabled={isExecutingZerarPlanilhas}
-                onClick={() => setZerarPlanilhasModalOpen(false)}
-                className="px-4 py-2 bg-white border border-slate-300 text-slate-700 font-bold text-xs rounded-xl hover:bg-slate-50 cursor-pointer shadow-2xs"
-              >
-                Cancelar
-              </button>
-              <button
-                type="button"
-                disabled={
-                  zerarPlanilhasConfirmation.trim().toUpperCase() !== 'ZERAR' ||
-                  isExecutingZerarPlanilhas
-                }
-                onClick={handleExecuteZerarPlanilhas}
-                className="px-5 py-2 bg-rose-700 hover:bg-rose-800 disabled:opacity-40 disabled:cursor-not-allowed text-white font-black text-xs rounded-xl shadow-md flex items-center gap-2 cursor-pointer transition-colors"
-              >
-                {isExecutingZerarPlanilhas ? (
-                  <>
-                    <RefreshCw className="w-4 h-4 animate-spin" />
-                    <span>Zerando Firestore...</span>
-                  </>
-                ) : (
-                  <>
-                    <Trash2 className="w-4 h-4" />
-                    <span>Confirmar e Zerar Planilhas</span>
-                  </>
-                )}
               </button>
             </div>
           </div>
@@ -3455,12 +2988,12 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
 
       {/* Modal Corrigir Linhas com Aba Errada (Nokia Sites) */}
       {corrigirModalOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
-          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-xl overflow-hidden flex flex-col">
+        <div className="fixed inset-0 z-50 bg-slate-900/70 ameta-modal-backdrop flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+          <div className="bg-white rounded-[12px] shadow-2xl border border-slate-200 w-full max-w-xl overflow-hidden flex flex-col ameta-modal-panel">
             {/* Header */}
-            <div className="p-4 sm:p-5 bg-gradient-to-r from-amber-700 via-amber-800 to-slate-900 text-white flex items-center justify-between shrink-0">
+            <div className="p-4 sm:p-5 bg-gradient-to-r from-amber-700 via-amber-800 to-[#0B1530] text-white flex items-center justify-between shrink-0">
               <div className="flex items-center gap-3">
-                <div className="p-2.5 bg-amber-800/80 rounded-xl border border-amber-500/50 shadow-inner">
+                <div className="p-2.5 bg-amber-800/80 rounded-[10px] border border-amber-500/50 shadow-inner">
                   <FileSpreadsheet className="w-5 h-5 text-amber-200" />
                 </div>
                 <div>
@@ -3481,7 +3014,7 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
                     setResultadoCorrecao(null);
                   }
                 }}
-                className="p-1.5 text-amber-200 hover:text-white hover:bg-white/10 rounded-lg cursor-pointer transition-colors"
+                className="p-1.5 text-amber-200 hover:text-white hover:bg-white/10 rounded-[8px] cursor-pointer transition-colors"
                 title="Fechar"
               >
                 <X className="w-5 h-5" />
@@ -3499,20 +3032,20 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
                 </div>
               ) : resultadoCorrecao ? (
                 <div className="space-y-4">
-                  <div className="p-4 bg-emerald-50 border border-emerald-300 rounded-xl text-emerald-950 flex items-center gap-3">
+                  <div className="p-4 bg-emerald-50 border border-emerald-300 rounded-[10px] text-emerald-950 flex items-center gap-3">
                     <CheckCircle2 className="w-6 h-6 text-emerald-600 shrink-0" />
                     <div>
                       <h4 className="font-bold text-sm text-emerald-950">
                         Correção Concluída com Sucesso!
                       </h4>
-                      <p className="text-xs text-emerald-800 mt-0.5">
+                      <p className="text-xs text-emerald-800 mt-0.5 tabular-nums">
                         {resultadoCorrecao.movidos} documento(s) foram migrados para a aba "Controle Geral" com ID base unificado.
                       </p>
                     </div>
                   </div>
 
                   {resultadoCorrecao.detalhesPorAba && Object.keys(resultadoCorrecao.detalhesPorAba).length > 0 && (
-                    <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs space-y-1.5 font-mono">
+                    <div className="p-3 bg-[#F4F6FA] border border-slate-200 rounded-[10px] text-xs space-y-1.5 font-mono tabular-nums">
                       <div className="font-bold text-slate-700 font-sans">Detalhamento por aba corrigida:</div>
                       {Object.entries(resultadoCorrecao.detalhesPorAba).map(([aba, count]) => (
                         <div key={aba} className="flex justify-between text-slate-600">
@@ -3524,7 +3057,7 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
                   )}
                 </div>
               ) : diagnosticoAbaErrada && diagnosticoAbaErrada.total === 0 ? (
-                <div className="p-4 bg-emerald-50 border border-emerald-300 rounded-xl text-emerald-950 flex items-start gap-3">
+                <div className="p-4 bg-emerald-50 border border-emerald-300 rounded-[10px] text-emerald-950 flex items-start gap-3">
                   <CheckCircle2 className="w-6 h-6 text-emerald-600 shrink-0 mt-0.5" />
                   <div>
                     <h4 className="font-bold text-sm text-emerald-900">
@@ -3537,10 +3070,10 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
                 </div>
               ) : (
                 <>
-                  <div className="p-3.5 bg-amber-50 border border-amber-300 rounded-xl text-xs text-amber-950 flex items-start gap-2.5">
+                  <div className="p-3.5 bg-amber-50 border border-amber-300 rounded-[10px] text-xs text-amber-950 flex items-start gap-2.5">
                     <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
                     <div className="space-y-1">
-                      <p className="font-bold text-amber-900">
+                      <p className="font-bold text-amber-900 tabular-nums">
                         Foram encontrados {diagnosticoAbaErrada?.total} documento(s) com aba fora do padrão:
                       </p>
                       <p className="text-slate-700">
@@ -3550,7 +3083,7 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
                   </div>
 
                   {diagnosticoAbaErrada && Object.keys(diagnosticoAbaErrada.porAba).length > 0 && (
-                    <div className="border border-slate-200 rounded-xl overflow-hidden text-xs">
+                    <div className="border border-slate-200 rounded-[10px] overflow-hidden text-xs">
                       <div className="px-3 py-2 bg-slate-100 font-bold text-slate-700 border-b border-slate-200">
                         Contagem por Nome de Aba Atual:
                       </div>
@@ -3558,7 +3091,7 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
                         {Object.entries(diagnosticoAbaErrada.porAba).map(([aba, count]) => (
                           <div key={aba} className="px-3 py-2 flex items-center justify-between">
                             <span className="font-mono text-slate-800">{aba}</span>
-                            <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 font-bold font-mono text-[11px]">
+                            <span className="px-2 py-0.5 rounded-[6px] bg-amber-100 text-amber-900 font-bold font-mono text-[11px] tabular-nums">
                               {count} {count === 1 ? 'documento' : 'documentos'}
                             </span>
                           </div>
@@ -3576,7 +3109,7 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
                       value={corrigirConfirmacaoInput}
                       onChange={(e) => setCorrigirConfirmacaoInput(e.target.value)}
                       placeholder="CORRIGIR"
-                      className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-mono font-bold text-slate-900 focus:outline-none focus:border-amber-600"
+                      className="w-full px-3 py-2 bg-[#F4F6FA] border border-slate-300 rounded-[8px] text-xs font-mono font-bold text-slate-900 focus:bg-white focus:outline-none focus:border-amber-600"
                     />
                   </div>
                 </>
@@ -3584,7 +3117,7 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
             </div>
 
             {/* Footer */}
-            <div className="p-4 border-t border-slate-200 bg-slate-50 flex items-center justify-end gap-2">
+            <div className="p-4 border-t border-slate-200 bg-[#F4F6FA] flex items-center justify-end gap-2">
               <button
                 type="button"
                 disabled={executandoCorrecao}
@@ -3593,7 +3126,7 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
                   setCorrigirConfirmacaoInput('');
                   setResultadoCorrecao(null);
                 }}
-                className="px-4 py-2 bg-white border border-slate-300 text-slate-700 font-bold text-xs rounded-xl hover:bg-slate-50 cursor-pointer shadow-2xs"
+                className="px-4 py-2 bg-white border border-slate-300 text-slate-700 font-bold text-xs rounded-[8px] hover:bg-slate-50 cursor-pointer shadow-2xs"
               >
                 {resultadoCorrecao ? 'Fechar' : 'Cancelar'}
               </button>
@@ -3606,7 +3139,7 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
                     executandoCorrecao
                   }
                   onClick={handleExecutarCorrecaoAba}
-                  className="px-5 py-2 bg-amber-600 hover:bg-amber-700 disabled:opacity-40 disabled:cursor-not-allowed text-white font-black text-xs rounded-xl shadow-md flex items-center gap-2 cursor-pointer transition-colors"
+                  className="px-5 py-2 bg-amber-600 hover:bg-amber-700 disabled:opacity-40 disabled:cursor-not-allowed text-white font-black text-xs rounded-[8px] shadow-md flex items-center gap-2 cursor-pointer transition-colors"
                 >
                   {executandoCorrecao ? (
                     <>
@@ -3617,6 +3150,147 @@ export const AdminAccessPanel: React.FC<AdminAccessPanelProps> = ({
                     <>
                       <CheckCircle2 className="w-4 h-4" />
                       <span>Confirmar e Corrigir ({diagnosticoAbaErrada.total})</span>
+                    </>
+                  )}
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Mover registros da Claro que ficaram em nokia_sites */}
+      {moverClaroModalOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-900/70 ameta-modal-backdrop flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+          <div className="bg-white rounded-[12px] shadow-2xl border border-slate-200 w-full max-w-xl overflow-hidden flex flex-col ameta-modal-panel">
+            {/* Header */}
+            <div className="p-4 sm:p-5 bg-gradient-to-r from-[#1E8E8D] via-[#156565] to-[#0B1530] text-white flex items-center justify-between shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 bg-teal-900/70 rounded-[10px] border border-teal-400/40 shadow-inner">
+                  <ArrowRightLeft className="w-5 h-5 text-teal-200" />
+                </div>
+                <div>
+                  <h3 className="font-black text-base sm:text-lg tracking-wide">
+                    Mover registros da Claro que ficaram em nokia_sites
+                  </h3>
+                  <p className="text-xs text-teal-100 font-medium">
+                    Transfere documentos com vendor CLARO_TIM de nokia_sites para claro_sites com segurança.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  if (!executandoMoverClaro) {
+                    setMoverClaroModalOpen(false);
+                    setMoverClaroConfirmacaoInput('');
+                    setResultadoMoverClaro(null);
+                  }
+                }}
+                className="p-1.5 text-teal-100 hover:text-white hover:bg-white/10 rounded-[8px] cursor-pointer transition-colors"
+                title="Fechar"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="p-5 space-y-4">
+              {carregandoDiagnosticoClaro ? (
+                <div className="py-8 text-center space-y-3">
+                  <RefreshCw className="w-8 h-8 text-[#1E8E8D] animate-spin mx-auto" />
+                  <p className="text-xs text-slate-600 font-semibold">
+                    Verificando documentos com vendor CLARO_TIM em nokia_sites...
+                  </p>
+                </div>
+              ) : resultadoMoverClaro ? (
+                <div className="p-4 bg-emerald-50 border border-emerald-300 rounded-[10px] text-emerald-950 flex items-center gap-3">
+                  <CheckCircle2 className="w-6 h-6 text-emerald-600 shrink-0" />
+                  <div>
+                    <h4 className="font-bold text-sm text-emerald-950">
+                      Migração Concluída com Sucesso!
+                    </h4>
+                    <p className="text-xs text-emerald-800 mt-0.5 tabular-nums">
+                      <strong>{resultadoMoverClaro.movidos}</strong> documento(s) com <code>vendor = 'CLARO_TIM'</code> foram copiados para <code>claro_sites</code> e removidos de <code>nokia_sites</code>.
+                    </p>
+                  </div>
+                </div>
+              ) : diagnosticoClaroEmNokia && diagnosticoClaroEmNokia.total === 0 ? (
+                <div className="p-4 bg-emerald-50 border border-emerald-300 rounded-[10px] text-emerald-950 flex items-start gap-3">
+                  <CheckCircle2 className="w-6 h-6 text-emerald-600 shrink-0 mt-0.5" />
+                  <div>
+                    <h4 className="font-bold text-sm text-emerald-900">
+                      Nenhum registro da Claro encontrado em nokia_sites!
+                    </h4>
+                    <p className="text-xs text-emerald-800 mt-1">
+                      Não há documentos com <code>vendor = 'CLARO_TIM'</code> na coleção <code>nokia_sites</code>. Nenhuma ação é necessária.
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <div className="p-3.5 bg-amber-50 border border-amber-300 rounded-[10px] text-xs text-amber-950 flex items-start gap-2.5">
+                    <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                    <div className="space-y-1">
+                      <p className="font-bold text-amber-900 tabular-nums">
+                        Foram encontrados {diagnosticoClaroEmNokia?.total} documento(s) em <code>nokia_sites</code> com <code>vendor = 'CLARO_TIM'</code>.
+                      </p>
+                      <p className="text-slate-700">
+                        Para cada registro: todos os campos serão copiados para <code>claro_sites</code> mantendo o mesmo ID (ou sufixo <code>__movido_N</code> se já existir) com <code>vendor = 'CLARO_TIM'</code>, e <strong>só depois</strong> o original será apagado de <code>nokia_sites</code>. Nenhum documento sem <code>vendor = 'CLARO_TIM'</code> será tocado.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">
+                      Digite <span className="font-mono text-[#1E8E8D] bg-teal-50 px-1.5 py-0.5 rounded border border-teal-200">MOVER</span> para confirmar:
+                    </label>
+                    <input
+                      type="text"
+                      value={moverClaroConfirmacaoInput}
+                      onChange={(e) => setMoverClaroConfirmacaoInput(e.target.value)}
+                      placeholder="MOVER"
+                      className="w-full px-3 py-2 bg-[#F4F6FA] border border-slate-300 rounded-[8px] text-xs font-mono font-bold text-slate-900 focus:bg-white focus:outline-none focus:border-[#1E8E8D]"
+                    />
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="p-4 border-t border-slate-200 bg-[#F4F6FA] flex items-center justify-end gap-2">
+              <button
+                type="button"
+                disabled={executandoMoverClaro}
+                onClick={() => {
+                  setMoverClaroModalOpen(false);
+                  setMoverClaroConfirmacaoInput('');
+                  setResultadoMoverClaro(null);
+                }}
+                className="px-4 py-2 bg-white border border-slate-300 text-slate-700 font-bold text-xs rounded-[8px] hover:bg-slate-50 cursor-pointer shadow-2xs"
+              >
+                {resultadoMoverClaro ? 'Fechar' : 'Cancelar'}
+              </button>
+
+              {!resultadoMoverClaro && diagnosticoClaroEmNokia && diagnosticoClaroEmNokia.total > 0 && (
+                <button
+                  type="button"
+                  disabled={
+                    moverClaroConfirmacaoInput.trim().toUpperCase() !== 'MOVER' ||
+                    executandoMoverClaro
+                  }
+                  onClick={handleExecutarMoverClaro}
+                  className="px-5 py-2 bg-[#1E8E8D] hover:bg-[#177372] disabled:opacity-40 disabled:cursor-not-allowed text-white font-black text-xs rounded-[8px] shadow-md flex items-center gap-2 cursor-pointer transition-colors"
+                >
+                  {executandoMoverClaro ? (
+                    <>
+                      <RefreshCw className="w-4 h-4 animate-spin" />
+                      <span>Movendo Registros...</span>
+                    </>
+                  ) : (
+                    <>
+                      <ArrowRightLeft className="w-4 h-4" />
+                      <span>Confirmar e Mover ({diagnosticoClaroEmNokia.total})</span>
                     </>
                   )}
                 </button>

@@ -587,66 +587,32 @@ export const InteractiveSpreadsheetChart: React.FC<InteractiveSpreadsheetChartPr
   };
 
   return (
-    <div className="bg-white border border-slate-200 rounded-xl shadow-2xs overflow-hidden">
+    <div className="space-y-3">
       {/* =====================================================================
-          ABA DE CONTROLE / MINIMIZAÇÃO DOS GRÁFICOS
+          COMPACT MINIMIZED BAR OR FULL 2-COLUMN ANALYTICS SPLIT
          ===================================================================== */}
-      <div className="px-4 py-2.5 bg-white border-b border-slate-200 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap items-center gap-2.5">
-          <button
-            type="button"
-            onClick={() => setIsMinimized((prev) => !prev)}
-            className="flex items-center gap-2 text-left cursor-pointer group"
-            title={
-              isMinimized
-                ? 'Clique para expandir a aba de gráficos'
-                : 'Clique para minimizar a aba de gráficos'
-            }
-          >
-            <div className="w-7 h-7 rounded-lg bg-[#223585] group-hover:bg-[#1E8E8D] transition-colors text-white flex items-center justify-center shrink-0">
-              <BarChart3 className="w-4 h-4" />
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-bold text-slate-900">
-                Aba de Gráficos da Planilha ({activeVendor})
-              </span>
-              <span className="px-2 py-0.5 bg-[#F3F4F6] border border-slate-200 rounded-md text-[11px] text-slate-700 font-mono font-semibold tabular-nums">
-                {stats.total} sites
-              </span>
-            </div>
-          </button>
-
-          {/* Compact inline badge for Collaborators with Expired Documents (always visible in header bar) */}
-          {collaboratorDocStats.expiredCollaborators.length > 0 && (
+      {isMinimized ? (
+        <div className="bg-white border border-slate-200 rounded-[12px] shadow-[0_1px_2px_rgba(15,23,42,0.04)] px-4 py-3 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-2.5">
             <button
               type="button"
-              onClick={() => {
-                setIsMinimized(false);
-                setIsBarsMinimized(false);
-                setBreakdownMode('DOC_VENCIDO');
-              }}
-              className="px-2.5 py-0.5 rounded-md bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 text-[11px] font-semibold flex items-center gap-1.5 cursor-pointer transition-colors"
-              title="Clique para ver no gráfico os colaboradores com documento vencido"
+              onClick={() => setIsMinimized(false)}
+              className="flex items-center gap-2 text-left cursor-pointer group"
+              title="Clique para expandir a aba de gráficos"
             >
-              <AlertTriangle className="w-3.5 h-3.5 text-red-600 shrink-0" />
-              <span>
-                {collaboratorDocStats.expiredCollaborators.length} Colaborador(es) c/ Doc Vencido:{' '}
-                <strong>
-                  {collaboratorDocStats.expiredCollaborators
-                    .map(
-                      (c) =>
-                        `${c.user.name} (${
-                          c.vencidos.map((d) => d.label).join(', ') || 'Doc Vencido'
-                        })`
-                    )
-                    .join(' · ')}
-                </strong>
-              </span>
+              <div className="w-7 h-7 rounded-[8px] bg-[#223585]/10 group-hover:bg-[#223585]/15 transition-colors flex items-center justify-center shrink-0">
+                <BarChart3 className="w-4 h-4 text-[#223585]" />
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold text-slate-900">
+                  Aba de Gráficos da Planilha ({activeVendor})
+                </span>
+                <span className="px-2 py-0.5 bg-slate-100 border border-slate-200 rounded-full text-[11px] text-slate-600 font-mono font-semibold tabular-nums">
+                  {stats.total} sites
+                </span>
+              </div>
             </button>
-          )}
 
-          {/* Compact inline summary pills when minimized so admin still sees KPIs in 1 line */}
-          {isMinimized && (
             <div className="flex flex-wrap items-center gap-1.5 text-[11px] font-mono">
               <button
                 type="button"
@@ -657,7 +623,7 @@ export const InteractiveSpreadsheetChart: React.FC<InteractiveSpreadsheetChartPr
                 }
                 className={`px-2 py-0.5 rounded-md border cursor-pointer transition-colors ${
                   activeChartFilter === 'PARA_FAZER'
-                    ? 'bg-amber-500 text-white border-amber-600 font-bold'
+                    ? 'bg-amber-600 text-white border-amber-600 font-bold'
                     : 'bg-amber-50 text-amber-800 border-amber-200 hover:bg-amber-100'
                 }`}
               >
@@ -670,8 +636,8 @@ export const InteractiveSpreadsheetChart: React.FC<InteractiveSpreadsheetChartPr
                 }
                 className={`px-2 py-0.5 rounded-md border cursor-pointer transition-colors ${
                   activeChartFilter === 'FEITOS'
-                    ? 'bg-emerald-600 text-white border-emerald-700 font-bold'
-                    : 'bg-emerald-50 text-emerald-800 border-emerald-200 hover:bg-emerald-100'
+                    ? 'bg-emerald-600 text-white border-emerald-600 font-bold'
+                    : 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'
                 }`}
               >
                 2º Feitos: {stats.feitosCount}
@@ -685,1071 +651,900 @@ export const InteractiveSpreadsheetChart: React.FC<InteractiveSpreadsheetChartPr
                 }
                 className={`px-2 py-0.5 rounded-md border cursor-pointer transition-colors ${
                   activeChartFilter === 'NOTAS_PENDENTES'
-                    ? 'bg-blue-600 text-white border-blue-700 font-bold'
-                    : 'bg-blue-50 text-blue-800 border-blue-200 hover:bg-blue-100'
+                    ? 'bg-[#223585] text-white border-[#223585] font-bold'
+                    : 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100'
                 }`}
               >
                 Notas Pend.: {stats.notasPendentesCount}
               </button>
             </div>
-          )}
-
-          {hasAnyChartFilter && (
-            <div className="flex flex-wrap items-center gap-1.5">
-              <span className="px-2.5 py-0.5 bg-blue-50 text-blue-700 border border-blue-200 rounded-md text-[11px] font-semibold flex items-center gap-1">
-                <Filter className="w-3 h-3" />
-                <span>
-                  Filtro ativo
-                  {activeChartFilter === 'PARA_FAZER'
-                    ? ': Para Fazer'
-                    : activeChartFilter === 'FEITOS'
-                    ? ': Feitos'
-                    : activeChartFilter === 'NOTAS_PENDENTES'
-                    ? ': Notas Pendentes'
-                    : ''}
-                  {activeEquipeFilter !== 'ALL' ? ` · Equipe: ${activeEquipeFilter}` : ''}
-                  {activeExecutorFilter !== 'ALL'
-                    ? ` · Executor: ${activeExecutorFilter}`
-                    : ''}
-                  {activeUfFilter !== 'ALL' ? ` · UF ${activeUfFilter}` : ''}
-                </span>
-              </span>
-              <span className="px-2 py-0.5 bg-amber-50 text-amber-800 border border-amber-200 rounded-md text-[11px] font-mono font-semibold">
-                1º A Fazer: {chartSelectedSitesBreakdown.paraFazerSites.length} · 2º Feitos:{' '}
-                {chartSelectedSitesBreakdown.feitosSites.length}
-              </span>
-              <button
-                type="button"
-                onClick={clearAllChartFilters}
-                className="px-2 py-0.5 bg-[#F3F4F6] hover:bg-slate-200 text-slate-700 rounded-md text-[11px] font-medium flex items-center gap-1 cursor-pointer"
-              >
-                <RotateCcw className="w-3 h-3" />
-                <span>Limpar filtro do gráfico</span>
-              </button>
-            </div>
-          )}
-        </div>
-
-        {/* Right: Minimize / Expand Chart Tab Controls */}
-        <div className="flex items-center gap-1.5">
-          {!isMinimized && (
-            <button
-              type="button"
-              onClick={() => setIsBarsMinimized((prev) => !prev)}
-              className="px-2.5 py-1 bg-[#F3F4F6] hover:bg-slate-200/80 border border-slate-200 rounded-lg text-[11px] font-medium text-slate-700 flex items-center gap-1 cursor-pointer"
-              title="Minimizar ou expandir apenas o gráfico de barras por Dupla/Executor/UF/Doc Vencido"
-            >
-              <span>{isBarsMinimized ? 'Mostrar Barras' : 'Ocultar Barras'}</span>
-              {isBarsMinimized ? (
-                <ChevronDown className="w-3.5 h-3.5 text-slate-500" />
-              ) : (
-                <ChevronUp className="w-3.5 h-3.5 text-slate-500" />
-              )}
-            </button>
-          )}
+          </div>
 
           <button
             type="button"
-            onClick={() => setIsMinimized((prev) => !prev)}
-            className={`px-3 py-1 rounded-lg text-xs font-semibold flex items-center gap-1.5 border transition-colors cursor-pointer ${
-              isMinimized
-                ? 'bg-[#223585] hover:bg-[#1b2a6b] text-white border-[#223585]'
-                : 'bg-[#F3F4F6] hover:bg-slate-200 text-slate-800 border-slate-200'
-            }`}
+            onClick={() => setIsMinimized(false)}
+            className="px-3 py-1.5 rounded-[8px] text-xs font-semibold flex items-center gap-1.5 bg-[#223585] hover:bg-[#1B2A6B] text-white transition-colors cursor-pointer"
           >
-            {isMinimized ? (
-              <>
-                <Maximize2 className="w-3.5 h-3.5" />
-                <span>Abrir Gráficos</span>
-                <ChevronDown className="w-3.5 h-3.5" />
-              </>
-            ) : (
-              <>
-                <Minimize2 className="w-3.5 h-3.5" />
-                <span>Minimizar Gráficos</span>
-                <ChevronUp className="w-3.5 h-3.5" />
-              </>
-            )}
+            <Maximize2 className="w-3.5 h-3.5" />
+            <span>Abrir Gráficos</span>
+            <ChevronDown className="w-3.5 h-3.5" />
           </button>
         </div>
-      </div>
-
-      {!isMinimized && (
-        <div className="p-4 space-y-4 bg-[#F3F4F6]/50">
-          {/* 4 Main Interactive Cards: 1º PARA FAZER | 2º FEITOS | 3º NOTAS PENDENTES | 4º COLABORADORES C/ DOC VENCIDO */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
-            {/* 1. SITES PARA FAZER (SEMPRE EM PRIMEIRO) */}
-            <button
-              type="button"
-              onClick={() =>
-                onSelectChartFilter(
-                  activeChartFilter === 'PARA_FAZER' ? 'ALL' : 'PARA_FAZER'
-                )
-              }
-              className={`p-4 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between gap-3 ${
-                activeChartFilter === 'PARA_FAZER'
-                  ? 'bg-amber-50/90 border-amber-400 ring-2 ring-amber-400/40 shadow-sm'
-                  : 'bg-white hover:bg-slate-50/80 border-slate-200 shadow-2xs'
-              }`}
-            >
-              <div className="flex items-start justify-between gap-2 w-full">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-9 h-9 rounded-lg bg-amber-100 text-amber-800 border border-amber-200 flex items-center justify-center shrink-0">
-                    <Clock className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <div className="text-xs font-bold text-slate-900">
-                      1º Sites Para Fazer (A Executar)
-                    </div>
-                    <div className="text-[11px] text-slate-500">
-                      Aparecem sempre em primeiro ao clicar
-                    </div>
-                  </div>
-                </div>
-                <span className="px-2 py-0.5 rounded-full text-[11px] font-mono font-bold bg-amber-100 text-amber-900 border border-amber-200">
-                  {stats.paraFazerPct}%
-                </span>
-              </div>
-
-              <div className="space-y-2 w-full">
-                <div className="flex items-baseline justify-between">
-                  <span className="text-2xl font-bold font-mono text-slate-900 tabular-nums">
-                    {stats.paraFazerCount}
-                  </span>
-                  <span className="text-[11px] text-slate-500">
-                    {stats.paraFazerEmCampo} liberados · {stats.paraFazerSemAcesso} s/ acesso
-                  </span>
-                </div>
-                <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-amber-500 rounded-full transition-all duration-300"
-                    style={{ width: `${Math.min(100, stats.paraFazerPct)}%` }}
-                  />
-                </div>
-              </div>
-            </button>
-
-            {/* 2. SITES FEITOS (EM SEGUNDO - AMETA TEAL) */}
-            <button
-              type="button"
-              onClick={() =>
-                onSelectChartFilter(activeChartFilter === 'FEITOS' ? 'ALL' : 'FEITOS')
-              }
-              className={`p-4 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between gap-3 ${
-                activeChartFilter === 'FEITOS'
-                  ? 'bg-emerald-50/90 border-emerald-500 ring-2 ring-emerald-500/30 shadow-sm'
-                  : 'bg-white hover:bg-slate-50/80 border-slate-200 shadow-2xs'
-              }`}
-            >
-              <div className="flex items-start justify-between gap-2 w-full">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-9 h-9 rounded-lg bg-emerald-100 text-emerald-800 border border-emerald-200 flex items-center justify-center shrink-0">
-                    <CheckCircle2 className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <div className="text-xs font-bold text-slate-900">
-                      2º Sites Feitos (Finalizados)
-                    </div>
-                    <div className="text-[11px] text-slate-500">
-                      Vistorias e atividades concluídas
-                    </div>
-                  </div>
-                </div>
-                <span className="px-2 py-0.5 rounded-full text-[11px] font-mono font-bold bg-emerald-100 text-emerald-900 border border-emerald-200">
-                  {stats.feitosPct}%
-                </span>
-              </div>
-
-              <div className="space-y-2 w-full">
-                <div className="flex items-baseline justify-between">
-                  <span className="text-2xl font-bold font-mono text-slate-900 tabular-nums">
-                    {stats.feitosCount}
-                  </span>
-                  <span className="text-[11px] text-slate-500">
-                    de {stats.total} sites da planilha
-                  </span>
-                </div>
-                <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-emerald-600 rounded-full transition-all duration-300"
-                    style={{ width: `${Math.min(100, stats.feitosPct)}%` }}
-                  />
-                </div>
-              </div>
-            </button>
-
-            {/* 3. NOTAS PENDENTES (FINANCEIRO / SPO / NF - AMETA NAVY) */}
-            <button
-              type="button"
-              onClick={() =>
-                onSelectChartFilter(
-                  activeChartFilter === 'NOTAS_PENDENTES' ? 'ALL' : 'NOTAS_PENDENTES'
-                )
-              }
-              className={`p-4 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between gap-3 ${
-                activeChartFilter === 'NOTAS_PENDENTES'
-                  ? 'bg-blue-50/90 border-blue-500 ring-2 ring-blue-500/30 shadow-sm'
-                  : 'bg-white hover:bg-slate-50/80 border-slate-200 shadow-2xs'
-              }`}
-            >
-              <div className="flex items-start justify-between gap-2 w-full">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-9 h-9 rounded-lg bg-blue-100 text-blue-800 border border-blue-200 flex items-center justify-center shrink-0">
-                    <Receipt className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <div className="text-xs font-bold text-slate-900">
-                      Notas Pendentes (SPO / Emitir NF)
-                    </div>
-                    <div className="text-[11px] text-slate-500">
-                      Aguardando NF, SPO, SGR ou sem N° NF
-                    </div>
-                  </div>
-                </div>
-                <span className="px-2 py-0.5 rounded-full text-[11px] font-mono font-bold bg-blue-100 text-blue-900 border border-blue-200">
-                  {stats.notasPendentesPct}%
-                </span>
-              </div>
-
-              <div className="space-y-2 w-full">
-                <div className="flex items-baseline justify-between">
-                  <span className="text-2xl font-bold font-mono text-slate-900 tabular-nums">
-                    {stats.notasPendentesCount}
-                  </span>
-                  <span className="text-[11px] text-slate-500">
-                    {stats.notasEmitidasCount} com NF emitida/pronta
-                  </span>
-                </div>
-                <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-blue-600 rounded-full transition-all duration-300"
-                    style={{ width: `${Math.min(100, stats.notasPendentesPct)}%` }}
-                  />
-                </div>
-              </div>
-            </button>
-
-            {/* 4. COLABORADORES COM DOCUMENTO VENCIDO */}
-            <button
-              type="button"
-              onClick={() => {
-                setIsBarsMinimized(false);
-                setBreakdownMode((prev) =>
-                  prev === 'DOC_VENCIDO' ? 'DUPLAS' : 'DOC_VENCIDO'
-                );
-              }}
-              className={`p-4 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between gap-2.5 ${
-                breakdownMode === 'DOC_VENCIDO'
-                  ? 'bg-red-50/90 border-red-400 ring-2 ring-red-400/40 shadow-sm'
-                  : collaboratorDocStats.expiredCollaborators.length > 0
-                  ? 'bg-red-50/40 hover:bg-red-50/80 border-red-200 shadow-2xs'
-                  : 'bg-white hover:bg-slate-50/80 border-slate-200 shadow-2xs'
-              }`}
-            >
-              <div className="flex items-start justify-between gap-2 w-full">
-                <div className="flex items-center gap-2.5">
-                  <div
-                    className={`w-9 h-9 rounded-lg border flex items-center justify-center shrink-0 ${
-                      collaboratorDocStats.expiredCollaborators.length > 0
-                        ? 'bg-red-100 text-red-700 border-red-200'
-                        : 'bg-emerald-100 text-emerald-800 border-emerald-200'
-                    }`}
+      ) : (
+        <div className="space-y-3">
+          {/* Active filters / Expired docs alert strip */}
+          {(hasAnyChartFilter || collaboratorDocStats.expiredCollaborators.length > 0) && (
+            <div className="bg-white border border-slate-200 rounded-[12px] shadow-[0_1px_2px_rgba(15,23,42,0.04)] px-4 py-2.5 flex flex-wrap items-center justify-between gap-2.5">
+              <div className="flex flex-wrap items-center gap-2">
+                {collaboratorDocStats.expiredCollaborators.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsBarsMinimized(false);
+                      setBreakdownMode('DOC_VENCIDO');
+                    }}
+                    className="px-2.5 py-1 rounded-[8px] bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-[11px] font-semibold flex items-center gap-1.5 cursor-pointer transition-colors"
+                    title="Clique para ver no gráfico os colaboradores com documento vencido"
                   >
-                    <FileWarning className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <div className="text-xs font-bold text-slate-900">
-                      Colaboradores c/ Doc Vencido
-                    </div>
-                    <div className="text-[11px] text-slate-500">
-                      {collaboratorDocStats.expiredCollaborators.length > 0
-                        ? 'Clique para ver quem está com doc vencido'
-                        : 'Todos os documentos obrigatórios em dia'}
-                    </div>
-                  </div>
-                </div>
-                <span
-                  className={`px-2 py-0.5 rounded-full text-[11px] font-mono font-bold border shrink-0 ${
-                    collaboratorDocStats.expiredCollaborators.length > 0
-                      ? 'bg-red-600 text-white border-red-700'
-                      : 'bg-emerald-100 text-emerald-900 border-emerald-200'
-                  }`}
-                >
-                  {collaboratorDocStats.expiredCollaborators.length > 0
-                    ? `${collaboratorDocStats.totalExpiredDocsCount} doc(s)`
-                    : 'OK'}
-                </span>
-              </div>
+                    <AlertTriangle className="w-3.5 h-3.5 text-rose-600 shrink-0" />
+                    <span>
+                      {collaboratorDocStats.expiredCollaborators.length} Colaborador(es) c/ Doc Vencido:{' '}
+                      <strong className="text-rose-900">
+                        {collaboratorDocStats.expiredCollaborators
+                          .map(
+                            (c) =>
+                              `${c.user.name} (${
+                                c.vencidos.map((d) => d.label).join(', ') || 'Doc Vencido'
+                              })`
+                          )
+                          .join(' · ')}
+                      </strong>
+                    </span>
+                  </button>
+                )}
 
-              <div className="space-y-1.5 w-full">
-                <div className="flex items-baseline justify-between gap-2">
-                  <span
-                    className={`text-2xl font-bold font-mono tabular-nums ${
-                      collaboratorDocStats.expiredCollaborators.length > 0
-                        ? 'text-red-700'
-                        : 'text-slate-900'
-                    }`}
-                  >
-                    {collaboratorDocStats.expiredCollaborators.length}
-                  </span>
-                  <span className="text-[11px] text-slate-500 truncate">
-                    {collaboratorDocStats.expiringCollaborators.length > 0
-                      ? `+ ${collaboratorDocStats.expiringCollaborators.length} a vencer (30d)`
-                      : 'NR10 · NR35 · ASO · PCMSO · PGR'}
-                  </span>
-                </div>
-
-                {/* Inline list of collaborators with expired docs right on the card */}
-                {collaboratorDocStats.expiredCollaborators.length > 0 ? (
-                  <div className="flex flex-wrap gap-1 pt-0.5">
-                    {collaboratorDocStats.expiredCollaborators.slice(0, 2).map((c) => (
-                      <span
-                        key={c.user.id}
-                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-red-100/90 text-red-900 border border-red-200 text-[10px] font-semibold truncate max-w-full"
-                      >
-                        <AlertTriangle className="w-2.5 h-2.5 text-red-600 shrink-0" />
-                        <span className="truncate">
-                          {c.user.name}:{' '}
-                          {c.vencidos.map((d) => d.label).join(', ') || 'Vencido'}
-                        </span>
+                {hasAnyChartFilter && (
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <span className="px-2.5 py-0.5 bg-[#223585]/10 text-[#223585] border border-[#223585]/20 rounded-[6px] text-[11px] font-semibold flex items-center gap-1">
+                      <Filter className="w-3 h-3" />
+                      <span>
+                        Filtro ativo
+                        {activeChartFilter === 'PARA_FAZER'
+                          ? ': Para Fazer'
+                          : activeChartFilter === 'FEITOS'
+                          ? ': Feitos'
+                          : activeChartFilter === 'NOTAS_PENDENTES'
+                          ? ': Notas Pendentes'
+                          : ''}
+                        {activeEquipeFilter !== 'ALL' ? ` · Equipe: ${activeEquipeFilter}` : ''}
+                        {activeExecutorFilter !== 'ALL'
+                          ? ` · Executor: ${activeExecutorFilter}`
+                          : ''}
+                        {activeUfFilter !== 'ALL' ? ` · UF ${activeUfFilter}` : ''}
                       </span>
-                    ))}
-                    {collaboratorDocStats.expiredCollaborators.length > 2 && (
-                      <span className="px-1.5 py-0.5 rounded bg-red-100 text-red-800 text-[10px] font-mono font-bold">
-                        +{collaboratorDocStats.expiredCollaborators.length - 2}
-                      </span>
-                    )}
-                  </div>
-                ) : (
-                  <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
-                    <div className="h-full bg-emerald-600 rounded-full w-full" />
+                    </span>
+                    <span className="px-2 py-0.5 bg-amber-50 text-amber-800 border border-amber-200 rounded-[6px] text-[11px] font-mono font-semibold tabular-nums">
+                      1º A Fazer: {chartSelectedSitesBreakdown.paraFazerSites.length} · 2º Feitos:{' '}
+                      {chartSelectedSitesBreakdown.feitosSites.length}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={clearAllChartFilters}
+                      className="px-2.5 py-0.5 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-[6px] text-[11px] font-medium flex items-center gap-1 cursor-pointer transition-colors"
+                    >
+                      <RotateCcw className="w-3 h-3" />
+                      <span>Limpar filtro do gráfico</span>
+                    </button>
                   </div>
                 )}
               </div>
-            </button>
-          </div>
 
-          {/* Interactive Comparative Bar Chart (Por Dupla Executante | Por Executor | Por UF | Colab. Doc Vencido) */}
-          {!isBarsMinimized && (
-            <div className="bg-white border border-slate-200 rounded-xl p-3.5 space-y-3">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div className="flex flex-wrap items-center gap-3 text-xs">
-                  <span className="font-bold text-slate-800">
-                    {breakdownMode === 'DUPLAS' &&
-                      'Equipes / Duplas com Sites Pendentes:'}
-                    {breakdownMode === 'EXECUTOR' &&
-                      'Executores / Gestores com Sites Pendentes:'}
-                    {breakdownMode === 'UF' && 'UFs com Sites Pendentes:'}
-                    {breakdownMode === 'DOC_VENCIDO' &&
-                      'Gráfico de Colaboradores com Documento Vencido / Alerta:'}
-                  </span>
-                  {breakdownMode !== 'DOC_VENCIDO' && (
-                    <span className="px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-800 border border-emerald-200 text-[11px] font-medium">
-                      {breakdownMode === 'DUPLAS' &&
-                        `100% Feitos saem automático (${stats.completedDuplasCount} concluídas ocultas)`}
-                      {breakdownMode === 'EXECUTOR' &&
-                        `100% Feitos saem automático (${stats.completedExecutorsCount} concluídos ocultos)`}
-                      {breakdownMode === 'UF' &&
-                        `100% Feitos saem automático (${stats.completedUfsCount} UFs concluídas ocultas)`}
-                    </span>
+              <div className="flex items-center gap-1.5 ml-auto">
+                <button
+                  type="button"
+                  onClick={() => setIsBarsMinimized((prev) => !prev)}
+                  className="px-2.5 py-1 bg-white hover:bg-slate-50 border border-slate-200 rounded-[8px] text-[11px] font-medium text-slate-600 flex items-center gap-1 cursor-pointer transition-colors"
+                >
+                  <span>{isBarsMinimized ? 'Mostrar Barras' : 'Ocultar Barras'}</span>
+                  {isBarsMinimized ? (
+                    <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+                  ) : (
+                    <ChevronUp className="w-3.5 h-3.5 text-slate-400" />
                   )}
-                  <div className="flex flex-wrap items-center gap-3 text-[11px] text-slate-600">
-                    <span className="inline-flex items-center gap-1 font-medium text-amber-800">
-                      <span className="w-2.5 h-2.5 rounded-xs bg-amber-500 inline-block" />
-                      1º Pendentes (A Fazer)
-                    </span>
-                    <span className="inline-flex items-center gap-1 font-medium text-emerald-800">
-                      <span className="w-2.5 h-2.5 rounded-xs bg-emerald-600 inline-block" />
-                      2º Feitos
-                    </span>
-                    <span className="inline-flex items-center gap-1">
-                      <span className="w-2.5 h-2.5 rounded-xs bg-blue-600 inline-block" />
-                      Notas Pendentes
-                    </span>
-                    <span className="inline-flex items-center gap-1 font-semibold text-red-700">
-                      <span className="w-2.5 h-2.5 rounded-xs bg-red-600 inline-block" />
-                      Doc. Vencido ({collaboratorDocStats.expiredCollaborators.length})
-                    </span>
-                  </div>
-                </div>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsMinimized(true)}
+                  className="px-2.5 py-1 bg-white hover:bg-slate-50 border border-slate-200 rounded-[8px] text-[11px] font-medium text-slate-600 flex items-center gap-1 cursor-pointer transition-colors"
+                >
+                  <Minimize2 className="w-3.5 h-3.5 text-slate-400" />
+                  <span>Minimizar</span>
+                </button>
+              </div>
+            </div>
+          )}
 
-                <div className="flex flex-wrap items-center p-0.5 bg-[#F3F4F6] border border-slate-200 rounded-lg text-[11px]">
-                  <button
-                    type="button"
-                    onClick={() => setBreakdownMode('DUPLAS')}
-                    className={`px-2.5 py-1 rounded-md font-medium flex items-center gap-1 cursor-pointer ${
-                      breakdownMode === 'DUPLAS'
-                        ? 'bg-white text-slate-900 font-semibold shadow-2xs border border-slate-200/70'
-                        : 'text-slate-500 hover:text-slate-800'
-                    }`}
-                  >
-                    <Users className="w-3 h-3" />
-                    <span>Por Equipe / Dupla ({stats.allDuplas.length})</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setBreakdownMode('EXECUTOR')}
-                    className={`px-2.5 py-1 rounded-md font-medium flex items-center gap-1 cursor-pointer ${
-                      breakdownMode === 'EXECUTOR'
-                        ? 'bg-white text-slate-900 font-semibold shadow-2xs border border-slate-200/70'
-                        : 'text-slate-500 hover:text-slate-800'
-                    }`}
-                  >
-                    <UserCheck className="w-3 h-3" />
-                    <span>Por Executor ({stats.allExecutors.length})</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setBreakdownMode('UF')}
-                    className={`px-2.5 py-1 rounded-md font-medium flex items-center gap-1 cursor-pointer ${
-                      breakdownMode === 'UF'
-                        ? 'bg-white text-slate-900 font-semibold shadow-2xs border border-slate-200/70'
-                        : 'text-slate-500 hover:text-slate-800'
-                    }`}
-                  >
-                    <MapPin className="w-3 h-3" />
-                    <span>Por UF ({stats.allUfs.length})</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setBreakdownMode('DOC_VENCIDO')}
-                    className={`px-2.5 py-1 rounded-md font-medium flex items-center gap-1 cursor-pointer ${
-                      breakdownMode === 'DOC_VENCIDO'
-                        ? 'bg-red-600 text-white font-semibold shadow-2xs'
-                        : collaboratorDocStats.expiredCollaborators.length > 0
-                        ? 'text-red-700 hover:bg-red-50 font-semibold'
-                        : 'text-slate-500 hover:text-slate-800'
-                    }`}
-                  >
-                    <ShieldAlert className="w-3 h-3" />
-                    <span>
-                      Doc. Vencido ({collaboratorDocStats.expiredCollaborators.length})
-                    </span>
-                  </button>
+          {/* 2-Column Clean Corporate Analytics Split */}
+          <div className={`grid grid-cols-1 ${!isBarsMinimized ? 'xl:grid-cols-12' : ''} gap-3.5`}>
+            {/* LEFT PANEL: Aba de Gráficos da Planilha (4 Progress Metric Rows) */}
+            <div className={`${!isBarsMinimized ? 'xl:col-span-5' : ''} bg-white border border-slate-200 rounded-[12px] shadow-[0_1px_2px_rgba(15,23,42,0.04)] p-4 sm:p-5 flex flex-col justify-between gap-4`}>
+              <div className="flex items-center justify-between gap-2 pb-2.5 border-b border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setIsMinimized(true)}
+                  className="text-left group cursor-pointer flex items-center gap-2"
+                  title="Clique para minimizar a aba de gráficos"
+                >
+                  <BarChart3 className="w-4 h-4 text-[#223585] shrink-0" />
+                  <h2 className="text-[13px] font-bold text-slate-900 group-hover:text-[#223585] transition-colors">
+                    Aba de Gráficos da Planilha ({activeVendor})
+                  </h2>
+                </button>
+                <div className="flex items-center gap-1.5">
+                  <span className="px-2.5 py-0.5 bg-slate-100 border border-slate-200 rounded-full text-[11px] text-slate-600 font-mono font-semibold tabular-nums">
+                    {stats.total} sites
+                  </span>
+                  {!(hasAnyChartFilter || collaboratorDocStats.expiredCollaborators.length > 0) && (
+                    <button
+                      type="button"
+                      onClick={() => setIsMinimized(true)}
+                      className="p-1 rounded-[6px] text-slate-400 hover:text-slate-700 hover:bg-slate-100 cursor-pointer transition-colors"
+                      title="Minimizar gráficos"
+                    >
+                      <Minimize2 className="w-3.5 h-3.5" />
+                    </button>
+                  )}
                 </div>
               </div>
 
-              {breakdownMode === 'DUPLAS' && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
-                  {stats.allDuplas.map((item) => {
-                    const isSelected = activeEquipeFilter === item.dupla;
-                    const fazerW =
-                      item.total > 0 ? Math.round((item.paraFazer / item.total) * 100) : 0;
-                    const feitoW =
-                      item.total > 0 ? Math.round((item.feitos / item.total) * 100) : 0;
-                    const variantsList = Array.from(item.rawVariants);
-                    const expiredInDupla = getExpiredCollaboratorsForDupla(item.dupla);
+              <div className="space-y-3">
+                {/* 1. SITES PARA FAZER */}
+                <button
+                  type="button"
+                  onClick={() =>
+                    onSelectChartFilter(
+                      activeChartFilter === 'PARA_FAZER' ? 'ALL' : 'PARA_FAZER'
+                    )
+                  }
+                  className={`w-full text-left rounded-[8px] p-2 -mx-2 transition-colors cursor-pointer ${
+                    activeChartFilter === 'PARA_FAZER'
+                      ? 'bg-amber-50 ring-1 ring-amber-300'
+                      : 'hover:bg-slate-50'
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-2 text-xs mb-1.5">
+                    <span className="font-semibold text-slate-800">
+                      1º Sites Para Fazer (A Executar)
+                    </span>
+                    <span className="font-mono text-xs tabular-nums shrink-0">
+                      <strong className="text-amber-600">{stats.paraFazerCount}</strong>
+                      <span className="text-slate-300 mx-1">·</span>
+                      <span className="text-slate-500">{stats.paraFazerPct}%</span>
+                    </span>
+                  </div>
+                  <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden mb-1">
+                    <div
+                      className="h-full bg-amber-500 rounded-full transition-all duration-300"
+                      style={{ width: `${Math.min(100, stats.paraFazerPct)}%` }}
+                    />
+                  </div>
+                  <div className="text-[11px] text-slate-500">
+                    {stats.paraFazerEmCampo} liberados · {stats.paraFazerSemAcesso} s/ acesso
+                  </div>
+                </button>
 
-                    return (
-                      <button
-                        key={item.dupla}
-                        type="button"
-                        onClick={() => {
-                          onSelectEquipeFilter(isSelected ? 'ALL' : item.dupla);
-                        }}
-                        title={
-                          variantsList.length > 1
-                            ? `Agrupa variações na planilha: ${variantsList.join(', ')}`
-                            : `Filtrar exclusivamente a equipe ${item.dupla} (1º A Fazer, 2º Feitos)`
+                {/* 2. SITES FEITOS */}
+                <button
+                  type="button"
+                  onClick={() =>
+                    onSelectChartFilter(activeChartFilter === 'FEITOS' ? 'ALL' : 'FEITOS')
+                  }
+                  className={`w-full text-left rounded-[8px] p-2 -mx-2 transition-colors cursor-pointer ${
+                    activeChartFilter === 'FEITOS'
+                      ? 'bg-emerald-50 ring-1 ring-emerald-300'
+                      : 'hover:bg-slate-50'
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-2 text-xs mb-1.5">
+                    <span className="font-semibold text-slate-800">
+                      2º Sites Feitos (Finalizados)
+                    </span>
+                    <span className="font-mono text-xs tabular-nums shrink-0">
+                      <strong className="text-emerald-600">{stats.feitosCount}</strong>
+                      <span className="text-slate-300 mx-1">·</span>
+                      <span className="text-slate-500">{stats.feitosPct}%</span>
+                    </span>
+                  </div>
+                  <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden mb-1">
+                    <div
+                      className="h-full bg-emerald-500 rounded-full transition-all duration-300"
+                      style={{ width: `${Math.min(100, stats.feitosPct)}%` }}
+                    />
+                  </div>
+                  <div className="text-[11px] text-slate-500">
+                    de {stats.total} sites da planilha
+                  </div>
+                </button>
+
+                {/* 3. NOTAS PENDENTES */}
+                <button
+                  type="button"
+                  onClick={() =>
+                    onSelectChartFilter(
+                      activeChartFilter === 'NOTAS_PENDENTES' ? 'ALL' : 'NOTAS_PENDENTES'
+                    )
+                  }
+                  className={`w-full text-left rounded-[8px] p-2 -mx-2 transition-colors cursor-pointer ${
+                    activeChartFilter === 'NOTAS_PENDENTES'
+                      ? 'bg-blue-50 ring-1 ring-blue-300'
+                      : 'hover:bg-slate-50'
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-2 text-xs mb-1.5">
+                    <span className="font-semibold text-slate-800">
+                      Notas Pendentes (SPO / Emitir NF)
+                    </span>
+                    <span className="font-mono text-xs tabular-nums shrink-0">
+                      <strong className="text-[#223585]">{stats.notasPendentesCount}</strong>
+                      <span className="text-slate-300 mx-1">·</span>
+                      <span className="text-slate-500">{stats.notasPendentesPct}%</span>
+                    </span>
+                  </div>
+                  <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden mb-1">
+                    <div
+                      className="h-full bg-[#223585] rounded-full transition-all duration-300"
+                      style={{ width: `${Math.min(100, stats.notasPendentesPct)}%` }}
+                    />
+                  </div>
+                  <div className="text-[11px] text-slate-500">
+                    {stats.notasEmitidasCount} com NF emitida/pronta
+                  </div>
+                </button>
+
+                {/* 4. COLABORADORES COM DOCUMENTO VENCIDO */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsBarsMinimized(false);
+                    setBreakdownMode((prev) =>
+                      prev === 'DOC_VENCIDO' ? 'DUPLAS' : 'DOC_VENCIDO'
+                    );
+                  }}
+                  className={`w-full text-left rounded-[8px] p-2 -mx-2 transition-colors cursor-pointer ${
+                    breakdownMode === 'DOC_VENCIDO'
+                      ? 'bg-rose-50 ring-1 ring-rose-300'
+                      : 'hover:bg-slate-50'
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-2 text-xs mb-1.5">
+                    <span className="font-semibold text-slate-800">
+                      Colaboradores c/ Doc Vencido
+                    </span>
+                    <span className="font-mono text-xs tabular-nums shrink-0">
+                      <strong
+                        className={
+                          collaboratorDocStats.expiredCollaborators.length > 0
+                            ? 'text-rose-600'
+                            : 'text-[#1E8E8D]'
                         }
-                        className={`p-2.5 rounded-lg border text-left transition-all cursor-pointer ${
-                          isSelected
-                            ? 'bg-[#223585] text-white border-[#223585] ring-2 ring-[#1E8E8D]/50'
-                            : expiredInDupla.length > 0
-                            ? 'bg-red-50/40 hover:bg-red-50/80 border-red-200 text-slate-800'
-                            : 'bg-[#F3F4F6]/60 hover:bg-[#F3F4F6] border-slate-200/80 text-slate-800'
-                        }`}
                       >
-                        <div className="flex items-center justify-between gap-2 text-xs mb-1">
-                          <span className="font-semibold truncate">{item.dupla}</span>
-                          <span
-                            className={`font-mono text-[11px] font-bold shrink-0 ${
-                              isSelected ? 'text-amber-300' : 'text-amber-700'
-                            }`}
-                          >
-                            {item.paraFazer} pendente{item.paraFazer !== 1 ? 's' : ''}
-                          </span>
-                        </div>
+                        {collaboratorDocStats.expiredCollaborators.length}
+                      </strong>
+                      <span className="text-slate-300 mx-1">·</span>
+                      <span className="text-slate-500">
+                        {collaboratorDocStats.expiredCollaborators.length > 0
+                          ? `${collaboratorDocStats.totalExpiredDocsCount} doc(s)`
+                          : '100%'}
+                      </span>
+                    </span>
+                  </div>
+                  <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden mb-1">
+                    <div
+                      className={`h-full rounded-full transition-all duration-300 ${
+                        collaboratorDocStats.expiredCollaborators.length > 0
+                          ? 'bg-rose-500'
+                          : 'bg-[#1E8E8D]'
+                      }`}
+                      style={{
+                        width:
+                          collaboratorDocStats.expiredCollaborators.length > 0
+                            ? `${Math.min(
+                                100,
+                                Math.max(15, collaboratorDocStats.expiredCollaborators.length * 20)
+                              )}%`
+                            : '100%',
+                      }}
+                    />
+                  </div>
+                  <div className="text-[11px] text-slate-500 truncate">
+                    {collaboratorDocStats.expiredCollaborators.length > 0
+                      ? collaboratorDocStats.expiredCollaborators
+                          .slice(0, 2)
+                          .map((c) => `${c.user.name} (${c.vencidos.map((d) => d.label).join(', ')})`)
+                          .join(' · ')
+                      : 'NR10 · NR35 · ASO · PCMSO · PGR em dia'}
+                  </div>
+                </button>
+              </div>
+            </div>
 
-                        {variantsList.length > 1 && (
-                          <div
-                            className={`text-[10px] truncate mb-1.5 ${
-                              isSelected ? 'text-slate-300' : 'text-slate-400'
-                            }`}
-                          >
-                            Unifica: {variantsList.join(' + ')}
-                          </div>
-                        )}
+            {/* RIGHT PANEL: Equipes / Duplas com Sites Pendentes (Segmented Bars) */}
+            {!isBarsMinimized && (
+              <div className="xl:col-span-7 bg-white border border-slate-200 rounded-[12px] shadow-[0_1px_2px_rgba(15,23,42,0.04)] p-4 sm:p-5 flex flex-col justify-between gap-3.5">
+                <div className="space-y-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2 pb-2.5 border-b border-slate-100">
+                    <h2 className="text-[13px] font-bold text-slate-900">
+                      {breakdownMode === 'DUPLAS' &&
+                        'Equipes / Duplas com Sites Pendentes'}
+                      {breakdownMode === 'EXECUTOR' &&
+                        'Executores / Gestores com Sites Pendentes'}
+                      {breakdownMode === 'UF' && 'UFs com Sites Pendentes'}
+                      {breakdownMode === 'DOC_VENCIDO' &&
+                        'Colaboradores com Documento Vencido / Alerta'}
+                    </h2>
 
-                        {/* Alert Badge if a collaborator in this Dupla has an expired document */}
-                        {expiredInDupla.length > 0 && (
-                          <div
-                            className={`mb-1.5 px-2 py-1 rounded text-[10px] font-semibold flex items-center gap-1 ${
-                              isSelected
-                                ? 'bg-red-500/90 text-white'
-                                : 'bg-red-100 text-red-800 border border-red-200'
-                            }`}
-                          >
-                            <AlertTriangle className="w-3 h-3 shrink-0" />
-                            <span className="truncate">
-                              Doc Vencido:{' '}
-                              {expiredInDupla
-                                .map(
-                                  (c) =>
-                                    `${c.user.name} (${
-                                      c.vencidos.map((d) => d.label).join(', ') || 'Vencido'
-                                    })`
-                                )
-                                .join(', ')}
-                            </span>
-                          </div>
-                        )}
+                    {breakdownMode !== 'DOC_VENCIDO' && (
+                      <span className="px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-[11px] font-semibold">
+                        {breakdownMode === 'DUPLAS' &&
+                          `100% Feitos saem automático (${stats.completedDuplasCount} ocultas)`}
+                        {breakdownMode === 'EXECUTOR' &&
+                          `100% Feitos saem automático (${stats.completedExecutorsCount} ocultos)`}
+                        {breakdownMode === 'UF' &&
+                          `100% Feitos saem automático (${stats.completedUfsCount} ocultas)`}
+                      </span>
+                    )}
+                  </div>
 
-                        {/* Bar: 1º Para Fazer (Amber) on the left, 2º Feitos (Teal) on the right */}
-                        <div className="w-full h-2 bg-slate-200 rounded-full overflow-hidden flex mb-1.5">
-                          <div
-                            className="h-full bg-amber-500"
-                            style={{ width: `${fazerW}%` }}
-                            title={`1º A Fazer: ${item.paraFazer}`}
-                          />
-                          <div
-                            className="h-full bg-emerald-600"
-                            style={{ width: `${feitoW}%` }}
-                            title={`2º Feitos: ${item.feitos}`}
-                          />
-                        </div>
-
-                        <div
-                          className={`flex items-center justify-between text-[10px] font-mono ${
-                            isSelected ? 'text-slate-200' : 'text-slate-500'
-                          }`}
-                        >
-                          <span
-                            className={
-                              item.paraFazer > 0
-                                ? isSelected
-                                  ? 'text-amber-300 font-bold'
-                                  : 'text-amber-700 font-bold'
-                                : ''
-                            }
-                          >
-                            A Fazer: {item.paraFazer}
-                          </span>
-                          <span>Feitos: {item.feitos}</span>
-                          <span>Notas Pend.: {item.notasPendentes}</span>
-                        </div>
-                      </button>
-                    );
-                  })}
+                  {/* Clean Light Segmented Control Tabs */}
+                  <div className="inline-flex flex-wrap items-center p-1 bg-slate-100 border border-slate-200/80 rounded-[8px] text-[11px] gap-0.5">
+                    <button
+                      type="button"
+                      onClick={() => setBreakdownMode('DUPLAS')}
+                      className={`px-2.5 py-1 rounded-[6px] font-medium flex items-center gap-1 cursor-pointer tabular-nums transition-all ${
+                        breakdownMode === 'DUPLAS'
+                          ? 'bg-white text-slate-900 font-semibold shadow-2xs'
+                          : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      <Users className="w-3 h-3" />
+                      <span>Por Equipe / Dupla ({stats.allDuplas.length})</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setBreakdownMode('EXECUTOR')}
+                      className={`px-2.5 py-1 rounded-[6px] font-medium flex items-center gap-1 cursor-pointer tabular-nums transition-all ${
+                        breakdownMode === 'EXECUTOR'
+                          ? 'bg-white text-slate-900 font-semibold shadow-2xs'
+                          : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      <UserCheck className="w-3 h-3" />
+                      <span>Por Executor ({stats.allExecutors.length})</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setBreakdownMode('UF')}
+                      className={`px-2.5 py-1 rounded-[6px] font-medium flex items-center gap-1 cursor-pointer tabular-nums transition-all ${
+                        breakdownMode === 'UF'
+                          ? 'bg-white text-slate-900 font-semibold shadow-2xs'
+                          : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      <MapPin className="w-3 h-3" />
+                      <span>Por UF ({stats.allUfs.length})</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setBreakdownMode('DOC_VENCIDO')}
+                      className={`px-2.5 py-1 rounded-[6px] font-medium flex items-center gap-1 cursor-pointer tabular-nums transition-all ${
+                        breakdownMode === 'DOC_VENCIDO'
+                          ? 'bg-rose-600 text-white font-semibold shadow-2xs'
+                          : collaboratorDocStats.expiredCollaborators.length > 0
+                          ? 'text-rose-600 hover:bg-rose-50 font-semibold'
+                          : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      <ShieldAlert className="w-3 h-3" />
+                      <span>
+                        Doc. Vencido ({collaboratorDocStats.expiredCollaborators.length})
+                      </span>
+                    </button>
+                  </div>
                 </div>
-              )}
 
-              {breakdownMode === 'EXECUTOR' && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
-                  {stats.allExecutors.map((item) => {
-                    const isSelected = activeExecutorFilter === item.executor;
-                    const fazerW =
-                      item.total > 0 ? Math.round((item.paraFazer / item.total) * 100) : 0;
-                    const feitoW =
-                      item.total > 0 ? Math.round((item.feitos / item.total) * 100) : 0;
-                    const variantsList = Array.from(item.rawVariants);
-                    const duplasOfExec = Array.from(item.duplasSet);
-                    const expiredInExec = getExpiredCollaboratorsForExecutor(
-                      item.executor,
-                      duplasOfExec
-                    );
-
-                    return (
-                      <button
-                        key={item.executor}
-                        type="button"
-                        onClick={() => {
-                          if (onSelectExecutorFilter) {
-                            onSelectExecutorFilter(isSelected ? 'ALL' : item.executor);
-                          }
-                        }}
-                        className={`p-3 rounded-lg border text-left transition-all cursor-pointer ${
-                          isSelected
-                            ? 'bg-[#223585] text-white border-[#223585] ring-2 ring-[#1E8E8D]/50'
-                            : expiredInExec.length > 0
-                            ? 'bg-red-50/40 hover:bg-red-50/80 border-red-200 text-slate-800'
-                            : 'bg-[#F3F4F6]/60 hover:bg-[#F3F4F6] border-slate-200/80 text-slate-800'
-                        }`}
-                      >
-                        <div className="flex items-center justify-between gap-2 text-xs mb-1">
-                          <span className="font-bold truncate">
-                            Executor: {item.executor}
-                          </span>
-                          <span
-                            className={`font-mono text-[11px] font-bold shrink-0 ${
-                              isSelected ? 'text-amber-300' : 'text-amber-700'
-                            }`}
-                          >
-                            {item.paraFazer} pendente{item.paraFazer !== 1 ? 's' : ''}
-                          </span>
-                        </div>
-
-                        {variantsList.length > 1 && (
-                          <div
-                            className={`text-[10px] truncate mb-1 ${
-                              isSelected ? 'text-slate-300' : 'text-slate-400'
-                            }`}
-                          >
-                            Unifica grafias: {variantsList.join(', ')}
-                          </div>
-                        )}
-
-                        {duplasOfExec.length > 0 && (
-                          <div
-                            className={`text-[10px] truncate mb-1.5 ${
-                              isSelected ? 'text-blue-200' : 'text-slate-500'
-                            }`}
-                            title={duplasOfExec.join(', ')}
-                          >
-                            Equipes: {duplasOfExec.join(' · ')}
-                          </div>
-                        )}
-
-                        {expiredInExec.length > 0 && (
-                          <div
-                            className={`mb-1.5 px-2 py-1 rounded text-[10px] font-semibold flex items-center gap-1 ${
-                              isSelected
-                                ? 'bg-red-500/90 text-white'
-                                : 'bg-red-100 text-red-800 border border-red-200'
-                            }`}
-                          >
-                            <AlertTriangle className="w-3 h-3 shrink-0" />
-                            <span className="truncate">
-                              Doc Vencido:{' '}
-                              {expiredInExec
-                                .map(
-                                  (c) =>
-                                    `${c.user.name} (${
-                                      c.vencidos.map((d) => d.label).join(', ') || 'Vencido'
-                                    })`
-                                )
-                                .join(', ')}
-                            </span>
-                          </div>
-                        )}
-
-                        {/* Bar: 1º Para Fazer (Amber) first, 2º Feitos (Teal) second */}
-                        <div className="w-full h-2 bg-slate-200 rounded-full overflow-hidden flex mb-1.5">
-                          <div
-                            className="h-full bg-amber-500"
-                            style={{ width: `${fazerW}%` }}
-                          />
-                          <div
-                            className="h-full bg-emerald-600"
-                            style={{ width: `${feitoW}%` }}
-                          />
-                        </div>
-
-                        <div
-                          className={`flex items-center justify-between text-[10px] font-mono ${
-                            isSelected ? 'text-slate-200' : 'text-slate-500'
-                          }`}
-                        >
-                          <span
-                            className={
-                              item.paraFazer > 0
-                                ? isSelected
-                                  ? 'text-amber-300 font-bold'
-                                  : 'text-amber-700 font-bold'
-                                : ''
-                            }
-                          >
-                            A Fazer: {item.paraFazer}
-                          </span>
-                          <span>Feitos: {item.feitos}</span>
-                          <span>Notas Pend.: {item.notasPendentes}</span>
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-
-              {breakdownMode === 'UF' && (
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
-                  {stats.allUfs.map((item) => {
-                    const isSelected = activeUfFilter === item.uf;
-                    const fazerW =
-                      item.total > 0 ? Math.round((item.paraFazer / item.total) * 100) : 0;
-                    const feitoW =
-                      item.total > 0 ? Math.round((item.feitos / item.total) * 100) : 0;
-
-                    return (
-                      <button
-                        key={item.uf}
-                        type="button"
-                        onClick={() => onSelectUfFilter(isSelected ? 'ALL' : item.uf)}
-                        className={`p-2.5 rounded-lg border text-left transition-all cursor-pointer ${
-                          isSelected
-                            ? 'bg-[#223585] text-white border-[#223585]'
-                            : 'bg-[#F3F4F6]/60 hover:bg-[#F3F4F6] border-slate-200/80 text-slate-800'
-                        }`}
-                      >
-                        <div className="flex items-center justify-between gap-1 text-xs mb-1.5">
-                          <span className="font-bold font-mono">UF {item.uf}</span>
-                          <span
-                            className={`font-mono text-[11px] font-bold ${
-                              isSelected ? 'text-amber-300' : 'text-amber-700'
-                            }`}
-                          >
-                            {item.paraFazer} pend.
-                          </span>
-                        </div>
-
-                        <div className="w-full h-2 bg-slate-200 rounded-full overflow-hidden flex mb-1.5">
-                          <div
-                            className="h-full bg-amber-500"
-                            style={{ width: `${fazerW}%` }}
-                          />
-                          <div
-                            className="h-full bg-emerald-600"
-                            style={{ width: `${feitoW}%` }}
-                          />
-                        </div>
-
-                        <div
-                          className={`flex flex-col gap-0.5 text-[10px] font-mono ${
-                            isSelected ? 'text-slate-200' : 'text-slate-500'
-                          }`}
-                        >
-                          <span>
-                            A Fazer: {item.paraFazer} · Feitos: {item.feitos}
-                          </span>
-                          <span>Notas Pend.: {item.notasPendentes}</span>
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-
-              {/* 4th Mode: COLABORADORES COM DOCUMENTO VENCIDO / A VENCER */}
-              {breakdownMode === 'DOC_VENCIDO' && (
-                <div className="space-y-2.5">
-                  {collaboratorDocStats.allAlertCollaborators.length > 0 ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                      {collaboratorDocStats.allAlertCollaborators.map((item) => {
-                        const isVencido =
-                          item.vencidos.length > 0 || item.overallStatus === 'VENCIDO';
-                        const vencW = Math.round(
-                          (Math.max(1, item.vencidos.length) / item.totalDocsCount) * 100
+                {/* Horizontal Stacked Bar List */}
+                {breakdownMode === 'DUPLAS' && (
+                  <div className="space-y-2 max-h-[250px] overflow-y-auto pr-1">
+                    {stats.allDuplas.length === 0 ? (
+                      <div className="py-10 text-center text-xs text-slate-500">
+                        Nenhuma equipe com sites pendentes no momento.
+                      </div>
+                    ) : (
+                      stats.allDuplas.map((item) => {
+                        const isSelected = activeEquipeFilter === item.dupla;
+                        const totalVal = item.total || 1;
+                        const fazerW = Math.round((item.paraFazer / totalVal) * 100);
+                        const feitoW = Math.round((item.feitos / totalVal) * 100);
+                        const notaW = Math.max(
+                          0,
+                          Math.min(100 - fazerW - feitoW, Math.round((item.notasPendentes / totalVal) * 100))
                         );
-                        const validW = Math.round(
-                          (item.validadosCount / item.totalDocsCount) * 100
-                        );
-                        const isDuplaFiltered =
-                          item.canonicalEquipe !== 'Sem Equipe' &&
-                          activeEquipeFilter === item.canonicalEquipe;
+                        const expiredInDupla = getExpiredCollaboratorsForDupla(item.dupla);
 
                         return (
-                          <div
-                            key={item.user.id}
-                            className={`p-3.5 rounded-xl border flex flex-col justify-between gap-2.5 ${
-                              isVencido
-                                ? 'bg-red-50/50 border-red-200'
-                                : 'bg-amber-50/50 border-amber-200'
+                          <button
+                            key={item.dupla}
+                            type="button"
+                            onClick={() =>
+                              onSelectEquipeFilter(isSelected ? 'ALL' : item.dupla)
+                            }
+                            title={`Filtrar ${item.dupla}: ${item.paraFazer} pendente(s), ${item.feitos} feito(s), ${item.notasPendentes} nota(s)`}
+                            className={`w-full flex items-center gap-3 px-2.5 py-1.5 rounded-[8px] transition-colors cursor-pointer text-left ${
+                              isSelected
+                                ? 'bg-[#223585]/8 ring-1 ring-[#223585]/35'
+                                : 'hover:bg-slate-50'
                             }`}
                           >
-                            <div className="flex items-start justify-between gap-2">
-                              <div className="min-w-0">
-                                <div className="flex items-center gap-1.5">
-                                  <AlertTriangle
-                                    className={`w-4 h-4 shrink-0 ${
-                                      isVencido ? 'text-red-600' : 'text-amber-600'
-                                    }`}
-                                  />
-                                  <span className="text-xs font-bold text-slate-900 truncate">
-                                    {item.user.name}
-                                  </span>
-                                </div>
-                                <div className="text-[11px] text-slate-600 mt-0.5 flex flex-wrap items-center gap-1.5">
-                                  <span className="font-mono font-semibold text-[#223585]">
-                                    {item.user.role}
-                                  </span>
-                                  <span>·</span>
-                                  <span>Equipe: {item.canonicalEquipe}</span>
-                                </div>
-                              </div>
+                            <div className="w-32 sm:w-40 shrink-0 flex items-center gap-1.5 min-w-0">
+                              {expiredInDupla.length > 0 && (
+                                <AlertTriangle className="w-3 h-3 text-rose-500 shrink-0" />
+                              )}
                               <span
-                                className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold shrink-0 ${
-                                  isVencido
-                                    ? 'bg-red-600 text-white'
-                                    : 'bg-amber-500 text-white'
+                                className={`text-xs font-semibold truncate ${
+                                  isSelected ? 'text-[#223585]' : 'text-slate-700'
                                 }`}
                               >
-                                {isVencido
-                                  ? `${Math.max(1, item.vencidos.length)} VENCIDO(S)`
-                                  : `${item.aVencer.length} A VENCER`}
+                                {item.dupla}
                               </span>
                             </div>
 
-                            {/* Visual Document Status Bar */}
-                            <div className="w-full h-2 bg-slate-200 rounded-full overflow-hidden flex">
-                              <div
-                                className="h-full bg-red-600"
-                                style={{ width: `${vencW}%` }}
-                                title={`Documentos Vencidos: ${item.vencidos.length}`}
-                              />
-                              <div
-                                className="h-full bg-emerald-600"
-                                style={{ width: `${validW}%` }}
-                                title={`Documentos Validados: ${item.validadosCount}`}
-                              />
+                            <div className="flex-1 h-2.5 bg-slate-100 rounded-full overflow-hidden flex gap-0.5">
+                              {fazerW > 0 && (
+                                <div
+                                  className="h-full bg-amber-500 rounded-l-full transition-all duration-300"
+                                  style={{ width: `${fazerW}%` }}
+                                />
+                              )}
+                              {feitoW > 0 && (
+                                <div
+                                  className="h-full bg-[#1E8E8D] transition-all duration-300"
+                                  style={{ width: `${feitoW}%` }}
+                                />
+                              )}
+                              {notaW > 0 && (
+                                <div
+                                  className="h-full bg-[#223585] rounded-r-full transition-all duration-300"
+                                  style={{ width: `${notaW}%` }}
+                                />
+                              )}
                             </div>
 
-                            {/* Specific Expired Documents Badges */}
-                            <div className="flex flex-wrap gap-1.5">
-                              {item.vencidos.map((doc) => (
-                                <span
-                                  key={doc.type}
-                                  className="px-2 py-1 rounded-md bg-white border border-red-200 text-red-800 text-[11px] font-medium inline-flex items-center gap-1.5 shadow-2xs"
-                                >
-                                  <strong className="font-bold">{doc.label}:</strong>
-                                  <span className="font-mono text-[10px]">
-                                    Venc. {formatDateBrShort(doc.expiresAt)}
-                                    {doc.eval.daysRemaining !== null
-                                      ? ` (${Math.abs(doc.eval.daysRemaining)}d atrás)`
-                                      : ''}
-                                  </span>
-                                  {onRemoveExpiredDoc && (
-                                    <button
-                                      type="button"
-                                      onClick={() =>
-                                        onRemoveExpiredDoc(
-                                          item.user.id,
-                                          doc.type,
-                                          doc.label,
-                                          item.user.name
-                                        )
-                                      }
-                                      title={`Remover documento vencido ${doc.label} de ${item.user.name}`}
-                                      className="ml-0.5 p-0.5 rounded hover:bg-red-100 text-red-600 hover:text-red-800 cursor-pointer"
-                                    >
-                                      <X className="w-3 h-3" />
-                                    </button>
-                                  )}
-                                </span>
-                              ))}
-                              {item.aVencer.map((doc) => (
-                                <span
-                                  key={doc.type}
-                                  className="px-2 py-1 rounded-md bg-white border border-amber-200 text-amber-800 text-[11px] font-medium inline-flex items-center gap-1.5 shadow-2xs"
-                                >
-                                  <strong className="font-bold">{doc.label}:</strong>
-                                  <span className="font-mono text-[10px]">
-                                    Vence em {formatDateBrShort(doc.expiresAt)} (
-                                    {doc.eval.daysRemaining}d)
-                                  </span>
-                                  {onRemoveExpiredDoc && (
-                                    <button
-                                      type="button"
-                                      onClick={() =>
-                                        onRemoveExpiredDoc(
-                                          item.user.id,
-                                          doc.type,
-                                          doc.label,
-                                          item.user.name
-                                        )
-                                      }
-                                      title={`Remover documento ${doc.label} de ${item.user.name}`}
-                                      className="ml-0.5 p-0.5 rounded hover:bg-amber-100 text-amber-700 hover:text-amber-900 cursor-pointer"
-                                    >
-                                      <X className="w-3 h-3" />
-                                    </button>
-                                  )}
-                                </span>
-                              ))}
-                            </div>
+                            <span className="w-9 text-right font-mono text-xs font-semibold text-slate-700 tabular-nums shrink-0">
+                              {item.paraFazer}
+                            </span>
+                          </button>
+                        );
+                      })
+                    )}
+                  </div>
+                )}
 
-                            {/* Quick Action Buttons */}
-                            <div className="flex items-center justify-between gap-2 pt-1 border-t border-red-200/60">
-                              {item.canonicalEquipe !== 'Sem Equipe' ? (
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    onSelectEquipeFilter(
-                                      isDuplaFiltered ? 'ALL' : item.canonicalEquipe
-                                    )
-                                  }
-                                  className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold cursor-pointer transition-colors ${
-                                    isDuplaFiltered
-                                      ? 'bg-[#223585] text-white'
-                                      : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200'
+                {breakdownMode === 'EXECUTOR' && (
+                  <div className="space-y-2 max-h-[250px] overflow-y-auto pr-1">
+                    {stats.allExecutors.length === 0 ? (
+                      <div className="py-10 text-center text-xs text-slate-500">
+                        Nenhum executor com sites pendentes.
+                      </div>
+                    ) : (
+                      stats.allExecutors.map((item) => {
+                        const isSelected = activeExecutorFilter === item.executor;
+                        const totalVal = item.total || 1;
+                        const fazerW = Math.round((item.paraFazer / totalVal) * 100);
+                        const feitoW = Math.round((item.feitos / totalVal) * 100);
+                        const notaW = Math.max(
+                          0,
+                          Math.min(100 - fazerW - feitoW, Math.round((item.notasPendentes / totalVal) * 100))
+                        );
+
+                        return (
+                          <button
+                            key={item.executor}
+                            type="button"
+                            onClick={() => {
+                              if (onSelectExecutorFilter) {
+                                onSelectExecutorFilter(isSelected ? 'ALL' : item.executor);
+                              }
+                            }}
+                            className={`w-full flex items-center gap-3 px-2.5 py-1.5 rounded-[8px] transition-colors cursor-pointer text-left ${
+                              isSelected
+                                ? 'bg-[#223585]/8 ring-1 ring-[#223585]/35'
+                                : 'hover:bg-slate-50'
+                            }`}
+                          >
+                            <div className="w-32 sm:w-40 shrink-0 truncate text-xs font-semibold text-slate-700">
+                              {item.executor}
+                            </div>
+                            <div className="flex-1 h-2.5 bg-slate-100 rounded-full overflow-hidden flex gap-0.5">
+                              {fazerW > 0 && (
+                                <div className="h-full bg-amber-500" style={{ width: `${fazerW}%` }} />
+                              )}
+                              {feitoW > 0 && (
+                                <div className="h-full bg-[#1E8E8D]" style={{ width: `${feitoW}%` }} />
+                              )}
+                              {notaW > 0 && (
+                                <div className="h-full bg-[#223585]" style={{ width: `${notaW}%` }} />
+                              )}
+                            </div>
+                            <span className="w-9 text-right font-mono text-xs font-semibold text-slate-700 tabular-nums shrink-0">
+                              {item.paraFazer}
+                            </span>
+                          </button>
+                        );
+                      })
+                    )}
+                  </div>
+                )}
+
+                {breakdownMode === 'UF' && (
+                  <div className="space-y-2 max-h-[250px] overflow-y-auto pr-1">
+                    {stats.allUfs.length === 0 ? (
+                      <div className="py-10 text-center text-xs text-slate-500">
+                        Nenhuma UF com sites pendentes.
+                      </div>
+                    ) : (
+                      stats.allUfs.map((item) => {
+                        const isSelected = activeUfFilter === item.uf;
+                        const totalVal = item.total || 1;
+                        const fazerW = Math.round((item.paraFazer / totalVal) * 100);
+                        const feitoW = Math.round((item.feitos / totalVal) * 100);
+                        const notaW = Math.max(
+                          0,
+                          Math.min(100 - fazerW - feitoW, Math.round((item.notasPendentes / totalVal) * 100))
+                        );
+
+                        return (
+                          <button
+                            key={item.uf}
+                            type="button"
+                            onClick={() => onSelectUfFilter(isSelected ? 'ALL' : item.uf)}
+                            className={`w-full flex items-center gap-3 px-2.5 py-1.5 rounded-[8px] transition-colors cursor-pointer text-left ${
+                              isSelected
+                                ? 'bg-[#223585]/8 ring-1 ring-[#223585]/35'
+                                : 'hover:bg-slate-50'
+                            }`}
+                          >
+                            <div className="w-24 shrink-0 font-mono text-xs font-bold text-slate-700">
+                              UF {item.uf}
+                            </div>
+                            <div className="flex-1 h-2.5 bg-slate-100 rounded-full overflow-hidden flex gap-0.5">
+                              {fazerW > 0 && (
+                                <div className="h-full bg-amber-500" style={{ width: `${fazerW}%` }} />
+                              )}
+                              {feitoW > 0 && (
+                                <div className="h-full bg-[#1E8E8D]" style={{ width: `${feitoW}%` }} />
+                              )}
+                              {notaW > 0 && (
+                                <div className="h-full bg-[#223585]" style={{ width: `${notaW}%` }} />
+                              )}
+                            </div>
+                            <span className="w-9 text-right font-mono text-xs font-semibold text-slate-700 tabular-nums shrink-0">
+                              {item.paraFazer}
+                            </span>
+                          </button>
+                        );
+                      })
+                    )}
+                  </div>
+                )}
+
+                {breakdownMode === 'DOC_VENCIDO' && (
+                  <div className="max-h-[250px] overflow-y-auto pr-1 space-y-2.5">
+                    {collaboratorDocStats.allAlertCollaborators.length > 0 ? (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+                        {collaboratorDocStats.allAlertCollaborators.map((item) => {
+                          const isVencido =
+                            item.vencidos.length > 0 || item.overallStatus === 'VENCIDO';
+                          const isDuplaFiltered =
+                            item.canonicalEquipe !== 'Sem Equipe' &&
+                            activeEquipeFilter === item.canonicalEquipe;
+
+                          return (
+                            <div
+                              key={item.user.id}
+                              className={`p-3 rounded-[10px] border flex flex-col justify-between gap-2 ${
+                                isVencido
+                                  ? 'bg-rose-50/70 border-rose-200'
+                                  : 'bg-amber-50/70 border-amber-200'
+                              }`}
+                            >
+                              <div className="flex items-start justify-between gap-2">
+                                <div className="min-w-0">
+                                  <div className="flex items-center gap-1.5">
+                                    <AlertTriangle
+                                      className={`w-3.5 h-3.5 shrink-0 ${
+                                        isVencido ? 'text-rose-600' : 'text-amber-600'
+                                      }`}
+                                    />
+                                    <span className="text-xs font-bold text-slate-900 truncate">
+                                      {item.user.name}
+                                    </span>
+                                  </div>
+                                  <div className="text-[11px] text-slate-500 mt-0.5 flex flex-wrap items-center gap-1.5">
+                                    <span className="font-mono font-semibold text-[#223585]">
+                                      {item.user.role}
+                                    </span>
+                                    <span>·</span>
+                                    <span>{item.canonicalEquipe}</span>
+                                  </div>
+                                </div>
+                                <span
+                                  className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold shrink-0 ${
+                                    isVencido
+                                      ? 'bg-rose-100 text-rose-700 border border-rose-200'
+                                      : 'bg-amber-100 text-amber-800 border border-amber-200'
                                   }`}
                                 >
-                                  {isDuplaFiltered
-                                    ? 'Limpar Filtro da Equipe'
-                                    : `Filtrar Sites (${item.canonicalEquipe})`}
-                                </button>
-                              ) : (
-                                <span />
-                              )}
+                                  {isVencido
+                                    ? `${Math.max(1, item.vencidos.length)} VENCIDO(S)`
+                                    : `${item.aVencer.length} A VENCER`}
+                                </span>
+                              </div>
 
-                              {onOpenCollaboratorDocs && (
-                                <button
-                                  type="button"
-                                  onClick={() => onOpenCollaboratorDocs(item.user.id)}
-                                  className="px-2.5 py-1 rounded-lg bg-red-600 hover:bg-red-700 text-white text-[11px] font-semibold flex items-center gap-1 cursor-pointer transition-colors"
-                                >
-                                  <span>Ver Documentos</span>
-                                  <ExternalLink className="w-3 h-3" />
-                                </button>
+                              <div className="flex flex-wrap gap-1">
+                                {item.vencidos.map((doc) => (
+                                  <span
+                                    key={doc.type}
+                                    className="px-2 py-0.5 rounded bg-white border border-rose-200 text-rose-700 text-[10px] font-medium inline-flex items-center gap-1"
+                                  >
+                                    <strong>{doc.label}:</strong>
+                                    <span className="font-mono">
+                                      {formatDateBrShort(doc.expiresAt)}
+                                    </span>
+                                    {onRemoveExpiredDoc && (
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          onRemoveExpiredDoc(
+                                            item.user.id,
+                                            doc.type,
+                                            doc.label,
+                                            item.user.name
+                                          )
+                                        }
+                                        className="ml-0.5 text-rose-500 hover:text-rose-700 cursor-pointer"
+                                      >
+                                        <X className="w-3 h-3" />
+                                      </button>
+                                    )}
+                                  </span>
+                                ))}
+                                {item.aVencer.map((doc) => (
+                                  <span
+                                    key={doc.type}
+                                    className="px-2 py-0.5 rounded bg-white border border-amber-200 text-amber-800 text-[10px] font-medium inline-flex items-center gap-1"
+                                  >
+                                    <strong>{doc.label}:</strong>
+                                    <span className="font-mono">
+                                      {formatDateBrShort(doc.expiresAt)} ({doc.eval.daysRemaining}d)
+                                    </span>
+                                    {onRemoveExpiredDoc && (
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          onRemoveExpiredDoc(
+                                            item.user.id,
+                                            doc.type,
+                                            doc.label,
+                                            item.user.name
+                                          )
+                                        }
+                                        className="ml-0.5 text-amber-600 hover:text-amber-800 cursor-pointer"
+                                      >
+                                        <X className="w-3 h-3" />
+                                      </button>
+                                    )}
+                                  </span>
+                                ))}
+                              </div>
+
+                              <div className="flex items-center justify-between gap-2 pt-1.5 border-t border-slate-200/70">
+                                {item.canonicalEquipe !== 'Sem Equipe' ? (
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      onSelectEquipeFilter(
+                                        isDuplaFiltered ? 'ALL' : item.canonicalEquipe
+                                      )
+                                    }
+                                    className={`px-2 py-0.5 rounded-[6px] text-[10px] font-semibold cursor-pointer ${
+                                      isDuplaFiltered
+                                        ? 'bg-[#223585] text-white'
+                                        : 'bg-white hover:bg-slate-50 text-slate-700 border border-slate-200'
+                                    }`}
+                                  >
+                                    {isDuplaFiltered ? 'Limpar' : `Filtrar ${item.canonicalEquipe}`}
+                                  </button>
+                                ) : (
+                                  <span />
+                                )}
+                                {onOpenCollaboratorDocs && (
+                                  <button
+                                    type="button"
+                                    onClick={() => onOpenCollaboratorDocs(item.user.id)}
+                                    className="px-2 py-0.5 rounded-[6px] bg-rose-600 hover:bg-rose-700 text-white text-[10px] font-semibold flex items-center gap-1 cursor-pointer"
+                                  >
+                                    <span>Ver Docs</span>
+                                    <ExternalLink className="w-3 h-3" />
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div className="p-5 text-center bg-emerald-50 border border-emerald-200 rounded-[10px] text-xs text-emerald-700 font-medium">
+                        Nenhum colaborador está com documento vencido ou a vencer no momento.
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Bottom Compact Legend */}
+                <div className="flex flex-wrap items-center gap-4 text-[11px] text-slate-500 pt-2 border-t border-slate-100">
+                  <span className="inline-flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-amber-500 inline-block" />
+                    <span>Pendentes</span>
+                  </span>
+                  <span className="inline-flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-[#1E8E8D] inline-block" />
+                    <span>Feitos</span>
+                  </span>
+                  <span className="inline-flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-[#223585] inline-block" />
+                    <span>Notas pendentes</span>
+                  </span>
+                  <span className="inline-flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-rose-500 inline-block" />
+                    <span>Doc. vencido ({collaboratorDocStats.expiredCollaborators.length})</span>
+                  </span>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Drilldown Selected Sites Breakdown */}
+          {hasAnyChartFilter && (
+            <div className="bg-white border border-slate-200 rounded-[12px] shadow-[0_1px_2px_rgba(15,23,42,0.04)] p-4 space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex items-center gap-2 text-xs">
+                  <span className="font-bold text-slate-900">
+                    Sites Selecionados no Gráfico ({chartSelectedSitesBreakdown.total}):
+                  </span>
+                  <span className="text-slate-500">
+                    Exibindo sempre em <strong className="text-slate-700">1º os Sites a Fazer</strong> e depois os{' '}
+                    <strong className="text-slate-700">Sites Feitos</strong>
+                  </span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+                {/* 1º SITES A FAZER */}
+                <div className="rounded-[10px] border border-amber-200 bg-white overflow-hidden flex flex-col">
+                  <div className="px-3.5 py-2 bg-amber-50 border-b border-amber-200/80 flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-xs font-bold text-amber-800">
+                      <Clock className="w-3.5 h-3.5 text-amber-600" />
+                      <span>1º Sites a Fazer (Pendentes / A Executar)</span>
+                    </div>
+                    <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-200 font-mono text-[11px] font-bold">
+                      {chartSelectedSitesBreakdown.paraFazerSites.length}
+                    </span>
+                  </div>
+                  <div className="divide-y divide-slate-100 max-h-52 overflow-y-auto">
+                    {chartSelectedSitesBreakdown.paraFazerSites.length > 0 ? (
+                      chartSelectedSitesBreakdown.paraFazerSites.map((s, idx) => {
+                        const rawEq =
+                          getCellValueForColumn(s, 'EQUIPE EXECUTANTE') ||
+                          s.equipeParceira ||
+                          '';
+                        const dupla = getCanonicalDuplaName(rawEq) || rawEq || 'Sem Dupla';
+                        return (
+                          <div
+                            key={s.id}
+                            onClick={() => onOpenSite && onOpenSite(s.id)}
+                            className="px-3 py-2 hover:bg-slate-50 flex items-center justify-between gap-2 text-xs cursor-pointer transition-colors"
+                          >
+                            <div className="flex flex-wrap items-center gap-1.5 min-w-0">
+                              <span className="font-mono text-[10px] text-slate-400 w-5">
+                                #{idx + 1}
+                              </span>
+                              <span className="font-mono font-bold text-[#223585]">
+                                {s.siteId}
+                              </span>
+                              <span className="px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 font-mono text-[10px]">
+                                {s.uf} · {s.municipio}
+                              </span>
+                              <span className="text-[11px] text-slate-500 truncate">
+                                {dupla}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-1.5 shrink-0">
+                              <span className="px-2 py-0.5 rounded bg-amber-50 text-amber-800 border border-amber-200 text-[10px] font-semibold">
+                                {s.status || 'A Fazer'}
+                              </span>
+                              {onOpenSite && (
+                                <ExternalLink className="w-3.5 h-3.5 text-slate-400" />
                               )}
                             </div>
                           </div>
                         );
-                      })}
-                    </div>
-                  ) : (
-                    <div className="p-5 text-center bg-emerald-50/50 border border-emerald-200 rounded-xl text-xs text-emerald-800 font-medium">
-                      Nenhum colaborador está com documento vencido ou a vencer no momento.
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* ===============================================================
-                  PAINEL DE SITES AO CLICAR NO GRÁFICO:
-                  SEMPRE EM 1º OS SITES A FAZER E DEPOIS OS SITES FEITOS
-                 =============================================================== */}
-              {hasAnyChartFilter && (
-                <div className="pt-3 border-t border-slate-200 space-y-3">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div className="flex items-center gap-2 text-xs">
-                      <span className="font-bold text-slate-900">
-                        Sites Selecionados no Gráfico ({chartSelectedSitesBreakdown.total}):
-                      </span>
-                      <span className="text-slate-500">
-                        Exibindo sempre em <strong>1º os Sites a Fazer</strong> e depois os{' '}
-                        <strong>Sites Feitos</strong> (também ordenados na planilha abaixo)
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-                    {/* 1º SITES A FAZER (SEMPRE EM PRIMEIRO) */}
-                    <div className="rounded-xl border border-amber-200 bg-amber-50/40 overflow-hidden flex flex-col">
-                      <div className="px-3.5 py-2 bg-amber-100/80 border-b border-amber-200 flex items-center justify-between">
-                        <div className="flex items-center gap-2 text-xs font-bold text-amber-950">
-                          <Clock className="w-3.5 h-3.5 text-amber-700" />
-                          <span>1º Sites a Fazer (Pendentes / A Executar)</span>
-                        </div>
-                        <span className="px-2 py-0.5 rounded-full bg-amber-600 text-white font-mono text-[11px] font-bold">
-                          {chartSelectedSitesBreakdown.paraFazerSites.length}
-                        </span>
+                      })
+                    ) : (
+                      <div className="p-4 text-center text-xs text-slate-500">
+                        Nenhum site pendente / a fazer para este filtro.
                       </div>
-                      <div className="divide-y divide-amber-200/60 max-h-52 overflow-y-auto bg-white">
-                        {chartSelectedSitesBreakdown.paraFazerSites.length > 0 ? (
-                          chartSelectedSitesBreakdown.paraFazerSites.map((s, idx) => {
-                            const rawEq =
-                              getCellValueForColumn(s, 'EQUIPE EXECUTANTE') ||
-                              s.equipeParceira ||
-                              '';
-                            const dupla = getCanonicalDuplaName(rawEq) || rawEq || 'Sem Dupla';
-                            return (
-                              <div
-                                key={s.id}
-                                onClick={() => onOpenSite && onOpenSite(s.id)}
-                                className="px-3 py-2 hover:bg-amber-50/60 flex items-center justify-between gap-2 text-xs cursor-pointer transition-colors"
-                              >
-                                <div className="flex flex-wrap items-center gap-1.5 min-w-0">
-                                  <span className="font-mono text-[10px] text-slate-400 w-5">
-                                    #{idx + 1}
-                                  </span>
-                                  <span className="font-mono font-bold text-blue-600">
-                                    {s.siteId}
-                                  </span>
-                                  <span className="px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 font-mono text-[10px]">
-                                    {s.uf} · {s.municipio}
-                                  </span>
-                                  <span className="text-[11px] text-slate-600 truncate">
-                                    {dupla}
-                                  </span>
-                                </div>
-                                <div className="flex items-center gap-1.5 shrink-0">
-                                  <span className="px-2 py-0.5 rounded bg-amber-100 text-amber-900 border border-amber-200 text-[10px] font-semibold">
-                                    {s.status || 'A Fazer'}
-                                  </span>
-                                  {onOpenSite && (
-                                    <ExternalLink className="w-3.5 h-3.5 text-slate-400" />
-                                  )}
-                                </div>
-                              </div>
-                            );
-                          })
-                        ) : (
-                          <div className="p-4 text-center text-xs text-slate-400">
-                            Nenhum site pendente / a fazer para este filtro.
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* 2º SITES FEITOS (EM SEGUNDO) */}
-                    <div className="rounded-xl border border-emerald-200 bg-emerald-50/30 overflow-hidden flex flex-col">
-                      <div className="px-3.5 py-2 bg-emerald-100/80 border-b border-emerald-200 flex items-center justify-between">
-                        <div className="flex items-center gap-2 text-xs font-bold text-emerald-950">
-                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-700" />
-                          <span>2º Sites Feitos (Finalizados)</span>
-                        </div>
-                        <span className="px-2 py-0.5 rounded-full bg-emerald-600 text-white font-mono text-[11px] font-bold">
-                          {chartSelectedSitesBreakdown.feitosSites.length}
-                        </span>
-                      </div>
-                      <div className="divide-y divide-emerald-200/60 max-h-52 overflow-y-auto bg-white">
-                        {chartSelectedSitesBreakdown.feitosSites.length > 0 ? (
-                          chartSelectedSitesBreakdown.feitosSites.map((s, idx) => {
-                            const rawEq =
-                              getCellValueForColumn(s, 'EQUIPE EXECUTANTE') ||
-                              s.equipeParceira ||
-                              '';
-                            const dupla = getCanonicalDuplaName(rawEq) || rawEq || 'Sem Dupla';
-                            return (
-                              <div
-                                key={s.id}
-                                onClick={() => onOpenSite && onOpenSite(s.id)}
-                                className="px-3 py-2 hover:bg-emerald-50/50 flex items-center justify-between gap-2 text-xs cursor-pointer transition-colors"
-                              >
-                                <div className="flex flex-wrap items-center gap-1.5 min-w-0">
-                                  <span className="font-mono text-[10px] text-slate-400 w-5">
-                                    #{idx + 1}
-                                  </span>
-                                  <span className="font-mono font-bold text-blue-600">
-                                    {s.siteId}
-                                  </span>
-                                  <span className="px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 font-mono text-[10px]">
-                                    {s.uf} · {s.municipio}
-                                  </span>
-                                  <span className="text-[11px] text-slate-600 truncate">
-                                    {dupla}
-                                  </span>
-                                </div>
-                                <div className="flex items-center gap-1.5 shrink-0">
-                                  <span className="px-2 py-0.5 rounded bg-emerald-100 text-emerald-900 border border-emerald-200 text-[10px] font-semibold">
-                                    {s.status || 'Finalizada'}
-                                  </span>
-                                  {onOpenSite && (
-                                    <ExternalLink className="w-3.5 h-3.5 text-slate-400" />
-                                  )}
-                                </div>
-                              </div>
-                            );
-                          })
-                        ) : (
-                          <div className="p-4 text-center text-xs text-slate-400">
-                            Nenhum site finalizado para este filtro.
-                          </div>
-                        )}
-                      </div>
-                    </div>
+                    )}
                   </div>
                 </div>
-              )}
+
+                {/* 2º SITES FEITOS */}
+                <div className="rounded-[10px] border border-emerald-200 bg-white overflow-hidden flex flex-col">
+                  <div className="px-3.5 py-2 bg-emerald-50 border-b border-emerald-200/80 flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-xs font-bold text-emerald-800">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                      <span>2º Sites Feitos (Finalizados)</span>
+                    </div>
+                    <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200 font-mono text-[11px] font-bold">
+                      {chartSelectedSitesBreakdown.feitosSites.length}
+                    </span>
+                  </div>
+                  <div className="divide-y divide-slate-100 max-h-52 overflow-y-auto">
+                    {chartSelectedSitesBreakdown.feitosSites.length > 0 ? (
+                      chartSelectedSitesBreakdown.feitosSites.map((s, idx) => {
+                        const rawEq =
+                          getCellValueForColumn(s, 'EQUIPE EXECUTANTE') ||
+                          s.equipeParceira ||
+                          '';
+                        const dupla = getCanonicalDuplaName(rawEq) || rawEq || 'Sem Dupla';
+                        return (
+                          <div
+                            key={s.id}
+                            onClick={() => onOpenSite && onOpenSite(s.id)}
+                            className="px-3 py-2 hover:bg-slate-50 flex items-center justify-between gap-2 text-xs cursor-pointer transition-colors"
+                          >
+                            <div className="flex flex-wrap items-center gap-1.5 min-w-0">
+                              <span className="font-mono text-[10px] text-slate-400 w-5">
+                                #{idx + 1}
+                              </span>
+                              <span className="font-mono font-bold text-[#223585]">
+                                {s.siteId}
+                              </span>
+                              <span className="px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 font-mono text-[10px]">
+                                {s.uf} · {s.municipio}
+                              </span>
+                              <span className="text-[11px] text-slate-500 truncate">
+                                {dupla}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-1.5 shrink-0">
+                              <span className="px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-semibold">
+                                {s.status || 'Finalizada'}
+                              </span>
+                              {onOpenSite && (
+                                <ExternalLink className="w-3.5 h-3.5 text-slate-400" />
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })
+                    ) : (
+                      <div className="p-4 text-center text-xs text-slate-500">
+                        Nenhum site finalizado para este filtro.
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
             </div>
           )}
         </div>

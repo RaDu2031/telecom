@@ -710,15 +710,15 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = React
       {/* =====================================================================
           MOBILE QUICK BAR (lg:hidden): OPÇÕES BEM APARENTES NO MOBILE
          ===================================================================== */}
-      <div className="lg:hidden bg-slate-900 text-white border border-slate-800 rounded-2xl p-3.5 shadow-md space-y-3">
+      <div className="lg:hidden bg-white text-slate-900 border border-slate-200 rounded-[12px] p-3.5 shadow-[0_1px_2px_rgba(15,23,42,0.04)] space-y-3">
         <div className="flex items-center justify-between gap-2">
-          <span className="text-xs font-black uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
-            <Users className="w-4 h-4 text-amber-400 shrink-0" />
+          <span className="text-xs font-bold uppercase tracking-wider text-[#223585] flex items-center gap-1.5">
+            <Users className="w-4 h-4 text-[#1E8E8D] shrink-0" />
             <span>
               1. Dupla Selecionada ({activeVendor === 'ERICSSON' ? 'Ericsson' : 'TIM / Nokia'})
             </span>
           </span>
-          <span className="px-2.5 py-1 bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 rounded-lg text-xs font-mono font-black">
+          <span className="px-2.5 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-[8px] text-xs font-mono font-bold tabular-nums">
             {activeAssignedCount} site(s)
           </span>
         </div>
@@ -729,7 +729,7 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = React
             setSelectedDupla(e.target.value);
             setSelectedSiteIds([]);
           }}
-          className="w-full px-3.5 py-3 bg-white text-slate-950 font-black rounded-xl text-sm border-2 border-amber-400 focus:outline-none shadow-sm"
+          className="w-full px-3.5 py-2.5 bg-white text-slate-900 font-bold rounded-[8px] text-sm border border-slate-300 focus:outline-none focus:border-[#223585] focus:ring-2 focus:ring-[#223585]/15 shadow-xs"
         >
           {equipesDuplas.map((d) => (
             <option key={d} value={d}>
@@ -738,7 +738,7 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = React
           ))}
         </select>
 
-        <div className="grid grid-cols-2 gap-2 text-xs font-black">
+        <div className="grid grid-cols-2 gap-2 text-xs font-semibold">
           {(
             [
               { id: 'ALL', label: 'Ver Tudo na Tela' },
@@ -751,10 +751,10 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = React
               key={tab.id}
               type="button"
               onClick={() => setMobileSection(tab.id)}
-              className={`py-2.5 px-2.5 rounded-xl text-center truncate transition-all cursor-pointer border ${
+              className={`py-2 px-2.5 rounded-[8px] text-center truncate transition-all cursor-pointer border ${
                 mobileSection === tab.id
-                  ? 'bg-amber-400 text-slate-950 border-amber-300 shadow-sm font-black'
-                  : 'bg-slate-800 text-slate-200 border-slate-700 hover:bg-slate-700'
+                  ? 'bg-[#223585] text-white border-[#223585] shadow-xs font-bold'
+                  : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100 hover:text-slate-900'
               }`}
             >
               {tab.label}
@@ -768,19 +768,19 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = React
           LEFT COLUMN (4 COLS): LISTA INTERATIVA DE DUPLAS + CRIAR NOVA DUPLA
          ===================================================================== */}
       <div
-        className={`lg:col-span-4 bg-white border border-slate-200 rounded-xl shadow-2xs overflow-hidden flex flex-col ${
+        className={`lg:col-span-4 bg-white border border-slate-200 rounded-[12px] shadow-[0_1px_2px_rgba(15,23,42,0.04)] overflow-hidden flex flex-col ${
           mobileSection !== 'ALL' && mobileSection !== 'DUPLAS' ? 'hidden lg:flex' : 'flex'
         }`}
       >
-        <div className="p-4 bg-slate-900 text-white space-y-3">
+        <div className="p-4 bg-slate-50 border-b border-slate-200 text-slate-900 space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Users className="w-4 h-4 text-blue-400" />
+              <Users className="w-4 h-4 text-[#223585]" />
               <div>
-                <h2 className="text-xs font-bold">
+                <h2 className="text-xs font-bold tracking-tight text-slate-900">
                   1. Selecionar Dupla Executante ({equipesDuplas.length})
                 </h2>
-                <p className="text-[11px] text-slate-400">
+                <p className="text-[11px] text-slate-500">
                   Escolha a dupla para vincular e-mail e distribuir sites
                 </p>
               </div>
@@ -803,7 +803,7 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = React
                 }
               }}
               placeholder="Nova dupla (ex: Carlos / Eduardo)..."
-              className="flex-1 px-2.5 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-xs text-white placeholder-slate-400 focus:outline-none focus:border-blue-400"
+              className="flex-1 px-2.5 py-1.5 bg-white border border-slate-200 rounded-[8px] text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-[#223585] focus:ring-2 focus:ring-[#223585]/15"
             />
             <button
               type="button"
@@ -814,7 +814,7 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = React
                 setSelectedDupla(clean);
                 setNewDuplaName('');
               }}
-              className="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold rounded-lg flex items-center gap-1 cursor-pointer shrink-0"
+              className="px-3 py-1.5 bg-[#223585] hover:bg-[#1B2A6B] text-white text-xs font-bold rounded-[8px] flex items-center gap-1 cursor-pointer shrink-0 transition-colors"
             >
               <Plus className="w-3.5 h-3.5" />
               <span>Criar</span>
@@ -829,17 +829,17 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = React
               value={duplaSearch}
               onChange={(e) => setDuplaSearch(e.target.value)}
               placeholder="Buscar dupla ou e-mail vinculado..."
-              className="w-full pl-8 pr-2.5 py-1.5 bg-slate-800/80 border border-slate-700 rounded-lg text-xs text-white placeholder-slate-400 focus:outline-none focus:border-blue-400"
+              className="w-full pl-8 pr-2.5 py-1.5 bg-white border border-slate-200 rounded-[8px] text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-[#223585] focus:ring-2 focus:ring-[#223585]/15"
             />
           </div>
         </div>
 
         {/* Scrollable List of Duplas */}
-        <div className="divide-y divide-slate-100 max-h-72 lg:max-h-[640px] overflow-y-auto p-2 space-y-1">
+        <div className="max-h-72 lg:max-h-[640px] overflow-y-auto p-2 space-y-1.5">
           {filteredDuplas.length === 0 && (
-            <div className="p-4 text-center space-y-2 text-xs text-slate-500 bg-slate-50 rounded-xl border border-dashed border-slate-200">
-              <p className="font-bold text-slate-700">Nenhuma dupla cadastrada ainda</p>
-              <p className="text-[11px] leading-relaxed">
+            <div className="p-4 text-center space-y-2 text-xs text-slate-500 bg-slate-50 rounded-[10px] border border-dashed border-slate-300">
+              <p className="font-bold text-slate-800">Nenhuma dupla cadastrada ainda</p>
+              <p className="text-[11px] leading-relaxed text-slate-500">
                 A lista foi zerada e será alimentada automaticamente conforme novos usuários (@ametaservicos.com.br) se cadastrarem e forem liberados, ou você pode criar uma dupla manualmente no campo acima.
               </p>
             </div>
@@ -880,10 +880,10 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = React
                     }
                   }
                 }}
-                className={`p-3 rounded-xl border transition-all cursor-pointer ${
+                className={`p-3 rounded-[10px] border transition-all cursor-pointer ${
                   isSelected
-                    ? 'bg-blue-50/90 border-blue-500 ring-1 ring-blue-500/30 shadow-2xs'
-                    : 'bg-white hover:bg-slate-50 border-slate-200/80'
+                    ? 'bg-blue-50/70 border-[#223585]/40 ring-1 ring-[#223585]/15 shadow-xs'
+                    : 'bg-white hover:bg-slate-50 border-slate-200'
                 }`}
               >
                 {isEditing ? (
@@ -905,7 +905,7 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = React
                           setEditingDupla(null);
                         }
                       }}
-                      className="flex-1 px-2 py-1 bg-white border border-blue-600 rounded text-xs font-semibold text-slate-900"
+                      className="flex-1 px-2 py-1 bg-white border border-[#223585] rounded-[6px] text-xs font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#223585]/20"
                     />
                     <button
                       type="button"
@@ -916,14 +916,14 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = React
                         }
                         setEditingDupla(null);
                       }}
-                      className="px-2 py-1 bg-blue-600 text-white text-[11px] font-semibold rounded cursor-pointer"
+                      className="px-2 py-1 bg-[#223585] hover:bg-[#1B2A6B] text-white text-[11px] font-bold rounded-[6px] cursor-pointer"
                     >
                       Salvar
                     </button>
                     <button
                       type="button"
                       onClick={() => setEditingDupla(null)}
-                      className="px-2 py-1 bg-slate-100 text-slate-600 text-[11px] rounded cursor-pointer"
+                      className="px-2 py-1 bg-slate-100 border border-slate-200 text-slate-600 hover:text-slate-900 text-[11px] rounded-[6px] cursor-pointer"
                     >
                       ✕
                     </button>
@@ -935,19 +935,19 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = React
                         <div className="flex items-center gap-1.5">
                           <span
                             className={`text-xs font-bold truncate ${
-                              isSelected ? 'text-blue-950' : 'text-slate-900'
+                              isSelected ? 'text-[#223585]' : 'text-slate-900'
                             }`}
                           >
                             {dupla}
                           </span>
-                          <span className="px-1.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-slate-900 text-white">
+                          <span className="px-1.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-slate-100 border border-slate-200 text-[#223585] tabular-nums">
                             {totalSitesCount}
                           </span>
                         </div>
 
                         {/* Linked Profile Emails Preview */}
                         <div className="flex items-center gap-1 mt-1 text-[11px] text-slate-500 truncate">
-                          <Mail className="w-3 h-3 text-blue-600 shrink-0" />
+                          <Mail className="w-3 h-3 text-[#1E8E8D] shrink-0" />
                           {linkedEmails.length > 0 ? (
                             <span className="font-mono truncate text-slate-700">
                               {linkedEmails.join(', ')}
@@ -970,7 +970,7 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = React
                             setEditingDupla(dupla);
                             setEditingDuplaValue(dupla);
                           }}
-                          className="p-1 text-slate-400 hover:text-blue-600 rounded hover:bg-white cursor-pointer"
+                          className="p-1 text-slate-400 hover:text-[#223585] rounded-[6px] hover:bg-slate-100 cursor-pointer transition-colors"
                           title="Renomear dupla"
                         >
                           <Edit3 className="w-3.5 h-3.5" />
@@ -978,7 +978,7 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = React
                         <button
                           type="button"
                           onClick={() => onDeleteDupla(dupla)}
-                          className="p-1 text-slate-400 hover:text-red-600 rounded hover:bg-white cursor-pointer"
+                          className="p-1 text-slate-400 hover:text-rose-600 rounded-[6px] hover:bg-rose-50 cursor-pointer transition-colors"
                           title="Remover dupla"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
@@ -987,14 +987,14 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = React
                     </div>
 
                     {/* Mini stats row (identical rules for TIM/Nokia and Ericsson) */}
-                    <div className="flex items-center gap-2 text-[10px] font-mono pt-1 border-t border-slate-200/60">
-                      <span className="px-1.5 py-0.5 rounded bg-amber-50 text-amber-800 border border-amber-200/80">
+                    <div className="flex flex-wrap items-center gap-1.5 text-[10px] font-mono pt-1.5 border-t border-slate-100 tabular-nums">
+                      <span className="px-1.5 py-0.5 rounded-[6px] bg-amber-50 text-amber-800 border border-amber-200">
                         Para Fazer: {fazerCount}
                       </span>
-                      <span className="px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-800 border border-emerald-200/80">
+                      <span className="px-1.5 py-0.5 rounded-[6px] bg-emerald-50 text-emerald-700 border border-emerald-200">
                         Feitos: {feitosCount}
                       </span>
-                      <span className="px-1.5 py-0.5 rounded bg-blue-50 text-blue-800 border border-blue-200/80">
+                      <span className="px-1.5 py-0.5 rounded-[6px] bg-teal-50 text-[#1E8E8D] border border-teal-200">
                         Notas Pend.: {notasCount}
                       </span>
                     </div>
@@ -1015,10 +1015,10 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = React
         }`}
       >
         {/* Card A: Selected Dupla Header & Profile Email Linker */}
-        <div className="bg-white border border-slate-200 rounded-xl p-3.5 sm:p-4 shadow-2xs space-y-4">
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3.5">
+        <div className="bg-white border border-slate-200 rounded-[12px] shadow-[0_1px_2px_rgba(15,23,42,0.04)] p-4 space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 pb-3.5">
             <div className="flex items-center gap-3 min-w-0">
-              <div className="w-10 h-10 rounded-xl bg-blue-600 text-white font-bold text-sm flex items-center justify-center shadow-2xs shrink-0">
+              <div className="w-10 h-10 rounded-[10px] bg-[#223585]/10 border border-[#223585]/20 text-[#223585] font-bold text-sm flex items-center justify-center shrink-0">
                 {selectedDupla.slice(0, 2).toUpperCase()}
               </div>
               <div className="min-w-0">
@@ -1026,7 +1026,7 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = React
                   <h3 className="text-sm font-bold text-slate-900 truncate">
                     Dupla Selecionada: {selectedDupla}
                   </h3>
-                  <span className="px-2 py-0.5 bg-slate-100 border border-slate-200 text-slate-700 rounded-md text-[11px] font-mono font-semibold">
+                  <span className="px-2.5 py-0.5 bg-teal-50 border border-teal-200 text-[#1E8E8D] rounded-full text-[11px] font-mono font-semibold tabular-nums">
                     {activeAssignedCount} site(s) na demanda
                   </span>
                 </div>
@@ -1040,27 +1040,27 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = React
               <button
                 type="button"
                 onClick={handleSimulateSelectedDupla}
-                className="w-full sm:w-auto justify-center px-3.5 py-2.5 sm:py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold rounded-xl flex items-center gap-2 cursor-pointer shadow-2xs"
+                className="w-full sm:w-auto justify-center px-3.5 py-2 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 hover:text-slate-900 text-xs font-semibold rounded-[8px] flex items-center gap-2 cursor-pointer transition-colors shadow-2xs"
                 title="Ver exatamente como a planilha e os sites aparecem quando esta dupla entra no sistema"
               >
-                <Eye className="w-4 h-4 text-blue-400 shrink-0" />
+                <Eye className="w-4 h-4 text-[#1E8E8D] shrink-0" />
                 <span>Ver como aparece para eles ({activeAssignedCount} sites)</span>
               </button>
             )}
           </div>
 
           {/* Profile Email Linker Box (High-visibility on mobile & desktop) */}
-          <div className="p-3.5 sm:p-4 bg-blue-50/70 border-2 border-blue-300 rounded-2xl space-y-3">
+          <div className="p-3.5 sm:p-4 bg-slate-50 border border-slate-200 rounded-[12px] space-y-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="flex items-center gap-2">
-                <div className="w-7 h-7 rounded-lg bg-[#223585] text-white flex items-center justify-center shrink-0">
+                <div className="w-7 h-7 rounded-lg bg-white border border-slate-200 text-[#1E8E8D] flex items-center justify-center shrink-0 shadow-2xs">
                   <Link2 className="w-4 h-4" />
                 </div>
                 <div>
-                  <span className="text-xs sm:text-sm font-black text-slate-900 block">
+                  <span className="text-xs sm:text-sm font-bold text-slate-900 block">
                     Escolher E-mail para Demandar — Dupla "{selectedDupla}"
                   </span>
-                  <span className="text-[11px] text-slate-600 block">
+                  <span className="text-[11px] text-slate-500 block">
                     Pesquise abaixo por nome ou e-mail e toque em Vincular
                   </span>
                 </div>
@@ -1077,21 +1077,21 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = React
                   return (
                     <span
                       key={email}
-                      className="inline-flex flex-wrap items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border-2 border-blue-400 text-slate-900 text-xs font-bold shadow-2xs max-w-full"
+                      className="inline-flex flex-wrap items-center gap-1.5 px-3 py-1.5 rounded-[10px] bg-white border border-slate-200 text-slate-900 text-xs font-bold max-w-full shadow-2xs"
                     >
-                      <Mail className="w-4 h-4 text-blue-600 shrink-0" />
+                      <Mail className="w-4 h-4 text-[#1E8E8D] shrink-0" />
                       <span className="font-mono font-bold break-all sm:break-normal">
                         {email}
                       </span>
                       {matchedProfile && (
-                        <span className="text-[10px] px-2 py-0.5 bg-blue-100 text-blue-900 font-bold rounded-md">
+                        <span className="text-[10px] px-2 py-0.5 bg-blue-50 border border-blue-200 text-[#223585] font-bold rounded-[6px]">
                           {matchedProfile.name} ({matchedProfile.role})
                         </span>
                       )}
                       <button
                         type="button"
                         onClick={() => handleRemoveEmailLink(email)}
-                        className="text-red-500 hover:text-red-700 ml-1 p-1 bg-red-50 rounded-md cursor-pointer"
+                        className="text-rose-600 hover:text-rose-700 ml-1 p-1 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded-[6px] cursor-pointer"
                         title="Desvincular este e-mail da dupla"
                       >
                         <X className="w-4 h-4" />
@@ -1100,7 +1100,7 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = React
                   );
                 })
               ) : (
-                <span className="text-xs font-semibold text-amber-900 bg-amber-100/80 border border-amber-300 px-3 py-1.5 rounded-lg">
+                <span className="text-xs font-semibold text-amber-800 bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-[8px]">
                   Nenhum e-mail vinculado ainda. Pesquise ou escolha um e-mail abaixo:
                 </span>
               )}
@@ -1111,7 +1111,7 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = React
               <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
                 {/* Search Input to Filter Emails/Names */}
                 <div className="relative w-full sm:w-72 shrink-0">
-                  <Search className="w-4 h-4 text-blue-600 absolute left-3 top-3 sm:top-2.5" />
+                  <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3 sm:top-2.5" />
                   <input
                     type="text"
                     value={emailSearchQuery}
@@ -1131,7 +1131,7 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = React
                       }
                     }}
                     placeholder="🔍 Pesquisar e-mail ou nome..."
-                    className="w-full pl-9 pr-8 py-2.5 sm:py-2 bg-white border-2 border-blue-400 rounded-xl text-xs sm:text-xs font-bold text-slate-900 placeholder-slate-500 focus:outline-none focus:border-[#223585] shadow-2xs"
+                    className="w-full pl-9 pr-8 py-2.5 sm:py-2 bg-white border border-slate-200 rounded-[8px] text-xs font-semibold text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-[#223585] focus:ring-2 focus:ring-[#223585]/15"
                   />
                   {emailSearchQuery && (
                     <button
@@ -1148,7 +1148,7 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = React
                 <select
                   value={selectedUserEmailToLink}
                   onChange={(e) => setSelectedUserEmailToLink(e.target.value)}
-                  className="w-full sm:flex-1 px-3 py-2.5 sm:py-2 bg-white border-2 border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:border-[#223585]"
+                  className="w-full sm:flex-1 px-3 py-2.5 sm:py-2 bg-white border border-slate-200 rounded-[8px] text-xs font-semibold text-slate-900 focus:outline-none focus:border-[#223585] focus:ring-2 focus:ring-[#223585]/15"
                 >
                   <option value="">
                     {emailSearchQuery.trim()
@@ -1175,7 +1175,7 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = React
                     setEmailSearchQuery('');
                   }}
                   disabled={!selectedUserEmailToLink || isLinkingEmail}
-                  className="w-full sm:w-auto px-4 py-3 sm:py-2 bg-[#223585] hover:bg-[#192868] disabled:opacity-50 text-white text-xs font-black uppercase tracking-wide rounded-xl whitespace-nowrap cursor-pointer shadow-sm"
+                  className="w-full sm:w-auto px-4 py-3 sm:py-2 bg-[#223585] hover:bg-[#1B2A6B] disabled:opacity-50 text-white text-xs font-bold uppercase tracking-wide rounded-[8px] whitespace-nowrap cursor-pointer shadow-xs transition-colors"
                 >
                   {isLinkingEmail ? 'Vinculando...' : '+ Vincular E-mail'}
                 </button>
@@ -1183,7 +1183,7 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = React
 
               {/* Instant Clickable Results when typing in the Email Search box */}
               {emailSearchQuery.trim().length > 0 && (
-                <div className="bg-white border-2 border-blue-300 rounded-xl shadow-md max-h-56 overflow-y-auto divide-y divide-slate-100">
+                <div className="bg-white border border-slate-200 rounded-[10px] shadow-lg max-h-56 overflow-y-auto divide-y divide-slate-100">
                   {filteredRegisteredUsers.length === 0 ? (
                     <div className="px-3.5 py-3 text-xs font-semibold text-slate-500">
                       Nenhum perfil encontrado para "{emailSearchQuery}".
@@ -1196,16 +1196,16 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = React
                       return (
                         <div
                           key={u.email}
-                          className="p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2 hover:bg-blue-50/50 text-xs"
+                          className="p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2 hover:bg-slate-50 text-xs"
                         >
                           <div className="min-w-0">
                             <div className="font-bold text-slate-900 flex flex-wrap items-center gap-1.5">
                               <span>{u.name}</span>
-                              <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-100 text-blue-900 font-bold">
+                              <span className="text-[10px] px-1.5 py-0.5 rounded-[6px] bg-blue-50 border border-blue-200 text-[#223585] font-bold">
                                 {u.role}
                               </span>
                             </div>
-                            <div className="font-mono text-xs font-semibold text-slate-700 break-all mt-0.5">
+                            <div className="font-mono text-xs font-semibold text-slate-500 break-all mt-0.5">
                               {u.email}
                             </div>
                           </div>
@@ -1221,7 +1221,7 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = React
                                 setEmailSearchQuery('');
                               }}
                               disabled={isLinkingEmail}
-                              className="w-full sm:w-auto px-4 py-2 sm:py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black rounded-lg shrink-0 cursor-pointer text-center shadow-2xs"
+                              className="w-full sm:w-auto px-4 py-2 sm:py-1.5 bg-[#1E8E8D] hover:bg-[#177070] text-white text-xs font-bold rounded-[8px] shrink-0 cursor-pointer text-center transition-colors"
                             >
                               + Vincular Este E-mail
                             </button>
@@ -1240,11 +1240,11 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = React
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
           {/* PANEL 1: SELECIONAR SITES DA PLANILHA PARA MANDAR PARA A DUPLA */}
           <div
-            className={`bg-white border border-slate-200 rounded-xl shadow-2xs overflow-hidden flex flex-col ${
+            className={`bg-white border border-slate-200 rounded-[12px] shadow-[0_1px_2px_rgba(15,23,42,0.04)] overflow-hidden flex flex-col ${
               mobileSection === 'VINCULADOS' ? 'hidden lg:flex' : 'flex'
             }`}
           >
-            <div className="p-3.5 bg-white border-b border-slate-200 space-y-2.5">
+            <div className="p-3.5 bg-slate-50 border-b border-slate-200 space-y-2.5">
               <div className="flex items-center justify-between gap-2">
                 <div>
                   <h4 className="text-xs font-bold text-slate-900">
@@ -1254,7 +1254,7 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = React
                     Marque os sites ou cole vários códigos para enviar para a dupla
                   </p>
                 </div>
-                <span className="px-2 py-0.5 bg-[#F3F4F6] border border-slate-200 rounded text-[11px] font-mono text-slate-600">
+                <span className="px-2 py-0.5 bg-white border border-slate-200 rounded-[6px] text-[11px] font-mono font-semibold text-[#223585] tabular-nums">
                   {activePickerCount} disponíveis
                 </span>
               </div>
@@ -1267,7 +1267,7 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = React
                   value={sitePickerSearch}
                   onChange={(e) => setSitePickerSearch(e.target.value)}
                   placeholder="Buscar SITE ID, Município ou colar vários códigos..."
-                  className="w-full pl-8 pr-7 py-1.5 bg-[#F3F4F6] border border-slate-200 rounded-lg text-xs text-slate-900 placeholder-slate-400 focus:bg-white focus:outline-none focus:border-blue-600"
+                  className="w-full pl-8 pr-7 py-1.5 bg-white border border-slate-200 rounded-[8px] text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-[#223585] focus:ring-2 focus:ring-[#223585]/15"
                 />
                 {sitePickerSearch && (
                   <button
@@ -1295,10 +1295,10 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = React
                       key={f.id}
                       type="button"
                       onClick={() => setSitePickerFilter(f.id)}
-                      className={`px-2 py-1 rounded-md text-[11px] font-medium cursor-pointer transition-colors ${
+                      className={`px-2 py-1 rounded-[6px] text-[11px] font-medium cursor-pointer transition-colors border ${
                         sitePickerFilter === f.id
-                          ? 'bg-slate-900 text-white font-semibold shadow-xs'
-                          : 'bg-[#F3F4F6] hover:bg-slate-200 text-slate-600'
+                          ? 'bg-[#223585] text-white border-[#223585] font-bold shadow-2xs'
+                          : 'bg-white hover:bg-slate-100 text-slate-700 border-slate-200'
                       }`}
                     >
                       {f.label}
@@ -1309,7 +1309,7 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = React
                 <select
                   value={sitePickerUf}
                   onChange={(e) => setSitePickerUf(e.target.value)}
-                  className="px-2 py-1 bg-[#F3F4F6] border border-slate-200 rounded-md text-[11px] font-semibold text-slate-700"
+                  className="px-2 py-1 bg-white border border-slate-200 rounded-[6px] text-[11px] font-semibold text-slate-700 focus:outline-none focus:border-[#223585]"
                 >
                   <option value="ALL">Todas UFs</option>
                   {availableUfs.map((u) => (
@@ -1321,13 +1321,13 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = React
               </div>
 
               {/* Bulk Action Bar */}
-              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 pt-1.5 border-t border-slate-100">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 pt-2 border-t border-slate-200">
                 <button
                   type="button"
                   onClick={handleSelectAllVisiblePicker}
-                  className="py-2 px-2.5 bg-slate-100 hover:bg-slate-200 rounded-lg text-xs font-bold text-slate-800 flex items-center justify-center sm:justify-start gap-1.5 cursor-pointer"
+                  className="py-2 px-2.5 bg-white hover:bg-slate-100 border border-slate-200 rounded-[8px] text-xs font-bold text-slate-700 flex items-center justify-center sm:justify-start gap-1.5 cursor-pointer tabular-nums"
                 >
-                  <CheckSquare className="w-4 h-4 text-blue-600 shrink-0" />
+                  <CheckSquare className="w-4 h-4 text-[#223585] shrink-0" />
                   <span>
                     {selectedSiteIds.length > 0
                       ? `Desmarcar (${selectedSiteIds.length})`
@@ -1339,7 +1339,7 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = React
                   type="button"
                   disabled={selectedSiteIds.length === 0 || isAssigning || !selectedDupla}
                   onClick={handleConfirmAssignSelected}
-                  className="w-full sm:w-auto justify-center px-4 py-3 sm:py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white text-xs font-black uppercase tracking-wide rounded-xl flex items-center gap-1.5 cursor-pointer shadow-sm transition-all"
+                  className="w-full sm:w-auto justify-center px-4 py-3 sm:py-2 bg-[#223585] hover:bg-[#1B2A6B] disabled:opacity-40 text-white text-xs font-bold uppercase tracking-wide rounded-[8px] flex items-center gap-1.5 cursor-pointer shadow-xs transition-all tabular-nums"
                 >
                   {isAssigning ? (
                     <>
@@ -1378,28 +1378,28 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = React
                         key={site.id}
                         onClick={() => toggleSelectSite(site.id)}
                         className={`px-3.5 py-2.5 flex items-center justify-between gap-2 text-xs cursor-pointer transition-colors ${
-                          isChecked ? 'bg-blue-50/80' : 'hover:bg-slate-50'
+                          isChecked ? 'bg-blue-50/70' : 'hover:bg-slate-50'
                         }`}
                       >
                         <div className="flex items-center gap-2.5 min-w-0">
                           {isChecked ? (
-                            <CheckSquare className="w-4 h-4 text-blue-600 shrink-0" />
+                            <CheckSquare className="w-4 h-4 text-[#223585] shrink-0" />
                           ) : (
-                            <Square className="w-4 h-4 text-slate-300 shrink-0" />
+                            <Square className="w-4 h-4 text-slate-400 shrink-0" />
                           )}
                           <div className="min-w-0">
-                            <div className="flex items-center gap-1.5">
+                            <div className="flex flex-wrap items-center gap-1.5">
                               <span className="font-mono font-bold text-slate-900">
                                 {site.siteId}
                               </span>
-                              <span className="px-1.5 py-0.5 bg-slate-100 text-slate-700 rounded text-[10px] font-mono">
+                              <span className="px-1.5 py-0.5 bg-slate-100 border border-slate-200 text-slate-700 rounded text-[10px] font-mono">
                                 {site.uf} · {site.municipio}
                               </span>
                               <span
                                 className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
                                   feito
                                     ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                                    : 'bg-amber-50 text-amber-700 border border-amber-200'
+                                    : 'bg-amber-50 text-amber-800 border border-amber-200'
                                 }`}
                               >
                                 {feito ? 'Feito' : 'Para Fazer'}
@@ -1408,8 +1408,8 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = React
                             <div className="text-[11px] text-slate-500 truncate mt-0.5">
                               {getCellValueForColumn(site, 'END ID') || site.siteName} ·{' '}
                               {hasActiveResponsible(currentEq) ? (
-                                <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-900 bg-amber-100 border border-amber-300 px-2 py-0.5 rounded shadow-2xs">
-                                  <UserCheck className="w-3 h-3 text-amber-700" />
+                                <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-800 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded">
+                                  <UserCheck className="w-3 h-3 text-amber-600" />
                                   Demandado para: {currentEq}
                                 </span>
                               ) : (
@@ -1447,10 +1447,10 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = React
                                   false
                                 );
                               }}
-                              className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-colors flex items-center gap-1 shrink-0 cursor-pointer shadow-2xs ${
+                              className={`px-2.5 py-1 rounded-[8px] text-[11px] font-bold transition-colors flex items-center gap-1 shrink-0 cursor-pointer ${
                                 isOwned
-                                  ? 'bg-amber-50 hover:bg-amber-600 hover:text-white text-amber-800 border border-amber-300'
-                                  : 'bg-[#F3F4F6] hover:bg-blue-600 hover:text-white text-slate-700 border border-slate-200'
+                                  ? 'bg-amber-50 hover:bg-amber-500 hover:text-white text-amber-800 border border-amber-300'
+                                  : 'bg-slate-50 hover:bg-[#223585] hover:text-white hover:border-[#223585] text-slate-700 border border-slate-200'
                               }`}
                               title={
                                 isOwned
@@ -1482,28 +1482,28 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = React
                         key={row.id}
                         onClick={() => toggleSelectSite(row.id)}
                         className={`px-3.5 py-2.5 flex items-center justify-between gap-2 text-xs cursor-pointer transition-colors ${
-                          isChecked ? 'bg-blue-50/80' : 'hover:bg-slate-50'
+                          isChecked ? 'bg-blue-50/70' : 'hover:bg-slate-50'
                         }`}
                       >
                         <div className="flex items-center gap-2.5 min-w-0">
                           {isChecked ? (
-                            <CheckSquare className="w-4 h-4 text-blue-600 shrink-0" />
+                            <CheckSquare className="w-4 h-4 text-[#223585] shrink-0" />
                           ) : (
-                            <Square className="w-4 h-4 text-slate-300 shrink-0" />
+                            <Square className="w-4 h-4 text-slate-400 shrink-0" />
                           )}
                           <div className="min-w-0">
                             <div className="flex flex-wrap items-center gap-1.5">
                               <span className="font-mono font-bold text-slate-900">
                                 {displayCode}
                               </span>
-                              <span className="px-1.5 py-0.5 bg-slate-100 text-slate-700 rounded text-[10px] font-mono">
+                              <span className="px-1.5 py-0.5 bg-slate-100 border border-slate-200 text-slate-700 rounded-[6px] text-[10px] font-mono">
                                 {uf} · {mun}
                               </span>
                               <span
-                                className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                                className={`px-1.5 py-0.5 rounded-[6px] text-[10px] font-medium ${
                                   feito
                                     ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                                    : 'bg-amber-50 text-amber-700 border border-amber-200'
+                                    : 'bg-amber-50 text-amber-800 border border-amber-200'
                                 }`}
                               >
                                 {feito ? 'Feito' : 'Para Fazer'}
@@ -1513,8 +1513,8 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = React
                               {row.chaves ? `Chave: ${row.chaves} · ` : ''}
                               {row.servico || 'Ericsson TX'} ·{' '}
                               {hasActiveResponsible(currentEq) ? (
-                                <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-900 bg-amber-100 border border-amber-300 px-2 py-0.5 rounded shadow-2xs">
-                                  <UserCheck className="w-3 h-3 text-amber-700" />
+                                <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-800 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-[6px]">
+                                  <UserCheck className="w-3 h-3 text-amber-600" />
                                   Demandado para: {currentEq}
                                 </span>
                               ) : (
@@ -1552,10 +1552,10 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = React
                                   false
                                 );
                               }}
-                              className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-colors flex items-center gap-1 shrink-0 cursor-pointer shadow-2xs ${
+                              className={`px-2.5 py-1 rounded-[8px] text-[11px] font-bold transition-colors flex items-center gap-1 shrink-0 cursor-pointer ${
                                 isOwned
-                                  ? 'bg-amber-50 hover:bg-amber-600 hover:text-white text-amber-800 border border-amber-300'
-                                  : 'bg-[#F3F4F6] hover:bg-blue-600 hover:text-white text-slate-700 border border-slate-200'
+                                  ? 'bg-amber-50 hover:bg-amber-500 hover:text-white text-amber-800 border border-amber-300'
+                                  : 'bg-slate-50 hover:bg-[#223585] hover:text-white hover:border-[#223585] text-slate-700 border border-slate-200'
                               }`}
                               title={
                                 isOwned
@@ -1573,7 +1573,7 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = React
                   })}
 
               {activePickerCount === 0 && (
-                <div className="p-8 text-center text-xs text-slate-400">
+                <div className="p-8 text-center text-xs text-slate-500">
                   Nenhum site disponível com este filtro.
                 </div>
               )}
@@ -1582,19 +1582,19 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = React
 
           {/* PANEL 2: SITES ATUALMENTE VINCULADOS À DUPLA ("O QUE APARECE PARA ELES") */}
           <div
-            className={`bg-white border border-slate-200 rounded-xl shadow-2xs overflow-hidden flex flex-col ${
+            className={`bg-white border border-slate-200 rounded-[12px] shadow-[0_1px_2px_rgba(15,23,42,0.04)] overflow-hidden flex flex-col ${
               mobileSection === 'DEMANDAR' ? 'hidden lg:flex' : 'flex'
             }`}
           >
-            <div className="p-3.5 bg-slate-900 text-white space-y-2.5">
+            <div className="p-3.5 bg-slate-50 border-b border-slate-200 text-slate-900 space-y-2.5">
               <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
-                  <UserCheck className="w-4 h-4 text-emerald-400" />
+                  <UserCheck className="w-4 h-4 text-[#1E8E8D]" />
                   <div>
-                    <h4 className="text-xs font-bold">
+                    <h4 className="text-xs font-bold text-slate-900 tabular-nums">
                       3. Sites que Aparecem para "{selectedDupla}" ({activeAssignedCount})
                     </h4>
-                    <p className="text-[11px] text-slate-400">
+                    <p className="text-[11px] text-slate-500">
                       Estes sites aparecem automaticamente no perfil vinculado ({activeDuplaLinkedEmails[0] || 'sem e-mail'})
                     </p>
                   </div>
@@ -1605,7 +1605,7 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = React
                     type="button"
                     disabled={isClearing}
                     onClick={handleClearAllForSelectedDupla}
-                    className="px-2.5 py-1 bg-red-600/90 hover:bg-red-600 disabled:opacity-50 text-white rounded-lg text-[11px] font-semibold transition-colors cursor-pointer shrink-0 shadow-2xs"
+                    className="px-2.5 py-1 bg-rose-50 hover:bg-rose-100 border border-rose-200 disabled:opacity-50 text-rose-700 rounded-[8px] text-[11px] font-semibold transition-colors cursor-pointer shrink-0 tabular-nums"
                   >
                     {isClearing ? 'Limpando...' : `Limpar Todos (${activeAssignedCount})`}
                   </button>
@@ -1619,7 +1619,7 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = React
                   value={assignedSearch}
                   onChange={(e) => setAssignedSearch(e.target.value)}
                   placeholder={`Filtrar nos ${activeAssignedCount} sites desta dupla...`}
-                  className="w-full pl-8 pr-2.5 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-xs text-white placeholder-slate-400 focus:outline-none focus:border-blue-400"
+                  className="w-full pl-8 pr-2.5 py-1.5 bg-white border border-slate-200 rounded-[8px] text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-[#223585] focus:ring-2 focus:ring-[#223585]/15"
                 />
               </div>
             </div>
@@ -1637,7 +1637,7 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = React
                         key={site.id}
                         className={`px-3.5 py-2.5 flex items-center justify-between gap-2 text-xs transition-colors ${
                           isRecusado
-                            ? 'bg-rose-50/90 border-l-4 border-l-rose-600 border-b border-rose-200'
+                            ? 'bg-rose-50/70 border-l-4 border-l-rose-500 border-b border-rose-200'
                             : 'hover:bg-slate-50 border-b border-slate-100'
                         }`}
                       >
@@ -1646,14 +1646,14 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = React
                             <span className="font-mono font-bold text-slate-900">
                               {site.siteId}
                             </span>
-                            <span className="px-1.5 py-0.5 bg-slate-100 text-slate-700 rounded text-[10px] font-mono">
+                            <span className="px-1.5 py-0.5 bg-slate-100 border border-slate-200 text-slate-700 rounded-[6px] text-[10px] font-mono">
                               {site.uf} · {site.municipio}
                             </span>
                             <span
-                              className={`px-1.5 py-0.5 rounded text-[10px] font-semibold inline-flex items-center gap-1 ${
+                              className={`px-1.5 py-0.5 rounded-[6px] text-[10px] font-semibold inline-flex items-center gap-1 ${
                                 feito
                                   ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                                  : 'bg-amber-50 text-amber-700 border border-amber-200'
+                                  : 'bg-amber-50 text-amber-800 border border-amber-200'
                               }`}
                             >
                               {feito ? (
@@ -1664,7 +1664,7 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = React
                               <span>{site.status}</span>
                             </span>
                             {notaPend && (
-                              <span className="px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200 text-[10px] font-medium inline-flex items-center gap-1">
+                              <span className="px-1.5 py-0.5 rounded-[6px] bg-teal-50 text-[#1E8E8D] border border-teal-200 text-[10px] font-medium inline-flex items-center gap-1">
                                 <Receipt className="w-3 h-3" />
                                 <span>Nota Pend.</span>
                               </span>
@@ -1692,10 +1692,10 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = React
                           <button
                             type="button"
                             onClick={() => onOpenSiteDrawer(site.id)}
-                            className="px-2 py-1 bg-[#F3F4F6] hover:bg-slate-200 text-slate-700 rounded-md text-[11px] font-medium flex items-center gap-1 cursor-pointer"
+                            className="px-2 py-1 bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 rounded-[6px] text-[11px] font-medium flex items-center gap-1 cursor-pointer transition-colors"
                             title="Abrir ficha lateral do site"
                           >
-                            <ExternalLink className="w-3 h-3" />
+                            <ExternalLink className="w-3 h-3 text-[#1E8E8D]" />
                             <span>Ficha</span>
                           </button>
                           <button
@@ -1711,7 +1711,7 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = React
                                 console.error('Erro ao desvincular site da dupla:', err);
                               }
                             }}
-                            className="p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-md cursor-pointer"
+                            className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-[6px] cursor-pointer transition-colors"
                             title="Remover este site da dupla"
                           >
                             <X className="w-4 h-4" />
@@ -1741,7 +1741,7 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = React
                         key={row.id}
                         className={`px-3.5 py-2.5 flex items-center justify-between gap-2 text-xs transition-colors ${
                           isRecusado
-                            ? 'bg-rose-50/90 border-l-4 border-l-rose-600 border-b border-rose-200'
+                            ? 'bg-rose-50/70 border-l-4 border-l-rose-500 border-b border-rose-200'
                             : 'hover:bg-slate-50 border-b border-slate-100'
                         }`}
                       >
@@ -1750,14 +1750,14 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = React
                             <span className="font-mono font-bold text-slate-900">
                               {displayCode}
                             </span>
-                            <span className="px-1.5 py-0.5 bg-slate-100 text-slate-700 rounded text-[10px] font-mono">
+                            <span className="px-1.5 py-0.5 bg-slate-100 border border-slate-200 text-slate-700 rounded-[6px] text-[10px] font-mono tabular-nums">
                               {uf} · {mun}
                             </span>
                             <span
-                              className={`px-1.5 py-0.5 rounded text-[10px] font-semibold inline-flex items-center gap-1 ${
+                              className={`px-1.5 py-0.5 rounded-[6px] text-[10px] font-semibold inline-flex items-center gap-1 ${
                                 feito
                                   ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                                  : 'bg-amber-50 text-amber-700 border border-amber-200'
+                                  : 'bg-amber-50 text-amber-800 border border-amber-200'
                               }`}
                             >
                               {feito ? (
@@ -1771,7 +1771,7 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = React
                               </span>
                             </span>
                             {notaPend && (
-                              <span className="px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200 text-[10px] font-medium inline-flex items-center gap-1">
+                              <span className="px-1.5 py-0.5 rounded-[6px] bg-teal-50 text-[#1E8E8D] border border-teal-200 text-[10px] font-medium inline-flex items-center gap-1">
                                 <Receipt className="w-3 h-3" />
                                 <span>Nota Pend.</span>
                               </span>
@@ -1805,7 +1805,7 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = React
                                 console.error('Erro ao desvincular site da dupla:', err);
                               }
                             }}
-                            className="p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-md cursor-pointer"
+                            className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-[6px] cursor-pointer transition-colors"
                             title="Remover este site da dupla"
                           >
                             <X className="w-4 h-4" />
@@ -1818,10 +1818,10 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = React
               {((isNokiaOrClaro && filteredAssignedNokiaSites.length === 0) ||
                 (activeVendor === 'ERICSSON' && filteredAssignedEricssonRows.length === 0)) && (
                 <div className="p-8 text-center space-y-2">
-                  <div className="text-xs font-semibold text-slate-600">
+                  <div className="text-xs font-semibold text-slate-700">
                     Nenhum site vinculado a "{selectedDupla}" ainda.
                   </div>
-                  <p className="text-[11px] text-slate-400 max-w-xs mx-auto">
+                  <p className="text-[11px] text-slate-500 max-w-xs mx-auto">
                     Use a coluna ao lado para marcar os sites da planilha e clicar em "Mandar para {selectedDupla}".
                   </p>
                 </div>
@@ -1834,57 +1834,57 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = React
 
       {/* Batch Transfer Modal */}
       {batchTransferModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-2xs animate-fadeIn">
-          <div className="bg-white rounded-2xl max-w-lg w-full p-5 shadow-2xl border border-slate-200 space-y-4">
+        <div className="ameta-modal-backdrop fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/45 backdrop-blur-xs">
+          <div className="ameta-modal-panel bg-white rounded-[12px] max-w-lg w-full p-5 shadow-2xl border border-slate-200 space-y-4 text-slate-900">
             <div className="flex items-start gap-3">
-              <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center shrink-0">
-                <AlertCircle className="w-6 h-6 text-amber-600" />
+              <div className="w-10 h-10 rounded-[10px] bg-amber-50 border border-amber-200 text-amber-600 flex items-center justify-center shrink-0">
+                <AlertCircle className="w-5 h-5 text-amber-600" />
               </div>
               <div className="min-w-0 flex-1">
                 <h4 className="text-sm font-bold text-slate-900">
                   Aviso de Demanda em Lote: Sites com Responsável
                 </h4>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  Você selecionou <strong className="text-slate-800">{batchTransferModal.allItemIds.length}</strong> site(s).
+                  Você selecionou <strong className="text-slate-900">{batchTransferModal.allItemIds.length}</strong> site(s).
                 </p>
               </div>
               <button
                 type="button"
                 onClick={() => setBatchTransferModal(null)}
-                className="text-slate-400 hover:text-slate-700 cursor-pointer"
+                className="p-1 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-[8px] cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl space-y-2 text-xs">
-              <p className="font-bold text-amber-900">
+            <div className="p-3 bg-amber-50 border border-amber-200 rounded-[10px] space-y-2 text-xs">
+              <p className="font-bold text-amber-800">
                 {batchTransferModal.ownedItems.length} site(s) já possuem outra equipe atribuída:
               </p>
               <div className="max-h-36 overflow-y-auto space-y-1 pr-1">
                 {batchTransferModal.ownedItems.map((item) => (
-                  <div key={item.id} className="flex items-center justify-between text-[11px] bg-white px-2 py-1 rounded border border-amber-200">
-                    <span className="font-mono font-bold text-slate-800">{item.name}</span>
+                  <div key={item.id} className="flex items-center justify-between text-[11px] bg-white px-2.5 py-1 rounded-[8px] border border-amber-200/80">
+                    <span className="font-mono font-bold text-slate-900">{item.name}</span>
                     <span className="text-amber-800 font-semibold">Atual: {item.owner}</span>
                   </div>
                 ))}
               </div>
               {batchTransferModal.freeItemIds.length > 0 && (
-                <p className="text-emerald-800 font-semibold text-[11px] pt-1 border-t border-amber-200/60">
+                <p className="text-emerald-700 font-semibold text-[11px] pt-1 border-t border-amber-200">
                   {batchTransferModal.freeItemIds.length} site(s) estão livres (sem equipe).
                 </p>
               )}
             </div>
 
             <p className="text-xs text-slate-600">
-              Deseja transferir todos os sites para <strong>"{selectedDupla}"</strong> ou ignorar os que já possuem dono e demandar apenas os sites livres?
+              Deseja transferir todos os sites para <strong className="text-slate-900">"{selectedDupla}"</strong> ou ignorar os que já possuem dono e demandar apenas os sites livres?
             </p>
 
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-2 pt-2 border-t border-slate-100">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-2 pt-3 border-t border-slate-200">
               <button
                 type="button"
                 onClick={() => setBatchTransferModal(null)}
-                className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold cursor-pointer"
+                className="px-3.5 py-2 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-[8px] text-xs font-semibold cursor-pointer"
               >
                 Cancelar
               </button>
@@ -1897,7 +1897,7 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = React
                     setBatchTransferModal(null);
                     await executeAssign(freeIds, false);
                   }}
-                  className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-xl text-xs font-bold cursor-pointer flex items-center gap-1.5"
+                  className="px-3.5 py-2 bg-[#223585] hover:bg-[#1B2A6B] disabled:opacity-50 text-white rounded-[8px] text-xs font-bold cursor-pointer flex items-center gap-1.5"
                 >
                   {isAssigning && <Loader2 className="w-3.5 h-3.5 animate-spin shrink-0" />}
                   <span>Demandar apenas livres ({batchTransferModal.freeItemIds.length})</span>
@@ -1911,7 +1911,7 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = React
                   setBatchTransferModal(null);
                   await executeAssign(allIds, true);
                 }}
-                className="px-3.5 py-2 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white rounded-xl text-xs font-bold cursor-pointer flex items-center gap-1.5"
+                className="px-3.5 py-2 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white rounded-[8px] text-xs font-bold cursor-pointer flex items-center gap-1.5"
               >
                 {isAssigning && <Loader2 className="w-3.5 h-3.5 animate-spin shrink-0" />}
                 <span>Transferir todos ({batchTransferModal.allItemIds.length})</span>
@@ -1923,33 +1923,33 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = React
 
       {/* Single Transfer Modal */}
       {singleTransferModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-2xs animate-fadeIn">
-          <div className="bg-white rounded-2xl max-w-md w-full p-5 shadow-2xl border border-slate-200 space-y-4">
+        <div className="ameta-modal-backdrop fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/45 backdrop-blur-xs">
+          <div className="ameta-modal-panel bg-white rounded-[12px] max-w-md w-full p-5 shadow-2xl border border-slate-200 space-y-4 text-slate-900">
             <div className="flex items-start gap-3">
-              <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center shrink-0">
-                <AlertCircle className="w-6 h-6 text-amber-600" />
+              <div className="w-10 h-10 rounded-[10px] bg-amber-50 border border-amber-200 text-amber-600 flex items-center justify-center shrink-0">
+                <AlertCircle className="w-5 h-5 text-amber-600" />
               </div>
               <div className="min-w-0 flex-1">
                 <h4 className="text-sm font-bold text-slate-900">
                   Confirmar Transferência de Demanda
                 </h4>
-                <p className="text-xs text-slate-500 font-mono mt-0.5 font-bold">
+                <p className="text-xs text-[#223585] font-mono mt-0.5 font-bold">
                   {singleTransferModal.siteName}
                 </p>
               </div>
               <button
                 type="button"
                 onClick={() => setSingleTransferModal(null)}
-                className="text-slate-400 hover:text-slate-700 cursor-pointer"
+                className="p-1 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-[8px] cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <div className="p-3.5 bg-amber-50 border border-amber-200 rounded-xl space-y-2 text-xs">
+            <div className="p-3.5 bg-amber-50 border border-amber-200 rounded-[10px] space-y-2 text-xs">
               <p className="text-slate-700 leading-relaxed text-xs">
                 Este site já está demandado para{' '}
-                <strong className="text-amber-900 bg-amber-100/90 px-1.5 py-0.5 rounded border border-amber-300 font-bold">
+                <strong className="text-amber-900 bg-amber-100 px-1.5 py-0.5 rounded-[6px] border border-amber-300 font-bold">
                   {singleTransferModal.currentOwner}
                 </strong>
                 . Deseja transferir para{' '}
@@ -1958,16 +1958,16 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = React
                 </strong>
                 ?
               </p>
-              <p className="text-[11px] text-amber-800 pt-1 border-t border-amber-200/60">
-                Ao confirmar, o site sairá da tela da equipe anterior e irá para a nova (nunca fica nas duas).
+              <p className="text-[11px] text-amber-800 pt-1 border-t border-amber-200">
+                Ao confirmar, o site sairá da tela da equipe anterior e irá para a nova (nunca fica nos dois).
               </p>
             </div>
 
-            <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+            <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-200">
               <button
                 type="button"
                 onClick={() => setSingleTransferModal(null)}
-                className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold cursor-pointer"
+                className="px-3.5 py-2 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-[8px] text-xs font-semibold cursor-pointer"
               >
                 Cancelar
               </button>
@@ -1984,7 +1984,7 @@ export const DuplasInteractiveView: React.FC<DuplasInteractiveViewProps> = React
                     true
                   );
                 }}
-                className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold cursor-pointer shadow-xs"
+                className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-[8px] text-xs font-bold cursor-pointer shadow-xs"
               >
                 Confirmar Transferência
               </button>

@@ -14,7 +14,10 @@ import {
   FileSpreadsheet,
   ArrowLeftRight,
   HardHat,
+  Clock,
+  Layers,
 } from 'lucide-react';
+import { KpiCard, StatusBadge, EmptyStateCard } from './ui';
 import {
   AmetaUser,
   UserRole,
@@ -299,33 +302,7 @@ export const EricssonEngenhariaTab: React.FC<EricssonEngenhariaTabProps> = ({
   const renderSheetStatusBadge = (rawStatus: string) => {
     const val = (rawStatus || '').trim();
     if (!val) return <span className="text-slate-400">—</span>;
-    const lower = val.toLowerCase();
-    if (lower.includes('liberad') || lower.includes('conclu') || lower.includes('finaliz')) {
-      return (
-        <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 whitespace-nowrap">
-          {val}
-        </span>
-      );
-    }
-    if (lower.includes('bloquead') || lower.includes('improdutiv') || lower.includes('embarg')) {
-      return (
-        <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-bold bg-amber-50 text-amber-700 border border-amber-200 whitespace-nowrap">
-          {val}
-        </span>
-      );
-    }
-    if (lower.includes('cancelad') || lower.includes('desmobiliz')) {
-      return (
-        <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-bold bg-red-50 text-red-700 border border-red-200 whitespace-nowrap">
-          {val}
-        </span>
-      );
-    }
-    return (
-      <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-bold bg-blue-50 text-[#223585] border border-blue-200 whitespace-nowrap">
-        {val}
-      </span>
-    );
+    return <StatusBadge label={val} maxWidthClass="max-w-[140px]" />;
   };
 
   const renderVistoriaOrLosStatusCell = (row: EricssonRow, side: 'A' | 'B' | 'LOS') => {
@@ -359,7 +336,7 @@ export const EricssonEngenhariaTab: React.FC<EricssonEngenhariaTabProps> = ({
               ? 'bg-emerald-50 text-emerald-700 border-emerald-300'
               : status === 'Dispensado'
               ? 'bg-sky-50 text-sky-700 border-sky-300'
-              : 'bg-red-50 text-red-700 border-red-200'
+              : 'bg-rose-50 text-rose-700 border-rose-200'
           }`}
         >
           <option value="Pendente">Pendente</option>
@@ -381,25 +358,25 @@ export const EricssonEngenhariaTab: React.FC<EricssonEngenhariaTabProps> = ({
     <div
       className={
         isFullscreen
-          ? 'fixed inset-0 z-50 bg-[#F3F4F6] overflow-y-auto p-4 md:p-6 space-y-4'
+          ? 'fixed inset-0 z-50 bg-[#F4F6FA] overflow-y-auto p-4 md:p-6 space-y-4'
           : 'space-y-4'
       }
     >
       {/* =====================================================================
           1. TOP HEADER — ENGENHARIA ERICSSON (SINCRONIZADA COM A PLANILHA MÃE + DOWNLOAD DIRETO)
          ===================================================================== */}
-      <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-2xs space-y-4">
+      <div className="bg-white border border-slate-200 rounded-[12px] p-4 sm:p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04)] space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-3.5">
-            <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-[#223585] to-[#1E8E8D] flex items-center justify-center text-white shadow-2xs shrink-0">
+            <div className="w-11 h-11 rounded-[10px] bg-gradient-to-br from-[#223585] to-[#1E8E8D] flex items-center justify-center text-white shadow-2xs shrink-0">
               <HardHat className="w-5 h-5" />
             </div>
             <div>
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="px-2.5 py-0.5 rounded-md bg-teal-50 text-[#1E8E8D] border border-teal-200 text-[11px] font-bold uppercase tracking-wider">
+                <span className="px-2.5 py-0.5 rounded-[6px] bg-teal-50 text-[#1E8E8D] border border-teal-200 text-[11px] font-bold uppercase tracking-wider">
                   ENGENHARIA · ERICSSON
                 </span>
-                <h1 className="text-base font-bold text-slate-900">
+                <h1 className="text-xl font-bold text-slate-900 tracking-tight">
                   Planilha de Engenharia Ericsson
                 </h1>
               </div>
@@ -415,7 +392,7 @@ export const EricssonEngenhariaTab: React.FC<EricssonEngenhariaTabProps> = ({
             <button
               type="button"
               onClick={handleExportExcel}
-              className="px-3.5 py-2 bg-[#1E8E8D] hover:bg-[#177372] text-white text-xs font-bold rounded-lg transition-colors flex items-center gap-1.5 shadow-2xs cursor-pointer"
+              className="px-3.5 py-2 bg-[#1E8E8D] hover:bg-[#177372] text-white text-xs font-semibold rounded-[8px] transition-colors flex items-center gap-1.5 shadow-2xs cursor-pointer"
             >
               <Download className="w-3.5 h-3.5" />
               <span>Exportar Planilha Engenharia (.XLSX)</span>
@@ -424,7 +401,7 @@ export const EricssonEngenhariaTab: React.FC<EricssonEngenhariaTabProps> = ({
             <button
               type="button"
               onClick={() => setIsFullscreen((prev) => !prev)}
-              className="p-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-lg transition-colors shadow-2xs cursor-pointer"
+              className="p-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-[8px] transition-colors shadow-2xs cursor-pointer"
               title={isFullscreen ? 'Sair da tela inteira' : 'Tela inteira'}
             >
               {isFullscreen ? (
@@ -437,109 +414,64 @@ export const EricssonEngenhariaTab: React.FC<EricssonEngenhariaTabProps> = ({
         </div>
 
         {/* Counters */}
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 pt-1">
-          <button
-            type="button"
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-1">
+          <KpiCard
+            label="Total na Planilha Mãe"
+            value={siteCounters.totalSites}
+            sublabel={`Em ${siteCounters.totalPairs} enlaces (A e B)`}
+            icon={<Layers className="w-4 h-4" />}
+            tone="navy"
+            active={filterDelivery === 'ALL'}
             onClick={() => setFilterDelivery('ALL')}
-            className={`text-left p-3.5 rounded-xl border transition-all cursor-pointer ${
-              filterDelivery === 'ALL'
-                ? 'bg-blue-50/70 border-[#223585] ring-1 ring-[#223585]/20'
-                : 'bg-slate-50/70 hover:bg-slate-100/70 border-slate-200'
-            }`}
-          >
-            <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
-              Total na Planilha Mãe
-            </div>
-            <div className="text-2xl font-extrabold font-mono text-slate-900 mt-0.5 tabular-nums">
-              {siteCounters.totalSites}
-            </div>
-            <div className="text-[10px] text-slate-500 mt-0.5">
-              Em {siteCounters.totalPairs} enlaces (A e B)
-            </div>
-          </button>
-
-          <button
-            type="button"
+          />
+          <KpiCard
+            label="Vistorias Entregues"
+            value={siteCounters.vistoriaEntregueSites}
+            sublabel={`${siteCounters.vistoriaDispensadoSites} dispensados (outra ponta)`}
+            icon={<CheckCircle2 className="w-4 h-4" />}
+            tone="success"
+            active={filterDelivery === 'VISTORIA_ENTREGUE'}
             onClick={() =>
               setFilterDelivery((prev) =>
                 prev === 'VISTORIA_ENTREGUE' ? 'ALL' : 'VISTORIA_ENTREGUE'
               )
             }
-            className={`text-left p-3.5 rounded-xl border transition-all cursor-pointer ${
-              filterDelivery === 'VISTORIA_ENTREGUE'
-                ? 'bg-emerald-50 border-emerald-500 ring-1 ring-emerald-500/20'
-                : 'bg-emerald-50/40 hover:bg-emerald-50 border-emerald-200'
-            }`}
-          >
-            <div className="text-[10px] font-bold uppercase tracking-wider text-emerald-700 flex items-center justify-between">
-              <span>Vistorias Entregues</span>
-              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-            </div>
-            <div className="text-2xl font-extrabold font-mono text-emerald-700 mt-0.5 tabular-nums">
-              {siteCounters.vistoriaEntregueSites}
-            </div>
-            <div className="text-[10px] text-emerald-700/80 mt-0.5">
-              {siteCounters.vistoriaDispensadoSites} dispensados (outra ponta)
-            </div>
-          </button>
-
-          <button
-            type="button"
+          />
+          <KpiCard
+            label="LOS Entregues"
+            value={losCounters.entregues}
+            sublabel={`${losCounters.pendentes} LOS pendentes`}
+            icon={<CheckCircle2 className="w-4 h-4" />}
+            tone="warning"
+            active={filterDelivery === 'LOS_ENTREGUE'}
             onClick={() =>
               setFilterDelivery((prev) => (prev === 'LOS_ENTREGUE' ? 'ALL' : 'LOS_ENTREGUE'))
             }
-            className={`text-left p-3.5 rounded-xl border transition-all cursor-pointer ${
-              filterDelivery === 'LOS_ENTREGUE'
-                ? 'bg-amber-50 border-amber-500 ring-1 ring-amber-500/20'
-                : 'bg-amber-50/40 hover:bg-amber-50 border-amber-200'
-            }`}
-          >
-            <div className="text-[10px] font-bold uppercase tracking-wider text-amber-800 flex items-center justify-between">
-              <span>LOS Entregues</span>
-              <CheckCircle2 className="w-3.5 h-3.5 text-amber-600" />
-            </div>
-            <div className="text-2xl font-extrabold font-mono text-amber-800 mt-0.5 tabular-nums">
-              {losCounters.entregues}
-            </div>
-            <div className="text-[10px] text-amber-800/80 mt-0.5">
-              {losCounters.pendentes} LOS pendentes
-            </div>
-          </button>
-
-          <button
-            type="button"
+          />
+          <KpiCard
+            label="Sites Pendentes"
+            value={siteCounters.vistoriaPendenteSites}
+            sublabel="Aguardando entrega"
+            icon={<Clock className="w-4 h-4" />}
+            tone="danger"
+            active={filterDelivery === 'PENDENTE'}
             onClick={() =>
               setFilterDelivery((prev) => (prev === 'PENDENTE' ? 'ALL' : 'PENDENTE'))
             }
-            className={`text-left p-3.5 rounded-xl border transition-all cursor-pointer ${
-              filterDelivery === 'PENDENTE'
-                ? 'bg-red-50 border-red-500 ring-1 ring-red-500/20'
-                : 'bg-red-50/40 hover:bg-red-50 border-red-200'
-            }`}
-          >
-            <div className="text-[10px] font-bold uppercase tracking-wider text-red-700">
-              Sites Pendentes
-            </div>
-            <div className="text-2xl font-extrabold font-mono text-red-700 mt-0.5 tabular-nums">
-              {siteCounters.vistoriaPendenteSites}
-            </div>
-            <div className="text-[10px] text-red-700/80 mt-0.5">
-              Aguardando entrega
-            </div>
-          </button>
+          />
         </div>
       </div>
 
       {/* =====================================================================
           2. VIEW SWITCHER & SEARCH / FILTERS
          ===================================================================== */}
-      <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-2xs space-y-3">
+      <div className="bg-white border border-slate-200 rounded-[12px] p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04)] space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="inline-flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200">
+          <div className="inline-flex items-center bg-slate-100 p-1 rounded-[8px] border border-slate-200">
             <button
               type="button"
               onClick={() => setViewMode('resumo')}
-              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+              className={`px-3.5 py-1.5 rounded-[6px] text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
                 viewMode === 'resumo'
                   ? 'bg-[#223585] text-white shadow-2xs'
                   : 'text-slate-600 hover:text-slate-900'
@@ -552,7 +484,7 @@ export const EricssonEngenhariaTab: React.FC<EricssonEngenhariaTabProps> = ({
             <button
               type="button"
               onClick={() => setViewMode('planilha')}
-              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+              className={`px-3.5 py-1.5 rounded-[6px] text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
                 viewMode === 'planilha'
                   ? 'bg-[#223585] text-white shadow-2xs'
                   : 'text-slate-600 hover:text-slate-900'
@@ -565,7 +497,7 @@ export const EricssonEngenhariaTab: React.FC<EricssonEngenhariaTabProps> = ({
 
           <div className="flex items-center gap-2">
             <span className="text-[11px] font-semibold text-slate-500">Densidade:</span>
-            <div className="inline-flex bg-slate-100 p-0.5 rounded-lg border border-slate-200 text-[11px]">
+            <div className="inline-flex bg-slate-100 p-0.5 rounded-[8px] border border-slate-200 text-[11px]">
               {(
                 [
                   { id: 'compact', label: 'Compacta' },
@@ -577,7 +509,7 @@ export const EricssonEngenhariaTab: React.FC<EricssonEngenhariaTabProps> = ({
                   key={d.id}
                   type="button"
                   onClick={() => setDensity(d.id)}
-                  className={`px-2.5 py-1 rounded-md font-semibold transition-colors cursor-pointer ${
+                  className={`px-2.5 py-1 rounded-[6px] font-semibold transition-colors cursor-pointer ${
                     density === d.id
                       ? 'bg-white text-slate-900 shadow-2xs'
                       : 'text-slate-500 hover:text-slate-800'
@@ -598,7 +530,7 @@ export const EricssonEngenhariaTab: React.FC<EricssonEngenhariaTabProps> = ({
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Buscar na Engenharia por Site ID A, Site ID B, Chave, arquivo..."
-              className="w-full pl-9 pr-8 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-[#223585]"
+              className="w-full pl-9 pr-8 py-2 bg-[#F8FAFC] border border-slate-200 rounded-[8px] text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-[#223585] focus:ring-2 focus:ring-[#223585]/15 transition-all"
             />
             {searchQuery && (
               <button
@@ -615,7 +547,7 @@ export const EricssonEngenhariaTab: React.FC<EricssonEngenhariaTabProps> = ({
             <select
               value={filterState}
               onChange={(e) => setFilterState(e.target.value)}
-              className="w-full px-2.5 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-700 font-medium"
+              className="w-full px-2.5 py-2 bg-[#F8FAFC] border border-slate-200 rounded-[8px] text-xs text-slate-700 font-medium focus:outline-none focus:border-[#223585]"
             >
               <option value="ALL">00.03.State: Todos ({distinctStates.length})</option>
               {distinctStates.map((st) => (
@@ -630,7 +562,7 @@ export const EricssonEngenhariaTab: React.FC<EricssonEngenhariaTabProps> = ({
             <select
               value={filterEquipe}
               onChange={(e) => setFilterEquipe(e.target.value)}
-              className="w-full px-2.5 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-700 font-medium"
+              className="w-full px-2.5 py-2 bg-[#F8FAFC] border border-slate-200 rounded-[8px] text-xs text-slate-700 font-medium focus:outline-none focus:border-[#223585]"
             >
               <option value="ALL">EQUIPE: Todas ({distinctEquipes.length})</option>
               {distinctEquipes.map((eq) => (
@@ -653,7 +585,7 @@ export const EricssonEngenhariaTab: React.FC<EricssonEngenhariaTabProps> = ({
                     | 'PENDENTE'
                 )
               }
-              className="w-full px-2.5 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-700 font-medium"
+              className="w-full px-2.5 py-2 bg-[#F8FAFC] border border-slate-200 rounded-[8px] text-xs text-slate-700 font-medium focus:outline-none focus:border-[#223585]"
             >
               <option value="ALL">Filtro Engenharia: Todos</option>
               <option value="VISTORIA_ENTREGUE">Vistoria Entregue</option>
@@ -668,8 +600,8 @@ export const EricssonEngenhariaTab: React.FC<EricssonEngenhariaTabProps> = ({
           3A. RESUMO TABLE
          ===================================================================== */}
       {viewMode === 'resumo' && (
-        <div className="bg-white border border-slate-200 rounded-xl shadow-2xs overflow-hidden">
-          <div className="px-4 py-2.5 bg-slate-50 border-b border-slate-200 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-600">
+        <div className="bg-white border border-slate-200 rounded-[12px] shadow-[0_1px_2px_rgba(15,23,42,0.04)] overflow-hidden">
+          <div className="px-4 py-2.5 bg-[#F8FAFC] border-b border-slate-200 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-600">
             <div className="flex items-center gap-2">
               <Filter className="w-3.5 h-3.5 text-[#223585]" />
               <span>
@@ -681,34 +613,34 @@ export const EricssonEngenhariaTab: React.FC<EricssonEngenhariaTabProps> = ({
           </div>
 
           <div className="overflow-x-auto max-h-[680px]">
-            <table className="w-full text-left border-collapse">
-              <thead className="sticky top-0 z-10 bg-slate-100 text-[10px] uppercase tracking-wider text-slate-600 border-b border-slate-200">
+            <table className="w-full text-left border-collapse ameta-table-zebra text-[13px]">
+              <thead className="sticky top-0 z-10 bg-[#F4F6FA] text-[10px] uppercase tracking-wider text-slate-600 border-b border-slate-200">
                 <tr>
-                  <th className="py-2.5 px-3 font-bold">01.00. Chaves</th>
-                  <th className="py-2.5 px-2.5 font-bold">00.03.State</th>
-                  <th className="py-2.5 px-3 font-bold bg-blue-50/70 text-[#223585] border-l border-slate-200">
+                  <th className="py-2.5 px-3 font-bold ameta-col-resizable">01.00. Chaves</th>
+                  <th className="py-2.5 px-2.5 font-bold ameta-col-resizable">00.03.State</th>
+                  <th className="py-2.5 px-3 font-bold bg-[#EEF2FF] text-[#223585] border-l border-slate-200 ameta-col-resizable">
                     01.21.Site ID A
                   </th>
-                  <th className="py-2.5 px-2.5 font-bold bg-blue-50/70 text-[#223585]">
+                  <th className="py-2.5 px-2.5 font-bold bg-[#EEF2FF] text-[#223585] ameta-col-resizable">
                     Status A
                   </th>
-                  <th className="py-2.5 px-2.5 font-bold bg-blue-50/70 text-[#223585]">
+                  <th className="py-2.5 px-2.5 font-bold bg-[#EEF2FF] text-[#223585] ameta-col-resizable">
                     CIDADE A
                   </th>
-                  <th className="py-2.5 px-3 font-bold bg-teal-50/70 text-[#1E8E8D] border-l border-slate-200">
+                  <th className="py-2.5 px-3 font-bold bg-[#EEFAFA] text-[#1E8E8D] border-l border-slate-200 ameta-col-resizable">
                     01.21.Site ID B
                   </th>
-                  <th className="py-2.5 px-2.5 font-bold bg-teal-50/70 text-[#1E8E8D]">
+                  <th className="py-2.5 px-2.5 font-bold bg-[#EEFAFA] text-[#1E8E8D] ameta-col-resizable">
                     Status B
                   </th>
-                  <th className="py-2.5 px-2.5 font-bold bg-teal-50/70 text-[#1E8E8D]">
+                  <th className="py-2.5 px-2.5 font-bold bg-[#EEFAFA] text-[#1E8E8D] ameta-col-resizable">
                     CIDADE B
                   </th>
-                  <th className="py-2.5 px-2.5 font-bold border-l border-slate-200">EQUIPE</th>
-                  <th className="py-2.5 px-3 font-bold bg-blue-50 text-[#223585] border-l border-slate-200">
+                  <th className="py-2.5 px-2.5 font-bold border-l border-slate-200 ameta-col-resizable">EQUIPE</th>
+                  <th className="py-2.5 px-3 font-bold bg-[#EEF2FF] text-[#223585] border-l border-slate-200 ameta-col-resizable">
                     Vistoria Site A
                   </th>
-                  <th className="py-2.5 px-3 font-bold bg-teal-50 text-[#1E8E8D] border-l border-slate-200">
+                  <th className="py-2.5 px-3 font-bold bg-[#EEFAFA] text-[#1E8E8D] border-l border-slate-200 ameta-col-resizable">
                     Vistoria Site B
                   </th>
                   <th className="py-2.5 px-3 font-bold bg-amber-50 text-amber-800 border-l border-slate-200">
@@ -717,58 +649,97 @@ export const EricssonEngenhariaTab: React.FC<EricssonEngenhariaTabProps> = ({
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200">
-                {filteredRows.map((row) => {
-                  const sA = row.statusA || row.fields?.['Status A'] || '';
-                  const sB = row.statusB || row.fields?.['Status B'] || '';
+                {filteredRows.length === 0 ? (
+                  <tr>
+                    <td colSpan={12} className="p-0">
+                      <EmptyStateCard
+                        icon={<FileSpreadsheet className="w-6 h-6" />}
+                        title={
+                          rows.length === 0
+                            ? 'Nenhum registro de Engenharia Ericsson'
+                            : 'Nenhum registro corresponde aos filtros aplicados'
+                        }
+                        description={
+                          rows.length === 0
+                            ? 'Quando a Planilha Mãe Ericsson possuir sites cadastrados, eles aparecerão aqui automaticamente.'
+                            : 'Ajuste os filtros de busca ou selecione outro estado/equipe para visualizar os registros.'
+                        }
+                      />
+                    </td>
+                  </tr>
+                ) : (
+                  filteredRows.map((row) => {
+                    const sA = row.statusA || row.fields?.['Status A'] || '';
+                    const sB = row.statusB || row.fields?.['Status B'] || '';
+                    const cidadeAVal = row.cidadeA || row.fields?.['CIDADE A'] || '';
+                    const cidadeBVal = row.cidadeB || row.fields?.['CIDADE B'] || '';
+                    const chavesVal = row.chaves || row.fields?.['01.00. Chaves'] || '';
+                    const equipeVal = row.equipe || row.fields?.['EQUIPE'] || '';
+                    const isRowSelected = selectedRow?.id === row.id;
 
-                  return (
-                    <tr
-                      key={row.id}
-                      onClick={() => {
-                        setSelectedRow(row);
-                        setEditFields({ ...(row.fields || {}) });
-                      }}
-                      className="hover:bg-blue-50/40 transition-colors cursor-pointer"
-                    >
-                      <td className={`${cellPad} font-mono font-bold text-slate-800 whitespace-nowrap`}>
-                        {row.chaves || row.fields?.['01.00. Chaves'] || '—'}
-                      </td>
-                      <td className={`${cellPad} font-mono font-semibold text-slate-700`}>
-                        {row.state || row.fields?.['00.03.State'] || '—'}
-                      </td>
-                      <td className={`${cellPad} font-mono font-bold text-[#223585] bg-blue-50/20 border-l border-slate-200 whitespace-nowrap`}>
-                        {row.siteIdA || '—'}
-                      </td>
-                      <td className={`${cellPad} bg-blue-50/20`}>
-                        {renderSheetStatusBadge(sA)}
-                      </td>
-                      <td className={`${cellPad} text-slate-700 bg-blue-50/20 max-w-[140px] truncate`}>
-                        {row.cidadeA || row.fields?.['CIDADE A'] || '—'}
-                      </td>
-                      <td className={`${cellPad} font-mono font-bold text-[#1E8E8D] bg-teal-50/20 border-l border-slate-200 whitespace-nowrap`}>
-                        {row.siteIdB || '—'}
-                      </td>
-                      <td className={`${cellPad} bg-teal-50/20`}>
-                        {renderSheetStatusBadge(sB)}
-                      </td>
-                      <td className={`${cellPad} text-slate-700 bg-teal-50/20 max-w-[140px] truncate`}>
-                        {row.cidadeB || row.fields?.['CIDADE B'] || '—'}
-                      </td>
-                      <td className={`${cellPad} font-semibold text-slate-800 border-l border-slate-200 whitespace-nowrap`}>
-                        {row.equipe || row.fields?.['EQUIPE'] || '—'}
-                      </td>
-                      <td className={`${cellPad} bg-blue-50/15 border-l border-slate-200`}>
-                        {renderVistoriaOrLosStatusCell(row, 'A')}
-                      </td>
-                      <td className={`${cellPad} bg-teal-50/15 border-l border-slate-200`}>
-                        {renderVistoriaOrLosStatusCell(row, 'B')}
-                      </td>
-                      <td className={`${cellPad} bg-amber-50/20 border-l border-slate-200`}>
-                        {renderVistoriaOrLosStatusCell(row, 'LOS')}
-                      </td>
-                    </tr>
-                  );
-                })}
+                    return (
+                      <tr
+                        key={row.id}
+                        onClick={() => {
+                          setSelectedRow(row);
+                          setEditFields({ ...(row.fields || {}) });
+                        }}
+                        className={`transition-colors cursor-pointer ${
+                          isRowSelected ? 'ameta-table-row-selected' : ''
+                        }`}
+                      >
+                        <td
+                          title={chavesVal || undefined}
+                          className={`${cellPad} font-mono tabular-nums font-bold text-slate-800 whitespace-nowrap`}
+                        >
+                          {chavesVal || '—'}
+                        </td>
+                        <td className={`${cellPad} font-mono tabular-nums font-semibold text-slate-700`}>
+                          {row.state || row.fields?.['00.03.State'] || '—'}
+                        </td>
+                        <td className={`${cellPad} font-mono tabular-nums font-bold text-[#223585] bg-blue-50/20 border-l border-slate-200 whitespace-nowrap`}>
+                          {row.siteIdA || '—'}
+                        </td>
+                        <td className={`${cellPad} bg-blue-50/20`}>
+                          {renderSheetStatusBadge(sA)}
+                        </td>
+                        <td
+                          title={cidadeAVal || undefined}
+                          className={`${cellPad} text-slate-700 bg-blue-50/20 max-w-[140px] truncate`}
+                        >
+                          {cidadeAVal || '—'}
+                        </td>
+                        <td className={`${cellPad} font-mono tabular-nums font-bold text-[#1E8E8D] bg-teal-50/20 border-l border-slate-200 whitespace-nowrap`}>
+                          {row.siteIdB || '—'}
+                        </td>
+                        <td className={`${cellPad} bg-teal-50/20`}>
+                          {renderSheetStatusBadge(sB)}
+                        </td>
+                        <td
+                          title={cidadeBVal || undefined}
+                          className={`${cellPad} text-slate-700 bg-teal-50/20 max-w-[140px] truncate`}
+                        >
+                          {cidadeBVal || '—'}
+                        </td>
+                        <td
+                          title={equipeVal || undefined}
+                          className={`${cellPad} font-semibold text-slate-800 border-l border-slate-200 whitespace-nowrap max-w-[180px] truncate`}
+                        >
+                          {equipeVal || '—'}
+                        </td>
+                        <td className={`${cellPad} bg-blue-50/15 border-l border-slate-200`}>
+                          {renderVistoriaOrLosStatusCell(row, 'A')}
+                        </td>
+                        <td className={`${cellPad} bg-teal-50/15 border-l border-slate-200`}>
+                          {renderVistoriaOrLosStatusCell(row, 'B')}
+                        </td>
+                        <td className={`${cellPad} bg-amber-50/20 border-l border-slate-200`}>
+                          {renderVistoriaOrLosStatusCell(row, 'LOS')}
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
               </tbody>
             </table>
           </div>
@@ -779,33 +750,43 @@ export const EricssonEngenhariaTab: React.FC<EricssonEngenhariaTabProps> = ({
           3B. FULL SPREADSHEET VIEW
          ===================================================================== */}
       {viewMode === 'planilha' && (
-        <div className="bg-white border border-slate-200 rounded-xl shadow-2xs overflow-hidden">
-          <div className="px-4 py-2.5 bg-slate-50 border-b border-slate-200 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-600">
+        <div className="bg-white border border-slate-200 rounded-[12px] shadow-[0_1px_2px_rgba(15,23,42,0.04)] overflow-hidden">
+          <div className="px-4 py-2.5 bg-[#F8FAFC] border-b border-slate-200 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-600">
             <div className="flex items-center gap-2">
               <FileSpreadsheet className="w-4 h-4 text-[#1E8E8D]" />
               <span>
-                Planilha Completa de Engenharia ({originalColumns.length} colunas + Status de{' '}
+                Planilha Completa de Engenharia (<span className="font-mono tabular-nums font-semibold">{originalColumns.length}</span> colunas + Status de{' '}
                 <strong>Vistoria A</strong>, <strong>Vistoria B</strong> e <strong>LOS</strong>)
               </span>
             </div>
           </div>
 
           <div className="overflow-x-auto max-h-[680px]">
-            <table className="w-full text-left border-collapse">
-              <thead className="sticky top-0 z-10 bg-slate-100 text-[10px] uppercase tracking-wider text-slate-700 border-b border-slate-200">
+            <table className="w-full text-left border-collapse ameta-table-zebra text-[13px]">
+              <thead className="sticky top-0 z-10 bg-[#F4F6FA] text-[10px] uppercase tracking-wider text-slate-700 border-b border-slate-200">
                 <tr>
-                  {originalColumns.map((col, idx) => (
-                    <th
-                      key={`${col}-${idx}`}
-                      className="py-2.5 px-3 font-bold whitespace-nowrap border-r border-slate-200"
-                    >
-                      {col}
-                    </th>
-                  ))}
-                  <th className="py-2.5 px-3 font-bold whitespace-nowrap bg-blue-50 text-[#223585] border-r border-slate-200">
+                  {originalColumns.map((col, idx) => {
+                    const isSiteA = col === '01.21.Site ID A' || col === 'Status A';
+                    const isSiteB = col === '01.21.Site ID B' || col === 'Status B';
+                    return (
+                      <th
+                        key={`${col}-${idx}`}
+                        className={`py-2.5 px-3 font-bold whitespace-nowrap border-r border-slate-200 ameta-col-resizable ${
+                          isSiteA
+                            ? 'bg-[#EEF2FF] text-[#223585]'
+                            : isSiteB
+                            ? 'bg-[#EEFAFA] text-[#1E8E8D]'
+                            : ''
+                        }`}
+                      >
+                        {col}
+                      </th>
+                    );
+                  })}
+                  <th className="py-2.5 px-3 font-bold whitespace-nowrap bg-[#EEF2FF] text-[#223585] border-r border-slate-200 ameta-col-resizable">
                     Vistoria Site A
                   </th>
-                  <th className="py-2.5 px-3 font-bold whitespace-nowrap bg-teal-50 text-[#1E8E8D] border-r border-slate-200">
+                  <th className="py-2.5 px-3 font-bold whitespace-nowrap bg-[#EEFAFA] text-[#1E8E8D] border-r border-slate-200 ameta-col-resizable">
                     Vistoria Site B
                   </th>
                   <th className="py-2.5 px-3 font-bold whitespace-nowrap bg-amber-50 text-amber-800 border-r border-slate-200">
@@ -814,37 +795,72 @@ export const EricssonEngenhariaTab: React.FC<EricssonEngenhariaTabProps> = ({
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200">
-                {filteredRows.map((row) => (
-                  <tr
-                    key={row.id}
-                    onClick={() => {
-                      setSelectedRow(row);
-                      setEditFields({ ...(row.fields || {}) });
-                    }}
-                    className="hover:bg-blue-50/40 transition-colors cursor-pointer"
-                  >
-                    {originalColumns.map((col, idx) => {
-                      const val = row.fields?.[col] ?? '';
-                      return (
-                        <td
-                          key={`${col}-${idx}`}
-                          className={`${cellPad} whitespace-nowrap border-r border-slate-200/70 text-slate-700`}
-                        >
-                          {val || '—'}
-                        </td>
-                      );
-                    })}
-                    <td className={`${cellPad} whitespace-nowrap bg-blue-50/15 border-r border-slate-200`}>
-                      {renderVistoriaOrLosStatusCell(row, 'A')}
-                    </td>
-                    <td className={`${cellPad} whitespace-nowrap bg-teal-50/15 border-r border-slate-200`}>
-                      {renderVistoriaOrLosStatusCell(row, 'B')}
-                    </td>
-                    <td className={`${cellPad} whitespace-nowrap bg-amber-50/20 border-r border-slate-200`}>
-                      {renderVistoriaOrLosStatusCell(row, 'LOS')}
+                {filteredRows.length === 0 ? (
+                  <tr>
+                    <td colSpan={originalColumns.length + 3} className="p-0">
+                      <EmptyStateCard
+                        icon={<FileSpreadsheet className="w-6 h-6" />}
+                        title={
+                          rows.length === 0
+                            ? 'Nenhum registro de Engenharia Ericsson'
+                            : 'Nenhum registro corresponde aos filtros aplicados'
+                        }
+                        description={
+                          rows.length === 0
+                            ? 'Quando a Planilha Mãe Ericsson possuir sites cadastrados, eles aparecerão aqui automaticamente.'
+                            : 'Ajuste os filtros de busca ou selecione outro estado/equipe para visualizar os registros.'
+                        }
+                      />
                     </td>
                   </tr>
-                ))}
+                ) : (
+                  filteredRows.map((row) => {
+                    const isRowSelected = selectedRow?.id === row.id;
+                    return (
+                      <tr
+                        key={row.id}
+                        onClick={() => {
+                          setSelectedRow(row);
+                          setEditFields({ ...(row.fields || {}) });
+                        }}
+                        className={`transition-colors cursor-pointer ${
+                          isRowSelected ? 'ameta-table-row-selected' : ''
+                        }`}
+                      >
+                        {originalColumns.map((col, idx) => {
+                          const val = row.fields?.[col] ?? '';
+                          const isSiteA = col === '01.21.Site ID A';
+                          const isSiteB = col === '01.21.Site ID B';
+                          const isStatus = col === 'Status A' || col === 'Status B';
+                          return (
+                            <td
+                              key={`${col}-${idx}`}
+                              title={val ? String(val) : undefined}
+                              className={`${cellPad} whitespace-nowrap border-r border-slate-200/70 max-w-[240px] truncate tabular-nums ${
+                                isSiteA
+                                  ? 'font-mono font-bold text-[#223585] bg-blue-50/20'
+                                  : isSiteB
+                                  ? 'font-mono font-bold text-[#1E8E8D] bg-teal-50/20'
+                                  : 'text-slate-700'
+                              }`}
+                            >
+                              {isStatus ? renderSheetStatusBadge(String(val)) : val || '—'}
+                            </td>
+                          );
+                        })}
+                        <td className={`${cellPad} whitespace-nowrap bg-blue-50/15 border-r border-slate-200`}>
+                          {renderVistoriaOrLosStatusCell(row, 'A')}
+                        </td>
+                        <td className={`${cellPad} whitespace-nowrap bg-teal-50/15 border-r border-slate-200`}>
+                          {renderVistoriaOrLosStatusCell(row, 'B')}
+                        </td>
+                        <td className={`${cellPad} whitespace-nowrap bg-amber-50/20 border-r border-slate-200`}>
+                          {renderVistoriaOrLosStatusCell(row, 'LOS')}
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
               </tbody>
             </table>
           </div>
@@ -856,17 +872,17 @@ export const EricssonEngenhariaTab: React.FC<EricssonEngenhariaTabProps> = ({
          ===================================================================== */}
       {selectedRow && (
         <div
-          className="fixed inset-0 z-50 flex justify-end bg-slate-900/40 backdrop-blur-[1px]"
+          className="ameta-modal-backdrop fixed inset-0 z-50 flex justify-end bg-[#0B1530]/45 backdrop-blur-[2px]"
           onClick={() => setSelectedRow(null)}
         >
           <div
-            className="w-full max-w-2xl bg-white border-l border-slate-200 h-full overflow-y-auto p-6 space-y-5 shadow-2xl"
+            className="ameta-modal-panel w-full max-w-2xl bg-white border-l border-slate-200 h-full overflow-y-auto p-6 space-y-5"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between border-b border-slate-200 pb-4">
               <div>
                 <div className="flex items-center gap-2">
-                  <span className="px-2 py-0.5 rounded bg-blue-50 text-[#223585] border border-blue-200 font-mono text-xs font-bold">
+                  <span className="px-2 py-0.5 rounded-[6px] bg-[#EEF2FF] text-[#223585] border border-[#DDE4F6] font-mono tabular-nums text-xs font-bold">
                     {selectedRow.chaves || 'Par Ericsson'}
                   </span>
                   <span className="font-mono font-bold text-slate-900 text-sm flex items-center gap-1.5">
@@ -882,30 +898,30 @@ export const EricssonEngenhariaTab: React.FC<EricssonEngenhariaTabProps> = ({
               <button
                 type="button"
                 onClick={() => setSelectedRow(null)}
-                className="p-2 text-slate-400 hover:text-slate-700 rounded-lg cursor-pointer"
+                className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-[8px] cursor-pointer transition-colors"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-3 text-xs">
+            <div className="p-4 rounded-[12px] bg-[#F4F6FA] border border-slate-200 space-y-3 text-xs">
               <div className="font-bold text-slate-900">
                 Status na Engenharia (Vistoria A, Vistoria B e LOS)
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div className="p-3 bg-white rounded-lg border border-blue-200 space-y-2">
+                <div className="p-3 bg-white rounded-[8px] border border-[#DDE4F6] space-y-2">
                   <div className="text-[10px] font-bold uppercase text-[#223585]">
                     Vistoria Site A ({selectedRow.siteIdA || '—'})
                   </div>
                   {renderVistoriaOrLosStatusCell(selectedRow, 'A')}
                 </div>
-                <div className="p-3 bg-white rounded-lg border border-teal-200 space-y-2">
+                <div className="p-3 bg-white rounded-[8px] border border-[#AAE5E5] space-y-2">
                   <div className="text-[10px] font-bold uppercase text-[#1E8E8D]">
                     Vistoria Site B ({selectedRow.siteIdB || '—'})
                   </div>
                   {renderVistoriaOrLosStatusCell(selectedRow, 'B')}
                 </div>
-                <div className="p-3 bg-white rounded-lg border border-amber-200 space-y-2">
+                <div className="p-3 bg-white rounded-[8px] border border-amber-200 space-y-2">
                   <div className="text-[10px] font-bold uppercase text-amber-800">
                     Relatório LOS
                   </div>
@@ -923,7 +939,7 @@ export const EricssonEngenhariaTab: React.FC<EricssonEngenhariaTabProps> = ({
                 <button
                   type="submit"
                   disabled={savingEdit}
-                  className="px-4 py-1.5 bg-[#223585] hover:bg-[#192869] text-white font-bold rounded-lg cursor-pointer"
+                  className="px-4 py-1.5 bg-[#223585] hover:bg-[#1B2A6B] text-white font-bold rounded-[8px] cursor-pointer shadow-xs transition-colors"
                 >
                   {savingEdit ? 'Salvando...' : 'Salvar na Planilha Mãe'}
                 </button>
@@ -944,7 +960,7 @@ export const EricssonEngenhariaTab: React.FC<EricssonEngenhariaTabProps> = ({
                           [col]: e.target.value,
                         }))
                       }
-                      className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 focus:outline-none focus:bg-white focus:border-[#223585]"
+                      className="w-full px-2.5 py-1.5 bg-[#F8FAFC] border border-slate-200 rounded-[8px] text-slate-900 focus:outline-none focus:bg-white focus:border-[#223585] focus:ring-2 focus:ring-[#223585]/15"
                     />
                   </div>
                 ))}

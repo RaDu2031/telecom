@@ -1,13 +1,13 @@
 import React from 'react';
 import { FileSpreadsheet, FolderKanban } from 'lucide-react';
-import { AmetaUser, UserRole, VendorType, ClaroSiteRow, ClaroEngenhariaRow, ClaroSheetMeta } from '../types/telecom';
+import { AmetaUser, UserRole, VendorType, TelecomSite, ClaroSiteRow, ClaroEngenhariaRow, ClaroSheetMeta } from '../types/telecom';
 
 export interface ClaroTimMaintenanceViewProps {
   activeArea?: 'sites' | 'engenharia';
   onSelectArea?: (area: 'sites' | 'engenharia') => void;
   user?: (AmetaUser & { linkedTeams?: string[] }) | null;
   effectiveRole?: UserRole;
-  claroSites?: ClaroSiteRow[];
+  claroSites?: (ClaroSiteRow | TelecomSite)[];
   claroEngenharia?: ClaroEngenhariaRow[];
   claroMeta?: { sites?: ClaroSheetMeta; engenharia?: ClaroSheetMeta };
   onShowToast?: (msg: string) => void;
@@ -21,15 +21,15 @@ export const ClaroTimMaintenanceView: React.FC<ClaroTimMaintenanceViewProps> = (
   const canSeeSites = effectiveRole !== 'Executor';
 
   return (
-    <div className="bg-white border border-slate-200 rounded-2xl p-10 sm:p-14 text-center shadow-xs max-w-2xl mx-auto my-6 space-y-4">
-      <div className="w-14 h-14 rounded-2xl bg-teal-50 border border-teal-200 flex items-center justify-center mx-auto text-[#1E8E8D]">
-        <FileSpreadsheet className="w-7 h-7" />
+    <div className="bg-white border border-slate-200 rounded-[12px] p-10 sm:p-14 text-center max-w-2xl mx-auto my-6 space-y-4 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
+      <div className="w-12 h-12 rounded-[12px] bg-[#223585]/10 border border-[#223585]/20 flex items-center justify-center mx-auto text-[#223585]">
+        <FileSpreadsheet className="w-6 h-6" />
       </div>
       <div className="space-y-1.5">
-        <h3 className="text-base sm:text-lg font-extrabold text-slate-900">
+        <h3 className="text-lg font-bold text-slate-900 tracking-tight">
           Planilha de Engenharia da Claro em breve
         </h3>
-        <p className="text-xs text-slate-500 max-w-md mx-auto">
+        <p className="text-xs text-slate-500 max-w-md mx-auto leading-relaxed">
           A área de Sites (Vistoria) da Claro já está ativa e disponível na aba Sites.
         </p>
       </div>
@@ -38,7 +38,7 @@ export const ClaroTimMaintenanceView: React.FC<ClaroTimMaintenanceViewProps> = (
           <button
             type="button"
             onClick={() => onSelectArea('sites')}
-            className="px-4 py-2 rounded-xl bg-[#223585] hover:bg-[#1a2968] text-white font-bold text-xs inline-flex items-center gap-2 shadow-xs transition-colors cursor-pointer"
+            className="px-4 py-2 rounded-[8px] bg-[#223585] hover:bg-[#1B2A6B] text-white font-semibold text-xs inline-flex items-center gap-2 transition-colors cursor-pointer shadow-xs"
           >
             <FolderKanban className="w-4 h-4" />
             <span>Ir para Claro – Sites (Controle Geral)</span>

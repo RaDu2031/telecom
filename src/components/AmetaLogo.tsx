@@ -45,9 +45,9 @@ export const AmetaLogo: React.FC<AmetaLogoProps> = ({
       : 'text-[9.5px] tracking-[0.28em]';
 
   const navyColor = theme === 'light' ? '#223585' : '#FFFFFF';
-  const tealColor = theme === 'light' ? '#1E8E8D' : '#38D1D0';
-  const subColor = theme === 'light' ? 'text-slate-500' : 'text-slate-300';
-  const gapStrokeColor = theme === 'light' ? '#FFFFFF' : '#192766';
+  const tealColor = theme === 'light' ? '#1E8E8D' : '#2DD4BF';
+  const subColor = theme === 'light' ? 'text-slate-500' : 'text-slate-400';
+  const gapStrokeColor = theme === 'light' ? '#FFFFFF' : '#0A1120';
 
   return (
     <div className="inline-flex items-center gap-2.5 select-none">

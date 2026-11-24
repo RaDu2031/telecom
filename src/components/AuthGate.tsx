@@ -366,32 +366,32 @@ export const AuthGate: React.FC<AuthGateProps> = ({ onAuthenticated }) => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 flex items-center justify-center p-4 sm:p-6">
-      <div className="w-full max-w-md bg-white rounded-3xl shadow-2xl border border-slate-100/80 overflow-hidden flex flex-col">
+    <div className="min-h-screen bg-[#060B16] flex items-center justify-center p-4 sm:p-6">
+      <div className="ameta-modal-panel w-full max-w-md bg-[#0D1526] rounded-[12px] border border-[#1B2741] overflow-hidden flex flex-col">
         {/* Brand Header */}
-        <div className="px-8 pt-8 pb-6 bg-gradient-to-br from-blue-900 via-indigo-950 to-slate-900 text-white text-center relative">
-          <div className="flex items-center justify-center mb-3.5">
-            <div className="px-4 py-2.5 bg-white/10 rounded-2xl backdrop-blur-md shadow-inner border border-white/20 inline-flex items-center justify-center">
+        <div className="px-8 pt-7 pb-6 bg-[#0A1120] border-b border-[#1B2741] text-white text-center relative">
+          <div className="flex items-center justify-center mb-3">
+            <div className="px-4 py-2 bg-[#080E1C] rounded-[12px] border border-[#1E2B48] inline-flex items-center justify-center">
               <AmetaLogo size="md" theme="dark" />
             </div>
           </div>
-          <h1 className="text-xl font-black tracking-tight text-white">Ameta Telecom</h1>
-          <p className="text-xs text-blue-200/90 mt-1 font-medium">
+          <h1 className="text-xl font-bold tracking-tight text-slate-100">Ameta Telecom</h1>
+          <p className="text-xs text-slate-400 mt-1 font-medium">
             Gestão Integrada de Sites & Vistorias Nokia e Ericsson
           </p>
         </div>
 
         {/* Notifications / Feedback */}
         {error && (
-          <div className="mx-6 mt-4 p-3.5 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-start gap-2.5 leading-relaxed">
-            <AlertCircle className="w-4 h-4 shrink-0 text-rose-600 mt-0.5" />
+          <div className="mx-6 mt-5 p-3 rounded-[8px] bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs flex items-start gap-2.5 leading-relaxed">
+            <AlertCircle className="w-4 h-4 shrink-0 text-rose-400 mt-0.5" />
             <span className="flex-1 font-medium">{error}</span>
           </div>
         )}
 
         {infoMessage && (
-          <div className="mx-6 mt-4 p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs flex items-start gap-2.5 leading-relaxed">
-            <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600 mt-0.5" />
+          <div className="mx-6 mt-5 p-3 rounded-[8px] bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs flex items-start gap-2.5 leading-relaxed">
+            <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400 mt-0.5" />
             <span className="flex-1 font-medium">{infoMessage}</span>
           </div>
         )}
@@ -402,51 +402,51 @@ export const AuthGate: React.FC<AuthGateProps> = ({ onAuthenticated }) => {
             /* Login Form */
             <form onSubmit={handleLogin} className="space-y-4">
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
                   E-mail Corporativo
                 </label>
                 <div className="relative">
-                  <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
+                  <Mail className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
                   <input
                     type="email"
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder={`nome@${ALLOWED_EMAIL_DOMAIN}`}
-                    className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-blue-600 focus:bg-white transition-all font-medium"
+                    className="w-full pl-9 pr-3.5 py-2.5 bg-[#080E1C] border border-[#1E2B48] rounded-[8px] text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-[#2DD4BF] focus:ring-2 focus:ring-[#2DD4BF]/20 transition-all duration-150 font-medium"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
                   Senha
                 </label>
                 <div className="relative">
-                  <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
+                  <Lock className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
                   <input
                     type="password"
                     required
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="••••••••"
-                    className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-blue-600 focus:bg-white transition-all font-medium"
+                    className="w-full pl-9 pr-3.5 py-2.5 bg-[#080E1C] border border-[#1E2B48] rounded-[8px] text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-[#2DD4BF] focus:ring-2 focus:ring-[#2DD4BF]/20 transition-all duration-150 font-medium"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
                   Plataforma Inicial
                 </label>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-2 gap-1.5 p-1 bg-[#080E1C] rounded-[8px] border border-[#1E2B48]">
                   <button
                     type="button"
                     onClick={() => setInitialVendorChoice('NOKIA')}
-                    className={`py-2 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
+                    className={`py-2 rounded-[6px] text-xs font-semibold transition-all duration-150 cursor-pointer ${
                       initialVendorChoice === 'NOKIA'
-                        ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
-                        : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                        ? 'bg-[#2DD4BF] text-[#041517] font-bold shadow-xs'
+                        : 'text-slate-400 hover:text-slate-100'
                     }`}
                   >
                     Nokia / TIM
@@ -454,10 +454,10 @@ export const AuthGate: React.FC<AuthGateProps> = ({ onAuthenticated }) => {
                   <button
                     type="button"
                     onClick={() => setInitialVendorChoice('ERICSSON')}
-                    className={`py-2 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
+                    className={`py-2 rounded-[6px] text-xs font-semibold transition-all duration-150 cursor-pointer ${
                       initialVendorChoice === 'ERICSSON'
-                        ? 'bg-amber-600 text-white border-amber-600 shadow-sm'
-                        : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                        ? 'bg-[#2DD4BF] text-[#041517] font-bold shadow-xs'
+                        : 'text-slate-400 hover:text-slate-100'
                     }`}
                   >
                     Ericsson / Claro
@@ -469,14 +469,14 @@ export const AuthGate: React.FC<AuthGateProps> = ({ onAuthenticated }) => {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full py-3 bg-gradient-to-r from-blue-700 to-indigo-800 hover:from-blue-800 hover:to-indigo-900 text-white font-bold text-xs rounded-xl shadow-lg shadow-blue-500/25 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                  className="w-full py-2.5 px-4 bg-[#2DD4BF] hover:bg-[#22B8A6] text-[#041517] font-bold text-xs rounded-[8px] shadow-xs transition-all duration-150 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
                 >
                   <span>{loading ? 'Entrando...' : 'Acessar Plataforma'}</span>
                   <ArrowRight className="w-4 h-4" />
                 </button>
               </div>
 
-              <div className="pt-3 border-t border-slate-100 text-center">
+              <div className="pt-3 border-t border-[#1B2741] text-center">
                 <button
                   type="button"
                   onClick={() => {
@@ -484,7 +484,7 @@ export const AuthGate: React.FC<AuthGateProps> = ({ onAuthenticated }) => {
                     setError(null);
                     setInfoMessage(null);
                   }}
-                  className="text-xs text-blue-600 hover:text-blue-800 font-semibold cursor-pointer"
+                  className="text-xs text-[#2DD4BF] hover:text-teal-300 font-semibold cursor-pointer"
                 >
                   Esqueceu a senha?
                 </button>
@@ -493,10 +493,10 @@ export const AuthGate: React.FC<AuthGateProps> = ({ onAuthenticated }) => {
           ) : mode === 'first_access' ? (
             /* First Access Mandatory Password Change Form */
             <form onSubmit={handleFirstAccessSubmit} className="space-y-4">
-              <div className="p-3.5 bg-blue-50 border border-blue-200 rounded-2xl text-blue-900 text-xs flex items-start gap-2.5">
-                <ShieldCheck className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" />
+              <div className="p-3.5 bg-[#142038] border border-[#2DD4BF]/30 rounded-[10px] text-slate-200 text-xs flex items-start gap-2.5">
+                <ShieldCheck className="w-5 h-5 text-[#2DD4BF] shrink-0 mt-0.5" />
                 <div>
-                  <strong className="block font-bold">Criar Sua Senha de Acesso</strong>
+                  <strong className="block font-bold text-white">Criar Sua Senha de Acesso</strong>
                   <span>
                     Olá <strong>{pendingUser?.name}</strong>. Para sua segurança, confirme os 3 primeiros dígitos do seu CPF e defina sua nova senha definitiva.
                   </span>
@@ -505,53 +505,53 @@ export const AuthGate: React.FC<AuthGateProps> = ({ onAuthenticated }) => {
 
               {pendingUser?.userData?.cpf ? (
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">
                     3 Primeiros Dígitos do CPF (Conferência de Identidade)
                   </label>
                   <div className="relative">
-                    <ShieldAlert className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
+                    <ShieldAlert className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
                     <input
                       type="text"
                       maxLength={3}
                       value={cpf3DigitsInput}
                       onChange={(e) => setCpf3DigitsInput(e.target.value.replace(/\D/g, ''))}
                       placeholder="Ex: 123"
-                      className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-bold text-slate-900 focus:outline-none focus:border-blue-600 focus:bg-white transition-all"
+                      className="w-full pl-9 pr-3.5 py-2.5 bg-[#080E1C] border border-[#1E2B48] rounded-[8px] text-xs font-mono font-bold text-slate-100 focus:outline-none focus:border-[#2DD4BF] focus:ring-2 focus:ring-[#2DD4BF]/20 transition-all tabular-nums"
                     />
                   </div>
                 </div>
               ) : null}
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
+                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
                   Nova Senha (Mínimo 8 caracteres, letras e números)
                 </label>
                 <div className="relative">
-                  <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
+                  <Lock className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
                   <input
                     type="password"
                     required
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
                     placeholder="Sua nova senha definitiva"
-                    className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-blue-600 focus:bg-white transition-all font-medium"
+                    className="w-full pl-9 pr-3.5 py-2.5 bg-[#080E1C] border border-[#1E2B48] rounded-[8px] text-xs text-slate-100 focus:outline-none focus:border-[#2DD4BF] focus:ring-2 focus:ring-[#2DD4BF]/20 transition-all font-medium"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
+                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
                   Confirme a Nova Senha
                 </label>
                 <div className="relative">
-                  <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
+                  <Lock className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
                   <input
                     type="password"
                     required
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     placeholder="Digite a nova senha novamente"
-                    className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-blue-600 focus:bg-white transition-all font-medium"
+                    className="w-full pl-9 pr-3.5 py-2.5 bg-[#080E1C] border border-[#1E2B48] rounded-[8px] text-xs text-slate-100 focus:outline-none focus:border-[#2DD4BF] focus:ring-2 focus:ring-[#2DD4BF]/20 transition-all font-medium"
                   />
                 </div>
               </div>
@@ -560,7 +560,7 @@ export const AuthGate: React.FC<AuthGateProps> = ({ onAuthenticated }) => {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full py-3 bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 text-white font-bold text-xs rounded-xl shadow-lg shadow-emerald-500/25 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                  className="w-full py-2.5 px-4 bg-[#2DD4BF] hover:bg-[#22B8A6] text-[#041517] font-bold text-xs rounded-[8px] shadow-xs transition-all duration-150 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
                 >
                   <ShieldCheck className="w-4 h-4" />
                   <span>{loading ? 'Salvando...' : 'Salvar Nova Senha & Acessar'}</span>
@@ -576,7 +576,7 @@ export const AuthGate: React.FC<AuthGateProps> = ({ onAuthenticated }) => {
                     setError(null);
                     setInfoMessage(null);
                   }}
-                  className="text-xs text-slate-500 hover:text-slate-700 cursor-pointer font-medium"
+                  className="text-xs text-slate-400 hover:text-slate-200 cursor-pointer font-medium"
                 >
                   Voltar ao Login
                 </button>
@@ -586,25 +586,25 @@ export const AuthGate: React.FC<AuthGateProps> = ({ onAuthenticated }) => {
             /* Reset Password Form */
             <form onSubmit={handlePasswordReset} className="space-y-4">
               <div className="text-center pb-1">
-                <h3 className="text-sm font-bold text-slate-900">Recuperação de Senha</h3>
-                <p className="text-xs text-slate-500 mt-0.5">
+                <h3 className="text-sm font-bold text-slate-100">Recuperação de Senha</h3>
+                <p className="text-xs text-slate-400 mt-0.5">
                   Informe seu e-mail corporativo para receber as instruções
                 </p>
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
                   E-mail Corporativo (@{ALLOWED_EMAIL_DOMAIN})
                 </label>
                 <div className="relative">
-                  <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
+                  <Mail className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
                   <input
                     type="email"
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder={`nome@${ALLOWED_EMAIL_DOMAIN}`}
-                    className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-blue-600 focus:bg-white transition-all font-medium"
+                    className="w-full pl-9 pr-3.5 py-2.5 bg-[#080E1C] border border-[#1E2B48] rounded-[8px] text-xs text-slate-100 focus:outline-none focus:border-[#2DD4BF] focus:ring-2 focus:ring-[#2DD4BF]/20 transition-all font-medium"
                   />
                 </div>
               </div>
@@ -613,7 +613,7 @@ export const AuthGate: React.FC<AuthGateProps> = ({ onAuthenticated }) => {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full py-3 bg-gradient-to-r from-blue-700 to-indigo-800 hover:from-blue-800 hover:to-indigo-900 text-white font-bold text-xs rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                  className="w-full py-2.5 px-4 bg-[#2DD4BF] hover:bg-[#22B8A6] text-[#041517] font-bold text-xs rounded-[8px] shadow-xs transition-all duration-150 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
                 >
                   <KeyRound className="w-4 h-4" />
                   <span>{loading ? 'Enviando...' : 'Enviar Link de Redefinição'}</span>
@@ -626,7 +626,7 @@ export const AuthGate: React.FC<AuthGateProps> = ({ onAuthenticated }) => {
                     setError(null);
                     setInfoMessage(null);
                   }}
-                  className="w-full py-2.5 text-xs text-slate-600 hover:text-slate-900 font-semibold cursor-pointer flex items-center justify-center gap-1"
+                  className="w-full py-2.5 text-xs text-slate-400 hover:text-slate-100 font-semibold cursor-pointer flex items-center justify-center gap-1"
                 >
                   <ChevronLeft className="w-4 h-4" />
                   <span>Voltar para o Login</span>
@@ -637,9 +637,9 @@ export const AuthGate: React.FC<AuthGateProps> = ({ onAuthenticated }) => {
         </div>
 
         {/* Footer Project ID Info */}
-        <div className="py-2.5 px-6 bg-slate-50 border-t border-slate-100 text-center">
-          <span className="text-[11px] font-mono text-slate-400">
-            Projeto: <strong className="font-semibold text-slate-600">{firebaseConfig.projectId}</strong>
+        <div className="py-2.5 px-6 bg-[#080E1C] border-t border-[#1B2741] text-center">
+          <span className="text-[11px] font-mono text-slate-500">
+            Projeto: <strong className="font-semibold text-slate-300">{firebaseConfig.projectId}</strong>
           </span>
         </div>
       </div>

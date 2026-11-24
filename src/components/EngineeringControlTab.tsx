@@ -31,7 +31,9 @@ import {
   FolderOpen,
   ArrowLeft,
   Users,
+  Clock,
 } from 'lucide-react';
+import { StatusBadge, EmptyStateCard, KpiCard } from './ui';
 import {
   AmetaUser,
   UserRole,
@@ -755,20 +757,11 @@ export const EngineeringControlTab: React.FC<EngineeringControlTabProps> = ({
   // Render automatic Vistoria Status Badge (Green = Entregue, Slate = Vistoria Não Disponível)
   const renderVistoriaStatusBadge = (status?: string | null) => {
     if (status === 'Entregue') {
-      return (
-        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 whitespace-nowrap">
-          <span className="w-1.5 h-1.5 rounded-full bg-emerald-600" />
-          <span>Entregue</span>
-        </span>
-      );
+      return <StatusBadge label="Entregue" tone="success" />;
     }
     return (
-      <span
-        className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-slate-100 text-slate-700 border border-slate-300 whitespace-nowrap"
-        title="Vistoria ainda não disponível / não enviada"
-      >
-        <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
-        <span>Vistoria Não Disponível</span>
+      <span title="Vistoria ainda não disponível / não enviada">
+        <StatusBadge label="Vistoria Não Disponível" tone="neutral" maxWidthClass="max-w-[180px]" />
       </span>
     );
   };
@@ -777,47 +770,7 @@ export const EngineeringControlTab: React.FC<EngineeringControlTabProps> = ({
   const renderEngenhariaStatusBadge = (rawStatus: string) => {
     const val = (rawStatus || '').trim();
     if (!val) return <span className="text-slate-400">—</span>;
-    const lower = val.toLowerCase();
-    if (lower.includes('aguardando')) {
-      return (
-        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-bold bg-blue-50 text-blue-800 border border-blue-200 whitespace-nowrap">
-          {val}
-        </span>
-      );
-    }
-    if (lower.includes('aprovado') || lower.includes('conclu') || lower.includes('entregue')) {
-      return (
-        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200 whitespace-nowrap">
-          {val}
-        </span>
-      );
-    }
-    if (lower.includes('cancelado')) {
-      return (
-        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold bg-red-50 text-red-700 border border-red-200 whitespace-nowrap">
-          {val}
-        </span>
-      );
-    }
-    if (lower.includes('execução') || lower.includes('revisão')) {
-      return (
-        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold bg-blue-50 text-blue-700 border border-blue-200 whitespace-nowrap">
-          {val}
-        </span>
-      );
-    }
-    if (lower.includes('pendencia') || lower.includes('pendência')) {
-      return (
-        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold bg-amber-50 text-amber-800 border border-amber-200 whitespace-nowrap">
-          {val}
-        </span>
-      );
-    }
-    return (
-      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold bg-slate-100 text-slate-700 border border-slate-200 whitespace-nowrap">
-        {val}
-      </span>
-    );
+    return <StatusBadge label={val} maxWidthClass="max-w-[190px]" />;
   };
 
   // Render the system column "Arquivo da vistoria" (text only, without file download/open/delete)
@@ -893,7 +846,7 @@ export const EngineeringControlTab: React.FC<EngineeringControlTabProps> = ({
       {/* =====================================================================
           1. TOP HEADER & COUNTERS BAR (MESMO ESTILO DOS CONTADORES DA TELA DE SITES)
          ===================================================================== */}
-      <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-2xs space-y-3.5">
+      <div className="bg-white border border-slate-200 rounded-[12px] p-4 sm:p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04)] space-y-3.5">
         <div
           className={`flex flex-wrap items-center ${
             isCoordenadorEngenharia ? 'justify-end' : 'justify-between'
@@ -901,7 +854,7 @@ export const EngineeringControlTab: React.FC<EngineeringControlTabProps> = ({
         >
           {!isCoordenadorEngenharia && (
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-[#223585]/10 border border-[#223585]/20 flex items-center justify-center text-[#223585] shrink-0">
+              <div className="w-10 h-10 rounded-[10px] bg-[#EEF2FF] border border-[#DDE4F6] flex items-center justify-center text-[#223585] shrink-0">
                 <FileSpreadsheet className="w-5 h-5" />
               </div>
               <div>
@@ -910,11 +863,11 @@ export const EngineeringControlTab: React.FC<EngineeringControlTabProps> = ({
                     Controle de Engenharia · {activeVendor}
                   </span>
                   <span className="text-slate-300">•</span>
-                  <h1 className="text-sm font-bold text-slate-900">
+                  <h1 className="text-xl font-bold text-slate-900 tracking-tight">
                     Planilha Controle de Engenharia
                   </h1>
                 </div>
-                <p className="text-xs text-slate-500">
+                <p className="text-xs text-slate-500 mt-0.5">
                   Aba <strong>{activeSubTab}</strong> — alimentada pela planilha TSSR online e pelos arquivos enviados na área de Vistoria.
                 </p>
               </div>
@@ -1193,6 +1146,71 @@ export const EngineeringControlTab: React.FC<EngineeringControlTabProps> = ({
             )}
           </div>
         </div>
+      </div>
+
+      {/* Top KPI Summary Cards */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+        <KpiCard
+          label="Total de Sites"
+          value={totalCount}
+          sublabel="Planilha TSSR ativa"
+          icon={<FolderKanban className="w-4 h-4" />}
+          tone="navy"
+          active={categoryFilter === 'ALL' && vistoriaStatusFilter === 'ALL'}
+          onClick={() => {
+            setCategoryFilter('ALL');
+            setVistoriaStatusFilter('ALL');
+          }}
+        />
+        <KpiCard
+          label="Pendentes / A Fazer"
+          value={engStats.aFazer}
+          sublabel="STATUS Engenharia pendente"
+          icon={<Clock className="w-4 h-4" />}
+          tone="warning"
+          active={categoryFilter === 'A_FAZER'}
+          onClick={() =>
+            setCategoryFilter((prev) => (prev === 'A_FAZER' ? 'ALL' : 'A_FAZER'))
+          }
+        />
+        <KpiCard
+          label="Aguardando Aprovação"
+          value={engStats.aguardando}
+          sublabel="Em validação técnica"
+          icon={<RefreshCw className="w-4 h-4" />}
+          tone="info"
+          active={categoryFilter === 'AGUARDANDO'}
+          onClick={() =>
+            setCategoryFilter((prev) => (prev === 'AGUARDANDO' ? 'ALL' : 'AGUARDANDO'))
+          }
+        />
+        <KpiCard
+          label="Concluídos / Aprovados"
+          value={engStats.concluidos}
+          sublabel="Finalizados na engenharia"
+          icon={<CheckCircle2 className="w-4 h-4" />}
+          tone="success"
+          active={categoryFilter === 'FEITOS'}
+          onClick={() =>
+            setCategoryFilter((prev) => (prev === 'FEITOS' ? 'ALL' : 'FEITOS'))
+          }
+        />
+        <KpiCard
+          label="Vistorias Entregues"
+          value={entreguesCount}
+          sublabel={`${naoDisponivelCount} não disponíveis`}
+          icon={<FileSpreadsheet className="w-4 h-4" />}
+          tone="teal"
+          active={vistoriaStatusFilter === 'Entregue'}
+          onClick={
+            !isExecutor
+              ? () =>
+                  setVistoriaStatusFilter((prev) =>
+                    prev === 'Entregue' ? 'ALL' : 'Entregue'
+                  )
+              : undefined
+          }
+        />
       </div>
 
       {/* =====================================================================
@@ -1805,8 +1823,8 @@ export const EngineeringControlTab: React.FC<EngineeringControlTabProps> = ({
                   : 'overflow-x-auto max-h-[72vh] overflow-y-auto w-full min-w-0 max-w-full'
               }
             >
-              <table className="w-full text-left border-collapse">
-                <thead className="sticky top-0 z-20 bg-slate-100 border-b border-slate-200 text-[11px] font-bold text-slate-700">
+              <table className="ameta-table-zebra w-full text-left border-collapse text-[13px]">
+                <thead className="sticky top-0 z-20 bg-slate-50/95 backdrop-blur-xs border-b border-slate-200 text-[11px] uppercase tracking-wider font-semibold text-slate-600">
                   <tr className="whitespace-nowrap">
                     {/* Original TSSR Columns */}
                     {activeOriginalColumns.map((colName) => {
@@ -1815,10 +1833,10 @@ export const EngineeringControlTab: React.FC<EngineeringControlTabProps> = ({
                       return (
                         <th
                           key={colName}
-                          className={`${densityPad} border-r border-slate-200/70 select-none ${
+                          className={`ameta-col-resizable ${densityPad} border-r border-slate-200/70 select-none ${
                             isStickySiteId
-                              ? 'sticky left-0 z-30 bg-slate-100 shadow-[1px_0_0_0_#e2e8f0]'
-                              : 'bg-slate-100'
+                              ? 'sticky left-0 z-30 bg-slate-50 shadow-[1px_0_0_0_#e2e8f0]'
+                              : 'bg-slate-50'
                           }`}
                         >
                           <div className="flex items-center justify-between gap-1.5">
@@ -1904,7 +1922,9 @@ export const EngineeringControlTab: React.FC<EngineeringControlTabProps> = ({
                         <tr
                           key={row.id}
                           onClick={() => setSelectedRowId(row.id)}
-                          className="group hover:bg-blue-50/40 transition-colors whitespace-nowrap cursor-pointer"
+                          className={`group transition-colors duration-150 whitespace-nowrap cursor-pointer ${
+                            selectedRowId === row.id ? 'ameta-table-row-selected' : ''
+                          }`}
                         >
                           {activeOriginalColumns.map((colName) => {
                             const val = getTssrColumnValue(row, colName);
@@ -2046,9 +2066,12 @@ export const EngineeringControlTab: React.FC<EngineeringControlTabProps> = ({
                     <tr>
                       <td
                         colSpan={activeOriginalColumns.length + activeSystemColumns.length}
-                        className="py-12 text-center text-xs text-slate-500"
+                        className="py-6 text-center"
                       >
-                        Nenhum site encontrado com os filtros selecionados.
+                        <EmptyStateCard
+                          title="Nenhum site encontrado com os filtros selecionados."
+                          description="Tente ajustar a pesquisa ou limpar os filtros de coluna."
+                        />
                       </td>
                     </tr>
                   )}

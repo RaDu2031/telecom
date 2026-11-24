@@ -69,27 +69,27 @@ export const GoogleDriveModal: React.FC<GoogleDriveModalProps> = ({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/45 ameta-modal-backdrop p-4"
       onClick={onClose}
     >
       <div
-        className="w-full max-w-xl bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col"
+        className="w-full max-w-xl bg-white rounded-[12px] shadow-2xl border border-slate-200 overflow-hidden flex flex-col ameta-modal-panel"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="px-6 py-4 bg-gradient-to-r from-amber-600 via-orange-600 to-amber-700 text-white flex items-center justify-between">
+        <div className="px-6 py-4 bg-slate-50 border-b border-slate-200 text-slate-900 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center backdrop-blur-xs">
-              <Cloud className="w-6 h-6 text-white" />
+            <div className="w-10 h-10 rounded-[8px] bg-[#223585]/10 border border-[#223585]/20 flex items-center justify-center text-[#223585]">
+              <Cloud className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-base font-bold flex items-center gap-2">
+              <h2 className="text-base font-bold flex items-center gap-2 text-slate-900">
                 <span>Nuvem Firebase</span>
-                <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-white/20 text-white border border-white/30">
+                <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-[6px] bg-emerald-50 text-emerald-700 border border-emerald-200">
                   100% Ativo
                 </span>
               </h2>
-              <p className="text-xs text-amber-100">
+              <p className="text-xs text-slate-500">
                 Projeto: ameta-sistema-teste (Storage & Firestore Integrados)
               </p>
             </div>
@@ -97,7 +97,7 @@ export const GoogleDriveModal: React.FC<GoogleDriveModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="p-1.5 text-amber-200 hover:text-white rounded-lg hover:bg-white/10 transition-colors cursor-pointer"
+            className="p-1.5 text-slate-400 hover:text-slate-700 rounded-[8px] hover:bg-slate-200/70 transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
@@ -105,25 +105,25 @@ export const GoogleDriveModal: React.FC<GoogleDriveModalProps> = ({
 
         {/* Feedback Messages */}
         {errorMsg && (
-          <div className="mx-6 mt-4 p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-center gap-2">
+          <div className="mx-6 mt-4 p-3 rounded-[10px] bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-center gap-2">
             <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />
             <span className="flex-1">{errorMsg}</span>
           </div>
         )}
 
         {successMsg && (
-          <div className="mx-6 mt-4 p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs flex items-center gap-2">
+          <div className="mx-6 mt-4 p-3 rounded-[10px] bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs flex items-center gap-2">
             <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600" />
             <span className="flex-1 font-semibold">{successMsg}</span>
           </div>
         )}
 
         {/* Body Content */}
-        <div className="p-6 space-y-4">
+        <div className="p-6 space-y-4 bg-white">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-1.5">
-              <div className="flex items-center gap-2 text-xs font-bold text-slate-800">
-                <Database className="w-4 h-4 text-amber-600" />
+            <div className="p-4 rounded-[10px] bg-slate-50 border border-slate-200 space-y-1.5">
+              <div className="flex items-center gap-2 text-xs font-bold text-slate-900">
+                <Database className="w-4 h-4 text-[#223585]" />
                 <span>Banco de Dados Firestore</span>
               </div>
               <p className="text-[11px] text-slate-600 leading-relaxed">
@@ -134,9 +134,9 @@ export const GoogleDriveModal: React.FC<GoogleDriveModalProps> = ({
               </div>
             </div>
 
-            <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-1.5">
-              <div className="flex items-center gap-2 text-xs font-bold text-slate-800">
-                <HardDrive className="w-4 h-4 text-amber-600" />
+            <div className="p-4 rounded-[10px] bg-slate-50 border border-slate-200 space-y-1.5">
+              <div className="flex items-center gap-2 text-xs font-bold text-slate-900">
+                <HardDrive className="w-4 h-4 text-[#1E8E8D]" />
                 <span>Firebase Storage (Arquivos)</span>
               </div>
               <p className="text-[11px] text-slate-600 leading-relaxed">
@@ -148,11 +148,11 @@ export const GoogleDriveModal: React.FC<GoogleDriveModalProps> = ({
             </div>
           </div>
 
-          <div className="p-4 rounded-xl bg-amber-50/70 border border-amber-200 space-y-3">
+          <div className="p-4 rounded-[10px] bg-slate-50 border border-slate-200 space-y-3">
             <div className="flex items-center justify-between">
               <div className="space-y-0.5">
-                <h4 className="text-xs font-bold text-amber-950">Sincronização Manual de Emergência</h4>
-                <p className="text-[11px] text-amber-800">
+                <h4 className="text-xs font-bold text-slate-900">Sincronização Manual de Emergência</h4>
+                <p className="text-[11px] text-slate-600">
                   Caso deseje forçar um backup completo de todos os dados agora para a Nuvem Firebase:
                 </p>
               </div>
@@ -161,7 +161,7 @@ export const GoogleDriveModal: React.FC<GoogleDriveModalProps> = ({
               type="button"
               onClick={handleForceFirebaseSync}
               disabled={syncing}
-              className="w-full py-2.5 px-4 bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700 text-white font-bold text-xs rounded-xl shadow-xs transition-all cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50"
+              className="w-full py-2.5 px-4 bg-[#223585] hover:bg-[#1B2A6B] text-white font-bold text-xs rounded-[8px] shadow-xs transition-all cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50"
             >
               <RefreshCw className={`w-4 h-4 ${syncing ? 'animate-spin' : ''}`} />
               <span>{syncing ? 'Sincronizando com o Firebase...' : 'Sincronizar Banco e Arquivos Agora'}</span>
@@ -169,14 +169,14 @@ export const GoogleDriveModal: React.FC<GoogleDriveModalProps> = ({
           </div>
 
           {currentTssrRows.length > 0 && (
-            <div className="pt-2 flex items-center justify-between border-t border-slate-100 text-xs">
+            <div className="pt-2 flex items-center justify-between border-t border-slate-200 text-xs">
               <span className="text-slate-600">
-                Planilha atual em memória: <strong>{currentTssrRows.length} registros</strong>
+                Planilha atual em memória: <strong className="font-mono tabular-nums text-slate-900">{currentTssrRows.length} registros</strong>
               </span>
               <button
                 type="button"
                 onClick={handleExportCurrentTssr}
-                className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                className="px-3.5 py-1.5 bg-white hover:bg-slate-50 border border-slate-200 text-[#223585] font-semibold rounded-[8px] transition-colors flex items-center gap-1.5 cursor-pointer shadow-2xs"
               >
                 <Download className="w-3.5 h-3.5" />
                 <span>Exportar Excel (.XLSX)</span>
@@ -190,7 +190,7 @@ export const GoogleDriveModal: React.FC<GoogleDriveModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-800 font-semibold text-xs rounded-xl transition-colors cursor-pointer"
+            className="px-4 py-2 bg-white border border-slate-200 hover:bg-slate-100 text-slate-700 font-semibold text-xs rounded-[8px] transition-colors cursor-pointer"
           >
             Fechar
           </button>

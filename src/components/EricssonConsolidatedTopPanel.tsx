@@ -119,19 +119,19 @@ export const EricssonConsolidatedTopPanel: React.FC<EricssonConsolidatedTopPanel
   const globalTaxa = globalTotal > 0 ? ((globalFinalizado / globalTotal) * 100).toFixed(1) : '0.0';
 
   return (
-    <div className="bg-white border border-slate-200/90 rounded-2xl p-4 sm:p-5 shadow-xs space-y-4">
+    <div className="bg-white border border-slate-200 rounded-[12px] p-4 sm:p-5 shadow-xs space-y-4">
       {/* Top Header: Title + Active Filter Tag + Global Summary */}
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3.5">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#1E8E8D] to-[#125c5b] text-white flex items-center justify-center shadow-xs shrink-0">
+          <div className="w-10 h-10 rounded-[10px] bg-gradient-to-br from-[#1E8E8D] to-[#125c5b] text-white flex items-center justify-center shadow-xs shrink-0">
             <BarChart3 className="w-5 h-5" />
           </div>
           <div>
             <div className="flex items-center gap-2 flex-wrap">
-              <h2 className="text-sm sm:text-base font-black text-slate-900 tracking-tight">
+              <h2 className="text-sm sm:text-base font-bold text-slate-900 tracking-tight">
                 COMPARATIVO GERAL DAS 6 DOCUMENTAÇÕES
               </h2>
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-teal-50 text-teal-800 border border-teal-200">
+              <span className="px-2 py-0.5 rounded-[6px] text-[10px] font-bold uppercase tracking-wider bg-teal-50 text-[#1E8E8D] border border-teal-200">
                 STATUS REAIS DA PLANILHA
               </span>
             </div>
@@ -143,17 +143,17 @@ export const EricssonConsolidatedTopPanel: React.FC<EricssonConsolidatedTopPanel
 
         {/* Global summary KPI badges */}
         <div className="flex items-center gap-2 flex-wrap">
-          <div className="px-3 py-1.5 rounded-xl bg-slate-50 border border-slate-200 flex items-center gap-2">
+          <div className="px-3 py-1.5 rounded-[8px] bg-[#F4F6FA] border border-slate-200 flex items-center gap-2">
             <Layers className="w-4 h-4 text-slate-500" />
             <span className="text-xs text-slate-600 font-medium">
-              Total Demandas: <strong className="text-slate-900 font-mono">{globalTotal}</strong>
+              Total Demandas: <strong className="text-slate-900 font-mono tabular-nums">{globalTotal}</strong>
             </span>
           </div>
 
-          <div className="px-3 py-1.5 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center gap-2">
+          <div className="px-3 py-1.5 rounded-[8px] bg-emerald-50 border border-emerald-200 flex items-center gap-2">
             <CheckCircle2 className="w-4 h-4 text-emerald-600" />
             <span className="text-xs text-emerald-800 font-medium">
-              Finalizados: <strong className="text-emerald-950 font-mono">{globalFinalizado}</strong> ({globalTaxa}%)
+              Finalizados: <strong className="text-emerald-950 font-mono tabular-nums">{globalFinalizado}</strong> ({globalTaxa}%)
             </span>
           </div>
 
@@ -161,7 +161,7 @@ export const EricssonConsolidatedTopPanel: React.FC<EricssonConsolidatedTopPanel
             <button
               type="button"
               onClick={onClearFilter}
-              className="px-3 py-1.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer"
+              className="px-3 py-1.5 rounded-[8px] bg-[#1E8E8D] hover:bg-[#177372] text-white text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer"
               title="Limpar filtros aplicados pelo comparativo"
             >
               <Filter className="w-3.5 h-3.5" />
@@ -265,10 +265,10 @@ export const EricssonConsolidatedTopPanel: React.FC<EricssonConsolidatedTopPanel
           return (
             <div
               key={doc.key}
-              className={`rounded-2xl border p-3.5 transition-all flex flex-col justify-between space-y-3 relative ${
+              className={`rounded-[12px] border p-3.5 transition-all flex flex-col justify-between space-y-3 relative ${
                 selectedDocGroup === doc.key
                   ? 'bg-teal-50/50 border-[#1E8E8D] shadow-sm ring-1 ring-[#1E8E8D]/30'
-                  : 'bg-white hover:bg-slate-50/70 border-slate-200/90 shadow-2xs'
+                  : 'bg-white hover:bg-slate-50/70 border-slate-200 shadow-2xs'
               }`}
             >
               {/* Card Header */}

@@ -28,6 +28,7 @@ import {
   FileCheck,
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
+import { StatusBadge, TableSkeleton, EmptyStateCard } from './ui';
 import {
   AmetaUser,
   UserRole,
@@ -1048,22 +1049,22 @@ export const EricssonEngineeringTab: React.FC<EricssonEngineeringTabProps> = ({
       {/* =====================================================================
           1. TOP ACTION & METADATA BAR (PADRÃO VISUAL NOKIA / EXCEL ONLINE)
          ===================================================================== */}
-      <div className="bg-white border border-slate-200/90 rounded-2xl p-4 sm:p-5 shadow-xs space-y-3.5">
+      <div className="bg-white border border-slate-200 rounded-[12px] p-4 sm:p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04)] space-y-3.5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           {/* Platform Title */}
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-[#1E8E8D]/15 border border-[#1E8E8D]/30 flex items-center justify-center text-[#1E8E8D] shadow-2xs shrink-0">
+            <div className="w-10 h-10 rounded-[10px] bg-[#EEFAFA] border border-[#AAE5E5] flex items-center justify-center text-[#1E8E8D] shrink-0">
               <FileSpreadsheet className="w-5 h-5" />
             </div>
             <div>
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider bg-teal-100 text-teal-900 border border-teal-300">
+                <span className="px-2 py-0.5 rounded-[6px] text-[10px] font-bold uppercase tracking-wider bg-[#EEFAFA] text-[#177170] border border-[#AAE5E5]">
                   {isUserRestricted
                     ? 'DEMANDAS ENGENHARIA ERICSSON CLARO'
                     : 'ERICSSON · ENGENHARIA EXCLUSIVA'}
                 </span>
                 <span className="text-slate-300">•</span>
-                <h1 className="text-sm font-bold text-slate-900">
+                <h1 className="text-sm font-bold text-slate-900 tracking-tight">
                   {isUserRestricted
                     ? 'Demandas da Planilha de Engenharia Ericsson Claro'
                     : 'Planilha de Documentação & Planejamento Ericsson'}
@@ -1083,9 +1084,9 @@ export const EricssonEngineeringTab: React.FC<EricssonEngineeringTabProps> = ({
             {isRealGestor && (
               <label
                 title="Destino: Ericsson – Engenharia"
-                className="px-3.5 py-2 bg-emerald-700 hover:bg-emerald-600 text-white text-xs font-bold rounded-xl transition-all shadow-xs flex items-center gap-1.5 cursor-pointer"
+                className="px-3.5 py-2 bg-[#223585] hover:bg-[#1B2A6B] text-white text-xs font-semibold rounded-[8px] transition-all shadow-xs flex items-center gap-1.5 cursor-pointer"
               >
-                <Upload className="w-3.5 h-3.5 text-emerald-200" />
+                <Upload className="w-3.5 h-3.5 text-blue-200" />
                 <span>Carregar planilha</span>
                 <input
                   type="file"
@@ -1097,17 +1098,14 @@ export const EricssonEngineeringTab: React.FC<EricssonEngineeringTabProps> = ({
             )}
 
             {!isUserRestricted && (
-              <>
-                {/* + Nova Linha */}
-                <button
-                  type="button"
-                  onClick={handleOpenNewRowModal}
-                  className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold rounded-xl transition-all flex items-center gap-1.5 cursor-pointer border border-slate-200"
-                >
-                  <Plus className="w-3.5 h-3.5 text-teal-700" />
-                  <span>+ Nova Linha</span>
-                </button>
-              </>
+              <button
+                type="button"
+                onClick={handleOpenNewRowModal}
+                className="px-3 py-2 bg-[#F8FAFC] hover:bg-slate-100 text-slate-800 text-xs font-semibold rounded-[8px] transition-all flex items-center gap-1.5 cursor-pointer border border-slate-200"
+              >
+                <Plus className="w-3.5 h-3.5 text-[#1E8E8D]" />
+                <span>+ Nova Linha</span>
+              </button>
             )}
 
             {/* Export XLSX */}
@@ -1120,7 +1118,7 @@ export const EricssonEngineeringTab: React.FC<EricssonEngineeringTabProps> = ({
                   `Engenharia_Ericsson_${new Date().toISOString().slice(0, 10)}.xlsx`
                 )
               }
-              className="px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl transition-all shadow-xs flex items-center gap-1.5 cursor-pointer"
+              className="px-3 py-2 bg-[#1E8E8D] hover:bg-[#177170] text-white text-xs font-semibold rounded-[8px] transition-all shadow-xs flex items-center gap-1.5 cursor-pointer"
               title="Exportar dados filtrados para Excel"
             >
               <Download className="w-3.5 h-3.5" />
@@ -1137,7 +1135,7 @@ export const EricssonEngineeringTab: React.FC<EricssonEngineeringTabProps> = ({
                   `Engenharia_Ericsson_${new Date().toISOString().slice(0, 10)}.csv`
                 )
               }
-              className="px-2.5 py-2 bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-semibold rounded-xl transition-all border border-slate-200 cursor-pointer"
+              className="px-2.5 py-2 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold rounded-[8px] transition-all border border-slate-200 cursor-pointer"
               title="Exportar dados para CSV"
             >
               <span>CSV</span>
@@ -1147,7 +1145,7 @@ export const EricssonEngineeringTab: React.FC<EricssonEngineeringTabProps> = ({
 
         {/* Sync Info / Last Update */}
         {meta.lastSyncAt && !isUserRestricted && (
-          <div className="flex flex-wrap items-center justify-between text-[11px] text-slate-400 font-mono border-t border-slate-100 pt-2">
+          <div className="flex flex-wrap items-center justify-between text-[11px] text-slate-500 font-mono tabular-nums border-t border-slate-100 pt-2">
             <span>
               Arquivo de origem: <strong>{meta.sourceFileName || 'AMETA_REPORT DOCUMENTACAO_PLANEJAMENTO_WXX.xlsx'}</strong>
             </span>
@@ -1210,7 +1208,7 @@ export const EricssonEngineeringTab: React.FC<EricssonEngineeringTabProps> = ({
       {/* =====================================================================
           3. SEARCH, FILTERS & TABLE CONTROLS BAR
          ===================================================================== */}
-      <div className="bg-white border border-slate-200/90 rounded-2xl p-4 shadow-xs space-y-3">
+      <div className="bg-white border border-slate-200 rounded-[12px] p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04)] space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
           {/* Search Box */}
           <div className="relative flex-1 min-w-[240px] max-w-md">
@@ -1220,7 +1218,7 @@ export const EricssonEngineeringTab: React.FC<EricssonEngineeringTabProps> = ({
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Buscar por Intervenção, Site A, Site B, Tipo doc, Status, Executor..."
-              className="w-full pl-9 pr-8 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-teal-500 focus:bg-white transition-all shadow-inner"
+              className="w-full pl-9 pr-8 py-2 bg-[#F8FAFC] border border-slate-200 rounded-[8px] text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-[#223585] focus:ring-2 focus:ring-[#223585]/15 focus:bg-white transition-all"
             />
             {searchQuery && (
               <button
@@ -1239,7 +1237,7 @@ export const EricssonEngineeringTab: React.FC<EricssonEngineeringTabProps> = ({
             <select
               value={regionalFilter}
               onChange={(e) => setRegionalFilter(e.target.value)}
-              className="px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-xl font-medium text-slate-700 focus:outline-none focus:border-teal-500 cursor-pointer"
+              className="px-2.5 py-1.5 bg-[#F8FAFC] border border-slate-200 rounded-[8px] font-medium text-slate-700 focus:outline-none focus:border-[#223585] cursor-pointer"
             >
               <option value="ALL">Regional: Todas ({distinctRegionais.length})</option>
               {distinctRegionais.map((r) => (
@@ -1253,7 +1251,7 @@ export const EricssonEngineeringTab: React.FC<EricssonEngineeringTabProps> = ({
             <select
               value={tipoSiteFilter}
               onChange={(e) => setTipoSiteFilter(e.target.value)}
-              className="px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-xl font-medium text-slate-700 focus:outline-none focus:border-teal-500 cursor-pointer"
+              className="px-2.5 py-1.5 bg-[#F8FAFC] border border-slate-200 rounded-[8px] font-medium text-slate-700 focus:outline-none focus:border-[#223585] cursor-pointer"
             >
               <option value="ALL">Tipo Site: Todos</option>
               {distinctTipoSites.map((ts) => (
@@ -1267,7 +1265,7 @@ export const EricssonEngineeringTab: React.FC<EricssonEngineeringTabProps> = ({
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-xl font-medium text-slate-700 focus:outline-none focus:border-teal-500 cursor-pointer max-w-[170px]"
+              className="px-2.5 py-1.5 bg-[#F8FAFC] border border-slate-200 rounded-[8px] font-medium text-slate-700 focus:outline-none focus:border-[#223585] cursor-pointer max-w-[170px]"
             >
               <option value="ALL">
                 Status: Todos {selectedDocGroup ? `(${selectedDocGroup})` : ''}
@@ -1283,7 +1281,7 @@ export const EricssonEngineeringTab: React.FC<EricssonEngineeringTabProps> = ({
             <select
               value={executorFilter}
               onChange={(e) => setExecutorFilter(e.target.value)}
-              className="px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-xl font-medium text-slate-700 focus:outline-none focus:border-teal-500 max-w-[160px] cursor-pointer"
+              className="px-2.5 py-1.5 bg-[#F8FAFC] border border-slate-200 rounded-[8px] font-medium text-slate-700 focus:outline-none focus:border-[#223585] max-w-[160px] cursor-pointer"
             >
               <option value="ALL">Executor: Todos</option>
               {distinctExecutores.map((ex) => (
@@ -1297,7 +1295,7 @@ export const EricssonEngineeringTab: React.FC<EricssonEngineeringTabProps> = ({
             <select
               value={filterMeta}
               onChange={(e) => setFilterMeta(e.target.value)}
-              className="px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-xl font-medium text-slate-700 focus:outline-none focus:border-teal-500 max-w-[160px] cursor-pointer"
+              className="px-2.5 py-1.5 bg-[#F8FAFC] border border-slate-200 rounded-[8px] font-medium text-slate-700 focus:outline-none focus:border-[#223585] max-w-[160px] cursor-pointer"
             >
               <option value="ALL">Meta: Todas</option>
               {metaSelectOptions.map((opt) => (
@@ -1310,19 +1308,19 @@ export const EricssonEngineeringTab: React.FC<EricssonEngineeringTabProps> = ({
 
             {/* View Mode Toggle: All 51 Columns vs Essential (or Executor badge) */}
             {isExecutor ? (
-              <div className="flex items-center gap-1.5 px-3 py-1.5 bg-teal-50 text-teal-800 rounded-xl border border-teal-200 text-xs font-bold shadow-2xs">
-                <CheckCircle2 className="w-3.5 h-3.5 text-teal-600" />
-                <span>Colunas do Executor ({displayColumns.length})</span>
+              <div className="flex items-center gap-1.5 px-3 py-1.5 bg-[#EEFAFA] text-[#177170] rounded-[8px] border border-[#AAE5E5] text-xs font-bold">
+                <CheckCircle2 className="w-3.5 h-3.5 text-[#1E8E8D]" />
+                <span>Colunas do Executor (<span className="font-mono tabular-nums">{displayColumns.length}</span>)</span>
               </div>
             ) : (
-              <div className="flex items-center p-0.5 bg-slate-100 rounded-xl border border-slate-200">
+              <div className="flex items-center p-0.5 bg-[#F4F6FA] rounded-[8px] border border-slate-200">
                 <button
                   type="button"
                   onClick={() => setViewMode('all')}
-                  className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  className={`px-2.5 py-1 rounded-[6px] text-xs font-bold transition-all cursor-pointer ${
                     viewMode === 'all'
-                      ? 'bg-white text-slate-900 shadow-2xs'
-                      : 'text-slate-500 hover:text-slate-800'
+                      ? 'bg-[#223585] text-white shadow-xs'
+                      : 'text-slate-600 hover:text-slate-900'
                   }`}
                   title="Exibir todas as 51 colunas exatas da planilha"
                 >
@@ -1331,10 +1329,10 @@ export const EricssonEngineeringTab: React.FC<EricssonEngineeringTabProps> = ({
                 <button
                   type="button"
                   onClick={() => setViewMode('essential')}
-                  className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  className={`px-2.5 py-1 rounded-[6px] text-xs font-bold transition-all cursor-pointer ${
                     viewMode === 'essential'
-                      ? 'bg-white text-slate-900 shadow-2xs'
-                      : 'text-slate-500 hover:text-slate-800'
+                      ? 'bg-[#223585] text-white shadow-xs'
+                      : 'text-slate-600 hover:text-slate-900'
                   }`}
                   title="Visualização simplificada das principais colunas"
                 >
@@ -1524,8 +1522,8 @@ export const EricssonEngineeringTab: React.FC<EricssonEngineeringTabProps> = ({
         {/* Counter indicator */}
         <div className="flex items-center justify-between text-xs text-slate-500 pt-1">
           <span>
-            Exibindo <strong>{filteredRows.length.toLocaleString('pt-BR')}</strong> de{' '}
-            <strong className="text-slate-900 font-mono">
+            Exibindo <strong className="font-mono tabular-nums text-slate-900">{filteredRows.length.toLocaleString('pt-BR')}</strong> de{' '}
+            <strong className="text-slate-900 font-mono tabular-nums">
               {(isUserRestricted ? assignedRowsForUser.length : rows.length).toLocaleString('pt-BR')}
             </strong>{' '}
             linhas da planilha Ericsson.
@@ -1535,7 +1533,7 @@ export const EricssonEngineeringTab: React.FC<EricssonEngineeringTabProps> = ({
             <select
               value={pageSize}
               onChange={(e) => setPageSize(Number(e.target.value))}
-              className="px-2 py-0.5 bg-slate-100 border border-slate-200 rounded-md font-mono text-xs"
+              className="px-2 py-0.5 bg-[#F8FAFC] border border-slate-200 rounded-[6px] font-mono tabular-nums text-xs"
             >
               <option value={50}>50</option>
               <option value={100}>100</option>
@@ -1549,108 +1547,189 @@ export const EricssonEngineeringTab: React.FC<EricssonEngineeringTabProps> = ({
       {/* =====================================================================
           4. INTERACTIVE SPREADSHEET TABLE
          ===================================================================== */}
-      <div className="bg-white border border-slate-200/90 rounded-2xl shadow-xs overflow-hidden">
-        <div className="overflow-x-auto max-h-[640px]">
-          <table className="w-full text-xs border-collapse">
-            <thead className="bg-slate-900 text-white sticky top-0 z-20 select-none">
-              <tr>
-                {/* Columns from the spreadsheet in exact order (scoped to 11 columns for executors) */}
-                {displayColumns.map((colName) => {
-                  const isSorted = sortColumn === colName;
-                  return (
-                    <th
-                      key={colName}
-                      onClick={() => handleSortColumn(colName)}
-                      className="px-3 py-2.5 text-left font-bold border-b border-slate-800 whitespace-nowrap min-w-[110px] cursor-pointer hover:bg-slate-800 transition-colors select-none group"
-                      title={`Clique para ordenar por ${colName}`}
-                    >
-                      <div className="flex items-center gap-1.5">
-                        <span>{colName.replace(/\r?\n/g, ' ')}</span>
-                        <span className="text-slate-400 group-hover:text-white shrink-0">
-                          {isSorted ? (
-                            sortDirection === 'asc' ? (
-                              <ArrowUp className="w-3.5 h-3.5 text-teal-400" />
+      <div className="bg-white border border-slate-200 rounded-[12px] shadow-[0_1px_2px_rgba(15,23,42,0.04)] overflow-hidden">
+        {isLoading ? (
+          <TableSkeleton rows={8} cols={6} />
+        ) : (
+          <div className="overflow-x-auto max-h-[640px]">
+            <table className="w-full text-[13px] border-collapse ameta-table-zebra">
+              <thead className="bg-[#0B1530] text-white sticky top-0 z-20 select-none text-[11px] uppercase tracking-wider">
+                <tr>
+                  {/* Columns from the spreadsheet in exact order (scoped to 11 columns for executors) */}
+                  {displayColumns.map((colName) => {
+                    const isSorted = sortColumn === colName;
+                    return (
+                      <th
+                        key={colName}
+                        onClick={() => handleSortColumn(colName)}
+                        className="px-3 py-2.5 text-left font-bold border-b border-slate-800 whitespace-nowrap min-w-[110px] cursor-pointer hover:bg-[#122147] transition-colors select-none group ameta-col-resizable"
+                        title={`Clique para ordenar por ${colName}`}
+                      >
+                        <div className="flex items-center gap-1.5">
+                          <span>{colName.replace(/\r?\n/g, ' ')}</span>
+                          <span className="text-slate-400 group-hover:text-white shrink-0">
+                            {isSorted ? (
+                              sortDirection === 'asc' ? (
+                                <ArrowUp className="w-3.5 h-3.5 text-[#41B5B4]" />
+                              ) : (
+                                <ArrowDown className="w-3.5 h-3.5 text-[#41B5B4]" />
+                              )
                             ) : (
-                              <ArrowDown className="w-3.5 h-3.5 text-teal-400" />
-                            )
-                          ) : (
-                            <ArrowUpDown className="w-3 h-3 opacity-30 group-hover:opacity-100" />
-                          )}
-                        </span>
-                      </div>
-                    </th>
-                  );
-                })}
+                              <ArrowUpDown className="w-3 h-3 opacity-30 group-hover:opacity-100" />
+                            )}
+                          </span>
+                        </div>
+                      </th>
+                    );
+                  })}
 
-                {/* Actions */}
-                <th className="px-3 py-2.5 text-center font-bold border-b border-slate-800 sticky right-0 bg-slate-900 z-30 min-w-[90px]">
-                  Ações
-                </th>
-              </tr>
-            </thead>
-
-            <tbody className="divide-y divide-slate-100">
-              {isLoading ? (
-                <tr>
-                  <td colSpan={displayColumns.length + 1} className="p-12 text-center text-slate-400">
-                    <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-teal-600" />
-                    <p className="font-semibold text-slate-700">Carregando dados da Engenharia Ericsson...</p>
-                  </td>
+                  {/* Actions */}
+                  <th className="px-3 py-2.5 text-center font-bold border-b border-slate-800 sticky right-0 bg-[#0B1530] z-30 min-w-[90px]">
+                    Ações
+                  </th>
                 </tr>
-              ) : paginatedRows.length === 0 ? (
-                <tr>
-                  <td colSpan={displayColumns.length + 1} className="p-12 text-center text-slate-400">
-                    <FileSpreadsheet className="w-8 h-8 mx-auto mb-2 text-slate-300" />
-                    <p className="font-bold text-slate-700 text-sm">Nenhuma linha encontrada</p>
-                    <p className="text-xs text-slate-400 mt-1">
-                      Ajuste os filtros de busca ou aguarde novas demandas atribuídas.
-                    </p>
-                  </td>
-                </tr>
-              ) : (
-                paginatedRows.map((row) => {
-                  const docGroup = classifyEricssonDocGroup(row.tipoDoc || row.fields?.['Tipo doc'] || '');
-                  const statusCat = classifyEricssonStatus(row.status || row.fields?.['Status'] || '');
+              </thead>
 
-                  return (
-                    <tr
-                      key={row.id}
-                      onClick={() => setSelectedDrawerRow(row)}
-                      className="hover:bg-teal-50/60 hover:shadow-2xs transition-all group cursor-pointer"
-                      title="Clique para abrir detalhes completos do site"
-                    >
-                      {/* Columns */}
-                      {displayColumns.map((colName) => {
-                        const cellVal = row.fields?.[colName] ?? row.fields?.[colName.replace(/\r?\n/g, ' ')] ?? '';
+              <tbody className="divide-y divide-slate-100">
+                {paginatedRows.length === 0 ? (
+                  <tr>
+                    <td colSpan={displayColumns.length + 1} className="p-0">
+                      <EmptyStateCard
+                        icon={<FileSpreadsheet className="w-6 h-6" />}
+                        title="Nenhuma linha encontrada"
+                        description="Ajuste os filtros de busca ou aguarde novas demandas atribuídas."
+                      />
+                    </td>
+                  </tr>
+                ) : (
+                  paginatedRows.map((row) => {
+                    const docGroup = classifyEricssonDocGroup(row.tipoDoc || row.fields?.['Tipo doc'] || '');
+                    const isRowSelected = selectedDrawerRow?.id === row.id;
 
-                        // Special handling for Meta column: inline editable select for authorized users
-                        if (colName === 'Meta' || colName.trim().toLowerCase() === 'meta') {
-                          const currentMetaVal = (row.meta || row.fields?.['Meta'] || row.fields?.['META'] || '').trim();
-                          if (canEditMeta) {
+                    return (
+                      <tr
+                        key={row.id}
+                        onClick={() => setSelectedDrawerRow(row)}
+                        className={`transition-colors group cursor-pointer ${
+                          isRowSelected ? 'ameta-table-row-selected' : ''
+                        }`}
+                        title="Clique para abrir detalhes completos do site"
+                      >
+                        {/* Columns */}
+                        {displayColumns.map((colName) => {
+                          const cellVal = row.fields?.[colName] ?? row.fields?.[colName.replace(/\r?\n/g, ' ')] ?? '';
+
+                          // Special handling for Meta column: inline editable select for authorized users
+                          if (colName === 'Meta' || colName.trim().toLowerCase() === 'meta') {
+                            const currentMetaVal = (row.meta || row.fields?.['Meta'] || row.fields?.['META'] || '').trim();
+                            if (canEditMeta) {
+                              return (
+                                <td
+                                  key={colName}
+                                  className="px-2 py-1.5 whitespace-nowrap"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <select
+                                    value={currentMetaVal}
+                                    onChange={(e) => handleInlineMetaChange(row, e.target.value)}
+                                    className="text-xs bg-[#F8FAFC] hover:bg-white focus:bg-white border border-slate-300 focus:border-[#223585] rounded-[6px] px-2 py-1 font-medium text-slate-800 focus:ring-2 focus:ring-[#223585]/15 outline-none cursor-pointer max-w-[140px] truncate"
+                                    title="Alterar Meta"
+                                  >
+                                    <option value="">—</option>
+                                    {metaSelectOptions.map((opt) => (
+                                      <option key={opt} value={opt}>
+                                        {opt}
+                                      </option>
+                                    ))}
+                                    {currentMetaVal &&
+                                      currentMetaVal !== '—' &&
+                                      !metaSelectOptions.some((o) => o.toLowerCase() === currentMetaVal.toLowerCase()) && (
+                                        <option value={currentMetaVal}>{currentMetaVal}</option>
+                                      )}
+                                  </select>
+                                </td>
+                              );
+                            }
+
                             return (
                               <td
                                 key={colName}
-                                className="px-2 py-1.5 whitespace-nowrap"
-                                onClick={(e) => e.stopPropagation()}
+                                className="px-3 py-2 whitespace-nowrap text-slate-700 max-w-[140px] truncate font-medium"
+                                title={String(currentMetaVal || cellVal)}
                               >
-                                <select
-                                  value={currentMetaVal}
-                                  onChange={(e) => handleInlineMetaChange(row, e.target.value)}
-                                  className="text-xs bg-slate-50 hover:bg-white focus:bg-white border border-slate-300 focus:border-blue-500 rounded px-2 py-1 font-medium text-slate-800 shadow-2xs focus:ring-1 focus:ring-blue-500 outline-none cursor-pointer max-w-[140px] truncate"
-                                  title="Alterar Meta"
+                                {currentMetaVal || cellVal || '—'}
+                              </td>
+                            );
+                          }
+
+                          // Special badge styling for Tipo doc
+                          if (colName === 'Tipo doc' && cellVal) {
+                            return (
+                              <td key={colName} className="px-3 py-2 whitespace-nowrap">
+                                <span
+                                  className={`px-2 py-0.5 rounded-[6px] text-[10px] font-bold ${
+                                    docGroup === 'WR'
+                                      ? 'bg-indigo-50 text-indigo-700 border border-indigo-200'
+                                      : docGroup === 'QRF'
+                                      ? 'bg-cyan-50 text-cyan-700 border border-cyan-200'
+                                      : docGroup === 'PPI'
+                                      ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                      : docGroup === 'BOQ'
+                                      ? 'bg-amber-50 text-amber-800 border border-amber-200'
+                                      : docGroup === 'SMART'
+                                      ? 'bg-violet-50 text-violet-700 border border-violet-200'
+                                      : docGroup === 'SDC'
+                                      ? 'bg-rose-50 text-rose-700 border border-rose-200'
+                                      : 'bg-slate-100 text-slate-700'
+                                  }`}
                                 >
-                                  <option value="">—</option>
-                                  {metaSelectOptions.map((opt) => (
-                                    <option key={opt} value={opt}>
-                                      {opt}
-                                    </option>
-                                  ))}
-                                  {currentMetaVal &&
-                                    currentMetaVal !== '—' &&
-                                    !metaSelectOptions.some((o) => o.toLowerCase() === currentMetaVal.toLowerCase()) && (
-                                      <option value={currentMetaVal}>{currentMetaVal}</option>
-                                    )}
-                                </select>
+                                  {cellVal}
+                                </span>
+                              </td>
+                            );
+                          }
+
+                          // Special badge styling for Status
+                          if (colName === 'Status' && cellVal) {
+                            return (
+                              <td key={colName} className="px-3 py-2 whitespace-nowrap">
+                                <StatusBadge label={String(cellVal)} />
+                              </td>
+                            );
+                          }
+
+                          if (colName === 'EXECUTOR') {
+                            const exVal =
+                              cellVal ||
+                              row.executor ||
+                              row.fields?.['EXECUTOR WR'] ||
+                              row.fields?.['EXECUTOR QRF'] ||
+                              row.fields?.['EXECUTOR PPI'] ||
+                              row.fields?.['Executor'] ||
+                              '';
+                            return (
+                              <td
+                                key={colName}
+                                className="px-3 py-2 whitespace-nowrap text-slate-700 max-w-[200px] truncate"
+                                title={String(exVal || '')}
+                              >
+                                {exVal ? (
+                                  <span className="font-semibold text-slate-900">{exVal}</span>
+                                ) : (
+                                  <span className="text-slate-400 italic">—</span>
+                                )}
+                              </td>
+                            );
+                          }
+
+                          if (colName === 'Intervencao Claro') {
+                            return (
+                              <td
+                                key={colName}
+                                className="px-3 py-2 whitespace-nowrap font-mono tabular-nums font-bold text-[#223585] max-w-[200px] truncate"
+                                title={String(cellVal || row.intervencaoClaro || '')}
+                              >
+                                {cellVal || row.intervencaoClaro || '—'}
                               </td>
                             );
                           }
@@ -1658,158 +1737,64 @@ export const EricssonEngineeringTab: React.FC<EricssonEngineeringTabProps> = ({
                           return (
                             <td
                               key={colName}
-                              className="px-3 py-2 whitespace-nowrap text-slate-700 max-w-[140px] truncate font-medium"
-                              title={String(currentMetaVal || cellVal)}
+                              className="px-3 py-2 whitespace-nowrap text-slate-700 max-w-[200px] truncate tabular-nums"
+                              title={String(cellVal)}
                             >
-                              {currentMetaVal || cellVal || '—'}
+                              {cellVal || '—'}
                             </td>
                           );
-                        }
+                        })}
 
-                        // Special badge styling for Tipo doc
-                        if (colName === 'Tipo doc' && cellVal) {
-                          return (
-                            <td key={colName} className="px-3 py-2 whitespace-nowrap">
-                              <span
-                                className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                                  docGroup === 'WR'
-                                    ? 'bg-indigo-50 text-indigo-700 border border-indigo-200'
-                                    : docGroup === 'QRF'
-                                    ? 'bg-cyan-50 text-cyan-700 border border-cyan-200'
-                                    : docGroup === 'PPI'
-                                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                                    : docGroup === 'BOQ'
-                                    ? 'bg-amber-50 text-amber-800 border border-amber-200'
-                                    : docGroup === 'SMART'
-                                    ? 'bg-violet-50 text-violet-700 border border-violet-200'
-                                    : docGroup === 'SDC'
-                                    ? 'bg-rose-50 text-rose-700 border border-rose-200'
-                                    : 'bg-slate-100 text-slate-700'
-                                }`}
-                              >
-                                {cellVal}
-                              </span>
-                            </td>
-                          );
-                        }
-
-                        // Special badge styling for Status
-                        if (colName === 'Status' && cellVal) {
-                          return (
-                            <td key={colName} className="px-3 py-2 whitespace-nowrap">
-                              <span
-                                className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                                  statusCat === 'Finalizado'
-                                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                                    : statusCat === 'Em produção'
-                                    ? 'bg-blue-50 text-blue-700 border border-blue-200'
-                                    : statusCat === 'Dúvida'
-                                    ? 'bg-purple-50 text-purple-700 border border-purple-200'
-                                    : 'bg-amber-50 text-amber-800 border border-amber-200'
-                                }`}
-                              >
-                                {cellVal}
-                              </span>
-                            </td>
-                          );
-                        }
-
-                        if (colName === 'EXECUTOR') {
-                          const exVal =
-                            cellVal ||
-                            row.executor ||
-                            row.fields?.['EXECUTOR WR'] ||
-                            row.fields?.['EXECUTOR QRF'] ||
-                            row.fields?.['EXECUTOR PPI'] ||
-                            row.fields?.['Executor'] ||
-                            '';
-                          return (
-                            <td
-                              key={colName}
-                              className="px-3 py-2 whitespace-nowrap text-slate-700 max-w-[200px] truncate"
-                              title={String(exVal || '')}
-                            >
-                              {exVal ? (
-                                <span className="font-semibold text-slate-900">{exVal}</span>
-                              ) : (
-                                <span className="text-slate-400 italic">—</span>
-                              )}
-                            </td>
-                          );
-                        }
-
-                        if (colName === 'Intervencao Claro') {
-                          return (
-                            <td
-                              key={colName}
-                              className="px-3 py-2 whitespace-nowrap font-bold text-slate-900 max-w-[200px] truncate"
-                              title={String(cellVal || row.intervencaoClaro || '')}
-                            >
-                              {cellVal || row.intervencaoClaro || '—'}
-                            </td>
-                          );
-                        }
-
-                        return (
-                          <td
-                            key={colName}
-                            className="px-3 py-2 whitespace-nowrap text-slate-700 max-w-[200px] truncate"
-                            title={String(cellVal)}
-                          >
-                            {cellVal || '—'}
-                          </td>
-                        );
-                      })}
-
-                      {/* Row Actions */}
-                      <td className="px-3 py-2 text-center whitespace-nowrap sticky right-0 bg-white group-hover:bg-slate-50 transition-colors shadow-l">
-                        <div className="flex items-center justify-center gap-1">
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleOpenEditRowModal(row);
-                            }}
-                            className="p-1 text-slate-400 hover:text-blue-600 rounded hover:bg-slate-100 cursor-pointer"
-                            title="Editar linha"
-                          >
-                            <Edit3 className="w-3.5 h-3.5" />
-                          </button>
-                          {!isUserRestricted && (
+                        {/* Row Actions */}
+                        <td className="px-3 py-2 text-center whitespace-nowrap sticky right-0 bg-white group-hover:bg-[#F0F5FF] transition-colors">
+                          <div className="flex items-center justify-center gap-1">
                             <button
                               type="button"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                handleDeleteRow(row.id);
+                                handleOpenEditRowModal(row);
                               }}
-                              className="p-1 text-slate-400 hover:text-red-600 rounded hover:bg-slate-100 cursor-pointer"
-                              title="Excluir linha"
+                              className="p-1 text-slate-400 hover:text-[#223585] rounded-[6px] hover:bg-slate-100 cursor-pointer transition-colors"
+                              title="Editar linha"
                             >
-                              <Trash2 className="w-3.5 h-3.5" />
+                              <Edit3 className="w-3.5 h-3.5" />
                             </button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
+                            {!isUserRestricted && (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDeleteRow(row.id);
+                                }}
+                                className="p-1 text-slate-400 hover:text-rose-600 rounded-[6px] hover:bg-rose-50 cursor-pointer transition-colors"
+                                title="Excluir linha"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
 
         {/* Pagination Bar */}
-        <div className="px-4 py-3 bg-slate-50 border-t border-slate-200 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-600">
+        <div className="px-4 py-3 bg-[#F8FAFC] border-t border-slate-200 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-600">
           <div>
-            Página <strong className="font-mono">{page}</strong> de{' '}
-            <strong className="font-mono">{totalPages}</strong>
+            Página <strong className="font-mono tabular-nums">{page}</strong> de{' '}
+            <strong className="font-mono tabular-nums">{totalPages}</strong>
           </div>
           <div className="flex items-center gap-1.5">
             <button
               type="button"
               onClick={() => setPage((p) => Math.max(1, p - 1))}
               disabled={page <= 1}
-              className="px-3 py-1.5 rounded-lg border border-slate-200 bg-white font-semibold disabled:opacity-40 cursor-pointer hover:bg-slate-100 flex items-center gap-1"
+              className="px-3 py-1.5 rounded-[8px] border border-slate-200 bg-white font-semibold disabled:opacity-40 cursor-pointer hover:bg-slate-100 flex items-center gap-1 transition-colors"
             >
               <ChevronLeft className="w-3.5 h-3.5" />
               <span>Anterior</span>
@@ -1818,7 +1803,7 @@ export const EricssonEngineeringTab: React.FC<EricssonEngineeringTabProps> = ({
               type="button"
               onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
               disabled={page >= totalPages}
-              className="px-3 py-1.5 rounded-lg border border-slate-200 bg-white font-semibold disabled:opacity-40 cursor-pointer hover:bg-slate-100 flex items-center gap-1"
+              className="px-3 py-1.5 rounded-[8px] border border-slate-200 bg-white font-semibold disabled:opacity-40 cursor-pointer hover:bg-slate-100 flex items-center gap-1 transition-colors"
             >
               <span>Próxima</span>
               <ChevronRight className="w-3.5 h-3.5" />
@@ -1831,10 +1816,10 @@ export const EricssonEngineeringTab: React.FC<EricssonEngineeringTabProps> = ({
           6. MODAL: NOVA LINHA / EDITAR LINHA
          ===================================================================== */}
       {(isNewRowModalOpen || editingRow) && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-white rounded-2xl max-w-xl w-full p-5 space-y-4 shadow-xl border border-slate-200 my-8">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h3 className="text-sm font-bold text-slate-900">
+        <div className="ameta-modal-backdrop fixed inset-0 z-50 bg-[#0B1530]/45 backdrop-blur-[2px] flex items-center justify-center p-4 overflow-y-auto">
+          <div className="ameta-modal-panel bg-white rounded-[12px] max-w-xl w-full overflow-hidden border border-slate-200 my-8">
+            <div className="px-5 py-3.5 bg-[#0B1530] text-white flex items-center justify-between">
+              <h3 className="text-sm font-bold">
                 {editingRow ? 'Editar Linha da Engenharia Ericsson' : '+ Nova Linha (Engenharia Ericsson)'}
               </h3>
               <button
@@ -1843,13 +1828,13 @@ export const EricssonEngineeringTab: React.FC<EricssonEngineeringTabProps> = ({
                   setIsNewRowModalOpen(false);
                   setEditingRow(null);
                 }}
-                className="text-slate-400 hover:text-slate-600 cursor-pointer"
+                className="p-1 text-slate-300 hover:text-white hover:bg-white/10 rounded-[6px] cursor-pointer transition-colors"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <div className="space-y-3 text-xs max-h-[60vh] overflow-y-auto pr-1">
+            <div className="p-5 space-y-3 text-xs max-h-[60vh] overflow-y-auto">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {/* Intervencao Claro */}
                 <div className="sm:col-span-2">
@@ -1864,7 +1849,7 @@ export const EricssonEngineeringTab: React.FC<EricssonEngineeringTabProps> = ({
                       if (!formSiteIdA) setFormSiteIdA(e.target.value);
                     }}
                     placeholder="Ex: SMPINB6_5A ou SISML02_5A"
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-bold focus:outline-none focus:border-teal-500"
+                    className="w-full px-3 py-2 bg-[#F8FAFC] border border-slate-200 rounded-[8px] text-xs font-mono font-bold focus:outline-none focus:bg-white focus:border-[#223585] focus:ring-2 focus:ring-[#223585]/15"
                   />
                 </div>
 
@@ -1878,7 +1863,7 @@ export const EricssonEngineeringTab: React.FC<EricssonEngineeringTabProps> = ({
                     value={formSiteIdA}
                     onChange={(e) => setFormSiteIdA(e.target.value)}
                     placeholder="Ex: SMPINB6"
-                    className="w-full px-3 py-2 bg-amber-50/50 border border-amber-300 rounded-xl text-xs font-mono font-bold focus:outline-none focus:border-amber-500"
+                    className="w-full px-3 py-2 bg-amber-50/50 border border-amber-300 rounded-[8px] text-xs font-mono font-bold focus:outline-none focus:border-amber-500"
                   />
                 </div>
 
@@ -1890,7 +1875,7 @@ export const EricssonEngineeringTab: React.FC<EricssonEngineeringTabProps> = ({
                   <select
                     value={formStatusA}
                     onChange={(e) => setFormStatusA(e.target.value)}
-                    className="w-full px-3 py-2 bg-amber-50/50 border border-amber-300 rounded-xl text-xs focus:outline-none"
+                    className="w-full px-3 py-2 bg-amber-50/50 border border-amber-300 rounded-[8px] text-xs focus:outline-none"
                   >
                     <option value="Finalizado">Finalizado</option>
                     <option value="Em produção">Em produção</option>
@@ -1911,7 +1896,7 @@ export const EricssonEngineeringTab: React.FC<EricssonEngineeringTabProps> = ({
                     value={formSiteIdB}
                     onChange={(e) => setFormSiteIdB(e.target.value)}
                     placeholder="Ex: ESCIT81 (deixe vazio se único)"
-                    className="w-full px-3 py-2 bg-cyan-50/50 border border-cyan-300 rounded-xl text-xs font-mono font-bold focus:outline-none focus:border-cyan-500"
+                    className="w-full px-3 py-2 bg-cyan-50/50 border border-cyan-300 rounded-[8px] text-xs font-mono font-bold focus:outline-none focus:border-cyan-500"
                   />
                 </div>
 
@@ -1923,7 +1908,7 @@ export const EricssonEngineeringTab: React.FC<EricssonEngineeringTabProps> = ({
                   <select
                     value={formStatusB}
                     onChange={(e) => setFormStatusB(e.target.value)}
-                    className="w-full px-3 py-2 bg-cyan-50/50 border border-cyan-300 rounded-xl text-xs focus:outline-none"
+                    className="w-full px-3 py-2 bg-cyan-50/50 border border-cyan-300 rounded-[8px] text-xs focus:outline-none"
                   >
                     <option value="Finalizado">Finalizado</option>
                     <option value="Em produção">Em produção</option>
@@ -1942,7 +1927,7 @@ export const EricssonEngineeringTab: React.FC<EricssonEngineeringTabProps> = ({
                   <select
                     value={formTipoDoc}
                     onChange={(e) => setFormTipoDoc(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-teal-500 font-bold"
+                    className="w-full px-3 py-2 bg-[#F8FAFC] border border-slate-200 rounded-[8px] text-xs focus:outline-none focus:border-[#223585] font-bold"
                   >
                     <option value="WR">WR</option>
                     <option value="QRF">QRF</option>
@@ -1966,7 +1951,7 @@ export const EricssonEngineeringTab: React.FC<EricssonEngineeringTabProps> = ({
                   <select
                     value={formStatus}
                     onChange={(e) => setFormStatus(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-teal-500"
+                    className="w-full px-3 py-2 bg-[#F8FAFC] border border-slate-200 rounded-[8px] text-xs focus:outline-none focus:border-[#223585]"
                   >
                     <option value="Finalizado">Finalizado</option>
                     <option value="Em produção">Em produção</option>
@@ -1987,7 +1972,7 @@ export const EricssonEngineeringTab: React.FC<EricssonEngineeringTabProps> = ({
                     value={formRegional}
                     onChange={(e) => setFormRegional(e.target.value)}
                     placeholder="Ex: SPM, RJ, RS, SP2"
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-teal-500"
+                    className="w-full px-3 py-2 bg-[#F8FAFC] border border-slate-200 rounded-[8px] text-xs focus:outline-none focus:bg-white focus:border-[#223585]"
                   />
                 </div>
 
@@ -2001,7 +1986,7 @@ export const EricssonEngineeringTab: React.FC<EricssonEngineeringTabProps> = ({
                     value={formTipoSite}
                     onChange={(e) => setFormTipoSite(e.target.value)}
                     placeholder="Ex: REUSO, NOVO"
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-teal-500"
+                    className="w-full px-3 py-2 bg-[#F8FAFC] border border-slate-200 rounded-[8px] text-xs focus:outline-none focus:bg-white focus:border-[#223585]"
                   />
                 </div>
 
@@ -2015,27 +2000,27 @@ export const EricssonEngineeringTab: React.FC<EricssonEngineeringTabProps> = ({
                     value={formExecutor}
                     onChange={(e) => setFormExecutor(e.target.value)}
                     placeholder="Ex: Rafael Souza"
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-teal-500"
+                    className="w-full px-3 py-2 bg-[#F8FAFC] border border-slate-200 rounded-[8px] text-xs focus:outline-none focus:bg-white focus:border-[#223585]"
                   />
                 </div>
               </div>
             </div>
 
-            <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+            <div className="flex items-center justify-end gap-2 px-5 py-3.5 bg-[#F8FAFC] border-t border-slate-200">
               <button
                 type="button"
                 onClick={() => {
                   setIsNewRowModalOpen(false);
                   setEditingRow(null);
                 }}
-                className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100 cursor-pointer"
+                className="px-4 py-2 rounded-[8px] text-xs font-semibold text-slate-600 hover:bg-slate-200/70 cursor-pointer transition-colors"
               >
                 Cancelar
               </button>
               <button
                 type="button"
                 onClick={handleSaveRow}
-                className="px-5 py-2 rounded-xl text-xs font-bold bg-[#1E8E8D] hover:bg-[#177271] text-white shadow-xs cursor-pointer"
+                className="px-5 py-2 rounded-[8px] text-xs font-bold bg-[#1E8E8D] hover:bg-[#177170] text-white shadow-xs cursor-pointer transition-colors"
               >
                 Salvar Linha
               </button>

@@ -1,0 +1,201 @@
+/* ============================================================================
+   Ameta Telecom — Corporate Enterprise Design Tokens & Motion
+   Ameta Navy (#223585 / #0B1530 sidebar) + Teal (#1E8E8D) + Light Canvas (#F4F6FA)
+   ============================================================================ */
+
+:root {
+  /* Core Brand Accents */
+  --ameta-navy: #223585;
+  --ameta-navy-hover: #1B2A6B;
+  --ameta-navy-soft: rgba(34, 53, 133, 0.08);
+  --ameta-sidebar-bg: #0B1530;
+  --ameta-sidebar-elevated: #122044;
+  --ameta-sidebar-active: rgba(255, 255, 255, 0.1);
+  --ameta-sidebar-border: rgba(255, 255, 255, 0.08);
+
+  --ameta-teal: #1E8E8D;
+  --ameta-teal-hover: #177070;
+  --ameta-teal-soft: rgba(30, 142, 141, 0.1);
+
+  /* Light Corporate Neutral Surfaces */
+  --ameta-bg-page: #F4F6FA;
+  --ameta-bg-surface: #FFFFFF;
+  --ameta-bg-subtle: #F8FAFC;
+  --ameta-bg-hover: #F1F5F9;
+  --ameta-border: #E2E8F0;
+  --ameta-border-strong: #CBD5E1;
+
+  /* Text Hierarchy (WCAG AA on Light) */
+  --ameta-text-primary: #0F172A;
+  --ameta-text-secondary: #475569;
+  --ameta-text-muted: #64748B;
+
+  /* Semantic Status Colors */
+  --ameta-status-success-bg: #ECFDF5;
+  --ameta-status-success-border: #A7F3D0;
+  --ameta-status-success-text: #047857;
+  --ameta-status-success-dot: #10B981;
+
+  --ameta-status-info-bg: #EFF6FF;
+  --ameta-status-info-border: #BFDBFE;
+  --ameta-status-info-text: #1D4ED8;
+  --ameta-status-info-dot: #2563EB;
+
+  --ameta-status-warning-bg: #FFFBEB;
+  --ameta-status-warning-border: #FDE68A;
+  --ameta-status-warning-text: #B45309;
+  --ameta-status-warning-dot: #D97706;
+
+  --ameta-status-danger-bg: #FFF1F2;
+  --ameta-status-danger-border: #FECDD3;
+  --ameta-status-danger-text: #BE123C;
+  --ameta-status-danger-dot: #E11D48;
+
+  --ameta-status-neutral-bg: #F8FAFC;
+  --ameta-status-neutral-border: #E2E8F0;
+  --ameta-status-neutral-text: #475569;
+  --ameta-status-neutral-dot: #94A3B8;
+
+  /* Radius & Elevation */
+  --ameta-radius-card: 12px;
+  --ameta-radius-control: 8px;
+  --ameta-shadow-card: 0 1px 2px 0 rgba(15, 23, 42, 0.04);
+  --ameta-shadow-dropdown: 0 12px 32px -6px rgba(15, 23, 42, 0.14), 0 4px 10px -4px rgba(15, 23, 42, 0.06);
+  --ameta-shadow-modal: 0 24px 48px -12px rgba(15, 23, 42, 0.22), 0 8px 16px -6px rgba(15, 23, 42, 0.1);
+}
+
+/* Smooth Motion Keyframes */
+@keyframes ametaFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes ametaFadeSlideUp {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.99);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes ametaToastSlideIn {
+  from {
+    opacity: 0;
+    transform: translate3d(16px, -8px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes ametaSkeletonPulse {
+  0%,
+  100% {
+    opacity: 0.45;
+  }
+  50% {
+    opacity: 0.9;
+  }
+}
+
+.animate-fadeIn {
+  animation: ametaFadeIn 160ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.ameta-modal-backdrop {
+  animation: ametaFadeIn 160ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.ameta-modal-panel {
+  animation: ametaFadeSlideUp 190ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  box-shadow: var(--ameta-shadow-modal);
+}
+
+.ameta-toast-enter {
+  animation: ametaToastSlideIn 190ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.ameta-skeleton-bar {
+  animation: ametaSkeletonPulse 1.5s ease-in-out infinite;
+  background-color: #E2E8F0;
+  border-radius: 6px;
+}
+
+/* Corporate Surface Helpers */
+.ameta-card {
+  background-color: var(--ameta-bg-surface);
+  border: 1px solid var(--ameta-border);
+  border-radius: var(--ameta-radius-card);
+  box-shadow: var(--ameta-shadow-card);
+}
+
+.ameta-control {
+  border-radius: var(--ameta-radius-control);
+  transition: background-color 150ms ease, border-color 150ms ease, color 150ms ease, box-shadow 150ms ease;
+}
+
+/* Light Corporate Data Grid Row Polish */
+.ameta-table-zebra tbody tr:nth-child(even) > td {
+  background-color: #F8FAFC;
+}
+
+.ameta-table-zebra tbody tr:hover > td {
+  background-color: #EFF6FF !important;
+}
+
+.ameta-table-row-selected > td:first-child {
+  box-shadow: inset 3px 0 0 0 #223585;
+}
+
+.ameta-table-row-selected > td {
+  background-color: #EFF6FF !important;
+}
+
+/* Column Visual Resize Handle on Sticky Headers */
+.ameta-col-resizable {
+  position: relative;
+}
+
+.ameta-col-resizable::after {
+  content: '';
+  position: absolute;
+  top: 22%;
+  right: 0;
+  width: 2px;
+  height: 56%;
+  background-color: transparent;
+  transition: background-color 150ms ease;
+  pointer-events: none;
+}
+
+.ameta-col-resizable:hover::after {
+  background-color: #1E8E8D;
+}
+
+/* Hide utility scrollbars cleanly where requested */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-fadeIn,
+  .ameta-modal-backdrop,
+  .ameta-modal-panel,
+  .ameta-toast-enter,
+  .ameta-skeleton-bar {
+    animation: none !important;
+  }
+}

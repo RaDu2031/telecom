@@ -310,18 +310,18 @@ export const EricssonReprovadosPanel: React.FC<EricssonReprovadosPanelProps> = (
   const isFilterActive = selectedReprovadoExecutor !== null || selectedReprovadoDocGroup !== null;
 
   return (
-    <div className="bg-white border border-slate-200/90 rounded-2xl p-3 sm:p-4 shadow-xs space-y-2.5">
+    <div className="bg-white border border-slate-200 rounded-[12px] p-3 sm:p-4 shadow-xs space-y-2.5">
       {/* Compact Top Header Bar */}
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-2">
         <div className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-lg bg-rose-50 border border-rose-200 flex items-center justify-center text-rose-600 shrink-0">
+          <div className="w-7 h-7 rounded-[8px] bg-rose-50 border border-rose-200 flex items-center justify-center text-rose-600 shrink-0">
             <AlertTriangle className="w-4 h-4 stroke-[2.2]" />
           </div>
           <div className="flex items-center gap-2">
-            <h3 className="text-xs font-black text-slate-900 uppercase tracking-tight">
+            <h3 className="text-xs font-bold text-slate-900 uppercase tracking-tight">
               REPROVAÇÕES POR EXECUTOR
             </h3>
-            <span className="px-1.5 py-0.2 rounded text-[10px] font-black uppercase font-mono bg-rose-50 text-rose-700 border border-rose-200">
+            <span className="px-1.5 py-0.2 rounded-[6px] text-[10px] font-bold uppercase font-mono tabular-nums bg-rose-50 text-rose-700 border border-rose-200">
               {grandTotal} {grandTotal === 1 ? 'reprovação' : 'reprovações'}
             </span>
           </div>
@@ -686,10 +686,10 @@ export const EricssonReprovadosPanel: React.FC<EricssonReprovadosPanelProps> = (
           2. TABELA COMPLETA (SELECIONADA NO BOTÃO TABELA)
          ===================================================================== */}
       {viewMode === 'table' && (
-        <div className="overflow-x-auto border border-slate-200/90 rounded-xl">
+        <div className="overflow-x-auto border border-slate-200 rounded-[12px]">
           <table className="w-full text-left text-xs border-collapse">
             <thead>
-              <tr className="bg-slate-100/90 text-slate-700 border-b border-slate-200 font-bold">
+              <tr className="bg-[#F4F6FA] text-slate-700 border-b border-slate-200 font-bold">
                 <th className="px-2 py-1.5">Executor</th>
                 {ALL_DOC_GROUPS.map((doc) => {
                   const cfg = DOC_COLOR_MAP[doc];
@@ -705,7 +705,7 @@ export const EricssonReprovadosPanel: React.FC<EricssonReprovadosPanelProps> = (
                 <th className="px-2 py-1.5 text-center bg-rose-50 text-rose-900">Total</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 bg-white">
+            <tbody className="divide-y divide-slate-100 bg-white ameta-table-zebra">
               {executorStats.length === 0 ? (
                 <tr>
                   <td colSpan={8} className="px-3 py-3 text-center text-slate-400 italic">
@@ -826,15 +826,15 @@ export const EricssonReprovadosPanel: React.FC<EricssonReprovadosPanelProps> = (
 
       {/* Modal: Registrar Reprovação */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full p-5 shadow-2xl border border-slate-200 space-y-4 animate-in zoom-in-95">
+        <div className="fixed inset-0 z-50 bg-slate-900/55 ameta-modal-backdrop flex items-center justify-center p-4">
+          <div className="bg-white rounded-[12px] max-w-md w-full p-5 shadow-2xl border border-slate-200 space-y-4 ameta-modal-panel">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center font-bold">
+                <div className="w-8 h-8 rounded-[8px] bg-rose-50 text-rose-600 flex items-center justify-center font-bold">
                   <AlertTriangle className="w-4 h-4" />
                 </div>
                 <div>
-                  <h4 className="font-black text-slate-900 text-sm">
+                  <h4 className="font-bold text-slate-900 text-sm">
                     Registrar Nova Reprovação
                   </h4>
                   <p className="text-[11px] text-slate-500">
@@ -845,7 +845,7 @@ export const EricssonReprovadosPanel: React.FC<EricssonReprovadosPanelProps> = (
               <button
                 type="button"
                 onClick={() => setIsModalOpen(false)}
-                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 cursor-pointer"
+                className="p-1.5 rounded-[8px] text-slate-400 hover:text-slate-700 hover:bg-slate-100 cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -862,7 +862,7 @@ export const EricssonReprovadosPanel: React.FC<EricssonReprovadosPanelProps> = (
                   value={modalIntervencao}
                   onChange={(e) => setModalIntervencao(e.target.value)}
                   placeholder="Ex: SP_CLI_0123 ou Site ID"
-                  className="w-full px-3 py-2 border border-slate-200 rounded-xl font-mono text-xs focus:outline-none focus:border-rose-500"
+                  className="w-full px-3 py-2 border border-slate-200 rounded-[8px] font-mono text-xs focus:outline-none focus:border-[#223585]"
                 />
               </div>
 
@@ -874,7 +874,7 @@ export const EricssonReprovadosPanel: React.FC<EricssonReprovadosPanelProps> = (
                   <select
                     value={modalTipoDoc}
                     onChange={(e) => setModalTipoDoc(e.target.value as EricssonDocGroup)}
-                    className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs font-bold focus:outline-none focus:border-rose-500"
+                    className="w-full px-3 py-2 border border-slate-200 rounded-[8px] text-xs font-bold focus:outline-none focus:border-[#223585]"
                   >
                     {ALL_DOC_GROUPS.map((doc) => (
                       <option key={doc} value={doc}>
@@ -889,7 +889,7 @@ export const EricssonReprovadosPanel: React.FC<EricssonReprovadosPanelProps> = (
                   <select
                     value={modalRegional}
                     onChange={(e) => setModalRegional(e.target.value)}
-                    className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-rose-500"
+                    className="w-full px-3 py-2 border border-slate-200 rounded-[8px] text-xs focus:outline-none focus:border-[#223585]"
                   >
                     {distinctRegionais.map((r) => (
                       <option key={r} value={r}>
@@ -912,7 +912,7 @@ export const EricssonReprovadosPanel: React.FC<EricssonReprovadosPanelProps> = (
                   value={modalExecutor}
                   onChange={(e) => setModalExecutor(e.target.value)}
                   placeholder="Nome do executor"
-                  className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-rose-500"
+                  className="w-full px-3 py-2 border border-slate-200 rounded-[8px] text-xs focus:outline-none focus:border-[#223585]"
                 />
                 <datalist id="executors-list">
                   {distinctExecutors.map((ex) => (
@@ -930,7 +930,7 @@ export const EricssonReprovadosPanel: React.FC<EricssonReprovadosPanelProps> = (
                   required
                   value={modalData}
                   onChange={(e) => setModalData(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-xl font-mono text-xs focus:outline-none focus:border-rose-500"
+                  className="w-full px-3 py-2 border border-slate-200 rounded-[8px] font-mono tabular-nums text-xs focus:outline-none focus:border-[#223585]"
                 />
               </div>
 
@@ -944,7 +944,7 @@ export const EricssonReprovadosPanel: React.FC<EricssonReprovadosPanelProps> = (
                   value={modalMotivo}
                   onChange={(e) => setModalMotivo(e.target.value)}
                   placeholder="Descreva o motivo detalhado da reprovação..."
-                  className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-rose-500 resize-none"
+                  className="w-full px-3 py-2 border border-slate-200 rounded-[8px] text-xs focus:outline-none focus:border-[#223585] resize-none"
                 />
               </div>
 
@@ -952,14 +952,14 @@ export const EricssonReprovadosPanel: React.FC<EricssonReprovadosPanelProps> = (
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="px-3 py-1.5 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 font-bold cursor-pointer"
+                  className="px-3 py-1.5 rounded-[8px] border border-slate-200 text-slate-600 hover:bg-slate-50 font-bold cursor-pointer"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
                   disabled={isSaving}
-                  className="px-4 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold cursor-pointer shadow-xs disabled:opacity-50"
+                  className="px-4 py-1.5 rounded-[8px] bg-rose-600 hover:bg-rose-700 text-white font-bold cursor-pointer shadow-xs disabled:opacity-50"
                 >
                   {isSaving ? 'Salvando...' : 'Salvar Reprovação'}
                 </button>

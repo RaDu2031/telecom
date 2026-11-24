@@ -402,32 +402,32 @@ export const BulkPasteModal: React.FC<BulkPasteModalProps> = ({
       className={
         inlineTabMode
           ? 'w-full'
-          : 'fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-xs overflow-y-auto'
+          : 'fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/45 ameta-modal-backdrop overflow-y-auto'
       }
     >
       <div
         className={
           inlineTabMode
-            ? 'w-full bg-slate-900 border border-slate-800 rounded-xl overflow-hidden flex flex-col shadow-sm'
-            : 'w-full max-w-5xl bg-slate-900 border border-slate-800 rounded-xl overflow-hidden flex flex-col max-h-[92vh]'
+            ? 'w-full bg-white border border-slate-200 rounded-[12px] overflow-hidden flex flex-col shadow-xs'
+            : 'w-full max-w-5xl bg-white border border-slate-200 rounded-[12px] shadow-2xl overflow-hidden flex flex-col max-h-[92vh] ameta-modal-panel'
         }
       >
         {/* Header */}
-        <div className="px-6 py-4 bg-slate-950 border-b border-slate-800 flex items-center justify-between shrink-0">
+        <div className="px-6 py-4 bg-slate-50 border-b border-slate-200 flex items-center justify-between shrink-0">
           <div>
-            <h2 className="text-base sm:text-lg font-bold text-white flex items-center gap-2">
-              <PlusCircle className="w-5 h-5 text-emerald-400" />
+            <h2 className="text-base sm:text-lg font-bold text-slate-900 flex items-center gap-2">
+              <PlusCircle className="w-5 h-5 text-[#223585]" />
               <span>
                 Importar Planilha ({isFixedDestination ? fixedDestinationVendor : vendor}) — Apenas Acrescentar Novos
               </span>
             </h2>
-            <div className="flex items-center gap-2 mt-1">
+            <div className="flex flex-wrap items-center gap-2 mt-1">
               {isFixedDestination && (
-                <span className="px-2.5 py-0.5 rounded-full bg-blue-900/80 border border-blue-500/50 text-blue-200 text-xs font-bold font-mono">
+                <span className="px-2.5 py-0.5 rounded-[6px] bg-[#223585]/10 border border-[#223585]/20 text-[#223585] text-xs font-bold font-mono">
                   Destino: {fixedDestinationTitle}
                 </span>
               )}
-              <p className="text-xs text-slate-400">
+              <p className="text-xs text-slate-500">
                 Toda importação nunca substitui nem apaga a base existente. Dados anteriores são 100% preservados.
               </p>
             </div>
@@ -436,7 +436,7 @@ export const BulkPasteModal: React.FC<BulkPasteModalProps> = ({
             <button
               type="button"
               onClick={onClose}
-              className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
+              className="p-1.5 rounded-[8px] text-slate-400 hover:text-slate-700 hover:bg-slate-200/70 transition-colors cursor-pointer"
             >
               <X className="w-5 h-5" />
             </button>
@@ -444,20 +444,20 @@ export const BulkPasteModal: React.FC<BulkPasteModalProps> = ({
         </div>
 
         {/* Tab Switcher: Only Excel and Ctrl+V */}
-        <div className="flex border-b border-slate-800 bg-slate-950/70 px-6 pt-2 gap-2 shrink-0">
+        <div className="flex border-b border-slate-200 bg-slate-50 px-6 pt-2.5 gap-2 shrink-0">
           <button
             type="button"
             onClick={() => {
               setTab('excel');
               setError(null);
             }}
-            className={`px-4 py-2.5 text-xs font-bold rounded-t-lg transition-colors flex items-center gap-2 cursor-pointer ${
+            className={`px-4 py-2.5 text-xs font-bold rounded-t-[8px] transition-colors flex items-center gap-2 cursor-pointer border-x border-t ${
               tab === 'excel'
-                ? 'bg-slate-900 text-emerald-400 border-t-2 border-emerald-500'
-                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/50'
+                ? 'bg-white text-[#223585] border-slate-200 border-b-white -mb-px shadow-2xs'
+                : 'text-slate-500 hover:text-slate-800 border-transparent hover:bg-slate-100'
             }`}
           >
-            <FileSpreadsheet className="w-4 h-4" />
+            <FileSpreadsheet className="w-4 h-4 text-[#1E8E8D]" />
             <span>1. Selecionar Arquivo Excel (.XLSX / .CSV)</span>
           </button>
 
@@ -467,67 +467,69 @@ export const BulkPasteModal: React.FC<BulkPasteModalProps> = ({
               setTab('paste');
               setError(null);
             }}
-            className={`px-4 py-2.5 text-xs font-bold rounded-t-lg transition-colors flex items-center gap-2 cursor-pointer ${
+            className={`px-4 py-2.5 text-xs font-bold rounded-t-[8px] transition-colors flex items-center gap-2 cursor-pointer border-x border-t ${
               tab === 'paste'
-                ? 'bg-slate-900 text-blue-400 border-t-2 border-blue-500'
-                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/50'
+                ? 'bg-white text-[#223585] border-slate-200 border-b-white -mb-px shadow-2xs'
+                : 'text-slate-500 hover:text-slate-800 border-transparent hover:bg-slate-100'
             }`}
           >
-            <ClipboardPaste className="w-4 h-4" />
+            <ClipboardPaste className="w-4 h-4 text-[#223585]" />
             <span>2. Colar Tabela (Ctrl+V)</span>
           </button>
         </div>
 
         {/* Feedback Messages */}
         {error && (
-          <div className="mx-6 mt-4 p-3 bg-red-950/60 border border-red-800/80 rounded-xl text-red-200 text-xs flex items-center gap-2 shrink-0">
-            <AlertCircle className="w-4 h-4 text-red-400 shrink-0" />
+          <div className="mx-6 mt-4 p-3 bg-rose-50 border border-rose-200 rounded-[10px] text-rose-800 text-xs flex items-center gap-2 shrink-0">
+            <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
             <span className="flex-1 font-mono">{error}</span>
           </div>
         )}
 
         {/* Post-Import Result Summary */}
         {importSummaryResult && (
-          <div className="mx-6 mt-4 p-4 bg-emerald-950/60 border border-emerald-800/80 rounded-xl text-emerald-100 text-xs space-y-2 shrink-0">
-            <div className="flex items-center gap-2 font-bold text-sm text-emerald-300">
-              <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
+          <div className="mx-6 mt-4 p-4 bg-emerald-50 border border-emerald-200 rounded-[10px] text-emerald-900 text-xs space-y-2 shrink-0">
+            <div className="flex items-center gap-2 font-bold text-sm text-emerald-800">
+              <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
               <span>Resultado da Importação no Firestore:</span>
             </div>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1 font-mono text-[11px]">
-              <div className="bg-slate-900/80 p-2 rounded border border-slate-700">
-                <span className="text-slate-400 block text-[10px]">TOTAL ANALISADO</span>
-                <strong className="text-white text-sm">{importSummaryResult.totalAnalisados}</strong>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1 font-mono tabular-nums text-[11px]">
+              <div className="bg-white p-2.5 rounded-[8px] border border-slate-200">
+                <span className="text-slate-500 block text-[10px] font-sans font-semibold">TOTAL ANALISADO</span>
+                <strong className="text-slate-900 text-sm">{importSummaryResult.totalAnalisados}</strong>
               </div>
-              <div className="bg-emerald-900/40 p-2 rounded border border-emerald-700">
-                <span className="text-emerald-400 block text-[10px]">NOVAS GRAVADAS</span>
-                <strong className="text-emerald-300 text-sm">+{importSummaryResult.novas}</strong>
+              <div className="bg-white p-2.5 rounded-[8px] border border-emerald-200">
+                <span className="text-emerald-700 block text-[10px] font-sans font-semibold">NOVAS GRAVADAS</span>
+                <strong className="text-emerald-700 text-sm">+{importSummaryResult.novas}</strong>
               </div>
-              <div className="bg-amber-900/40 p-2 rounded border border-amber-700">
-                <span className="text-amber-400 block text-[10px]">JÁ EXISTIAM (MANTIDAS)</span>
-                <strong className="text-amber-300 text-sm">{importSummaryResult.jaExistiam}</strong>
+              <div className="bg-white p-2.5 rounded-[8px] border border-amber-200">
+                <span className="text-amber-700 block text-[10px] font-sans font-semibold">JÁ EXISTIAM (MANTIDAS)</span>
+                <strong className="text-amber-800 text-sm">{importSummaryResult.jaExistiam}</strong>
               </div>
-              <div className="bg-slate-900/80 p-2 rounded border border-slate-700">
-                <span className="text-slate-400 block text-[10px]">LOTES EXECUTADOS</span>
-                <strong className="text-white text-sm">{importSummaryResult.lotesExecutados} (20 docs/lote)</strong>
+              <div className="bg-white p-2.5 rounded-[8px] border border-slate-200">
+                <span className="text-slate-500 block text-[10px] font-sans font-semibold">LOTES EXECUTADOS</span>
+                <strong className="text-slate-900 text-sm">{importSummaryResult.lotesExecutados} (20 docs/lote)</strong>
               </div>
             </div>
           </div>
         )}
 
         {/* Modal Body */}
-        <div className="p-6 space-y-4 overflow-y-auto flex-1 text-slate-300 text-xs">
+        <div className="p-6 space-y-4 overflow-y-auto flex-1 text-slate-700 text-xs bg-white">
           {tab === 'excel' && (
             <div className="space-y-4">
               <div
                 onClick={() => fileInputRef.current?.click()}
-                className="p-8 border-2 border-dashed border-slate-700 hover:border-emerald-500 rounded-2xl bg-slate-950/50 hover:bg-slate-950 text-center cursor-pointer transition-colors flex flex-col items-center justify-center gap-3"
+                className="p-8 border-2 border-dashed border-slate-300 hover:border-[#223585] rounded-[12px] bg-slate-50 hover:bg-blue-50/40 text-center cursor-pointer transition-colors flex flex-col items-center justify-center gap-3"
               >
-                <Upload className="w-8 h-8 text-emerald-400" />
+                <div className="w-12 h-12 rounded-[10px] bg-[#223585]/10 border border-[#223585]/20 flex items-center justify-center">
+                  <Upload className="w-6 h-6 text-[#223585]" />
+                </div>
                 <div>
-                  <p className="text-sm font-bold text-white">
+                  <p className="text-sm font-bold text-slate-900">
                     {uploadedFileName ? `Arquivo: ${uploadedFileName}` : 'Clique aqui para selecionar a planilha (.xlsx ou .csv)'}
                   </p>
-                  <p className="text-xs text-slate-400 mt-1">
+                  <p className="text-xs text-slate-500 mt-1">
                     Suporta planilhas padrão TIM / Claro com 46 ou 51 colunas (Coluna A até Observação).
                   </p>
                 </div>
@@ -541,8 +543,8 @@ export const BulkPasteModal: React.FC<BulkPasteModalProps> = ({
               </div>
 
               {Object.keys(excelSheetsMap).length > 1 && (
-                <div className="p-3 bg-slate-950 border border-slate-800 rounded-xl space-y-1.5">
-                  <label className="block text-[11px] font-bold text-slate-300">
+                <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-[10px] space-y-2">
+                  <label className="block text-[11px] font-bold text-slate-700">
                     Selecione a Aba da Planilha Excel:
                   </label>
                   <div className="flex flex-wrap gap-2">
@@ -551,10 +553,10 @@ export const BulkPasteModal: React.FC<BulkPasteModalProps> = ({
                         key={sName}
                         type="button"
                         onClick={() => setSelectedExcelTab(sName)}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
+                        className={`px-3 py-1.5 rounded-[8px] text-xs font-semibold transition-colors cursor-pointer border ${
                           selectedExcelTab === sName
-                            ? 'bg-emerald-600 text-white'
-                            : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+                            ? 'bg-[#223585] border-[#223585] text-white font-bold shadow-2xs'
+                            : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-100'
                         }`}
                       >
                         {sName} ({excelSheetsMap[sName]?.length || 0} linhas)
@@ -568,9 +570,9 @@ export const BulkPasteModal: React.FC<BulkPasteModalProps> = ({
 
           {tab === 'paste' && (
             <div className="space-y-2">
-              <label className="block text-xs font-bold text-slate-300 flex items-center justify-between">
+              <label className="block text-xs font-bold text-slate-800 flex items-center justify-between">
                 <span>Cole os dados da tabela (Ctrl+C no Excel → Ctrl+V aqui):</span>
-                <span className="text-[10px] text-slate-500">
+                <span className="text-[11px] font-mono tabular-nums text-slate-500">
                   {parsedSites.length} linhas detectadas
                 </span>
               </label>
@@ -579,40 +581,40 @@ export const BulkPasteModal: React.FC<BulkPasteModalProps> = ({
                 value={rawText}
                 onChange={(e) => setRawText(e.target.value)}
                 placeholder="Cole aqui as linhas copiadas da sua planilha (Ctrl+V)..."
-                className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl font-mono text-xs text-slate-200 focus:outline-none focus:border-blue-500"
+                className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-[8px] font-mono text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-[#223585] focus:ring-2 focus:ring-[#223585]/15"
               />
             </div>
           )}
 
           {/* Single Import Rule Banner */}
-          <div className="p-4 bg-slate-950 border border-slate-800 rounded-xl space-y-2">
-            <h4 className="text-xs font-bold text-slate-200 flex items-center gap-2">
-              <ShieldCheck className="w-4 h-4 text-emerald-400" />
+          <div className="p-4 bg-slate-50 border border-slate-200 rounded-[10px] space-y-2">
+            <h4 className="text-xs font-bold text-slate-800 flex items-center gap-2">
+              <ShieldCheck className="w-4 h-4 text-[#1E8E8D]" />
               <span>Regra de Proteção (Somente Acrescentar):</span>
             </h4>
-            <div className="p-3 bg-emerald-950/30 border border-emerald-800/50 rounded-xl text-emerald-200 text-xs leading-relaxed">
-              <strong className="text-white block font-semibold mb-0.5">Modo Único: Somente Acrescentar Novos Registros</strong>
+            <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-[8px] text-emerald-900 text-xs leading-relaxed">
+              <strong className="text-emerald-800 block font-semibold mb-0.5">Modo Único: Somente Acrescentar Novos Registros</strong>
               Importar uma planilha nunca apaga, substitui ou modifica registros que já existem no Firestore. Cada linha do arquivo com algum conteúdo é gravada como novo registro, preservando 100% dos dados anteriores.
             </div>
           </div>
 
           {/* Pre-Save Summary Preview */}
           {parsedSites.length > 0 && (
-            <div className="p-4 bg-slate-950 border border-slate-800 rounded-xl space-y-2.5">
-              <div className="flex items-center justify-between text-xs font-bold text-slate-200">
+            <div className="p-4 bg-slate-50 border border-slate-200 rounded-[10px] space-y-2.5">
+              <div className="flex items-center justify-between text-xs font-bold text-slate-900">
                 <span className="flex items-center gap-1.5">
-                  <Sparkles className="w-4 h-4 text-amber-400" />
+                  <Sparkles className="w-4 h-4 text-amber-500" />
                   <span>Resumo Pré-Gravação:</span>
                 </span>
-                <span className="text-slate-400 font-mono">
+                <span className="text-slate-600 font-mono tabular-nums">
                   {previewStats.total} linhas lidas
                 </span>
               </div>
 
               {/* Requirement: "Mostre no resumo antes de gravar: 'Aba de destino: ...'" */}
-              <div className="p-2.5 bg-slate-900 border border-slate-800 rounded-lg flex items-center justify-between text-xs">
-                <span className="text-slate-400 font-medium">Destino:</span>
-                <span className="font-bold font-mono text-emerald-400">
+              <div className="p-2.5 bg-white border border-slate-200 rounded-[8px] flex items-center justify-between text-xs">
+                <span className="text-slate-500 font-medium">Destino:</span>
+                <span className="font-bold font-mono text-[#223585]">
                   {destSheetName}
                   {tab === 'excel' && selectedExcelTab && isClaroDestination
                     ? ` (Aba: ${selectedExcelTab})`
@@ -620,35 +622,35 @@ export const BulkPasteModal: React.FC<BulkPasteModalProps> = ({
                 </span>
               </div>
 
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-0.5 font-mono text-[11px]">
-                <div className="p-2 bg-emerald-950/40 border border-emerald-800/60 rounded text-center">
-                  <span className="text-[10px] text-emerald-400 block font-sans">LINHAS ENCONTRADAS</span>
-                  <strong className="text-emerald-300 text-base">+{previewStats.total}</strong>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-0.5 font-mono tabular-nums text-[11px]">
+                <div className="p-2.5 bg-white border border-emerald-200 rounded-[8px] text-center shadow-2xs">
+                  <span className="text-[10px] text-emerald-700 block font-sans font-semibold">LINHAS ENCONTRADAS</span>
+                  <strong className="text-emerald-700 text-base">+{previewStats.total}</strong>
                 </div>
-                <div className="p-2 bg-blue-950/40 border border-blue-800/60 rounded text-center">
-                  <span className="text-[10px] text-blue-400 block font-sans">COLUNAS</span>
-                  <strong className="text-blue-300 text-base">{detectedColumns.length}</strong>
+                <div className="p-2.5 bg-white border border-blue-200 rounded-[8px] text-center shadow-2xs">
+                  <span className="text-[10px] text-blue-700 block font-sans font-semibold">COLUNAS</span>
+                  <strong className="text-blue-700 text-base">{detectedColumns.length}</strong>
                 </div>
-                <div className="p-2 bg-indigo-950/40 border border-indigo-800/60 rounded text-center">
-                  <span className="text-[10px] text-indigo-400 block font-sans">SITES ÚNICOS</span>
-                  <strong className="text-indigo-300 text-base">{previewStats.uniqueSitesCount}</strong>
+                <div className="p-2.5 bg-white border border-indigo-200 rounded-[8px] text-center shadow-2xs">
+                  <span className="text-[10px] text-indigo-700 block font-sans font-semibold">SITES ÚNICOS</span>
+                  <strong className="text-indigo-700 text-base">{previewStats.uniqueSitesCount}</strong>
                 </div>
-                <div className="p-2 bg-amber-950/40 border border-amber-800/60 rounded text-center">
-                  <span className="text-[10px] text-amber-400 block font-sans">REPETIDOS (INDEPENDENTES)</span>
-                  <strong className="text-amber-300 text-base">{previewStats.repeatedSitesCount}</strong>
+                <div className="p-2.5 bg-white border border-amber-200 rounded-[8px] text-center shadow-2xs">
+                  <span className="text-[10px] text-amber-800 block font-sans font-semibold">REPETIDOS (INDEPENDENTES)</span>
+                  <strong className="text-amber-800 text-base">{previewStats.repeatedSitesCount}</strong>
                 </div>
               </div>
 
               {detectedColumns.length > 0 && (
-                <div className="p-2.5 bg-slate-900 border border-slate-800 rounded-lg space-y-1.5">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
+                <div className="p-3 bg-white border border-slate-200 rounded-[8px] space-y-1.5">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">
                     Colunas na ordem original ({detectedColumns.length}):
                   </span>
                   <div className="flex flex-wrap gap-1 max-h-24 overflow-y-auto">
                     {detectedColumns.map((col, idx) => (
                       <span
                         key={`${col}_${idx}`}
-                        className="px-2 py-0.5 rounded bg-slate-950 border border-slate-700 text-[10px] font-mono text-slate-200"
+                        className="px-2 py-0.5 rounded-[6px] bg-slate-50 border border-slate-200 text-[10px] font-mono text-slate-700"
                       >
                         {idx + 1}. {col}
                       </span>
@@ -661,12 +663,12 @@ export const BulkPasteModal: React.FC<BulkPasteModalProps> = ({
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 bg-slate-950 border-t border-slate-800 flex items-center justify-between shrink-0">
+        <div className="px-6 py-4 bg-slate-50 border-t border-slate-200 flex items-center justify-between shrink-0">
           <button
             type="button"
             onClick={onClose}
             disabled={submitting}
-            className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold text-xs rounded-xl transition-colors cursor-pointer"
+            className="px-4 py-2 bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 font-semibold text-xs rounded-[8px] transition-colors cursor-pointer"
           >
             Fechar
           </button>
@@ -675,7 +677,7 @@ export const BulkPasteModal: React.FC<BulkPasteModalProps> = ({
             type="button"
             onClick={handleOpenPreImportSummary}
             disabled={submitting || parsedSites.length === 0}
-            className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-bold text-xs rounded-xl shadow-xs transition-colors cursor-pointer flex items-center gap-2"
+            className="px-6 py-2.5 bg-[#223585] hover:bg-[#1B2A6B] disabled:opacity-50 text-white font-bold text-xs rounded-[8px] shadow-xs transition-colors cursor-pointer flex items-center gap-2"
           >
             {submitting ? (
               <>

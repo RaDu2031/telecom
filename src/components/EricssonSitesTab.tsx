@@ -37,6 +37,7 @@ import {
   XCircle,
   TrendingUp,
 } from 'lucide-react';
+import { KpiCard, StatusBadge, EmptyStateCard } from './ui';
 import {
   AmetaUser,
   UserRole,
@@ -1143,33 +1144,7 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
   const renderSheetStatusBadge = (rawStatus: string) => {
     const val = (rawStatus || '').trim();
     if (!val) return <span className="text-slate-400">—</span>;
-    const lower = val.toLowerCase();
-    if (lower.includes('liberad') || lower.includes('conclu') || lower.includes('finaliz')) {
-      return (
-        <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 whitespace-nowrap">
-          {val}
-        </span>
-      );
-    }
-    if (lower.includes('bloquead') || lower.includes('improdutiv') || lower.includes('embarg')) {
-      return (
-        <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-bold bg-amber-50 text-amber-700 border border-amber-200 whitespace-nowrap">
-          {val}
-        </span>
-      );
-    }
-    if (lower.includes('cancelad') || lower.includes('desmobiliz')) {
-      return (
-        <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-bold bg-red-50 text-red-700 border border-red-200 whitespace-nowrap">
-          {val}
-        </span>
-      );
-    }
-    return (
-      <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-bold bg-blue-50 text-[#223585] border border-blue-200 whitespace-nowrap">
-        {val}
-      </span>
-    );
+    return <StatusBadge label={val} maxWidthClass="max-w-[140px]" />;
   };
 
   // Control for Vistoria A, Vistoria B, and LOS in the Mother Spreadsheet (Sites):
@@ -1273,13 +1248,13 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
 
     return (
       <div
-        className={`bg-white border border-slate-200 rounded-xl p-5 shadow-2xs space-y-4 ${
+        className={`bg-white border border-slate-200 rounded-[12px] p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04)] space-y-4 ${
           isHeroFullWidth ? 'lg:col-span-2' : ''
         }`}
       >
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3">
           <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center text-[#223585] shadow-2xs">
+            <div className="w-9 h-9 rounded-[8px] bg-[#EEF2FF] border border-[#DDE4F6] flex items-center justify-center text-[#223585] shadow-2xs">
               <BarChart3 className="w-5 h-5" />
             </div>
             <div>
@@ -1287,7 +1262,7 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
                 <h3 className="text-sm font-bold text-slate-900">
                   Gráfico de Colunas — Status Coluna META
                 </h3>
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-[#223585]">
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#EEF2FF] text-[#223585] tabular-nums">
                   {chartDataByMeta.length} categorias
                 </span>
               </div>
@@ -1299,12 +1274,12 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
 
           <div className="flex flex-wrap items-center gap-2">
             {filterMeta !== 'ALL' && (
-              <div className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-blue-50 border border-blue-200 text-[#223585] text-xs font-bold animate-fadeIn">
+              <div className="flex items-center gap-1.5 px-3 py-1 rounded-[8px] bg-[#EEF2FF] border border-[#DDE4F6] text-[#223585] text-xs font-bold animate-fadeIn">
                 <span>Filtro META ativo: <strong>{filterMeta}</strong></span>
                 <button
                   type="button"
                   onClick={() => setFilterMeta('ALL')}
-                  className="hover:bg-blue-100 p-0.5 rounded cursor-pointer transition-colors"
+                  className="hover:bg-blue-100 p-0.5 rounded-[6px] cursor-pointer transition-colors"
                   title="Limpar filtro META"
                 >
                   <X className="w-3.5 h-3.5" />
@@ -1313,11 +1288,11 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
             )}
 
             {/* Alternador de Métrica: Sites (A+B) vs Linhas */}
-            <div className="inline-flex bg-slate-100 p-0.5 rounded-lg border border-slate-200 text-xs">
+            <div className="inline-flex bg-slate-100 p-0.5 rounded-[8px] border border-slate-200 text-xs">
               <button
                 type="button"
                 onClick={() => setMetaChartMetric('sites')}
-                className={`px-3 py-1 rounded-md font-bold transition-all cursor-pointer ${
+                className={`px-3 py-1 rounded-[6px] font-bold transition-all cursor-pointer ${
                   metaChartMetric === 'sites'
                     ? 'bg-white text-slate-900 shadow-2xs'
                     : 'text-slate-500 hover:text-slate-800'
@@ -1328,7 +1303,7 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
               <button
                 type="button"
                 onClick={() => setMetaChartMetric('lines')}
-                className={`px-3 py-1 rounded-md font-bold transition-all cursor-pointer ${
+                className={`px-3 py-1 rounded-[6px] font-bold transition-all cursor-pointer ${
                   metaChartMetric === 'lines'
                     ? 'bg-white text-slate-900 shadow-2xs'
                     : 'text-slate-500 hover:text-slate-800'
@@ -1360,7 +1335,7 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
                     <span className="block text-xs font-black font-mono text-slate-800 tabular-nums">
                       {val.toLocaleString('pt-BR')}
                     </span>
-                    <span className="text-[10px] text-slate-400 font-semibold">
+                    <span className="text-[10px] text-slate-400 font-semibold tabular-nums">
                       {sharePct}%
                     </span>
                   </div>
@@ -1368,7 +1343,7 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
                   {/* A Coluna Vertical */}
                   <div className="w-full max-w-[68px] flex flex-col justify-end h-full">
                     <div
-                      className={`w-full rounded-t-xl transition-all duration-300 relative overflow-hidden ${
+                      className={`w-full rounded-t-[8px] transition-all duration-300 relative overflow-hidden ${
                         isSelected
                           ? 'ring-3 ring-offset-2 ring-[#223585] shadow-lg scale-102'
                           : 'group-hover:opacity-90 group-hover:scale-101 shadow-2xs'
@@ -1388,7 +1363,7 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
                   {/* Rótulo e Categoria no Rodapé */}
                   <div className="mt-2.5 text-center w-full">
                     <div
-                      className={`px-1.5 py-1 rounded-md text-[11px] font-bold truncate transition-colors ${
+                      className={`px-1.5 py-1 rounded-[6px] text-[11px] font-bold truncate transition-colors ${
                         isSelected
                           ? 'bg-[#223585] text-white shadow-xs'
                           : 'text-slate-700 bg-slate-100 group-hover:bg-slate-200'
@@ -1397,7 +1372,7 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
                     >
                       {item.label}
                     </div>
-                    <div className="text-[10px] text-slate-400 font-mono mt-0.5 truncate">
+                    <div className="text-[10px] text-slate-400 font-mono tabular-nums mt-0.5 truncate">
                       {metaChartMetric === 'sites' ? `${item.linesCount} lin` : `${item.sitesCount} sites`}
                     </div>
                   </div>
@@ -1416,10 +1391,10 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
                 key={item.key}
                 type="button"
                 onClick={() => setFilterMeta((prev) => (prev === item.key ? 'ALL' : item.key))}
-                className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
+                className={`p-3 rounded-[10px] border text-left transition-all cursor-pointer ${
                   isSelected
-                    ? 'bg-blue-50/90 border-[#223585] ring-2 ring-[#223585]/20 shadow-xs'
-                    : 'bg-slate-50/70 hover:bg-slate-100/90 border-slate-200'
+                    ? 'bg-[#EEF2FF] border-[#223585] ring-2 ring-[#223585]/20 shadow-xs'
+                    : 'bg-[#F8FAFC] hover:bg-slate-100/90 border-slate-200'
                 }`}
               >
                 <div className="flex items-center gap-1.5 mb-1.5">
@@ -1439,7 +1414,7 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
                     sites
                   </span>
                 </div>
-                <div className="flex items-center justify-between text-[10px] text-slate-500 font-mono mt-1 pt-1 border-t border-slate-200/60">
+                <div className="flex items-center justify-between text-[10px] text-slate-500 font-mono tabular-nums mt-1 pt-1 border-t border-slate-200/60">
                   <span>{item.linesCount} linhas</span>
                   <span className="text-emerald-700 font-bold">{item.finalizados} fin</span>
                 </div>
@@ -1455,25 +1430,25 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
     <div
       className={
         isFullscreen
-          ? 'fixed inset-0 z-50 bg-[#F3F4F6] overflow-y-auto p-4 md:p-6 space-y-4'
+          ? 'fixed inset-0 z-50 bg-[#F4F6FA] overflow-y-auto p-4 md:p-6 space-y-4'
           : 'space-y-4'
       }
     >
       {/* =====================================================================
           1. TOP HEADER & COUNTERS BY INDIVIDUAL SITE + LOS
          ===================================================================== */}
-      <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-2xs space-y-4">
+      <div className="bg-white border border-slate-200 rounded-[12px] p-4 sm:p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04)] space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-3.5">
-            <div className="w-11 h-11 rounded-xl bg-[#223585] flex items-center justify-center text-white shadow-2xs shrink-0">
+            <div className="w-11 h-11 rounded-[10px] bg-[#223585] flex items-center justify-center text-white shadow-2xs shrink-0">
               <Radio className="w-5 h-5" />
             </div>
             <div>
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="px-2.5 py-0.5 rounded-md bg-blue-50 text-[#223585] border border-blue-200 text-[11px] font-bold uppercase tracking-wider">
+                <span className="px-2.5 py-0.5 rounded-[6px] bg-[#EEF2FF] text-[#223585] border border-[#DDE4F6] text-[11px] font-bold uppercase tracking-wider">
                   ERICSSON · {sheetMeta?.tabName || 'ERICSSON CLARO TX'}
                 </span>
-                <h1 className="text-base font-bold text-slate-900">
+                <h1 className="text-xl font-bold text-slate-900 tracking-tight">
                   Controle de Sites, Vistorias (A e B) e LOS — Ericsson
                 </h1>
               </div>
@@ -1496,7 +1471,7 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
                   <button
                     type="button"
                     onClick={onOpenDuplasDemanda}
-                    className="w-full sm:w-auto justify-center px-4 py-3 sm:py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-black uppercase tracking-wide rounded-xl sm:rounded-lg transition-colors flex items-center gap-2 shadow-sm cursor-pointer"
+                    className="w-full sm:w-auto justify-center px-4 py-2.5 sm:py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold uppercase tracking-wide rounded-[8px] transition-colors flex items-center gap-2 shadow-xs cursor-pointer"
                   >
                     <Users className="w-4 h-4 text-amber-400 shrink-0" />
                     <span>Demandar Sites / Duplas (Ericsson)</span>
@@ -1509,7 +1484,7 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
                       type="button"
                       onClick={() => setSyncModalOpen(true)}
                       title="Destino: Ericsson – Sites"
-                      className="justify-center px-3 py-2.5 sm:py-2 bg-[#1E8E8D] hover:bg-[#177372] text-white text-xs font-bold rounded-xl sm:rounded-lg transition-colors flex items-center gap-1.5 shadow-2xs cursor-pointer"
+                      className="justify-center px-3 py-2 bg-[#1E8E8D] hover:bg-[#177372] text-white text-xs font-semibold rounded-[8px] transition-colors flex items-center gap-1.5 shadow-2xs cursor-pointer"
                     >
                       <Upload className="w-3.5 h-3.5 shrink-0" />
                       <span className="truncate">Carregar planilha</span>
@@ -1519,7 +1494,7 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
                   <button
                     type="button"
                     onClick={() => setCreateModalOpen(true)}
-                    className="justify-center px-3 py-2.5 sm:py-2 bg-[#223585] hover:bg-[#192869] text-white text-xs font-bold rounded-xl sm:rounded-lg transition-colors flex items-center gap-1.5 shadow-2xs cursor-pointer"
+                    className="justify-center px-3 py-2 bg-[#223585] hover:bg-[#192869] text-white text-xs font-semibold rounded-[8px] transition-colors flex items-center gap-1.5 shadow-2xs cursor-pointer"
                   >
                     <Plus className="w-3.5 h-3.5 shrink-0" />
                     <span className="truncate">+ Nova Linha</span>
@@ -1532,7 +1507,7 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
               <button
                 type="button"
                 onClick={handleExportExcel}
-                className="flex-1 sm:flex-initial justify-center px-3.5 py-2.5 sm:py-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 text-xs font-semibold rounded-xl sm:rounded-lg transition-colors flex items-center gap-1.5 shadow-2xs cursor-pointer"
+                className="flex-1 sm:flex-initial justify-center px-3.5 py-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 text-xs font-semibold rounded-[8px] transition-colors flex items-center gap-1.5 shadow-2xs cursor-pointer"
               >
                 <Download className="w-3.5 h-3.5 text-[#1E8E8D] shrink-0" />
                 <span>Exportar .XLSX</span>
@@ -1541,7 +1516,7 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
               <button
                 type="button"
                 onClick={() => setIsFullscreen((prev) => !prev)}
-                className="p-2.5 sm:p-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-xl sm:rounded-lg transition-colors shadow-2xs cursor-pointer"
+                className="p-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-[8px] transition-colors shadow-2xs cursor-pointer"
                 title={isFullscreen ? 'Sair da tela inteira' : 'Tela inteira'}
               >
                 {isFullscreen ? (
@@ -1556,171 +1531,93 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
 
         {/* SITE COUNTERS BAR (COUNTED BY LINE + STATUS A & B + LOS) */}
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 pt-1">
-          <button
-            type="button"
+          <KpiCard
+            label="Total de Sites"
+            value={baseFilteredRows.length}
+            sublabel={`${filteredRows.length !== baseFilteredRows.length ? `${filteredRows.length} filtrados • ` : ''}Total de linhas (enlaces)`}
+            icon={<Layers className="w-4 h-4" />}
+            tone="navy"
+            active={filterVistoriaStatus === 'ALL' && filterSheetStatus === 'ALL'}
             onClick={() => {
               setFilterVistoriaStatus('ALL');
               setFilterSheetStatus('ALL');
             }}
-            className={`text-left p-3.5 rounded-xl border transition-all cursor-pointer ${
-              filterVistoriaStatus === 'ALL' && filterSheetStatus === 'ALL'
-                ? 'bg-blue-50/70 border-[#223585] ring-1 ring-[#223585]/20'
-                : 'bg-slate-50/70 hover:bg-slate-100/70 border-slate-200'
-            }`}
-          >
-            <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
-              Total de Sites
-            </div>
-            <div className="text-2xl font-extrabold font-mono text-slate-900 mt-0.5 tabular-nums">
-              {baseFilteredRows.length}
-            </div>
-            <div className="text-[10px] text-slate-500 mt-0.5">
-              {filteredRows.length !== baseFilteredRows.length ? `${filteredRows.length} filtrados • ` : ''}Total de linhas (enlaces)
-            </div>
-          </button>
-
-          <button
-            type="button"
+          />
+          <KpiCard
+            label="Status A"
+            value={statusACounters.concluidos}
+            sublabel={`${statusACounters.concluidos} de ${statusACounters.total} Sites A liberados`}
+            icon={<CheckCircle2 className="w-4 h-4" />}
+            tone="info"
+            active={filterVistoriaStatus === 'STATUS_A'}
             onClick={() => {
               setFilterSheetStatus('ALL');
-              setFilterVistoriaStatus((prev) =>
-                prev === 'STATUS_A' ? 'ALL' : 'STATUS_A'
-              );
+              setFilterVistoriaStatus((prev) => (prev === 'STATUS_A' ? 'ALL' : 'STATUS_A'));
             }}
-            className={`text-left p-3.5 rounded-xl border transition-all cursor-pointer ${
-              filterVistoriaStatus === 'STATUS_A'
-                ? 'bg-blue-50 border-[#223585] ring-1 ring-[#223585]/20'
-                : 'bg-blue-50/40 hover:bg-blue-50 border-blue-200'
-            }`}
-          >
-            <div className="text-[10px] font-bold uppercase tracking-wider text-[#223585] flex items-center justify-between">
-              <span>Status A</span>
-              <CheckCircle2 className="w-3.5 h-3.5 text-[#223585]" />
-            </div>
-            <div className="text-2xl font-extrabold font-mono text-[#223585] mt-0.5 tabular-nums">
-              {statusACounters.concluidos}
-            </div>
-            <div className="text-[10px] text-[#223585]/80 mt-0.5">
-              {statusACounters.concluidos} de {statusACounters.total} Sites A liberados
-            </div>
-          </button>
-
-          <button
-            type="button"
+          />
+          <KpiCard
+            label="Status B"
+            value={statusBCounters.concluidos}
+            sublabel={`${statusBCounters.concluidos} de ${statusBCounters.total} Sites B liberados`}
+            icon={<CheckCircle2 className="w-4 h-4" />}
+            tone="teal"
+            active={filterVistoriaStatus === 'STATUS_B'}
             onClick={() => {
               setFilterSheetStatus('ALL');
-              setFilterVistoriaStatus((prev) =>
-                prev === 'STATUS_B' ? 'ALL' : 'STATUS_B'
-              );
+              setFilterVistoriaStatus((prev) => (prev === 'STATUS_B' ? 'ALL' : 'STATUS_B'));
             }}
-            className={`text-left p-3.5 rounded-xl border transition-all cursor-pointer ${
-              filterVistoriaStatus === 'STATUS_B'
-                ? 'bg-teal-50 border-[#1E8E8D] ring-1 ring-[#1E8E8D]/20'
-                : 'bg-teal-50/40 hover:bg-teal-50 border-teal-200'
-            }`}
-          >
-            <div className="text-[10px] font-bold uppercase tracking-wider text-[#1E8E8D] flex items-center justify-between">
-              <span>Status B</span>
-              <CheckCircle2 className="w-3.5 h-3.5 text-[#1E8E8D]" />
-            </div>
-            <div className="text-2xl font-extrabold font-mono text-[#1E8E8D] mt-0.5 tabular-nums">
-              {statusBCounters.concluidos}
-            </div>
-            <div className="text-[10px] text-[#1E8E8D]/80 mt-0.5">
-              {statusBCounters.concluidos} de {statusBCounters.total} Sites B liberados
-            </div>
-          </button>
-
-          <button
-            type="button"
+          />
+          <KpiCard
+            label="LOS Finalizados"
+            value={losCounters.entregues}
+            sublabel={`${losCounters.pendentes} LOS pendentes`}
+            icon={<CheckCircle2 className="w-4 h-4" />}
+            tone="warning"
+            active={filterVistoriaStatus === 'LOS_FINALIZADO'}
             onClick={() => {
               setFilterSheetStatus('ALL');
               setFilterVistoriaStatus((prev) =>
                 prev === 'LOS_FINALIZADO' ? 'ALL' : 'LOS_FINALIZADO'
               );
             }}
-            className={`text-left p-3.5 rounded-xl border transition-all cursor-pointer ${
-              filterVistoriaStatus === 'LOS_FINALIZADO'
-                ? 'bg-amber-50 border-amber-500 ring-1 ring-amber-500/20'
-                : 'bg-amber-50/40 hover:bg-amber-50 border-amber-200'
-            }`}
-          >
-            <div className="text-[10px] font-bold uppercase tracking-wider text-amber-800 flex items-center justify-between">
-              <span>LOS Finalizados</span>
-              <CheckCircle2 className="w-3.5 h-3.5 text-amber-600" />
-            </div>
-            <div className="text-2xl font-extrabold font-mono text-amber-800 mt-0.5 tabular-nums">
-              {losCounters.entregues}
-            </div>
-            <div className="text-[10px] text-amber-800/80 mt-0.5">
-              {losCounters.pendentes} LOS pendentes
-            </div>
-          </button>
-
-          <button
-            type="button"
+          />
+          <KpiCard
+            label="Status Planilha: Liberado"
+            value={siteCounters.statusConcluidoSites}
+            sublabel="Sites liberados (A + B)"
+            icon={<CheckCircle2 className="w-4 h-4" />}
+            tone="success"
+            active={filterSheetStatus === 'LIBERADO'}
             onClick={() => {
               setFilterVistoriaStatus('ALL');
-              setFilterSheetStatus((prev) =>
-                prev === 'LIBERADO' ? 'ALL' : 'LIBERADO'
-              );
+              setFilterSheetStatus((prev) => (prev === 'LIBERADO' ? 'ALL' : 'LIBERADO'));
             }}
-            className={`text-left p-3.5 rounded-xl border transition-all cursor-pointer ${
-              filterSheetStatus === 'LIBERADO'
-                ? 'bg-teal-50 border-teal-600 ring-1 ring-teal-600/20 shadow-xs'
-                : 'bg-teal-50/40 hover:bg-teal-50 border-teal-200'
-            }`}
-          >
-            <div className="text-[10px] font-bold uppercase tracking-wider text-teal-700 flex items-center justify-between">
-              <span>Status Planilha: Liberado</span>
-              <CheckCircle2 className="w-3.5 h-3.5 text-teal-600" />
-            </div>
-            <div className="text-2xl font-extrabold font-mono text-teal-700 mt-0.5 tabular-nums">
-              {siteCounters.statusConcluidoSites}
-            </div>
-            <div className="text-[10px] text-teal-700/80 mt-0.5">
-              Sites liberados (A + B)
-            </div>
-          </button>
-
-          <button
-            type="button"
+          />
+          <KpiCard
+            label="Em Andamento / Campo"
+            value={siteCounters.statusEmAndamentoSites}
+            sublabel="Sites em execução (A + B)"
+            icon={<Clock className="w-4 h-4" />}
+            tone="info"
+            active={filterSheetStatus === 'ANDAMENTO'}
             onClick={() => {
               setFilterVistoriaStatus('ALL');
-              setFilterSheetStatus((prev) =>
-                prev === 'ANDAMENTO' ? 'ALL' : 'ANDAMENTO'
-              );
+              setFilterSheetStatus((prev) => (prev === 'ANDAMENTO' ? 'ALL' : 'ANDAMENTO'));
             }}
-            className={`text-left p-3.5 rounded-xl border transition-all cursor-pointer ${
-              filterSheetStatus === 'ANDAMENTO'
-                ? 'bg-blue-50 border-[#223585] ring-1 ring-[#223585]/20 shadow-xs'
-                : 'bg-slate-50/70 hover:bg-slate-100/70 border-slate-200'
-            }`}
-          >
-            <div className="text-[10px] font-bold uppercase tracking-wider text-[#223585] flex items-center justify-between">
-              <span>Em Andamento / Campo</span>
-              <Clock className="w-3.5 h-3.5 text-[#223585]" />
-            </div>
-            <div className="text-2xl font-extrabold font-mono text-[#223585] mt-0.5 tabular-nums">
-              {siteCounters.statusEmAndamentoSites}
-            </div>
-            <div className="text-[10px] text-slate-500 mt-0.5">
-              Sites em execução (A + B)
-            </div>
-          </button>
+          />
         </div>
       </div>
 
       {/* =====================================================================
           2. VIEW SWITCHER, SMART SEARCH & FILTERS BAR
          ===================================================================== */}
-      <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-2xs space-y-3">
+      <div className="bg-white border border-slate-200 rounded-[12px] p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04)] space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="inline-flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200">
+          <div className="inline-flex items-center bg-slate-100 p-1 rounded-[8px] border border-slate-200">
             <button
               type="button"
               onClick={() => setViewMode('resumo')}
-              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+              className={`px-3.5 py-1.5 rounded-[6px] text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
                 viewMode === 'resumo'
                   ? 'bg-[#223585] text-white shadow-2xs'
                   : 'text-slate-600 hover:text-slate-900'
@@ -1733,7 +1630,7 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
             <button
               type="button"
               onClick={() => setViewMode('planilha')}
-              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+              className={`px-3.5 py-1.5 rounded-[6px] text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
                 viewMode === 'planilha'
                   ? 'bg-[#223585] text-white shadow-2xs'
                   : 'text-slate-600 hover:text-slate-900'
@@ -1746,7 +1643,7 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
             <button
               type="button"
               onClick={() => setViewMode('graficos')}
-              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+              className={`px-3.5 py-1.5 rounded-[6px] text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
                 viewMode === 'graficos'
                   ? 'bg-[#223585] text-white shadow-2xs'
                   : 'text-slate-600 hover:text-slate-900'
@@ -1766,7 +1663,7 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
                     setViewMode('equipes');
                   }
                 }}
-                className={`px-3.5 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+                className={`px-3.5 py-1.5 rounded-[6px] text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
                   viewMode === 'equipes'
                     ? 'bg-[#223585] text-white shadow-2xs'
                     : 'text-slate-600 hover:text-slate-900'
@@ -1784,9 +1681,9 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
                 <button
                   type="button"
                   onClick={() => setShowMetaChartCard((prev) => !prev)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 border transition-all cursor-pointer ${
+                  className={`px-3 py-1.5 rounded-[8px] text-xs font-semibold flex items-center gap-1.5 border transition-all cursor-pointer ${
                     showMetaChartCard
-                      ? 'bg-blue-50 border-blue-200 text-[#223585] shadow-2xs'
+                      ? 'bg-[#EEF2FF] border-[#C7D2FE] text-[#223585] shadow-2xs'
                       : 'bg-white border-slate-200 text-slate-600 hover:text-slate-900'
                   }`}
                   title="Exibir ou ocultar o Gráfico de Colunas da coluna META"
@@ -1802,7 +1699,7 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
 
                 <div className="flex items-center gap-2">
                   <span className="text-[11px] font-semibold text-slate-500">Densidade:</span>
-                  <div className="inline-flex bg-slate-100 p-0.5 rounded-lg border border-slate-200 text-[11px]">
+                  <div className="inline-flex bg-slate-100 p-0.5 rounded-[8px] border border-slate-200 text-[11px]">
                     {(
                       [
                         { id: 'compact', label: 'Compacta' },
@@ -1814,7 +1711,7 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
                         key={d.id}
                         type="button"
                         onClick={() => setDensity(d.id)}
-                        className={`px-2.5 py-1 rounded-md font-semibold transition-colors cursor-pointer ${
+                        className={`px-2.5 py-1 rounded-[6px] font-semibold transition-colors cursor-pointer ${
                           density === d.id
                             ? 'bg-white text-slate-900 shadow-2xs'
                             : 'text-slate-500 hover:text-slate-800'
@@ -1841,7 +1738,7 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Busca inteligente ou cole vários Site IDs (A ou B), Chaves, Cidade..."
-                  className="w-full pl-9 pr-8 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-[#223585]"
+                  className="w-full pl-9 pr-8 py-2 bg-[#F8FAFC] border border-slate-200 rounded-[8px] text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-[#223585] focus:ring-2 focus:ring-[#223585]/15 transition-all"
                 />
                 {searchQuery && (
                   <button
@@ -1853,7 +1750,7 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
                   </button>
                 )}
                 {searchTokens.length > 1 && (
-                  <div className="mt-1 flex items-center gap-1.5 text-[11px] text-[#223585] font-semibold">
+                  <div className="mt-1 flex items-center gap-1.5 text-[11px] text-[#223585] font-semibold tabular-nums">
                     <span>
                       Multi-busca ativa: {searchTokens.length} códigos colados ({filteredRows.length}{' '}
                       linhas / {siteCounters.totalSites} sites encontrados)
@@ -1867,10 +1764,10 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
                 <select
                   value={filterMeta}
                   onChange={(e) => setFilterMeta(e.target.value)}
-                  className={`w-full px-2.5 py-2 border rounded-lg text-xs font-bold focus:outline-none focus:border-[#223585] ${
+                  className={`w-full px-2.5 py-2 border rounded-[8px] text-xs font-semibold focus:outline-none focus:border-[#223585] focus:ring-2 focus:ring-[#223585]/15 ${
                     filterMeta !== 'ALL'
-                      ? 'bg-blue-50 border-blue-300 text-[#223585]'
-                      : 'bg-slate-50 border-slate-200 text-slate-700'
+                      ? 'bg-[#EEF2FF] border-[#C7D2FE] text-[#223585]'
+                      : 'bg-[#F8FAFC] border-slate-200 text-slate-700'
                   }`}
                 >
                   <option value="ALL">META: Todos ({distinctMetas.length})</option>
@@ -1886,7 +1783,7 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
                 <select
                   value={filterState}
                   onChange={(e) => setFilterState(e.target.value)}
-                  className="w-full px-2.5 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-700 font-medium focus:outline-none focus:border-[#223585]"
+                  className="w-full px-2.5 py-2 bg-[#F8FAFC] border border-slate-200 rounded-[8px] text-xs text-slate-700 font-medium focus:outline-none focus:border-[#223585] focus:ring-2 focus:ring-[#223585]/15"
                 >
                   <option value="ALL">00.03.State: Todos ({distinctStates.length})</option>
                   {distinctStates.map((st) => (
@@ -1901,7 +1798,7 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
                 <select
                   value={filterEquipe}
                   onChange={(e) => setFilterEquipe(e.target.value)}
-                  className="w-full px-2.5 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-700 font-medium focus:outline-none focus:border-[#223585]"
+                  className="w-full px-2.5 py-2 bg-[#F8FAFC] border border-slate-200 rounded-[8px] text-xs text-slate-700 font-medium focus:outline-none focus:border-[#223585] focus:ring-2 focus:ring-[#223585]/15"
                 >
                   <option value="ALL">EQUIPE: Todas ({distinctEquipes.length})</option>
                   {distinctEquipes.map((eq) => (
@@ -1916,7 +1813,7 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
                 <select
                   value={filterSheetStatus}
                   onChange={(e) => setFilterSheetStatus(e.target.value)}
-                  className="w-full px-2.5 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-700 font-medium focus:outline-none focus:border-[#223585]"
+                  className="w-full px-2.5 py-2 bg-[#F8FAFC] border border-slate-200 rounded-[8px] text-xs text-slate-700 font-medium focus:outline-none focus:border-[#223585] focus:ring-2 focus:ring-[#223585]/15"
                 >
                   <option value="ALL">Status Site (A/B): Todos</option>
                   <option value="LIBERADO">Status: Liberado / Concluído ({siteCounters.statusConcluidoSites})</option>
@@ -1941,7 +1838,7 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
                   <Filter className="w-3 h-3 text-[#223585]" /> Filtros ativos:
                 </span>
                 {filterMeta !== 'ALL' && (
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-blue-50 border border-blue-200 text-[#223585] font-bold">
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-[8px] bg-[#EEF2FF] border border-[#DDE4F6] text-[#223585] font-semibold">
                     META: {filterMeta}
                     <button
                       type="button"
@@ -1953,7 +1850,7 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
                   </span>
                 )}
                 {filterState !== 'ALL' && (
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-100 border border-slate-200 text-slate-800 font-bold">
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-[8px] bg-slate-100 border border-slate-200 text-slate-800 font-semibold">
                     Estado: {filterState}
                     <button
                       type="button"
@@ -1965,7 +1862,7 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
                   </span>
                 )}
                 {filterEquipe !== 'ALL' && (
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-100 border border-slate-200 text-slate-800 font-bold">
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-[8px] bg-slate-100 border border-slate-200 text-slate-800 font-semibold">
                     Equipe: {filterEquipe}
                     <button
                       type="button"
@@ -1977,7 +1874,7 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
                   </span>
                 )}
                 {filterSheetStatus !== 'ALL' && (
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-teal-50 border border-teal-200 text-teal-800 font-bold">
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-[8px] bg-[#EEFAFA] border border-[#AAE5E5] text-[#177170] font-semibold">
                     Status: {filterSheetStatus}
                     <button
                       type="button"
@@ -1989,7 +1886,7 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
                   </span>
                 )}
                 {filterVistoriaStatus !== 'ALL' && (
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-indigo-50 border border-indigo-200 text-indigo-800 font-bold">
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-[8px] bg-indigo-50 border border-indigo-200 text-indigo-800 font-semibold">
                     Vistoria: {filterVistoriaStatus}
                     <button
                       type="button"
@@ -2009,7 +1906,7 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
                     setFilterSheetStatus('ALL');
                     setFilterVistoriaStatus('ALL');
                   }}
-                  className="text-[11px] text-slate-500 hover:text-red-600 font-semibold underline cursor-pointer ml-1"
+                  className="text-[11px] text-slate-500 hover:text-rose-600 font-semibold underline cursor-pointer ml-1"
                 >
                   Limpar todos os filtros
                 </button>
@@ -2030,11 +1927,11 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
           3A. VIEW MODE: RESUMO (SITE A, SITE B, AND NEW LOS COLUMN)
          ===================================================================== */}
       {viewMode === 'resumo' && (
-        <div className="bg-white border border-slate-200 rounded-xl shadow-2xs overflow-hidden">
-          <div className="px-4 py-2.5 bg-slate-50 border-b border-slate-200 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-600">
+        <div className="bg-white border border-slate-200 rounded-[12px] shadow-[0_1px_2px_rgba(15,23,42,0.04)] overflow-hidden">
+          <div className="px-4 py-2.5 bg-[#F8FAFC] border-b border-slate-200 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-600">
             <div className="flex items-center gap-2">
               <Filter className="w-3.5 h-3.5 text-[#223585]" />
-              <span>
+              <span className="tabular-nums">
                 Exibindo <strong>{siteCounters.totalSites}</strong> sites em{' '}
                 <strong>{filteredRows.length}</strong> linhas.
               </span>
@@ -2043,82 +1940,83 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
               <span className="inline-flex items-center gap-1 text-emerald-700 font-semibold">
                 <span className="w-2 h-2 rounded-full bg-emerald-500" /> Entregue / Finalizado
               </span>
-              <span className="inline-flex items-center gap-1 text-red-600 font-semibold">
-                <span className="w-2 h-2 rounded-full bg-red-500" /> Pendente
+              <span className="inline-flex items-center gap-1 text-rose-600 font-semibold">
+                <span className="w-2 h-2 rounded-full bg-rose-500" /> Pendente
               </span>
             </div>
           </div>
 
           <div className="overflow-x-auto max-h-[680px]">
-            <table className="w-full text-left border-collapse">
-              <thead className="sticky top-0 z-10 bg-slate-100 text-[10px] uppercase tracking-wider text-slate-600 border-b border-slate-200">
+            <table className="w-full text-left border-collapse ameta-table-zebra text-[13px]">
+              <thead className="sticky top-0 z-10 bg-[#F4F6FA] text-[10px] uppercase tracking-wider text-slate-600 border-b border-slate-200">
                 <tr>
-                  <th className="py-2.5 px-3 font-bold">01.00. Chaves</th>
-                  <th className="py-2.5 px-2.5 font-bold">00.03.State</th>
-                  <th className="py-2.5 px-2.5 font-bold">Meta</th>
-                  <th className="py-2.5 px-3 font-bold bg-blue-50/70 text-[#223585] border-l border-slate-200">
+                  <th className="py-2.5 px-3 font-bold ameta-col-resizable">01.00. Chaves</th>
+                  <th className="py-2.5 px-2.5 font-bold ameta-col-resizable">00.03.State</th>
+                  <th className="py-2.5 px-2.5 font-bold ameta-col-resizable">Meta</th>
+                  <th className="py-2.5 px-3 font-bold bg-[#EEF2FF] text-[#223585] border-l border-slate-200 ameta-col-resizable">
                     01.21.Site ID A
                   </th>
-                  <th className="py-2.5 px-2.5 font-bold bg-blue-50/70 text-[#223585]">
+                  <th className="py-2.5 px-2.5 font-bold bg-[#EEF2FF] text-[#223585] ameta-col-resizable">
                     Status A
                   </th>
-                  <th className="py-2.5 px-2.5 font-bold bg-blue-50/70 text-[#223585]">
+                  <th className="py-2.5 px-2.5 font-bold bg-[#EEF2FF] text-[#223585] ameta-col-resizable">
                     CIDADE A
                   </th>
-                  <th className="py-2.5 px-3 font-bold bg-teal-50/70 text-[#1E8E8D] border-l border-slate-200">
+                  <th className="py-2.5 px-3 font-bold bg-[#EEFAFA] text-[#1E8E8D] border-l border-slate-200 ameta-col-resizable">
                     01.21.Site ID B
                   </th>
-                  <th className="py-2.5 px-2.5 font-bold bg-teal-50/70 text-[#1E8E8D]">
+                  <th className="py-2.5 px-2.5 font-bold bg-[#EEFAFA] text-[#1E8E8D] ameta-col-resizable">
                     Status B
                   </th>
-                  <th className="py-2.5 px-2.5 font-bold bg-teal-50/70 text-[#1E8E8D]">
+                  <th className="py-2.5 px-2.5 font-bold bg-[#EEFAFA] text-[#1E8E8D] ameta-col-resizable">
                     CIDADE B
                   </th>
-                  <th className="py-2.5 px-2.5 font-bold border-l border-slate-200">EQUIPE</th>
+                  <th className="py-2.5 px-2.5 font-bold border-l border-slate-200 ameta-col-resizable">EQUIPE</th>
                   <th className="py-2.5 px-2.5 font-bold">Serviço</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200">
                 {filteredRows.length === 0 ? (
                   <tr>
-                    <td colSpan={11} className="px-6 py-12 text-center text-slate-500">
-                      <div className="max-w-md mx-auto space-y-3">
-                        <div className="w-12 h-12 mx-auto rounded-full bg-slate-100 flex items-center justify-center text-slate-400">
-                          <FileSpreadsheet className="w-6 h-6" />
-                        </div>
-                        <div className="font-bold text-slate-800 text-sm">
-                          {!hasFullAccess
+                    <td colSpan={11} className="p-0">
+                      <EmptyStateCard
+                        icon={<FileSpreadsheet className="w-6 h-6" />}
+                        title={
+                          !hasFullAccess
                             ? 'Nenhum site demandado para você no momento'
                             : rows.length === 0
                             ? 'Nenhum site encontrado no Firestore (ericsson_sites)'
-                            : 'Nenhum site corresponde aos filtros selecionados'}
-                        </div>
-                        <p className="text-xs text-slate-500 leading-relaxed">
-                          {!hasFullAccess
+                            : 'Nenhum site corresponde aos filtros selecionados'
+                        }
+                        description={
+                          !hasFullAccess
                             ? 'Aguarde a atribuição de demandas pela coordenação da Ameta Telecom.'
                             : rows.length === 0
                             ? 'A coleção ericsson_sites está vazia no banco ameta-sistema-teste. Utilize o botão abaixo para importar a planilha oficial (.xlsx) ou importe os dados iniciais no Painel de Admin.'
-                            : 'Tente alterar ou limpar os filtros de busca para visualizar os sites cadastrados.'}
-                        </p>
-                        {rows.length === 0 && hasFullAccess && (
-                          <div className="pt-2">
+                            : 'Tente alterar ou limpar os filtros de busca para visualizar os sites cadastrados.'
+                        }
+                        action={
+                          rows.length === 0 && hasFullAccess ? (
                             <button
                               type="button"
                               onClick={() => setSyncModalOpen(true)}
-                              className="px-4 py-2 bg-[#1E8E8D] hover:bg-[#177372] text-white font-bold text-xs rounded-lg inline-flex items-center gap-1.5 cursor-pointer shadow-xs"
+                              className="px-4 py-2 bg-[#1E8E8D] hover:bg-[#177170] text-white font-semibold text-xs rounded-[8px] inline-flex items-center gap-1.5 cursor-pointer shadow-xs"
                             >
                               <Upload className="w-4 h-4" />
                               <span>Importar Planilha Ericsson (.xlsx)</span>
                             </button>
-                          </div>
-                        )}
-                      </div>
+                          ) : undefined
+                        }
+                      />
                     </td>
                   </tr>
                 ) : (
                   filteredRows.map((row) => {
                   const sA = row.statusA || row.fields?.['Status A'] || '';
                   const sB = row.statusB || row.fields?.['Status B'] || '';
+                  const isRowSelected = selectedRow?.id === row.id;
+                  const cidadeAVal = row.cidadeA || row.fields?.['CIDADE A'] || row.fields?.['Cidade A'] || '—';
+                  const cidadeBVal = row.cidadeB || row.fields?.['CIDADE B'] || row.fields?.['Cidade B'] || '—';
 
                   return (
                     <tr
@@ -2127,12 +2025,14 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
                         setSelectedRow(row);
                         setEditFields({ ...(row.fields || {}) });
                       }}
-                      className="hover:bg-blue-50/40 transition-colors cursor-pointer"
+                      className={`transition-colors cursor-pointer ${
+                        isRowSelected ? 'ameta-table-row-selected' : ''
+                      }`}
                     >
-                      <td className={`${cellPad} font-mono font-bold text-slate-800 whitespace-nowrap`}>
+                      <td className={`${cellPad} font-mono tabular-nums font-bold text-slate-800 whitespace-nowrap`}>
                         {row.chaves || row.fields?.['01.00. Chaves'] || row.fields?.['Chaves'] || '—'}
                       </td>
-                      <td className={`${cellPad} font-mono font-semibold text-slate-700`}>
+                      <td className={`${cellPad} font-mono tabular-nums font-semibold text-slate-700`}>
                         {row.state || row.fields?.['00.03.State'] || row.fields?.['State'] || row.fields?.['UF'] || '—'}
                       </td>
                       <td
@@ -2143,7 +2043,7 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
                           <select
                             value={(row.meta || row.fields?.['Meta'] || '').trim()}
                             onChange={(e) => handleInlineMetaChange(row, e.target.value)}
-                            className="text-xs bg-slate-50 hover:bg-white focus:bg-white border border-slate-300 focus:border-blue-500 rounded px-2 py-1 font-medium text-slate-800 shadow-2xs focus:ring-1 focus:ring-blue-500 outline-none cursor-pointer max-w-[140px] truncate"
+                            className="text-xs bg-[#F8FAFC] hover:bg-white focus:bg-white border border-slate-300 focus:border-[#223585] rounded-[8px] px-2 py-1 font-medium text-slate-800 shadow-2xs focus:ring-2 focus:ring-[#223585]/20 outline-none cursor-pointer max-w-[140px] truncate"
                             title="Alterar Meta"
                           >
                             <option value="">—</option>
@@ -2171,7 +2071,7 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
 
                       {/* SITE A */}
                       <td
-                        className={`${cellPad} font-mono font-bold text-[#223585] bg-blue-50/20 border-l border-slate-200 whitespace-nowrap`}
+                        className={`${cellPad} font-mono tabular-nums font-bold text-[#223585] bg-blue-50/20 border-l border-slate-200 whitespace-nowrap`}
                       >
                         <div className="flex items-center gap-1.5">
                           <span>{row.siteIdA || row.fields?.['01.21.Site ID A'] || row.fields?.['Site ID A'] || '—'}</span>
@@ -2186,13 +2086,13 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
                       <td className={`${cellPad} bg-blue-50/20`}>
                         {renderSheetStatusBadge(sA || row.fields?.['Status A'] || '')}
                       </td>
-                      <td className={`${cellPad} text-slate-700 bg-blue-50/20 max-w-[140px] truncate`}>
-                        {row.cidadeA || row.fields?.['CIDADE A'] || row.fields?.['Cidade A'] || '—'}
+                      <td className={`${cellPad} text-slate-700 bg-blue-50/20 max-w-[140px] truncate`} title={cidadeAVal}>
+                        {cidadeAVal}
                       </td>
 
                       {/* SITE B */}
                       <td
-                        className={`${cellPad} font-mono font-bold text-[#1E8E8D] bg-teal-50/20 border-l border-slate-200 whitespace-nowrap`}
+                        className={`${cellPad} font-mono tabular-nums font-bold text-[#1E8E8D] bg-teal-50/20 border-l border-slate-200 whitespace-nowrap`}
                       >
                         <div className="flex items-center gap-1.5">
                           <span>{row.siteIdB || row.fields?.['01.21.Site ID B'] || row.fields?.['Site ID B'] || '—'}</span>
@@ -2207,8 +2107,8 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
                       <td className={`${cellPad} bg-teal-50/20`}>
                         {renderSheetStatusBadge(sB || row.fields?.['Status B'] || '')}
                       </td>
-                      <td className={`${cellPad} text-slate-700 bg-teal-50/20 max-w-[140px] truncate`}>
-                        {row.cidadeB || row.fields?.['CIDADE B'] || row.fields?.['Cidade B'] || '—'}
+                      <td className={`${cellPad} text-slate-700 bg-teal-50/20 max-w-[140px] truncate`} title={cidadeBVal}>
+                        {cidadeBVal}
                       </td>
 
                       <td className={`${cellPad} font-semibold text-slate-800 border-l border-slate-200 whitespace-nowrap`}>
@@ -2231,11 +2131,11 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
           3B. VIEW MODE: PLANILHA COMPLETA (106 ORIGINAL COLUMNS + VISTORIA A, VISTORIA B & LOS)
          ===================================================================== */}
       {viewMode === 'planilha' && (
-        <div className="bg-white border border-slate-200 rounded-xl shadow-2xs overflow-hidden">
-          <div className="px-4 py-2.5 bg-slate-50 border-b border-slate-200 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-600">
+        <div className="bg-white border border-slate-200 rounded-[12px] shadow-[0_1px_2px_rgba(15,23,42,0.04)] overflow-hidden">
+          <div className="px-4 py-2.5 bg-[#F8FAFC] border-b border-slate-200 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-600">
             <div className="flex items-center gap-2">
               <FileSpreadsheet className="w-4 h-4 text-[#1E8E8D]" />
-              <span>
+              <span className="tabular-nums">
                 Aba: <strong className="text-slate-900">{sheetMeta?.tabName || 'ERICSSON CLARO TX'}</strong> •{' '}
                 {originalColumns.length} colunas originais do Excel + colunas{' '}
                 <strong className="text-[#223585]">Vistoria A</strong>,{' '}
@@ -2248,8 +2148,8 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
           </div>
 
           <div className="overflow-x-auto max-h-[680px]">
-            <table className="w-full text-left border-collapse">
-              <thead className="sticky top-0 z-10 bg-slate-100 text-[10px] uppercase tracking-wider text-slate-700 border-b border-slate-200">
+            <table className="w-full text-left border-collapse ameta-table-zebra text-[13px]">
+              <thead className="sticky top-0 z-10 bg-[#F4F6FA] text-[10px] uppercase tracking-wider text-slate-700 border-b border-slate-200">
                 <tr>
                   {originalColumns.map((col, idx) => {
                     const isSiteA = col === '01.21.Site ID A' || col === 'Status A';
@@ -2257,11 +2157,11 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
                     return (
                       <th
                         key={`${col}-${idx}`}
-                        className={`py-2.5 px-3 font-bold whitespace-nowrap border-r border-slate-200 ${
+                        className={`py-2.5 px-3 font-bold whitespace-nowrap border-r border-slate-200 ameta-col-resizable ${
                           isSiteA
-                            ? 'bg-blue-50 text-[#223585]'
+                            ? 'bg-[#EEF2FF] text-[#223585]'
                             : isSiteB
-                            ? 'bg-teal-50 text-[#1E8E8D]'
+                            ? 'bg-[#EEFAFA] text-[#1E8E8D]'
                             : ''
                         }`}
                       >
@@ -2269,7 +2169,7 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
                       </th>
                     );
                   })}
-                  <th className="py-2.5 px-3 font-bold whitespace-nowrap bg-violet-50 text-violet-800 border-r border-slate-200">
+                  <th className="py-2.5 px-3 font-bold whitespace-nowrap bg-violet-50 text-violet-800 border-r border-slate-200 ameta-col-resizable">
                     SMART
                   </th>
                   <th className="py-2.5 px-3 font-bold whitespace-nowrap bg-rose-50 text-rose-800 border-r border-slate-200">
@@ -2282,96 +2182,101 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
                   <tr>
                     <td
                       colSpan={originalColumns.length + 2}
-                      className="px-6 py-12 text-center text-slate-500"
+                      className="p-0"
                     >
-                      <div className="max-w-md mx-auto space-y-3">
-                        <div className="w-12 h-12 mx-auto rounded-full bg-slate-100 flex items-center justify-center text-slate-400">
-                          <FileSpreadsheet className="w-6 h-6" />
-                        </div>
-                        <div className="font-bold text-slate-800 text-sm">
-                          {rows.length === 0
+                      <EmptyStateCard
+                        icon={<FileSpreadsheet className="w-6 h-6" />}
+                        title={
+                          rows.length === 0
                             ? 'Nenhum site encontrado no Firestore (ericsson_sites)'
-                            : 'Nenhum site corresponde aos filtros selecionados'}
-                        </div>
-                        <p className="text-xs text-slate-500 leading-relaxed">
-                          {rows.length === 0
+                            : 'Nenhum site corresponde aos filtros selecionados'
+                        }
+                        description={
+                          rows.length === 0
                             ? 'A coleção ericsson_sites está vazia no banco ameta-sistema-teste. Utilize o botão abaixo para importar a planilha oficial (.xlsx) ou importe os dados iniciais no Painel de Admin.'
-                            : 'Tente alterar ou limpar os filtros de busca para visualizar os sites cadastrados.'}
-                        </p>
-                        {rows.length === 0 && (
-                          <div className="pt-2">
+                            : 'Tente alterar ou limpar os filtros de busca para visualizar os sites cadastrados.'
+                        }
+                        action={
+                          rows.length === 0 ? (
                             <button
                               type="button"
                               onClick={() => setSyncModalOpen(true)}
-                              className="px-4 py-2 bg-[#1E8E8D] hover:bg-[#177372] text-white font-bold text-xs rounded-lg inline-flex items-center gap-1.5 cursor-pointer shadow-xs"
+                              className="px-4 py-2 bg-[#1E8E8D] hover:bg-[#177170] text-white font-semibold text-xs rounded-[8px] inline-flex items-center gap-1.5 cursor-pointer shadow-xs"
                             >
                               <Upload className="w-4 h-4" />
                               <span>Importar Planilha Ericsson (.xlsx)</span>
                             </button>
-                          </div>
-                        )}
-                      </div>
+                          ) : undefined
+                        }
+                      />
                     </td>
                   </tr>
                 ) : (
-                  filteredRows.map((row) => (
-                  <tr
-                    key={row.id}
-                    onClick={() => {
-                      setSelectedRow(row);
-                      setEditFields({ ...(row.fields || {}) });
-                    }}
-                    className="hover:bg-blue-50/40 transition-colors cursor-pointer"
-                  >
-                    {originalColumns.map((col, idx) => {
-                      const val = getRowFieldValue(row, col);
-                      const cleanCol = col.trim().toUpperCase();
-                      const isSiteIdA = cleanCol === '01.21.SITE ID A' || cleanCol === 'SITE ID A' || cleanCol === 'SITE A';
-                      const isSiteIdB = cleanCol === '01.21.SITE ID B' || cleanCol === 'SITE ID B' || cleanCol === 'SITE B';
-                      const isStatusA = cleanCol === 'STATUS A' || cleanCol === 'STATUS SITE A';
-                      const isStatusB = cleanCol === 'STATUS B' || cleanCol === 'STATUS SITE B';
+                  filteredRows.map((row) => {
+                    const isRowSelected = selectedRow?.id === row.id;
+                    return (
+                      <tr
+                        key={row.id}
+                        onClick={() => {
+                          setSelectedRow(row);
+                          setEditFields({ ...(row.fields || {}) });
+                        }}
+                        className={`transition-colors cursor-pointer ${
+                          isRowSelected ? 'ameta-table-row-selected' : ''
+                        }`}
+                      >
+                        {originalColumns.map((col, idx) => {
+                          const val = getRowFieldValue(row, col);
+                          const cleanCol = col.trim().toUpperCase();
+                          const isSiteIdA = cleanCol === '01.21.SITE ID A' || cleanCol === 'SITE ID A' || cleanCol === 'SITE A';
+                          const isSiteIdB = cleanCol === '01.21.SITE ID B' || cleanCol === 'SITE ID B' || cleanCol === 'SITE B';
+                          const isStatusA = cleanCol === 'STATUS A' || cleanCol === 'STATUS SITE A';
+                          const isStatusB = cleanCol === 'STATUS B' || cleanCol === 'STATUS SITE B';
 
-                      return (
-                        <td
-                          key={`${col}-${idx}`}
-                          className={`${cellPad} whitespace-nowrap border-r border-slate-200/70 ${
-                            isSiteIdA
-                              ? 'font-mono font-bold text-[#223585] bg-blue-50/20'
-                              : isSiteIdB
-                              ? 'font-mono font-bold text-[#1E8E8D] bg-teal-50/20'
-                              : 'text-slate-700'
-                          }`}
-                        >
-                          {isSiteIdA ? (
-                            <div className="flex items-center justify-between gap-2">
-                              <span>{val || row.siteIdA || '—'}</span>
-                              {(val || row.siteIdA) && renderVistoriaOrLosCell(row, 'A')}
-                            </div>
-                          ) : isSiteIdB ? (
-                            <div className="flex items-center justify-between gap-2">
-                              <span>{val || row.siteIdB || '—'}</span>
-                              {(val || row.siteIdB) && renderVistoriaOrLosCell(row, 'B')}
-                            </div>
-                          ) : isStatusA || isStatusB ? (
-                            renderSheetStatusBadge(val)
-                          ) : (
-                            val || '—'
-                          )}
+                          return (
+                            <td
+                              key={`${col}-${idx}`}
+                              title={val || undefined}
+                              className={`${cellPad} whitespace-nowrap border-r border-slate-200/70 max-w-[260px] truncate ${
+                                isSiteIdA
+                                  ? 'font-mono tabular-nums font-bold text-[#223585] bg-blue-50/20'
+                                  : isSiteIdB
+                                  ? 'font-mono tabular-nums font-bold text-[#1E8E8D] bg-teal-50/20'
+                                  : 'text-slate-700 tabular-nums'
+                              }`}
+                            >
+                              {isSiteIdA ? (
+                                <div className="flex items-center justify-between gap-2">
+                                  <span>{val || row.siteIdA || '—'}</span>
+                                  {(val || row.siteIdA) && renderVistoriaOrLosCell(row, 'A')}
+                                </div>
+                              ) : isSiteIdB ? (
+                                <div className="flex items-center justify-between gap-2">
+                                  <span>{val || row.siteIdB || '—'}</span>
+                                  {(val || row.siteIdB) && renderVistoriaOrLosCell(row, 'B')}
+                                </div>
+                              ) : isStatusA || isStatusB ? (
+                                renderSheetStatusBadge(val)
+                              ) : (
+                                val || '—'
+                              )}
+                            </td>
+                          );
+                        })}
+
+                        {/* NOVA COLUNA: SMART */}
+                        <td className={`${cellPad} whitespace-nowrap bg-violet-50/20 border-r border-slate-200`}>
+                          {renderVistoriaOrLosCell(row, 'SMART')}
                         </td>
-                      );
-                    })}
 
-                    {/* NOVA COLUNA: SMART */}
-                    <td className={`${cellPad} whitespace-nowrap bg-violet-50/20 border-r border-slate-200`}>
-                      {renderVistoriaOrLosCell(row, 'SMART')}
-                    </td>
-
-                    {/* NOVA COLUNA: SDC */}
-                    <td className={`${cellPad} whitespace-nowrap bg-rose-50/20 border-r border-slate-200`}>
-                      {renderVistoriaOrLosCell(row, 'SDC')}
-                    </td>
-                  </tr>
-                )))}
+                        {/* NOVA COLUNA: SDC */}
+                        <td className={`${cellPad} whitespace-nowrap bg-rose-50/20 border-r border-slate-200`}>
+                          {renderVistoriaOrLosCell(row, 'SDC')}
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
               </tbody>
             </table>
           </div>
@@ -2386,7 +2291,7 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
           {/* GRÁFICO DE COLUNAS: STATUS DA COLUNA META (HERO SPANNING 2 COLS) */}
           {renderMetaColumnChart(true)}
 
-          <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-2xs space-y-4">
+          <div className="bg-white border border-slate-200 rounded-[12px] p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04)] space-y-4">
             <div>
               <h3 className="text-sm font-bold text-slate-900">
                 Sites por Estado (00.03.State) — Finalizados vs Pendentes
@@ -2409,28 +2314,28 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
                     onClick={() =>
                       setFilterState((prev) => (prev === item.state ? 'ALL' : item.state))
                     }
-                    className={`w-full text-left p-2.5 rounded-xl border transition-all cursor-pointer ${
+                    className={`w-full text-left p-2.5 rounded-[10px] border transition-all cursor-pointer ${
                       isSelected
-                        ? 'bg-blue-50/70 border-[#223585]'
-                        : 'bg-slate-50/70 hover:bg-slate-100 border-slate-200'
+                        ? 'bg-[#EEF2FF] border-[#223585]'
+                        : 'bg-[#F8FAFC] hover:bg-slate-100 border-slate-200'
                     }`}
                   >
                     <div className="flex items-center justify-between text-xs mb-1.5">
                       <span className="font-mono font-bold text-slate-900">{item.state}</span>
-                      <div className="flex items-center gap-2 font-mono text-[11px]">
+                      <div className="flex items-center gap-2 font-mono tabular-nums text-[11px]">
                         <span className="text-emerald-700 font-bold">
                           {item.finalizado} finalizados
                         </span>
                         <span className="text-slate-300">•</span>
-                        <span className="text-red-600 font-bold">{item.pendente} pendentes</span>
-                        <span className="px-1.5 py-0.5 rounded bg-white border border-slate-200 text-slate-800 font-bold">
+                        <span className="text-rose-600 font-bold">{item.pendente} pendentes</span>
+                        <span className="px-1.5 py-0.5 rounded-[6px] bg-white border border-slate-200 text-slate-800 font-bold">
                           {item.totalSites} sites
                         </span>
                       </div>
                     </div>
                     <div className="w-full h-2.5 bg-slate-200 rounded-full overflow-hidden">
                       <div
-                        className="h-full rounded-full flex overflow-hidden bg-red-500"
+                        className="h-full rounded-full flex overflow-hidden bg-rose-500"
                         style={{ width: `${totalWidthPct}%` }}
                       >
                         <div
@@ -2445,7 +2350,7 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
             </div>
           </div>
 
-          <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-2xs space-y-4">
+          <div className="bg-white border border-slate-200 rounded-[12px] p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04)] space-y-4">
             <div>
               <h3 className="text-sm font-bold text-slate-900">
                 Distribuição por Status na Planilha (Status A + Status B)
@@ -2469,15 +2374,15 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
                     onClick={() =>
                       setFilterSheetStatus((prev) => (prev === item.name ? 'ALL' : item.name))
                     }
-                    className={`w-full text-left p-2.5 rounded-xl border transition-all cursor-pointer ${
+                    className={`w-full text-left p-2.5 rounded-[10px] border transition-all cursor-pointer ${
                       isSelected
-                        ? 'bg-blue-50/70 border-[#223585]'
-                        : 'bg-slate-50/70 hover:bg-slate-100 border-slate-200'
+                        ? 'bg-[#EEF2FF] border-[#223585]'
+                        : 'bg-[#F8FAFC] hover:bg-slate-100 border-slate-200'
                     }`}
                   >
                     <div className="flex items-center justify-between text-xs mb-1.5">
                       <span className="font-bold text-slate-800">{item.name}</span>
-                      <span className="font-mono text-[11px] font-bold text-slate-700">
+                      <span className="font-mono tabular-nums text-[11px] font-bold text-slate-700">
                         {item.value} sites ({pct}%)
                       </span>
                     </div>
@@ -2497,12 +2402,12 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
           </div>
 
           {/* Status dos Documentos por Tipo Card */}
-          <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-2xs lg:col-span-2 space-y-4">
+          <div className="bg-white border border-slate-200 rounded-[12px] p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04)] lg:col-span-2 space-y-4">
             <div>
               <h3 className="text-sm font-bold text-slate-900">
                 Status dos Documentos por Tipo (Sites Demandados)
               </h3>
-              <p className="text-xs text-slate-500 mt-0.5">
+              <p className="text-xs text-slate-500 mt-0.5 tabular-nums">
                 Status dos documentos (WR, QRF, PPI, SDC, SMART, Vistoria, LOS) calculados exclusivamente sobre os sites demandados ({filteredRows.length} linhas / {siteCounters.totalSites} sites)
               </p>
             </div>
@@ -2512,13 +2417,13 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
                 return (
                   <div
                     key={item.docType}
-                    className="p-3.5 rounded-xl border border-slate-200 bg-slate-50/80 space-y-2"
+                    className="p-3.5 rounded-[10px] border border-slate-200 bg-[#F8FAFC] space-y-2"
                   >
                     <div className="flex items-center justify-between gap-2">
-                      <span className="font-bold text-slate-900 text-xs px-2.5 py-0.5 bg-white border border-slate-200 rounded-md">
+                      <span className="font-bold text-slate-900 text-xs px-2.5 py-0.5 bg-white border border-slate-200 rounded-[6px]">
                         {item.docType}
                       </span>
-                      <span className="font-mono text-xs font-extrabold text-[#223585]">
+                      <span className="font-mono tabular-nums text-xs font-extrabold text-[#223585]">
                         {item.total} {item.total === 1 ? 'documento' : 'documentos'}
                       </span>
                     </div>
@@ -2528,11 +2433,11 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
                         style={{ width: `${finPct}%` }}
                       />
                     </div>
-                    <div className="flex items-center justify-between text-[11px] font-mono">
+                    <div className="flex items-center justify-between text-[11px] font-mono tabular-nums">
                       <span className="text-emerald-700 font-bold">
                         {item.entregues} entregues ({finPct}%)
                       </span>
-                      <span className="text-red-600 font-bold">
+                      <span className="text-rose-600 font-bold">
                         {item.pendentes} pendentes
                       </span>
                     </div>
@@ -2542,7 +2447,7 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
             </div>
           </div>
 
-          <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-2xs lg:col-span-2 space-y-4">
+          <div className="bg-white border border-slate-200 rounded-[12px] p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04)] lg:col-span-2 space-y-4">
             <div>
               <h3 className="text-sm font-bold text-slate-900">
                 Volume de Sites por Equipe Ericsson (Top 15 Equipes)
@@ -2563,15 +2468,15 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
                     onClick={() =>
                       setFilterEquipe((prev) => (prev === item.equipe ? 'ALL' : item.equipe))
                     }
-                    className={`text-left p-3 rounded-xl border transition-all cursor-pointer ${
+                    className={`text-left p-3 rounded-[10px] border transition-all cursor-pointer ${
                       isSelected
-                        ? 'bg-blue-50/80 border-[#223585]'
-                        : 'bg-slate-50/70 hover:bg-slate-100 border-slate-200'
+                        ? 'bg-[#EEF2FF] border-[#223585]'
+                        : 'bg-[#F8FAFC] hover:bg-slate-100 border-slate-200'
                     }`}
                   >
                     <div className="flex items-center justify-between gap-2 text-xs mb-1.5">
                       <span className="font-bold text-slate-900 truncate">{item.equipe}</span>
-                      <span className="font-mono text-[11px] font-bold text-[#223585] shrink-0">
+                      <span className="font-mono tabular-nums text-[11px] font-bold text-[#223585] shrink-0">
                         {item.sites} sites
                       </span>
                     </div>
@@ -2581,11 +2486,11 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
                         style={{ width: `${pctFin}%` }}
                       />
                     </div>
-                    <div className="flex items-center justify-between text-[10px] font-mono text-slate-500">
+                    <div className="flex items-center justify-between text-[10px] font-mono tabular-nums text-slate-500">
                       <span className="text-emerald-700 font-semibold">
                         Finalizados: {item.finalizados}
                       </span>
-                      <span className="text-red-600 font-semibold">
+                      <span className="text-rose-600 font-semibold">
                         Pendentes: {item.pendentes}
                       </span>
                     </div>
@@ -2602,7 +2507,7 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
          ===================================================================== */}
       {viewMode === 'equipes' && (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-          <div className="lg:col-span-4 bg-white border border-slate-200 rounded-xl p-5 shadow-2xs space-y-4 h-fit">
+          <div className="lg:col-span-4 bg-white border border-slate-200 rounded-[12px] p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04)] space-y-4 h-fit">
             <div className="flex items-center gap-2.5 border-b border-slate-200 pb-3">
               <UserPlus className="w-5 h-5 text-[#223585]" />
               <div>
@@ -2617,7 +2522,7 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
 
             <form onSubmit={handleCreateEricssonUser} className="space-y-3 text-xs">
               {userFormError && (
-                <div className="p-2.5 rounded-lg bg-red-50 border border-red-200 text-red-700 flex items-center gap-2">
+                <div className="p-2.5 rounded-[8px] bg-rose-50 border border-rose-200 text-rose-700 flex items-center gap-2">
                   <AlertCircle className="w-4 h-4 shrink-0" />
                   <span>{userFormError}</span>
                 </div>
@@ -2631,7 +2536,7 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
                   value={newUserName}
                   onChange={(e) => setNewUserName(e.target.value)}
                   placeholder="Ex: Carlos Mendes"
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 focus:outline-none focus:bg-white focus:border-[#223585]"
+                  className="w-full px-3 py-2 bg-[#F8FAFC] border border-slate-200 rounded-[8px] text-slate-900 focus:outline-none focus:bg-white focus:border-[#223585] focus:ring-2 focus:ring-[#223585]/15"
                 />
               </div>
 
@@ -2643,7 +2548,7 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
                   value={newUserEmail}
                   onChange={(e) => setNewUserEmail(e.target.value)}
                   placeholder="carlos.mendes@ametaservicos.com.br"
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 focus:outline-none focus:bg-white focus:border-[#223585]"
+                  className="w-full px-3 py-2 bg-[#F8FAFC] border border-slate-200 rounded-[8px] text-slate-900 focus:outline-none focus:bg-white focus:border-[#223585] focus:ring-2 focus:ring-[#223585]/15"
                 />
               </div>
 
@@ -2653,7 +2558,7 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
                   <select
                     value={newUserRole}
                     onChange={(e) => setNewUserRole(e.target.value as UserRole)}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-900"
+                    className="w-full px-3 py-2 bg-[#F8FAFC] border border-slate-200 rounded-[8px] text-slate-900 focus:outline-none focus:border-[#223585]"
                   >
                     <option value="Vistoriador">Vistoriador</option>
                     <option value="Executor">Executor</option>
@@ -2668,7 +2573,7 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
                     value={newUserEquipe}
                     onChange={(e) => setNewUserEquipe(e.target.value)}
                     placeholder="Ex: Equipe 1"
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-900"
+                    className="w-full px-3 py-2 bg-[#F8FAFC] border border-slate-200 rounded-[8px] text-slate-900 focus:outline-none focus:bg-white focus:border-[#223585]"
                   />
                 </div>
               </div>
@@ -2681,7 +2586,7 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
                     value={newUserTelefone}
                     onChange={(e) => setNewUserTelefone(e.target.value)}
                     placeholder="(11) 99999-0000"
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-900"
+                    className="w-full px-3 py-2 bg-[#F8FAFC] border border-slate-200 rounded-[8px] text-slate-900 focus:outline-none focus:bg-white focus:border-[#223585]"
                   />
                 </div>
                 <div>
@@ -2691,7 +2596,7 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
                     value={newUserAtividade}
                     onChange={(e) => setNewUserAtividade(e.target.value)}
                     placeholder="LOS / Vistoria"
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-900"
+                    className="w-full px-3 py-2 bg-[#F8FAFC] border border-slate-200 rounded-[8px] text-slate-900 focus:outline-none focus:bg-white focus:border-[#223585]"
                   />
                 </div>
               </div>
@@ -2699,17 +2604,17 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
               <button
                 type="submit"
                 disabled={savingUser}
-                className="w-full py-2.5 bg-[#223585] hover:bg-[#192869] disabled:opacity-50 text-white font-bold rounded-lg transition-colors cursor-pointer"
+                className="w-full py-2.5 bg-[#223585] hover:bg-[#1B2A6B] disabled:opacity-50 text-white font-bold rounded-[8px] transition-colors cursor-pointer shadow-xs"
               >
                 {savingUser ? 'Salvando...' : 'Cadastrar na Ericsson'}
               </button>
             </form>
           </div>
 
-          <div className="lg:col-span-8 bg-white border border-slate-200 rounded-xl shadow-2xs overflow-hidden">
-            <div className="px-5 py-3.5 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+          <div className="lg:col-span-8 bg-white border border-slate-200 rounded-[12px] shadow-[0_1px_2px_rgba(15,23,42,0.04)] overflow-hidden">
+            <div className="px-5 py-3.5 bg-[#F8FAFC] border-b border-slate-200 flex items-center justify-between">
               <div>
-                <h3 className="text-sm font-bold text-slate-900">
+                <h3 className="text-sm font-bold text-slate-900 tabular-nums">
                   Usuários e Equipes Cadastrados na Ericsson ({ericssonUsers.length})
                 </h3>
                 <p className="text-xs text-slate-500">
@@ -2719,20 +2624,20 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
             </div>
 
             <div className="overflow-x-auto max-h-[560px]">
-              <table className="w-full text-left border-collapse text-xs">
-                <thead className="sticky top-0 bg-slate-100 text-[10px] uppercase tracking-wider text-slate-600 border-b border-slate-200">
+              <table className="w-full text-left border-collapse text-xs ameta-table-zebra">
+                <thead className="sticky top-0 bg-[#0B1530] text-[10px] uppercase tracking-wider text-slate-200">
                   <tr>
-                    <th className="py-2.5 px-4">Nome</th>
-                    <th className="py-2.5 px-3">Equipe</th>
-                    <th className="py-2.5 px-3">Perfil</th>
-                    <th className="py-2.5 px-3">Atividade</th>
-                    <th className="py-2.5 px-3">Telefone</th>
-                    <th className="py-2.5 px-3 text-right">Ações</th>
+                    <th className="py-2.5 px-4 font-semibold">Nome</th>
+                    <th className="py-2.5 px-3 font-semibold">Equipe</th>
+                    <th className="py-2.5 px-3 font-semibold">Perfil</th>
+                    <th className="py-2.5 px-3 font-semibold">Atividade</th>
+                    <th className="py-2.5 px-3 font-semibold">Telefone</th>
+                    <th className="py-2.5 px-3 text-right font-semibold">Ações</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200">
                   {ericssonUsers.map((u) => (
-                    <tr key={u.id} className="hover:bg-slate-50">
+                    <tr key={u.id}>
                       <td className="py-2.5 px-4">
                         <div className="font-bold text-slate-900">{u.name}</div>
                         <div className="text-[11px] text-slate-500">{u.email}</div>
@@ -2741,12 +2646,12 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
                         {u.equipe || '—'}
                       </td>
                       <td className="py-2.5 px-3">
-                        <span className="px-2 py-0.5 rounded bg-slate-100 border border-slate-200 text-slate-700 font-semibold text-[11px]">
+                        <span className="px-2 py-0.5 rounded-[6px] bg-slate-100 border border-slate-200 text-slate-700 font-semibold text-[11px]">
                           {u.role}
                         </span>
                       </td>
                       <td className="py-2.5 px-3 text-slate-600">{u.atividade || '—'}</td>
-                      <td className="py-2.5 px-3 font-mono text-slate-600">
+                      <td className="py-2.5 px-3 font-mono tabular-nums text-slate-600">
                         {u.telefone || '—'}
                       </td>
                       <td className="py-2.5 px-3 text-right">
@@ -2755,7 +2660,7 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
                             <button
                               type="button"
                               onClick={() => handleDeleteEricssonUser(u)}
-                              className="p-1.5 text-slate-400 hover:text-red-600 rounded-lg cursor-pointer"
+                              className="p-1.5 text-slate-400 hover:text-rose-600 rounded-[6px] cursor-pointer"
                               title="Remover usuário Ericsson"
                             >
                               <Trash2 className="w-4 h-4" />
@@ -2776,26 +2681,28 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
          ===================================================================== */}
       {syncModalOpen && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-[2px]"
+          className="ameta-modal-backdrop fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#0B1530]/45 backdrop-blur-[2px]"
           onClick={() => setSyncModalOpen(false)}
         >
           <div
-            className="w-full max-w-lg bg-white border border-slate-200 rounded-2xl shadow-xl overflow-hidden"
+            className="ameta-modal-panel w-full max-w-lg bg-white border border-slate-200 rounded-[12px] overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="px-5 py-4 border-b border-slate-200 flex items-center justify-between bg-slate-50">
+            <div className="px-5 py-4 flex items-center justify-between bg-gradient-to-r from-[#0B1530] to-[#223585] text-white">
               <div className="flex items-center gap-2.5">
-                <CloudDownload className="w-5 h-5 text-[#1E8E8D]" />
+                <div className="w-9 h-9 rounded-[8px] bg-[#1E8E8D]/25 border border-[#1E8E8D]/40 flex items-center justify-center shrink-0">
+                  <CloudDownload className="w-4 h-4 text-[#6EE7E5]" />
+                </div>
                 <div>
                   <div className="flex items-center gap-2">
-                    <h3 className="text-sm font-bold text-slate-900">
+                    <h3 className="text-sm font-bold text-white">
                       Carregar Planilha Ericsson
                     </h3>
-                    <span className="px-2 py-0.5 rounded bg-teal-800 border border-teal-400 text-teal-100 text-[10px] font-mono font-bold">
+                    <span className="px-2 py-0.5 rounded-[6px] bg-white/10 border border-white/20 text-slate-100 text-[10px] font-mono font-bold">
                       Destino: Ericsson – Sites
                     </span>
                   </div>
-                  <p className="text-[11px] text-slate-500">
+                  <p className="text-[11px] text-slate-300 mt-0.5">
                     Acrescenta novos registros mantendo Vistoria A, Vistoria B e LOS sem apagar nada.
                   </p>
                 </div>
@@ -2803,7 +2710,7 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
               <button
                 type="button"
                 onClick={() => setSyncModalOpen(false)}
-                className="p-1 text-slate-400 hover:text-slate-700 rounded-lg cursor-pointer"
+                className="p-1.5 text-slate-300 hover:text-white hover:bg-white/10 rounded-[8px] transition-colors cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -2811,24 +2718,24 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
 
             <div className="p-5 space-y-4 text-xs">
               {syncError && (
-                <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 flex items-center gap-2">
+                <div className="p-3 rounded-[8px] bg-rose-50 border border-rose-200 text-rose-700 flex items-center gap-2">
                   <AlertCircle className="w-4 h-4 shrink-0" />
                   <span className="font-mono">{syncError}</span>
                 </div>
               )}
 
               {importSummary && (
-                <div className="p-3.5 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-900 space-y-1.5">
+                <div className="p-3.5 bg-emerald-50 border border-emerald-200 rounded-[12px] text-emerald-900 space-y-1.5">
                   <div className="flex items-center gap-1.5 font-bold text-xs text-emerald-800">
                     <CheckCircle2 className="w-4 h-4 text-emerald-600" />
                     <span>Resultado da Importação no Firestore:</span>
                   </div>
-                  <div className="grid grid-cols-2 gap-2 text-[11px] font-mono pt-1">
-                    <div className="bg-white p-2 rounded border border-emerald-100">
+                  <div className="grid grid-cols-2 gap-2 text-[11px] font-mono tabular-nums pt-1">
+                    <div className="bg-white p-2 rounded-[8px] border border-emerald-100">
                       <span className="text-slate-500 block text-[10px]">TOTAL ANALISADO</span>
                       <strong>{importSummary.totalAnalisados}</strong>
                     </div>
-                    <div className="bg-white p-2 rounded border border-emerald-100">
+                    <div className="bg-white p-2 rounded-[8px] border border-emerald-100">
                       <span className="text-emerald-600 block text-[10px]">NOVOS GRAVADOS</span>
                       <strong className="text-emerald-700">+{importSummary.novas}</strong>
                     </div>
@@ -2854,7 +2761,7 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
                   type="button"
                   disabled={syncLoading}
                   onClick={() => excelInputRef.current?.click()}
-                  className="w-full py-4 border-2 border-dashed border-slate-300 hover:border-[#223585] rounded-xl bg-slate-50 hover:bg-blue-50/30 text-slate-800 font-bold flex flex-col items-center justify-center gap-2 transition-colors cursor-pointer disabled:opacity-50"
+                  className="w-full py-5 border-2 border-dashed border-slate-300 hover:border-[#223585] rounded-[12px] bg-[#F8FAFC] hover:bg-[#EEF2FF]/40 text-slate-800 font-bold flex flex-col items-center justify-center gap-2 transition-colors cursor-pointer disabled:opacity-50"
                 >
                   <Upload className="w-6 h-6 text-[#223585]" />
                   <span>{syncLoading ? 'Gravando em lotes de 20 no Firestore...' : 'Clique para Selecionar a Planilha (.xlsx)'}</span>
@@ -2870,24 +2777,26 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
          ===================================================================== */}
       {createModalOpen && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-[2px]"
+          className="ameta-modal-backdrop fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#0B1530]/45 backdrop-blur-[2px]"
           onClick={() => setCreateModalOpen(false)}
         >
           <div
-            className="w-full max-w-xl bg-white border border-slate-200 rounded-2xl shadow-xl overflow-hidden"
+            className="ameta-modal-panel w-full max-w-xl bg-white border border-slate-200 rounded-[12px] overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="px-5 py-4 border-b border-slate-200 flex items-center justify-between bg-slate-50">
-              <div className="flex items-center gap-2">
-                <Plus className="w-5 h-5 text-[#223585]" />
-                <h3 className="text-sm font-bold text-slate-900">
+            <div className="px-5 py-4 flex items-center justify-between bg-[#0B1530] text-white">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-[8px] bg-white/10 flex items-center justify-center shrink-0">
+                  <Plus className="w-4 h-4 text-[#6EE7E5]" />
+                </div>
+                <h3 className="text-sm font-bold text-white">
                   Nova Linha na Planilha Ericsson (Par de Torres A ↔ B)
                 </h3>
               </div>
               <button
                 type="button"
                 onClick={() => setCreateModalOpen(false)}
-                className="p-1 text-slate-400 hover:text-slate-700 rounded-lg cursor-pointer"
+                className="p-1.5 text-slate-300 hover:text-white hover:bg-white/10 rounded-[8px] transition-colors cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -2902,7 +2811,7 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
                     value={newChaves}
                     onChange={(e) => setNewChaves(e.target.value)}
                     placeholder="Ex: RRJ-5997238"
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 font-mono"
+                    className="w-full px-3 py-2 bg-[#F8FAFC] border border-slate-200 rounded-[8px] text-slate-900 font-mono focus:outline-none focus:bg-white focus:border-[#223585]"
                   />
                 </div>
                 <div>
@@ -2912,7 +2821,7 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
                     value={newState}
                     onChange={(e) => setNewState(e.target.value.toUpperCase())}
                     placeholder="SP"
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 font-mono"
+                    className="w-full px-3 py-2 bg-[#F8FAFC] border border-slate-200 rounded-[8px] text-slate-900 font-mono focus:outline-none focus:bg-white focus:border-[#223585]"
                   />
                 </div>
                 <div>
@@ -2922,13 +2831,13 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
                     value={newMeta}
                     onChange={(e) => setNewMeta(e.target.value)}
                     placeholder="Ex: Em andamento"
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-900"
+                    className="w-full px-3 py-2 bg-[#F8FAFC] border border-slate-200 rounded-[8px] text-slate-900 focus:outline-none focus:bg-white focus:border-[#223585]"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="p-3.5 rounded-xl bg-blue-50/50 border border-blue-200 space-y-2.5">
+                <div className="p-3.5 rounded-[12px] bg-[#EEF2FF]/60 border border-[#DDE4F6] space-y-2.5">
                   <div className="font-bold text-[#223585] uppercase text-[11px]">
                     Torre 1 — Site A
                   </div>
@@ -2940,7 +2849,7 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
                       value={newSiteIdA}
                       onChange={(e) => setNewSiteIdA(e.target.value.toUpperCase())}
                       placeholder="Ex: ESCIT33"
-                      className="w-full px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-slate-900 font-mono font-bold"
+                      className="w-full px-2.5 py-1.5 bg-white border border-slate-200 rounded-[8px] text-slate-900 font-mono font-bold focus:outline-none focus:border-[#223585]"
                     />
                   </div>
                   <div>
@@ -2949,7 +2858,7 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
                       type="text"
                       value={newDetentoraA}
                       onChange={(e) => setNewDetentoraA(e.target.value)}
-                      className="w-full px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-slate-900"
+                      className="w-full px-2.5 py-1.5 bg-white border border-slate-200 rounded-[8px] text-slate-900 focus:outline-none focus:border-[#223585]"
                     />
                   </div>
                   <div>
@@ -2958,7 +2867,7 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
                       type="text"
                       value={newStatusA}
                       onChange={(e) => setNewStatusA(e.target.value)}
-                      className="w-full px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-slate-900"
+                      className="w-full px-2.5 py-1.5 bg-white border border-slate-200 rounded-[8px] text-slate-900 focus:outline-none focus:border-[#223585]"
                     />
                   </div>
                   <div>
@@ -2967,12 +2876,12 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
                       type="text"
                       value={newCidadeA}
                       onChange={(e) => setNewCidadeA(e.target.value)}
-                      className="w-full px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-slate-900"
+                      className="w-full px-2.5 py-1.5 bg-white border border-slate-200 rounded-[8px] text-slate-900 focus:outline-none focus:border-[#223585]"
                     />
                   </div>
                 </div>
 
-                <div className="p-3.5 rounded-xl bg-teal-50/50 border border-teal-200 space-y-2.5">
+                <div className="p-3.5 rounded-[12px] bg-[#EEFAFA]/70 border border-[#AAE5E5] space-y-2.5">
                   <div className="font-bold text-[#1E8E8D] uppercase text-[11px]">
                     Torre 2 — Site B
                   </div>
@@ -2984,7 +2893,7 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
                       value={newSiteIdB}
                       onChange={(e) => setNewSiteIdB(e.target.value.toUpperCase())}
                       placeholder="Ex: ESCIT81"
-                      className="w-full px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-slate-900 font-mono font-bold"
+                      className="w-full px-2.5 py-1.5 bg-white border border-slate-200 rounded-[8px] text-slate-900 font-mono font-bold focus:outline-none focus:border-[#1E8E8D]"
                     />
                   </div>
                   <div>
@@ -2993,7 +2902,7 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
                       type="text"
                       value={newDetentoraB}
                       onChange={(e) => setNewDetentoraB(e.target.value)}
-                      className="w-full px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-slate-900"
+                      className="w-full px-2.5 py-1.5 bg-white border border-slate-200 rounded-[8px] text-slate-900 focus:outline-none focus:border-[#1E8E8D]"
                     />
                   </div>
                   <div>
@@ -3002,7 +2911,7 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
                       type="text"
                       value={newStatusB}
                       onChange={(e) => setNewStatusB(e.target.value)}
-                      className="w-full px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-slate-900"
+                      className="w-full px-2.5 py-1.5 bg-white border border-slate-200 rounded-[8px] text-slate-900 focus:outline-none focus:border-[#1E8E8D]"
                     />
                   </div>
                   <div>
@@ -3011,7 +2920,7 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
                       type="text"
                       value={newCidadeB}
                       onChange={(e) => setNewCidadeB(e.target.value)}
-                      className="w-full px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-slate-900"
+                      className="w-full px-2.5 py-1.5 bg-white border border-slate-200 rounded-[8px] text-slate-900 focus:outline-none focus:border-[#1E8E8D]"
                     />
                   </div>
                 </div>
@@ -3025,7 +2934,7 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
                     value={newEquipe}
                     onChange={(e) => setNewEquipe(e.target.value)}
                     placeholder="Ex: Equipe 6"
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-900"
+                    className="w-full px-3 py-2 bg-[#F8FAFC] border border-slate-200 rounded-[8px] text-slate-900 focus:outline-none focus:bg-white focus:border-[#223585]"
                   />
                 </div>
                 <div>
@@ -3035,7 +2944,7 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
                     value={newServico}
                     onChange={(e) => setNewServico(e.target.value)}
                     placeholder="LOS A / LOS e Vistoria B"
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-900"
+                    className="w-full px-3 py-2 bg-[#F8FAFC] border border-slate-200 rounded-[8px] text-slate-900 focus:outline-none focus:bg-white focus:border-[#223585]"
                   />
                 </div>
               </div>
@@ -3044,14 +2953,14 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
                 <button
                   type="button"
                   onClick={() => setCreateModalOpen(false)}
-                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-lg cursor-pointer"
+                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-[8px] cursor-pointer"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
                   disabled={creatingRow}
-                  className="px-4 py-2 bg-[#223585] hover:bg-[#192869] text-white font-bold rounded-lg cursor-pointer"
+                  className="px-4 py-2 bg-[#223585] hover:bg-[#1B2A6B] text-white font-bold rounded-[8px] cursor-pointer shadow-xs"
                 >
                   {creatingRow ? 'Criando...' : 'Criar Linha na Planilha'}
                 </button>
@@ -3066,17 +2975,17 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
          ===================================================================== */}
       {selectedRow && (
         <div
-          className="fixed inset-0 z-50 flex justify-end bg-slate-900/40 backdrop-blur-[1px]"
+          className="ameta-modal-backdrop fixed inset-0 z-50 flex justify-end bg-[#0B1530]/45 backdrop-blur-[2px]"
           onClick={() => setSelectedRow(null)}
         >
           <div
-            className="w-full max-w-2xl bg-white border-l border-slate-200 h-full overflow-y-auto p-6 space-y-5 shadow-2xl"
+            className="ameta-modal-panel w-full max-w-2xl bg-white border-l border-slate-200 h-full overflow-y-auto p-6 space-y-5"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between border-b border-slate-200 pb-4">
               <div>
                 <div className="flex items-center gap-2">
-                  <span className="px-2 py-0.5 rounded bg-blue-50 text-[#223585] border border-blue-200 font-mono text-xs font-bold">
+                  <span className="px-2 py-0.5 rounded-[6px] bg-[#EEF2FF] text-[#223585] border border-[#DDE4F6] font-mono tabular-nums text-xs font-bold">
                     {selectedRow.chaves || 'Par Ericsson'}
                   </span>
                   <span className="font-mono font-bold text-slate-900 text-sm flex items-center gap-1.5">
@@ -3095,7 +3004,7 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
                   <button
                     type="button"
                     onClick={() => handleDeleteRow(selectedRow)}
-                    className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg cursor-pointer"
+                    className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-[8px] cursor-pointer transition-colors"
                     title="Excluir linha"
                   >
                     <Trash2 className="w-4 h-4" />
@@ -3104,7 +3013,7 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
                 <button
                   type="button"
                   onClick={() => setSelectedRow(null)}
-                  className="p-2 text-slate-400 hover:text-slate-700 rounded-lg cursor-pointer"
+                  className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-[8px] cursor-pointer transition-colors"
                 >
                   <X className="w-5 h-5" />
                 </button>
@@ -3112,13 +3021,13 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
             </div>
 
             {/* VISTORIA A, VISTORIA B, LOS, SMART AND SDC BOX */}
-            <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-3 text-xs">
+            <div className="p-4 rounded-[12px] bg-[#F4F6FA] border border-slate-200 space-y-3 text-xs">
               <div className="font-bold text-slate-900">
                 Controle de Entregas do Enlace (Vistoria A, Vistoria B, LOS)
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
-                <div className="p-3 bg-white rounded-lg border border-blue-200 space-y-2">
+                <div className="p-3 bg-white rounded-[8px] border border-[#DDE4F6] space-y-2">
                   <div className="flex items-center justify-between">
                     <span className="text-[10px] font-bold uppercase text-[#223585]">
                       Vistoria Site A
@@ -3130,7 +3039,7 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
                   {renderVistoriaOrLosCell(selectedRow, 'A')}
                 </div>
 
-                <div className="p-3 bg-white rounded-lg border border-teal-200 space-y-2">
+                <div className="p-3 bg-white rounded-[8px] border border-[#AAE5E5] space-y-2">
                   <div className="flex items-center justify-between">
                     <span className="text-[10px] font-bold uppercase text-[#1E8E8D]">
                       Vistoria Site B
@@ -3142,7 +3051,7 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
                   {renderVistoriaOrLosCell(selectedRow, 'B')}
                 </div>
 
-                <div className="p-3 bg-white rounded-lg border border-amber-200 space-y-2">
+                <div className="p-3 bg-white rounded-[8px] border border-amber-200 space-y-2">
                   <div className="flex items-center justify-between">
                     <span className="text-[10px] font-bold uppercase text-amber-800">
                       Relatório LOS
@@ -3152,7 +3061,7 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
                   {renderVistoriaOrLosCell(selectedRow, 'LOS')}
                 </div>
 
-                <div className="p-3 bg-white rounded-lg border border-violet-200 space-y-2">
+                <div className="p-3 bg-white rounded-[8px] border border-violet-200 space-y-2">
                   <div className="flex items-center justify-between">
                     <span className="text-[10px] font-bold uppercase text-violet-800">
                       Documento SMART
@@ -3162,7 +3071,7 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
                   {renderVistoriaOrLosCell(selectedRow, 'SMART')}
                 </div>
 
-                <div className="p-3 bg-white rounded-lg border border-rose-200 space-y-2">
+                <div className="p-3 bg-white rounded-[8px] border border-rose-200 space-y-2">
                   <div className="flex items-center justify-between">
                     <span className="text-[10px] font-bold uppercase text-rose-800">
                       Documento SDC
@@ -3184,7 +3093,7 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
                 <button
                   type="submit"
                   disabled={savingEdit}
-                  className="px-4 py-1.5 bg-[#223585] hover:bg-[#192869] text-white font-bold rounded-lg cursor-pointer"
+                  className="px-4 py-1.5 bg-[#223585] hover:bg-[#1B2A6B] text-white font-bold rounded-[8px] cursor-pointer shadow-xs"
                 >
                   {savingEdit ? 'Salvando...' : 'Salvar Alterações'}
                 </button>
@@ -3205,7 +3114,7 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
                           [col]: e.target.value,
                         }))
                       }
-                      className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 focus:outline-none focus:bg-white focus:border-[#223585]"
+                      className="w-full px-2.5 py-1.5 bg-[#F8FAFC] border border-slate-200 rounded-[8px] text-slate-900 focus:outline-none focus:bg-white focus:border-[#223585] focus:ring-2 focus:ring-[#223585]/15"
                     />
                   </div>
                 ))}

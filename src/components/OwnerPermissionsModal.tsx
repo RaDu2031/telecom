@@ -57,26 +57,26 @@ const ASSIGNABLE_ROLES: Array<{
     role: 'Coordenador Geral',
     label: 'Coordenador Geral',
     description: 'Vê todas as planilhas, Engenharia, Vistoria e Equipes da sua plataforma.',
-    badgeColor: 'bg-indigo-500/20 text-indigo-300 border-indigo-500/40',
+    badgeColor: 'bg-indigo-50 text-indigo-700 border-indigo-200',
   },
   {
     role: 'Coordenador Engenharia',
     label: 'Coordenador Engenharia',
     description: 'Vê APENAS Engenharia (TSSR) e Vistoria da sua plataforma (sobe TSSR e Vistoria).',
-    badgeColor: 'bg-purple-500/20 text-purple-300 border-purple-500/40',
+    badgeColor: 'bg-purple-50 text-purple-700 border-purple-200',
   },
   {
     role: 'Executor',
     label: 'Executor',
     description:
       'Vê sites demandados, Vistoria e Engenharia TSSR (sobe Vistoria e TSSR com vínculo de site e aprovação automática).',
-    badgeColor: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40',
+    badgeColor: 'bg-emerald-50 text-emerald-700 border-emerald-200',
   },
   {
     role: 'Vistoriador',
     label: 'Vistoriador',
     description: 'Vê APENAS os sites demandados para ele e a aba Vistoria.',
-    badgeColor: 'bg-sky-500/20 text-sky-300 border-sky-500/40',
+    badgeColor: 'bg-blue-50 text-blue-700 border-blue-200',
   },
 ];
 
@@ -384,77 +384,77 @@ export const OwnerPermissionsModal: React.FC<OwnerPermissionsModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4 overflow-y-auto">
-      <div className="w-full max-w-6xl bg-slate-900 border border-amber-500/40 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
+    <div className="fixed inset-0 z-50 bg-slate-900/45 ameta-modal-backdrop flex items-center justify-center p-2 sm:p-4 overflow-y-auto">
+      <div className="w-full max-w-6xl bg-white border border-slate-200 rounded-[12px] shadow-2xl overflow-hidden flex flex-col max-h-[92vh] ameta-modal-panel">
         {/* Top Header */}
-        <div className="px-6 py-4 bg-gradient-to-r from-slate-950 via-slate-900 to-slate-950 border-b border-slate-800 flex items-center justify-between gap-4">
+        <div className="px-6 py-4 bg-slate-50 border-b border-slate-200 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-xl bg-amber-500/15 border border-amber-500/40 text-amber-400">
+            <div className="p-2.5 rounded-[10px] bg-amber-50 border border-amber-200 text-amber-700">
               <ShieldCheck className="w-6 h-6" />
             </div>
             <div>
-              <div className="flex items-center gap-2">
-                <h2 className="text-base sm:text-lg font-black uppercase tracking-wide text-white">
+              <div className="flex flex-wrap items-center gap-2">
+                <h2 className="text-base sm:text-lg font-bold tracking-tight text-slate-900">
                   Painel Exclusivo ADM Dono — Liberação de Permissões e Cargos
                 </h2>
-                <span className="px-2 py-0.5 rounded-full bg-amber-500/20 border border-amber-500/40 text-amber-300 text-[10px] font-bold">
+                <span className="px-2 py-0.5 rounded-full bg-amber-50 border border-amber-200 text-amber-800 text-[10px] font-bold">
                   Apenas Rafael Araújo (ADM Dono)
                 </span>
               </div>
-              <p className="text-xs text-slate-400 mt-0.5">
-                Selecione o que cada usuário será (<strong>Coordenador Geral</strong>,{' '}
-                <strong>Coordenador Engenharia</strong>, <strong>Executor</strong> ou{' '}
-                <strong>Vistoriador</strong>), defina a plataforma (<strong>TIM/Nokia</strong> ou{' '}
-                <strong>Ericsson</strong>) e faça a liberação.
+              <p className="text-xs text-slate-500 mt-0.5">
+                Selecione o que cada usuário será (<strong className="text-slate-800">Coordenador Geral</strong>,{' '}
+                <strong className="text-slate-800">Coordenador Engenharia</strong>, <strong className="text-slate-800">Executor</strong> ou{' '}
+                <strong className="text-slate-800">Vistoriador</strong>), defina a plataforma (<strong className="text-slate-800">TIM/Nokia</strong> ou{' '}
+                <strong className="text-slate-800">Ericsson</strong>) e faça a liberação.
               </p>
             </div>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition-colors"
+            className="p-2 rounded-[8px] bg-white hover:bg-slate-100 border border-slate-200 text-slate-500 hover:text-slate-800 transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-5 space-y-5">
+        <div className="flex-1 overflow-y-auto p-5 space-y-5 bg-[#F4F6FA]">
           {/* Rules & Visibility Matrix */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
             {ASSIGNABLE_ROLES.map((r) => (
               <div
                 key={r.role}
-                className="p-3.5 rounded-xl bg-slate-950/70 border border-slate-800 flex flex-col justify-between"
+                className="p-3.5 rounded-[12px] bg-white border border-slate-200 shadow-2xs flex flex-col justify-between"
               >
                 <div>
                   <span
-                    className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold border ${r.badgeColor}`}
+                    className={`inline-flex items-center px-2 py-0.5 rounded-[6px] text-[10px] font-bold border ${r.badgeColor}`}
                   >
                     {r.label}
                   </span>
-                  <p className="text-[11px] text-slate-300 mt-2 leading-relaxed">
+                  <p className="text-[11px] text-slate-600 mt-2 leading-relaxed">
                     {r.description}
                   </p>
                 </div>
-                <div className="mt-2 pt-2 border-t border-slate-800/80 text-[10px] text-slate-400 flex items-center justify-between">
+                <div className="mt-2 pt-2 border-t border-slate-100 text-[10px] text-slate-500 flex items-center justify-between">
                   <span>Isolado por Plataforma</span>
-                  <span className="text-sky-400 font-semibold">TIM/Nokia ou Ericsson</span>
+                  <span className="text-[#223585] font-semibold">TIM/Nokia ou Ericsson</span>
                 </div>
               </div>
             ))}
           </div>
 
           {/* Quick Info & Sync Button for Initial Colaboradores */}
-          <div className="p-3.5 rounded-xl bg-slate-900 border border-sky-500/40 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
+          <div className="p-3.5 rounded-[12px] bg-white border border-slate-200 shadow-2xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
             <div className="flex items-center gap-2.5">
-              <div className="p-2 rounded-lg bg-sky-500/20 text-sky-300 font-black">
+              <div className="p-2 rounded-[8px] bg-amber-50 border border-amber-200 text-amber-700 font-bold">
                 🔑
               </div>
               <div>
-                <div className="font-bold text-slate-100">
-                  Senha Padrão Inicial dos Colaboradores: <span className="font-mono text-amber-300 bg-amber-500/20 px-2 py-0.5 rounded border border-amber-500/40">ameta2026</span>
+                <div className="font-bold text-slate-900">
+                  Senha Padrão Inicial dos Colaboradores: <span className="font-mono text-amber-800 bg-amber-50 px-2 py-0.5 rounded-[6px] border border-amber-200">ameta2026</span>
                 </div>
-                <div className="text-[11px] text-slate-400 mt-0.5">
+                <div className="text-[11px] text-slate-500 mt-0.5">
                   No primeiro acesso, cada colaborador confirma seu CPF e cria uma nova senha pessoal.
                 </div>
               </div>
@@ -463,10 +463,10 @@ export const OwnerPermissionsModal: React.FC<OwnerPermissionsModalProps> = ({
 
           {statusBanner && (
             <div
-              className={`px-4 py-3 rounded-xl border text-xs font-semibold flex items-center justify-between ${
+              className={`px-4 py-3 rounded-[10px] border text-xs font-semibold flex items-center justify-between ${
                 statusBanner.type === 'success'
-                  ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-200'
-                  : 'bg-rose-500/15 border-rose-500/40 text-rose-200'
+                  ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+                  : 'bg-rose-50 border-rose-200 text-rose-800'
               }`}
             >
               <div className="flex items-center gap-2">
@@ -476,7 +476,7 @@ export const OwnerPermissionsModal: React.FC<OwnerPermissionsModalProps> = ({
               <button
                 type="button"
                 onClick={() => setStatusBanner(null)}
-                className="text-xs underline opacity-80 hover:opacity-100"
+                className="text-xs underline opacity-80 hover:opacity-100 cursor-pointer"
               >
                 Fechar
               </button>
@@ -484,25 +484,25 @@ export const OwnerPermissionsModal: React.FC<OwnerPermissionsModalProps> = ({
           )}
 
           {/* Pending New User Requests Section */}
-          <div className="p-4 rounded-xl bg-amber-500/10 border-2 border-amber-500/50 space-y-3">
+          <div className="p-4 rounded-[12px] bg-amber-50/70 border border-amber-200 space-y-3 shadow-2xs">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="flex items-center gap-2">
-                <span className="px-2.5 py-0.5 rounded-full bg-amber-500 text-slate-950 font-black text-xs">
+                <span className="px-2.5 py-0.5 rounded-full bg-amber-500 text-white font-black text-xs font-mono tabular-nums">
                   {pendingRequestUsers.length}
                 </span>
-                <h3 className="text-xs sm:text-sm font-black uppercase tracking-wider text-amber-300">
+                <h3 className="text-xs sm:text-sm font-bold uppercase tracking-wider text-amber-900">
                   Solicitações de Novos Usuários para Liberação (@ametaservicos.com.br)
                 </h3>
               </div>
-              <span className="text-[11px] text-amber-200/80">
+              <span className="text-[11px] text-amber-800">
                 Ao aprovar um Vistoriador/Executor, a Dupla/Equipe dele alimenta automaticamente a aba Duplas & Demanda
               </span>
             </div>
 
             {pendingRequestUsers.length === 0 ? (
-              <div className="p-3 rounded-lg bg-slate-950/60 border border-slate-800 text-xs text-slate-400">
+              <div className="p-3 rounded-[8px] bg-white border border-amber-200/80 text-xs text-slate-600">
                 Nenhuma solicitação pendente no momento. Quando novos usuários criarem conta com{' '}
-                <strong className="text-slate-200">@ametaservicos.com.br</strong>, eles aparecerão aqui imediatamente para você liberar.
+                <strong className="text-slate-900">@ametaservicos.com.br</strong>, eles aparecerão aqui imediatamente para você liberar.
               </div>
             ) : (
               <div className="space-y-2.5">
@@ -512,21 +512,21 @@ export const OwnerPermissionsModal: React.FC<OwnerPermissionsModalProps> = ({
                   return (
                     <div
                       key={u.email}
-                      className="p-3.5 rounded-xl bg-slate-950 border border-amber-500/40 flex flex-col lg:flex-row lg:items-center justify-between gap-3"
+                      className="p-3.5 rounded-[10px] bg-white border border-amber-200 shadow-2xs flex flex-col lg:flex-row lg:items-center justify-between gap-3"
                     >
                       <div className="min-w-0">
                         <div className="flex items-center gap-2">
-                          <span className="font-bold text-sm text-white">{u.name}</span>
-                          <span className="px-2 py-0.5 rounded bg-amber-500/20 border border-amber-500/40 text-amber-300 text-[10px] font-bold uppercase">
+                          <span className="font-bold text-sm text-slate-900">{u.name}</span>
+                          <span className="px-2 py-0.5 rounded-[6px] bg-amber-50 border border-amber-200 text-amber-800 text-[10px] font-bold uppercase">
                             Solicitou Acesso
                           </span>
                         </div>
-                        <div className="text-xs font-mono text-amber-200 mt-0.5">{u.email}</div>
+                        <div className="text-xs font-mono text-slate-500 mt-0.5">{u.email}</div>
                       </div>
 
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 flex-1 max-w-2xl">
                         <div>
-                          <label className="block text-[10px] uppercase text-slate-400 font-bold mb-0.5">
+                          <label className="block text-[10px] uppercase text-slate-500 font-bold mb-0.5">
                             Cargo / Função
                           </label>
                           <select
@@ -534,7 +534,7 @@ export const OwnerPermissionsModal: React.FC<OwnerPermissionsModalProps> = ({
                             onChange={(e) =>
                               updateDraftForUser(u, { role: e.target.value as UserRole })
                             }
-                            className="w-full px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-xs font-bold text-white"
+                            className="w-full px-2.5 py-1.5 rounded-[8px] bg-white border border-slate-200 text-xs font-bold text-slate-900 focus:border-[#223585] focus:outline-none"
                           >
                             <option value="Vistoriador">Vistoriador</option>
                             <option value="Executor">Executor</option>
@@ -544,7 +544,7 @@ export const OwnerPermissionsModal: React.FC<OwnerPermissionsModalProps> = ({
                         </div>
 
                         <div>
-                          <label className="block text-[10px] uppercase text-slate-400 font-bold mb-0.5">
+                          <label className="block text-[10px] uppercase text-slate-500 font-bold mb-0.5">
                             Plataforma
                           </label>
                           <select
@@ -554,7 +554,7 @@ export const OwnerPermissionsModal: React.FC<OwnerPermissionsModalProps> = ({
                                 assignedPlatform: e.target.value as AssignedPlatformScope,
                               })
                             }
-                            className="w-full px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-xs font-bold text-sky-300"
+                            className="w-full px-2.5 py-1.5 rounded-[8px] bg-white border border-slate-200 text-xs font-bold text-[#223585] focus:border-[#223585] focus:outline-none"
                           >
                             <option value="NOKIA">TIM / Nokia</option>
                             <option value="ERICSSON">Ericsson</option>
@@ -563,7 +563,7 @@ export const OwnerPermissionsModal: React.FC<OwnerPermissionsModalProps> = ({
                         </div>
 
                         <div>
-                          <label className="block text-[10px] uppercase text-slate-400 font-bold mb-0.5">
+                          <label className="block text-[10px] uppercase text-slate-500 font-bold mb-0.5">
                             Dupla / Equipe (Alimenta Duplas)
                           </label>
                           <input
@@ -572,7 +572,7 @@ export const OwnerPermissionsModal: React.FC<OwnerPermissionsModalProps> = ({
                             value={draft.equipe}
                             onChange={(e) => updateDraftForUser(u, { equipe: e.target.value })}
                             placeholder="Ex: Nome 1 / Nome 2"
-                            className="w-full px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-xs text-white"
+                            className="w-full px-2.5 py-1.5 rounded-[8px] bg-white border border-slate-200 text-xs text-slate-900 placeholder:text-slate-400 focus:border-[#223585] focus:outline-none"
                           />
                         </div>
                       </div>
@@ -594,7 +594,7 @@ export const OwnerPermissionsModal: React.FC<OwnerPermissionsModalProps> = ({
                               situacao: 'ativo',
                             })
                           }
-                          className="px-3.5 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs uppercase tracking-wide flex items-center gap-1.5 cursor-pointer shadow-md"
+                          className="px-3.5 py-2 rounded-[8px] bg-[#223585] hover:bg-[#1B2A6B] text-white font-bold text-xs uppercase tracking-wide flex items-center gap-1.5 cursor-pointer shadow-xs transition-colors"
                         >
                           <CheckCircle2 className="w-4 h-4" />
                           <span>{isSaving ? 'Liberando...' : 'Aprovar e Liberar'}</span>
@@ -603,7 +603,7 @@ export const OwnerPermissionsModal: React.FC<OwnerPermissionsModalProps> = ({
                           type="button"
                           disabled={isSaving}
                           onClick={() => handleDeleteUser(u)}
-                          className="px-2.5 py-2 rounded-lg bg-rose-500/20 hover:bg-rose-500/30 border border-rose-500/40 text-rose-300 text-xs font-bold flex items-center gap-1 cursor-pointer"
+                          className="px-2.5 py-2 rounded-[8px] bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 text-xs font-bold flex items-center gap-1 cursor-pointer transition-colors"
                           title="Recusar e excluir solicitação"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
@@ -620,21 +620,21 @@ export const OwnerPermissionsModal: React.FC<OwnerPermissionsModalProps> = ({
           {/* Quick Form: Cadastrar ou Liberar Novo Coordenador / Executor */}
           <form
             onSubmit={handleCreateOrReleaseFromTopForm}
-            className="p-4 rounded-xl bg-slate-950/90 border border-slate-800 space-y-3"
+            className="p-4 rounded-[12px] bg-white border border-slate-200 shadow-2xs space-y-3"
           >
-            <div className="flex items-center justify-between">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-amber-300 flex items-center gap-2">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-[#223585] flex items-center gap-2">
                 <Plus className="w-4 h-4" />
                 Cadastrar ou Liberar Novo Usuário (@ametaservicos.com.br)
               </h3>
-              <span className="text-[11px] text-slate-400">
-                Você é o único <strong>ADM</strong>. Todos os demais terão o perfil selecionado abaixo.
+              <span className="text-[11px] text-slate-500">
+                Você é o único <strong className="text-slate-800">ADM</strong>. Todos os demais terão o perfil selecionado abaixo.
               </span>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3">
               <div>
-                <label className="block text-[10px] font-bold uppercase text-slate-400 mb-1">
+                <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">
                   Nome Completo
                 </label>
                 <input
@@ -642,12 +642,12 @@ export const OwnerPermissionsModal: React.FC<OwnerPermissionsModalProps> = ({
                   value={formName}
                   onChange={(e) => setFormName(e.target.value)}
                   placeholder="Ex: Carlos Mendes"
-                  className="w-full px-3 py-2 rounded-lg bg-slate-900 border border-slate-700 text-xs text-white focus:border-amber-500 focus:outline-none"
+                  className="w-full px-3 py-2 rounded-[8px] bg-white border border-slate-200 text-xs text-slate-900 placeholder:text-slate-400 focus:border-[#223585] focus:outline-none"
                 />
               </div>
 
               <div>
-                <label className="block text-[10px] font-bold uppercase text-slate-400 mb-1">
+                <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">
                   E-mail (@ametaservicos.com.br)
                 </label>
                 <input
@@ -655,18 +655,18 @@ export const OwnerPermissionsModal: React.FC<OwnerPermissionsModalProps> = ({
                   value={formEmail}
                   onChange={(e) => setFormEmail(e.target.value)}
                   placeholder="usuario@ametaservicos.com.br"
-                  className="w-full px-3 py-2 rounded-lg bg-slate-900 border border-slate-700 text-xs text-white focus:border-amber-500 focus:outline-none"
+                  className="w-full px-3 py-2 rounded-[8px] bg-white border border-slate-200 text-xs font-mono text-slate-900 placeholder:text-slate-400 focus:border-[#223585] focus:outline-none"
                 />
               </div>
 
               <div>
-                <label className="block text-[10px] font-bold uppercase text-slate-400 mb-1">
+                <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">
                   O que ele será (Perfil)
                 </label>
                 <select
                   value={formRole}
                   onChange={(e) => setFormRole(e.target.value as UserRole)}
-                  className="w-full px-3 py-2 rounded-lg bg-slate-900 border border-amber-500/50 text-xs font-bold text-amber-200 focus:border-amber-400 focus:outline-none"
+                  className="w-full px-3 py-2 rounded-[8px] bg-white border border-slate-200 text-xs font-bold text-slate-900 focus:border-[#223585] focus:outline-none"
                 >
                   <option value="Coordenador Geral">Coordenador Geral (Todas Planilhas)</option>
                   <option value="Coordenador Engenharia">Coordenador Engenharia (Engenharia + Vistoria + Subir TSSR)</option>
@@ -676,13 +676,13 @@ export const OwnerPermissionsModal: React.FC<OwnerPermissionsModalProps> = ({
               </div>
 
               <div>
-                <label className="block text-[10px] font-bold uppercase text-slate-400 mb-1">
+                <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">
                   Plataforma Liberada
                 </label>
                 <select
                   value={formPlatform}
                   onChange={(e) => setFormPlatform(e.target.value as AssignedPlatformScope)}
-                  className="w-full px-3 py-2 rounded-lg bg-slate-900 border border-sky-500/50 text-xs font-bold text-sky-200 focus:border-sky-400 focus:outline-none"
+                  className="w-full px-3 py-2 rounded-[8px] bg-white border border-slate-200 text-xs font-bold text-[#223585] focus:border-[#223585] focus:outline-none"
                 >
                   <option value="NOKIA">TIM / Nokia</option>
                   <option value="ERICSSON">Ericsson</option>
@@ -691,7 +691,7 @@ export const OwnerPermissionsModal: React.FC<OwnerPermissionsModalProps> = ({
               </div>
 
               <div>
-                <label className="block text-[10px] font-bold uppercase text-slate-400 mb-1">
+                <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">
                   Equipe / Dupla (Opcional)
                 </label>
                 <input
@@ -700,7 +700,7 @@ export const OwnerPermissionsModal: React.FC<OwnerPermissionsModalProps> = ({
                   value={formEquipe}
                   onChange={(e) => setFormEquipe(e.target.value)}
                   placeholder="Ex: Nome 1 / Nome 2"
-                  className="w-full px-3 py-2 rounded-lg bg-slate-900 border border-slate-700 text-xs text-white focus:border-amber-500 focus:outline-none"
+                  className="w-full px-3 py-2 rounded-[8px] bg-white border border-slate-200 text-xs text-slate-900 placeholder:text-slate-400 focus:border-[#223585] focus:outline-none"
                 />
                 <datalist id="owner-equipes-list">
                   {Array.from(new Set([...availableNokiaEquipes, ...availableEricssonEquipes])).map(
@@ -715,7 +715,7 @@ export const OwnerPermissionsModal: React.FC<OwnerPermissionsModalProps> = ({
                 <button
                   type="submit"
                   disabled={savingId !== null}
-                  className="w-full py-2 px-4 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs uppercase tracking-wider transition-colors flex items-center justify-center gap-1.5 shadow-lg shadow-amber-500/20"
+                  className="w-full py-2 px-4 rounded-[8px] bg-[#223585] hover:bg-[#1B2A6B] text-white font-bold text-xs uppercase tracking-wider transition-colors flex items-center justify-center gap-1.5 shadow-xs cursor-pointer"
                 >
                   <UserCheck className="w-4 h-4" />
                   Liberar Acesso
@@ -725,7 +725,7 @@ export const OwnerPermissionsModal: React.FC<OwnerPermissionsModalProps> = ({
           </form>
 
           {/* Filter Bar for Existing Users */}
-          <div className="flex flex-wrap items-center justify-between gap-3 bg-slate-950/60 p-3 rounded-xl border border-slate-800">
+          <div className="flex flex-wrap items-center justify-between gap-3 bg-white p-3 rounded-[12px] border border-slate-200 shadow-2xs">
             <div className="relative flex-1 min-w-[220px]">
               <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
               <input
@@ -733,12 +733,12 @@ export const OwnerPermissionsModal: React.FC<OwnerPermissionsModalProps> = ({
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Buscar usuário por nome, e-mail, cargo ou equipe..."
-                className="w-full pl-9 pr-3 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-xs text-white focus:border-sky-500 focus:outline-none"
+                className="w-full pl-9 pr-3 py-1.5 rounded-[8px] bg-white border border-slate-200 text-xs text-slate-900 placeholder:text-slate-400 focus:border-[#223585] focus:outline-none"
               />
             </div>
 
             <div className="flex items-center gap-2 flex-wrap">
-              <div className="flex items-center gap-1 bg-slate-900 p-1 rounded-lg border border-slate-800">
+              <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-[8px] border border-slate-200">
                 {[
                   { id: 'ALL', label: 'Todas Plataformas' },
                   { id: 'NOKIA', label: 'TIM / Nokia' },
@@ -748,10 +748,10 @@ export const OwnerPermissionsModal: React.FC<OwnerPermissionsModalProps> = ({
                     key={p.id}
                     type="button"
                     onClick={() => setPlatformFilter(p.id as typeof platformFilter)}
-                    className={`px-2.5 py-1 rounded text-[11px] font-bold transition-colors ${
+                    className={`px-2.5 py-1 rounded-[6px] text-[11px] font-bold transition-colors cursor-pointer ${
                       platformFilter === p.id
-                        ? 'bg-sky-500 text-slate-950'
-                        : 'text-slate-400 hover:text-white'
+                        ? 'bg-[#223585] text-white shadow-2xs'
+                        : 'text-slate-600 hover:text-slate-900'
                     }`}
                   >
                     {p.label}
@@ -762,7 +762,7 @@ export const OwnerPermissionsModal: React.FC<OwnerPermissionsModalProps> = ({
               <select
                 value={roleFilter}
                 onChange={(e) => setRoleFilter(e.target.value as typeof roleFilter)}
-                className="px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-xs text-slate-200"
+                className="px-3 py-1.5 rounded-[8px] bg-white border border-slate-200 text-xs text-slate-700 font-semibold focus:outline-none focus:border-[#223585]"
               >
                 <option value="ALL">Todos os Perfis ({unifiedUsers.length})</option>
                 <option value="ADM">ADM Dono (1)</option>
@@ -775,11 +775,11 @@ export const OwnerPermissionsModal: React.FC<OwnerPermissionsModalProps> = ({
           </div>
 
           {/* Users Table */}
-          <div className="rounded-xl border border-slate-800 overflow-hidden bg-slate-950/60">
+          <div className="rounded-[12px] border border-slate-200 overflow-hidden bg-white shadow-2xs">
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse">
                 <thead>
-                  <tr className="bg-slate-950 border-b border-slate-800 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                  <tr className="bg-slate-50 border-b border-slate-200 text-[11px] font-bold uppercase tracking-wider text-slate-500">
                     <th className="py-3 px-4">Usuário / E-mail</th>
                     <th className="py-3 px-3">O que ele será (Cargo)</th>
                     <th className="py-3 px-3">Plataforma (Sistema)</th>
@@ -788,7 +788,7 @@ export const OwnerPermissionsModal: React.FC<OwnerPermissionsModalProps> = ({
                     <th className="py-3 px-4 text-right">Ação ADM Dono</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-800/70 text-xs">
+                <tbody className="divide-y divide-slate-200 text-xs ameta-table-zebra">
                   {filteredUsers.map((u) => {
                     const isOwner = isOwnerAdmUser(u.email);
                     const draft = getDraftForUser(u);
@@ -805,25 +805,25 @@ export const OwnerPermissionsModal: React.FC<OwnerPermissionsModalProps> = ({
                     return (
                       <tr
                         key={u.email}
-                        className={`hover:bg-slate-900/70 transition-colors ${
-                          isOwner ? 'bg-amber-500/5' : ''
+                        className={`hover:bg-blue-50/50 transition-colors ${
+                          isOwner ? 'bg-amber-50/50' : ''
                         }`}
                       >
                         <td className="py-3 px-4">
                           <div className="flex items-center gap-2">
-                            <span className="font-bold text-white">{u.name}</span>
+                            <span className="font-bold text-slate-900">{u.name}</span>
                             {isOwner && (
-                              <span className="px-2 py-0.5 rounded bg-amber-500 text-slate-950 font-black text-[9px] uppercase">
+                              <span className="px-2 py-0.5 rounded-[6px] bg-amber-100 border border-amber-300 text-amber-900 font-black text-[9px] uppercase">
                                 VOCÊ (ADM DONO)
                               </span>
                             )}
                           </div>
-                          <div className="text-[11px] text-slate-400">{u.email}</div>
+                          <div className="text-[11px] font-mono text-slate-500">{u.email}</div>
                         </td>
 
                         <td className="py-3 px-3">
                           {isOwner ? (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-500/20 border border-amber-500/40 text-amber-300 font-bold text-xs">
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-[8px] bg-amber-50 border border-amber-200 text-amber-800 font-bold text-xs">
                               <ShieldCheck className="w-3.5 h-3.5" />
                               ADM (Único Dono)
                             </span>
@@ -833,7 +833,7 @@ export const OwnerPermissionsModal: React.FC<OwnerPermissionsModalProps> = ({
                               onChange={(e) =>
                                 updateDraftForUser(u, { role: e.target.value as UserRole })
                               }
-                              className="px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-xs font-bold text-white focus:border-amber-500 focus:outline-none"
+                              className="px-2.5 py-1.5 rounded-[8px] bg-white border border-slate-200 text-xs font-bold text-slate-900 focus:border-[#223585] focus:outline-none"
                             >
                               <option value="Coordenador Geral">Coordenador Geral</option>
                               <option value="Coordenador Engenharia">
@@ -847,7 +847,7 @@ export const OwnerPermissionsModal: React.FC<OwnerPermissionsModalProps> = ({
 
                         <td className="py-3 px-3">
                           {isOwner ? (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-sky-500/15 border border-sky-500/30 text-sky-300 font-bold text-xs">
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-[8px] bg-blue-50 border border-blue-200 text-[#223585] font-bold text-xs">
                               <Layers className="w-3.5 h-3.5" />
                               TIM/Nokia + Ericsson
                             </span>
@@ -859,7 +859,7 @@ export const OwnerPermissionsModal: React.FC<OwnerPermissionsModalProps> = ({
                                   assignedPlatform: e.target.value as AssignedPlatformScope,
                                 })
                               }
-                              className="px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-xs font-bold text-sky-300 focus:border-sky-500 focus:outline-none"
+                              className="px-2.5 py-1.5 rounded-[8px] bg-white border border-slate-200 text-xs font-bold text-[#223585] focus:border-[#223585] focus:outline-none"
                             >
                               <option value="NOKIA">TIM / Nokia</option>
                               <option value="ERICSSON">Ericsson</option>
@@ -870,7 +870,7 @@ export const OwnerPermissionsModal: React.FC<OwnerPermissionsModalProps> = ({
 
                         <td className="py-3 px-3">
                           {isOwner ? (
-                            <span className="text-slate-400 text-[11px]">Todas as Equipes</span>
+                            <span className="text-slate-500 text-[11px]">Todas as Equipes</span>
                           ) : (
                             <input
                               type="text"
@@ -880,26 +880,26 @@ export const OwnerPermissionsModal: React.FC<OwnerPermissionsModalProps> = ({
                                 updateDraftForUser(u, { equipe: e.target.value })
                               }
                               placeholder="Equipe / Dupla..."
-                              className="w-40 px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-xs text-slate-200 focus:border-sky-500 focus:outline-none"
+                              className="w-40 px-2.5 py-1.5 rounded-[8px] bg-white border border-slate-200 text-xs text-slate-900 placeholder:text-slate-400 focus:border-[#223585] focus:outline-none"
                             />
                           )}
                         </td>
 
                         <td className="py-3 px-3">
-                          <div className="text-[11px] text-slate-300 font-medium">
+                          <div className="text-[11px] text-slate-700 font-medium">
                             {visibilitySummary}
                           </div>
                           <div className="flex items-center gap-1.5 mt-1">
                             {isOwner ? (
-                              <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-400">
+                              <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-700">
                                 <ShieldCheck className="w-3 h-3" /> Situação: DONO (Acesso Total)
                               </span>
                             ) : draft.accessReleased && u.situacao !== 'aguardando' && u.situacao !== 'bloqueado' ? (
-                              <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-400">
+                              <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700">
                                 <Unlock className="w-3 h-3" /> Situação: ATIVO (Liberado pelo Dono)
                               </span>
                             ) : (
-                              <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-400">
+                              <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-700">
                                 <Lock className="w-3 h-3" /> Situação: {u.situacao === 'bloqueado' ? 'BLOQUEADO' : 'AGUARDANDO LIBERAÇÃO'}
                               </span>
                             )}
@@ -926,7 +926,7 @@ export const OwnerPermissionsModal: React.FC<OwnerPermissionsModalProps> = ({
                                       situacao: 'ativo',
                                     })
                                   }
-                                  className="px-3 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-[11px] uppercase tracking-wide transition-colors flex items-center gap-1 shadow-sm"
+                                  className="px-3 py-1.5 rounded-[8px] bg-[#223585] hover:bg-[#1B2A6B] text-white font-bold text-[11px] uppercase tracking-wide transition-colors flex items-center gap-1 shadow-2xs cursor-pointer"
                                 >
                                   <CheckCircle2 className="w-3.5 h-3.5" />
                                   {isSaving ? 'Salvando...' : 'Liberar / Salvar'}
@@ -948,7 +948,7 @@ export const OwnerPermissionsModal: React.FC<OwnerPermissionsModalProps> = ({
                                         situacao: 'aguardando',
                                       })
                                     }
-                                    className="px-2.5 py-1.5 rounded-lg bg-rose-500/20 hover:bg-rose-500/30 border border-rose-500/40 text-rose-300 text-[11px] font-bold flex items-center gap-1 transition-colors"
+                                    className="px-2.5 py-1.5 rounded-[8px] bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 text-[11px] font-bold flex items-center gap-1 transition-colors cursor-pointer"
                                     title="Voltar para Aguardando / Bloquear acesso"
                                   >
                                     <Lock className="w-3.5 h-3.5" />
@@ -969,10 +969,10 @@ export const OwnerPermissionsModal: React.FC<OwnerPermissionsModalProps> = ({
                                   });
                                   onClose();
                                 }}
-                                className="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 text-[11px] font-semibold flex items-center gap-1 transition-colors"
+                                className="px-2.5 py-1.5 rounded-[8px] bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 text-[11px] font-semibold flex items-center gap-1 transition-colors cursor-pointer"
                                 title="Testar como este usuário enxerga o sistema"
                               >
-                                <Eye className="w-3.5 h-3.5 text-sky-400" />
+                                <Eye className="w-3.5 h-3.5 text-[#223585]" />
                                 Simular
                               </button>
                             )}
@@ -981,7 +981,7 @@ export const OwnerPermissionsModal: React.FC<OwnerPermissionsModalProps> = ({
                                 type="button"
                                 disabled={isSaving}
                                 onClick={() => handleDeleteUser(u)}
-                                className="p-1.5 rounded-lg bg-rose-500/15 hover:bg-rose-500/30 border border-rose-500/30 text-rose-300 transition-colors cursor-pointer"
+                                className="p-1.5 rounded-[8px] bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 transition-colors cursor-pointer"
                                 title="Excluir este usuário permanentemente"
                               >
                                 <Trash2 className="w-3.5 h-3.5" />

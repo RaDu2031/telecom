@@ -402,19 +402,19 @@ export const EricssonWeeklyDeliveriesPanel: React.FC<EricssonWeeklyDeliveriesPan
       : data.docAveragesPerWeek[viewDocGroup] || 0;
 
   return (
-    <div className="bg-white border border-slate-200/90 rounded-2xl p-4 sm:p-5 shadow-xs space-y-4">
+    <div className="bg-white border border-slate-200 rounded-[12px] p-4 sm:p-5 shadow-xs space-y-4">
       {/* Header Bar */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 border-b border-slate-100 pb-3.5">
         <div className="flex items-center gap-2.5">
-          <div className="w-9 h-9 rounded-xl bg-teal-50 border border-teal-200/80 flex items-center justify-center text-[#1E8E8D] shrink-0 shadow-2xs">
+          <div className="w-9 h-9 rounded-[10px] bg-teal-50 border border-teal-200/80 flex items-center justify-center text-[#1E8E8D] shrink-0 shadow-2xs">
             <BarChart3 className="w-5 h-5 stroke-[2.2]" />
           </div>
           <div>
             <div className="flex items-center gap-2 flex-wrap">
-              <h3 className="text-sm font-black text-slate-900 tracking-tight">
+              <h3 className="text-sm font-bold text-slate-900 tracking-tight">
                 ENTREGAS POR SEMANA POR TIPO DE DOCUMENTO
               </h3>
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-teal-50 text-teal-800 border border-teal-200">
+              <span className="px-2 py-0.5 rounded-[6px] text-[10px] font-bold uppercase tracking-wider bg-teal-50 text-[#1E8E8D] border border-teal-200">
                 Últimos 30 Dias (Móvel)
               </span>
             </div>
@@ -430,11 +430,11 @@ export const EricssonWeeklyDeliveriesPanel: React.FC<EricssonWeeklyDeliveriesPan
         {/* Right Stats Quick Badges & Doc Selector */}
         <div className="flex flex-wrap items-center gap-2.5">
           {/* Doc Type Selector (ALL or Isolated) */}
-          <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200 text-xs">
+          <div className="flex items-center bg-[#F4F6FA] p-1 rounded-[10px] border border-slate-200 text-xs">
             <button
               type="button"
               onClick={() => setViewDocGroup('ALL')}
-              className={`px-2.5 py-1 rounded-lg font-bold transition-all cursor-pointer ${
+              className={`px-2.5 py-1 rounded-[8px] font-bold transition-all cursor-pointer ${
                 viewDocGroup === 'ALL'
                   ? 'bg-white text-slate-900 shadow-2xs'
                   : 'text-slate-600 hover:text-slate-900'
@@ -595,10 +595,10 @@ export const EricssonWeeklyDeliveriesPanel: React.FC<EricssonWeeklyDeliveriesPan
             return (
               <div
                 key={bucket.key}
-                className={`group relative flex flex-col justify-between p-3 rounded-2xl border transition-all select-none ${
+                className={`group relative flex flex-col justify-between p-3 rounded-[12px] border transition-all select-none ${
                   isWeekSelected
                     ? 'bg-teal-50/90 border-[#1E8E8D] shadow-sm ring-2 ring-[#1E8E8D]/30'
-                    : 'bg-slate-50/70 hover:bg-teal-50/40 border-slate-200/90 hover:border-teal-300 shadow-2xs'
+                    : 'bg-[#F4F6FA]/70 hover:bg-teal-50/40 border-slate-200 hover:border-teal-300 shadow-2xs'
                 }`}
               >
                 {/* Top Tag & Week Title */}

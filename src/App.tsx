@@ -119,6 +119,14 @@ import { DuplasInteractiveView } from './components/DuplasInteractiveView';
 import { ExecutoresInteractiveView } from './components/ExecutoresInteractiveView';
 import { GoogleDriveModal } from './components/GoogleDriveModal';
 import { ConfirmDialog } from './components/ConfirmDialog';
+import {
+  ToastNotification,
+  KpiCard,
+  StatusBadge,
+  TableSkeleton,
+  EmptyStateCard,
+  resolveStatusTone,
+} from './components/ui';
 import { confirmar } from './hooks/useConfirm';
 import { subscribeToast } from './utils/toast';
 import { cloudFetch } from './lib/firebaseCloud';
@@ -153,6 +161,7 @@ import {
   doesDocumentMatchResponsible,
   doesFileMatchUserResponsibleSites,
   DEFAULT_EQUIPES_DUPLAS,
+  isClaroSiteRecord,
 } from './utils/spreadsheetUtils';
 
 const STORAGE_USER_KEY = 'ameta_authenticated_user_v1';
@@ -221,16 +230,30 @@ export default function App() {
     return null;
   });
 
-  const [sites, setSites] = useState<TelecomSite[]>(() => {
+  const [sites, setSitesRaw] = useState<TelecomSite[]>(() => {
     try {
       const cached = localStorage.getItem('ameta_cached_sites');
       if (cached) {
         const parsed = JSON.parse(cached);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed
+            .filter((s: TelecomSite) => s && s.vendor !== 'CLARO_TIM' && !isClaroSiteRecord(s))
+            .map((s: TelecomSite) => ({ ...s, vendor: 'NOKIA' as VendorType }));
+        }
       }
     } catch {}
     return [];
   });
+
+  // Garante que setSites nunca adiciona registro sem vendor definido ou com vendor === 'CLARO_TIM'
+  const setSites = useCallback((updater: React.SetStateAction<TelecomSite[]>) => {
+    setSitesRaw((prev) => {
+      const next = typeof updater === 'function' ? updater(prev) : updater;
+      return (next || []).filter(
+        (s) => Boolean(s && s.vendor && s.vendor !== 'CLARO_TIM' && !isClaroSiteRecord(s))
+      );
+    });
+  }, []);
   const [sheets, setSheets] = useState<SpreadsheetMeta[]>(() => {
     try {
       const cached = localStorage.getItem('ameta_cached_sheets');
@@ -280,16 +303,36 @@ export default function App() {
     } catch {}
     return [];
   });
-  const [claroSites, setClaroSites] = useState<ClaroSiteRow[]>(() => {
+  const [claroSites, setClaroSitesRaw] = useState<TelecomSite[]>(() => {
     try {
       const cached = localStorage.getItem('ameta_cached_claro_sites');
       if (cached) {
         const parsed = JSON.parse(cached);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed.map((s: TelecomSite) => ({
+            ...s,
+            vendor: 'CLARO_TIM' as VendorType,
+            sheetName: 'Controle Geral',
+          }));
+        }
       }
     } catch {}
     return [];
   });
+
+  // Garante que todos os registros da Claro sempre carregam vendor = 'CLARO_TIM'
+  const setClaroSites = useCallback((updater: React.SetStateAction<TelecomSite[]>) => {
+    setClaroSitesRaw((prev) => {
+      const next = typeof updater === 'function' ? updater(prev) : updater;
+      return (next || [])
+        .filter(Boolean)
+        .map((s) => ({
+          ...s,
+          vendor: 'CLARO_TIM' as VendorType,
+          sheetName: 'Controle Geral',
+        }));
+    });
+  }, []);
   const [claroEngenharia, setClaroEngenharia] = useState<ClaroEngenhariaRow[]>(() => {
     try {
       const cached = localStorage.getItem('ameta_cached_claro_eng');
@@ -527,14 +570,23 @@ export default function App() {
 
   // Persistent local cache sync across changes (debounced by 1500ms to eliminate UI stutter)
   useEffect(() => {
-    if (!sites || sites.length === 0) return;
     const timer = setTimeout(() => {
       try {
-        localStorage.setItem('ameta_cached_sites', JSON.stringify(sites));
+        const nokiaOnly = (sites || []).filter((s) => s && !isClaroSiteRecord(s));
+        localStorage.setItem('ameta_cached_sites', JSON.stringify(nokiaOnly));
       } catch {}
     }, 1500);
     return () => clearTimeout(timer);
   }, [sites]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      try {
+        localStorage.setItem('ameta_cached_claro_sites', JSON.stringify(claroSites || []));
+      } catch {}
+    }, 1500);
+    return () => clearTimeout(timer);
+  }, [claroSites]);
 
   useEffect(() => {
     if (!sheets || sheets.length === 0) return;
@@ -602,27 +654,30 @@ export default function App() {
     }
   }, []);
 
-  // Observação em tempo real no Firestore (Nokia, Ericsson, Usuários, Duplas e Notificações)
+  // Observação em tempo real no Firestore (Nokia, Ericsson, Claro, Usuários, Duplas e Notificações)
   useEffect(() => {
     if (!user) return;
+
     const unsub = dataService.observarColecoesPlataforma(user, {
       onNokiaSites: (fetched) => {
-        setSites((prev) => {
-          const claroOnly = prev.filter((s) => s.vendor === 'CLARO_TIM');
-          return [...fetched.map((s) => ({ ...s, vendor: s.vendor || ('NOKIA' as VendorType) })), ...claroOnly];
-        });
-        if (fetched.length > 0) {
-          // Descobrir abas dinamicamente para não sumir com abas adicionadas
+        // Guarda: ignorar documentos de nokia_sites com vendor === 'CLARO_TIM'
+        const nokiaList = fetched
+          .filter((s) => s && s.vendor !== 'CLARO_TIM' && !isClaroSiteRecord(s))
+          .map((s) => ({ ...s, vendor: 'NOKIA' as VendorType }));
+        setSites(nokiaList);
+        if (nokiaList.length > 0) {
+          // Descobrir abas dinamicamente para Nokia (com chave por vendor + nome)
           setSheets((prevSheets) => {
-            const sheetNames = new Set(prevSheets.map((s) => s.name));
+            const existingKeys = new Set(prevSheets.map((s) => `${s.vendor}__${s.name}`));
             const newSheets = [...prevSheets];
             let changed = false;
-            fetched.forEach((s) => {
-              if (s.sheetName && !sheetNames.has(s.sheetName)) {
-                sheetNames.add(s.sheetName);
+            nokiaList.forEach((s) => {
+              const key = `NOKIA__${s.sheetName}`;
+              if (s.sheetName && !existingKeys.has(key)) {
+                existingKeys.add(key);
                 newSheets.push({
-                  id: `sheet_${s.sheetName}`,
-                  vendor: (s.vendor || 'NOKIA') as VendorType,
+                  id: `sheet_NOKIA_${s.sheetName}`,
+                  vendor: 'NOKIA',
                   name: s.sheetName,
                   description: `Aba ${s.sheetName} importada`,
                   lastSyncAt: new Date().toISOString(),
@@ -656,11 +711,7 @@ export default function App() {
           vendor: 'CLARO_TIM' as VendorType,
           sheetName: 'Controle Geral',
         }));
-        setClaroSites(fetched as any);
-        setSites((prev) => {
-          const nonClaro = prev.filter((s) => s.vendor !== 'CLARO_TIM');
-          return [...nonClaro, ...mappedClaro];
-        });
+        setClaroSites(mappedClaro);
         try {
           localStorage.setItem('ameta_cached_claro_sites', JSON.stringify(mappedClaro));
         } catch {}
@@ -1734,16 +1785,16 @@ export default function App() {
       ).length;
       sitesToFreeCount = sitesCount + ericssonRowsCount + engRowsCount;
     } else {
-      const sitesCount = sites.filter(
+      const sourcePool = vendor === 'CLARO_TIM' ? claroSites : sites;
+      const sitesCount = sourcePool.filter(
         (s) =>
-          (s.vendor === 'NOKIA' || s.vendor === 'CLARO_TIM') &&
-          (matchesDuplaName(s.responsavelDemand, cleanTarget) ||
-            matchesDuplaName(s.equipeParceira, cleanTarget) ||
-            matchesDuplaName(s.equipe, cleanTarget) ||
-            matchesDuplaName(s.responsavelCampo, cleanTarget) ||
-            matchesDuplaName(s.customFields?.['EQUIPE'], cleanTarget) ||
-            matchesDuplaName(s.customFields?.['EQUIPE EXECUTANTE'], cleanTarget) ||
-            isSiteAssignedToResponsible(s, cleanTarget, linkedEmails))
+          matchesDuplaName(s.responsavelDemand, cleanTarget) ||
+          matchesDuplaName(s.equipeParceira, cleanTarget) ||
+          matchesDuplaName(s.equipe, cleanTarget) ||
+          matchesDuplaName(s.responsavelCampo, cleanTarget) ||
+          matchesDuplaName(s.customFields?.['EQUIPE'], cleanTarget) ||
+          matchesDuplaName(s.customFields?.['EQUIPE EXECUTANTE'], cleanTarget) ||
+          isSiteAssignedToResponsible(s, cleanTarget, linkedEmails)
       ).length;
       const tssrCount = tssrRows.filter(
         (r) =>
@@ -1922,9 +1973,8 @@ export default function App() {
           })
         );
       } else {
-        setSites((prev) =>
+        const clearFn = (prev: TelecomSite[]) =>
           prev.map((s) => {
-            if (s.vendor !== 'NOKIA' && s.vendor !== 'CLARO_TIM') return s;
             const match =
               matchesDuplaName(s.responsavelDemand, cleanTarget) ||
               matchesDuplaName(s.equipeParceira, cleanTarget) ||
@@ -1949,8 +1999,12 @@ export default function App() {
               },
               updatedAt: nowIso,
             };
-          })
-        );
+          });
+        if (vendor === 'CLARO_TIM') {
+          setClaroSites(clearFn);
+        } else {
+          setSites(clearFn);
+        }
         setTssrRows((prev) =>
           prev.map((r) => {
             const match =
@@ -1995,7 +2049,7 @@ export default function App() {
         await demandaSharedService.limparTodasDemandas({
           responsibleName: cleanTarget,
           vendor,
-          currentSites: sites,
+          currentSites: vendor === 'CLARO_TIM' ? claroSites : sites,
           currentTssrRows: tssrRows,
           currentEricssonEngRows: ericssonEngineeringRows,
           currentEricssonRows: ericssonRows,
@@ -2800,41 +2854,6 @@ export default function App() {
     }
   };
 
-  const handleZerarPlanilhaAtiva = async () => {
-    const isClaro = activeVendor === 'CLARO_TIM';
-    const nomePlanilha = isClaro ? 'Claro – Sites' : 'Nokia – Sites (Vistoria)';
-
-    const confirmed = await confirmar(
-      `Atenção: Todos os dados importados de ${nomePlanilha} no banco de dados serão excluídos permanentemente para que você possa carregar uma nova planilha limpa.\n\nDeseja realmente continuar?`,
-      {
-        title: `Zerar planilha ${nomePlanilha}?`,
-        isDanger: true,
-        confirmLabel: 'Sim, zerar planilha',
-        cancelLabel: 'Cancelar',
-      }
-    );
-
-    if (!confirmed) return;
-
-    try {
-      if (isClaro) {
-        showToast('Zerando planilha Claro Sites no Firestore...');
-        const res = await dataService.zerarClaroSites();
-        setClaroSites([]);
-        setClaroMeta({});
-        showToast(`Planilha Claro Sites zerada com sucesso (${res.deletedCount} registros excluídos). Você já pode importar a nova planilha!`);
-      } else {
-        showToast('Zerando planilha Nokia Sites no Firestore...');
-        const res = await dataService.zerarNokiaSites();
-        setSites((prev) => prev.filter((s) => s.vendor !== 'NOKIA'));
-        showToast(`Planilha Nokia Sites zerada com sucesso (${res.deletedCount} registros excluídos).`);
-      }
-    } catch (err: any) {
-      console.error('Erro ao zerar planilha:', err);
-      showToast(`Erro ao zerar planilha: ${err?.message || err}`);
-    }
-  };
-
   const [initialExpandedUserId, setInitialExpandedUserId] = useState<string | null>(null);
 
   // Enforce tab access based on effectiveRole (RA function tabs are exclusive to ADM; Vistoriador cannot access Engenharia, only Sites and Vistoria)
@@ -2902,10 +2921,13 @@ export default function App() {
     [sheets, activeVendor]
   );
 
-  // Full vendor sites before per-user demand filtering (used by ADM to see counts per responsible)
+  // Full vendor sites before per-user demand filtering (strictly isolated between NOKIA and CLARO_TIM)
   const allVendorSites = useMemo(
-    () => sites.filter((s) => s.vendor === activeVendor),
-    [sites, activeVendor]
+    () =>
+      activeVendor === 'CLARO_TIM'
+        ? claroSites.filter((s) => s && s.vendor === 'CLARO_TIM')
+        : sites.filter((s) => s && s.vendor === 'NOKIA' && !isClaroSiteRecord(s)),
+    [sites, claroSites, activeVendor]
   );
 
   const allVendorControleGeralSites = useMemo(
@@ -3447,7 +3469,7 @@ export default function App() {
     if (activeVendor === 'CLARO_TIM') {
       const baseCols = [...CLARO_CONTROLE_GERAL_COLUMNS];
       const existingUpper = new Set(baseCols.map((c) => c.trim().toUpperCase()));
-      const extraSource = activeSheetMeta?.columns || [];
+      const extraSource = claroMeta.sites?.columns || activeSheetMeta?.columns || [];
       extraSource.forEach((col) => {
         const clean = (col || '').trim();
         if (clean && !existingUpper.has(clean.toUpperCase())) {
@@ -3457,11 +3479,8 @@ export default function App() {
       });
       return baseCols;
     }
-    if (activeSheetMeta?.columns && activeSheetMeta.columns.length > 0) {
-      return activeSheetMeta.columns;
-    }
     return CONTROLE_GERAL_COLUMNS;
-  }, [effectiveRole, functionFilter, activeSheetMeta, activeVendor]);
+  }, [effectiveRole, functionFilter, activeSheetMeta, activeVendor, claroMeta]);
 
   const displayedColumnsWithIndex = useMemo(() => {
     const all = orderedSheetColumns.map((colHeader, colIdx) => ({
@@ -3490,7 +3509,7 @@ export default function App() {
       .filter(Boolean);
     const fullLower = raw.toLowerCase();
 
-    return sites
+    return allVendorSites
       .filter((s) => {
         if (matchesSiteSingleTerm(s, fullLower)) return true;
         if (tokens.length > 1) {
@@ -3499,11 +3518,15 @@ export default function App() {
         return false;
       })
       .slice(0, 20);
-  }, [sites, vendorSites, quickSiteQuery, matchesSiteSingleTerm]);
+  }, [allVendorSites, vendorSites, quickSiteQuery, matchesSiteSingleTerm]);
 
   const selectedSite = useMemo(
-    () => sites.find((s) => s.id === selectedSiteId) || null,
-    [sites, selectedSiteId]
+    () =>
+      allVendorSites.find((s) => s.id === selectedSiteId) ||
+      sites.find((s) => s.id === selectedSiteId) ||
+      claroSites.find((s) => s.id === selectedSiteId) ||
+      null,
+    [allVendorSites, sites, claroSites, selectedSiteId]
   );
 
   const toIsoDateInput = (raw: string | undefined): string => {
@@ -3532,7 +3555,13 @@ export default function App() {
 
   // API Handlers
   const handleSaveSite = async (id: string, updates: Partial<TelecomSite>) => {
-    const targetSite = sites.find((s) => s.id === id);
+    const targetSite =
+      (activeVendor === 'CLARO_TIM'
+        ? claroSites.find((s) => s.id === id)
+        : sites.find((s) => s.id === id)) ||
+      sites.find((s) => s.id === id) ||
+      claroSites.find((s) => s.id === id);
+    const isClaroTarget = targetSite?.vendor === 'CLARO_TIM' || activeVendor === 'CLARO_TIM';
     const safeUpdates: Partial<TelecomSite> =
       effectiveRole === 'ADM'
         ? updates
@@ -3563,11 +3592,19 @@ export default function App() {
           })()
         : updates;
 
-    setSites((prev) =>
-      prev.map((s) =>
-        s.id === id ? { ...s, ...safeUpdates, updatedAt: new Date().toISOString() } : s
-      )
-    );
+    if (isClaroTarget) {
+      setClaroSites((prev) =>
+        prev.map((s) =>
+          s.id === id ? { ...s, ...safeUpdates, updatedAt: new Date().toISOString() } : s
+        )
+      );
+    } else {
+      setSites((prev) =>
+        prev.map((s) =>
+          s.id === id ? { ...s, ...safeUpdates, updatedAt: new Date().toISOString() } : s
+        )
+      );
+    }
 
     if (targetSite) {
       const updatedSite = { ...targetSite, ...safeUpdates, updatedAt: new Date().toISOString() };
@@ -3585,9 +3622,18 @@ export default function App() {
   };
 
   const handleDeleteSite = async (id: string) => {
-    const targetToDelete = sites.find((s) => s.id === id);
+    const targetToDelete =
+      (activeVendor === 'CLARO_TIM'
+        ? claroSites.find((s) => s.id === id)
+        : sites.find((s) => s.id === id)) ||
+      sites.find((s) => s.id === id) ||
+      claroSites.find((s) => s.id === id);
     const vendorToDelete = targetToDelete?.vendor || activeVendor;
-    setSites((prev) => prev.filter((s) => s.id !== id));
+    if (vendorToDelete === 'CLARO_TIM') {
+      setClaroSites((prev) => prev.filter((s) => s.id !== id));
+    } else {
+      setSites((prev) => prev.filter((s) => s.id !== id));
+    }
     setSelectedSiteId(null);
 
     try {
@@ -3606,18 +3652,24 @@ export default function App() {
   const handleCreateSite = async (siteData: Omit<TelecomSite, 'id' | 'updatedAt'>) => {
     try {
       const newId = `site_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+      const resolvedVendor: VendorType = siteData.vendor || activeVendor;
       const newSite: TelecomSite = {
         ...siteData,
+        vendor: resolvedVendor,
         id: newId,
         updatedAt: new Date().toISOString(),
       };
-      setSites((prev) => [newSite, ...prev]);
-      if (siteData.vendor === 'ERICSSON') {
+      if (resolvedVendor === 'CLARO_TIM') {
+        setClaroSites((prev) => [newSite, ...prev]);
+      } else {
+        setSites((prev) => [newSite, ...prev]);
+      }
+      if (resolvedVendor === 'ERICSSON') {
         await dataService.salvarSiteEricsson(newSite as any);
       } else {
         await dataService.salvarSiteNokia(newSite);
       }
-      setActiveVendor(siteData.vendor);
+      setActiveVendor(resolvedVendor);
       showToast(`Site ${siteData.siteId} adicionado com sucesso no Firestore`);
     } catch (err: any) {
       console.error('Erro ao criar site no Firestore [sites]:', err);
@@ -3641,16 +3693,22 @@ export default function App() {
       return;
     }
 
+    const activePool = activeVendor === 'CLARO_TIM' ? claroSites : sites;
+
     if (clearAllForResponsible) {
       const res = await demandaSharedService.limparTodasDemandas({
         responsibleName: clearAllForResponsible,
         vendor: activeVendor,
-        currentSites: sites,
+        currentSites: activePool,
         currentTssrRows: tssrRows,
         currentEricssonEngRows: ericssonEngineeringRows,
         siteTokensToClear: unassignSiteTokens,
       });
-      setSites(res.updatedSites);
+      if (activeVendor === 'CLARO_TIM') {
+        setClaroSites(res.updatedSites);
+      } else {
+        setSites(res.updatedSites);
+      }
       setTssrRows(res.updatedTssrRows);
       setEricssonEngineeringRows(res.updatedEricssonEngRows);
       showToast(
@@ -3670,13 +3728,17 @@ export default function App() {
         responsibleName: targetResponsible,
         linkedEmails,
         vendor: activeVendor,
-        currentSites: sites,
+        currentSites: activePool,
         currentTssrRows: tssrRows,
         currentEricssonEngRows: ericssonEngineeringRows,
         actorEmail: user?.email,
         actorName: user?.name,
       });
-      setSites(res.updatedSites);
+      if (activeVendor === 'CLARO_TIM') {
+        setClaroSites(res.updatedSites);
+      } else {
+        setSites(res.updatedSites);
+      }
       setTssrRows(res.updatedTssrRows);
       setEricssonEngineeringRows(res.updatedEricssonEngRows);
       showToast(
@@ -3696,8 +3758,13 @@ export default function App() {
   }) => {
     try {
       if (params.vendor === 'NOKIA' || params.vendor === 'CLARO_TIM') {
+        const normalizedInputSites = (params.sites as TelecomSite[]).map((s) => ({
+          ...s,
+          vendor: params.vendor,
+          ...(params.vendor === 'CLARO_TIM' ? { sheetName: 'Controle Geral' } : {}),
+        }));
         const res = await dataService.importarSitesNokiaEmLote(
-          params.sites as TelecomSite[],
+          normalizedInputSites,
           users,
           serverDuplaEmailsMap,
           {
@@ -3726,15 +3793,35 @@ export default function App() {
           });
         }
         if (res.novosRegistros && res.novosRegistros.length > 0) {
-          setSites((prev) => {
-            const next = [...prev, ...(res.novosRegistros as TelecomSite[])];
-            try {
-              localStorage.setItem('ameta_cached_sites', JSON.stringify(next));
-            } catch {}
-            return next;
-          });
           if (params.vendor === 'CLARO_TIM') {
-            setClaroSites((prev) => [...prev, ...(res.novosRegistros as any[])]);
+            const novosClaro: TelecomSite[] = (res.novosRegistros as TelecomSite[]).map((r) => ({
+              ...r,
+              vendor: 'CLARO_TIM' as VendorType,
+              sheetName: 'Controle Geral',
+            }));
+            setClaroSites((prev) => {
+              const existingIds = new Set(prev.map((s) => s.id));
+              const next = [...prev, ...novosClaro.filter((r) => !existingIds.has(r.id))];
+              try {
+                localStorage.setItem('ameta_cached_claro_sites', JSON.stringify(next));
+              } catch {}
+              return next;
+            });
+          } else {
+            const novosNokia: TelecomSite[] = (res.novosRegistros as TelecomSite[])
+              .filter((r) => Boolean(r && r.vendor && r.vendor !== 'CLARO_TIM' && !isClaroSiteRecord(r)))
+              .map((r) => ({
+                ...r,
+                vendor: 'NOKIA' as VendorType,
+              }));
+            setSites((prev) => {
+              const existingIds = new Set(prev.map((s) => s.id));
+              const next = [...prev, ...novosNokia.filter((r) => !existingIds.has(r.id))];
+              try {
+                localStorage.setItem('ameta_cached_sites', JSON.stringify(next));
+              } catch {}
+              return next;
+            });
           }
         }
         showToast(
@@ -3780,7 +3867,12 @@ export default function App() {
     if (effectiveRole !== 'ADM' && colHeader.toUpperCase() !== 'STATUS') {
       return;
     }
-    const targetSite = sites.find((s) => s.id === siteId);
+    const targetSite =
+      (activeVendor === 'CLARO_TIM'
+        ? claroSites.find((s) => s.id === siteId)
+        : sites.find((s) => s.id === siteId)) ||
+      sites.find((s) => s.id === siteId) ||
+      claroSites.find((s) => s.id === siteId);
     if (!targetSite) return;
     const syncedUpdates = syncSiteColumnUpdate(targetSite, colHeader, value);
     await handleSaveSite(siteId, syncedUpdates);
@@ -3795,14 +3887,18 @@ export default function App() {
   };
 
   const handleMarkNewSitesSeen = async () => {
-    setSites((prev) =>
-      prev.map((s) => (s.vendor === activeVendor && s.isNew ? { ...s, isNew: false } : s))
-    );
+    const isClaro = activeVendor === 'CLARO_TIM';
+    if (isClaro) {
+      setClaroSites((prev) => prev.map((s) => (s.isNew ? { ...s, isNew: false } : s)));
+    } else {
+      setSites((prev) => prev.map((s) => (s.isNew ? { ...s, isNew: false } : s)));
+    }
     if (functionFilter === 'NOVOS') {
       setFunctionFilter('TODOS_GERAL');
     }
     try {
-      const newSites = sites.filter((s) => s.vendor === activeVendor && s.isNew);
+      const sourcePool = isClaro ? claroSites : sites;
+      const newSites = sourcePool.filter((s) => s.isNew);
       for (const s of newSites) {
         await dataService.salvarSiteNokia({ ...s, isNew: false });
       }
@@ -3813,36 +3909,17 @@ export default function App() {
   };
 
   const renderStatusText = (status: SiteStatus, showHoverChevron = false) => {
-    const s = String(status || '').toLowerCase();
-    let badgeClass = 'bg-slate-100 text-slate-600 border-slate-200';
-    if (s.includes('finalizada') || s === 'ativo') {
-      badgeClass = 'bg-emerald-50 text-emerald-700 border-emerald-200';
-    } else if (
-      s.includes('executar') ||
-      s.includes('andamento') ||
-      s.includes('solicitado') ||
-      s.includes('aguard') ||
-      s.includes('comissionamento')
-    ) {
-      badgeClass = 'bg-amber-50 text-amber-700 border-amber-200';
-    } else if (
-      s.includes('cancelad') ||
-      s.includes('sem acesso') ||
-      s.includes('sem chave') ||
-      s.includes('crítico')
-    ) {
-      badgeClass = 'bg-slate-100 text-slate-600 border-slate-200';
-    }
-
+    const label = String(status || '').trim() || '—';
     return (
-      <span
-        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium border ${badgeClass}`}
-      >
-        <span className="truncate max-w-[155px]">{status || '—'}</span>
-        {showHoverChevron && (
-          <ChevronDown className="w-3 h-3 opacity-0 group-hover/cell:opacity-100 transition-opacity shrink-0" />
-        )}
-      </span>
+      <StatusBadge
+        label={label}
+        maxWidthClass="max-w-[155px]"
+        trailing={
+          showHoverChevron ? (
+            <ChevronDown className="w-3 h-3 opacity-0 group-hover/cell:opacity-100 transition-opacity duration-150 shrink-0" />
+          ) : undefined
+        }
+      />
     );
   };
 
@@ -3853,30 +3930,21 @@ export default function App() {
         <span className="inline-flex items-center gap-1 text-slate-400 text-[11px]">
           <span>—</span>
           {showHoverChevron && (
-            <ChevronDown className="w-3 h-3 opacity-0 group-hover/cell:opacity-100 transition-opacity shrink-0" />
+            <ChevronDown className="w-3 h-3 opacity-0 group-hover/cell:opacity-100 transition-opacity duration-150 shrink-0" />
           )}
         </span>
       );
     }
-    const lower = f.toLowerCase();
-    let cls = 'bg-slate-100 border-slate-200 text-slate-700';
-    if (lower.includes('emitida') || lower.includes('faturado') || lower.includes('pago')) {
-      cls = 'bg-emerald-50 border-emerald-200 text-emerald-700';
-    } else if (lower.includes('pronta') || lower.includes('liberado') || lower.includes('emitir')) {
-      cls = 'bg-slate-100 border-slate-300 text-slate-800';
-    } else if (lower.includes('aguard') || lower.includes('spo') || lower.includes('sgr')) {
-      cls = 'bg-amber-50 border-amber-200 text-amber-700';
-    }
-
     return (
-      <span
-        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-[11px] font-medium ${cls}`}
-      >
-        <span className="truncate max-w-[165px]">{f}</span>
-        {showHoverChevron && (
-          <ChevronDown className="w-3 h-3 opacity-0 group-hover/cell:opacity-100 transition-opacity shrink-0" />
-        )}
-      </span>
+      <StatusBadge
+        label={f}
+        maxWidthClass="max-w-[165px]"
+        trailing={
+          showHoverChevron ? (
+            <ChevronDown className="w-3 h-3 opacity-0 group-hover/cell:opacity-100 transition-opacity duration-150 shrink-0" />
+          ) : undefined
+        }
+      />
     );
   };
 
@@ -3977,43 +4045,41 @@ export default function App() {
     if (folderSites.length === 0) {
       const isClaroEmpty = activeVendor === 'CLARO_TIM' && allVendorControleGeralSites.length === 0;
       return (
-        <div className="p-10 text-center space-y-2.5">
-          <div className="text-sm font-semibold text-slate-700">
-            {isClaroEmpty
+        <EmptyStateCard
+          icon={<FileSpreadsheet className="w-6 h-6 text-slate-400" />}
+          title={
+            isClaroEmpty
               ? 'Nenhuma planilha da Claro importada. Use Importar para começar.'
-              : 'Nenhum registro encontrado para o filtro selecionado'}
-          </div>
-          {!isClaroEmpty && (
-            <p className="text-xs text-slate-500">
-              Experimente limpar ou ajustar os filtros acima.
-            </p>
-          )}
-          {isClaroEmpty && isRealGestor && (
-            <div className="pt-1">
+              : 'Nenhum registro encontrado para o filtro selecionado'
+          }
+          description={
+            !isClaroEmpty ? 'Experimente limpar ou ajustar os filtros acima.' : undefined
+          }
+          action={
+            isClaroEmpty && isRealGestor ? (
               <button
                 type="button"
                 onClick={() => {
                   setBulkInitialTab('excel');
                   setBulkModalOpen(true);
                 }}
-                className="px-4 py-2 bg-[#223585] hover:bg-[#1a2a6c] text-white font-bold text-xs rounded-lg inline-flex items-center gap-1.5 cursor-pointer shadow-xs"
+                className="px-4 py-2 bg-[#223585] hover:bg-[#1B2A6B] text-white font-semibold text-xs rounded-[8px] inline-flex items-center gap-1.5 cursor-pointer shadow-xs transition-colors duration-150"
               >
                 <Upload className="w-4 h-4" />
                 <span>Importar Planilha Excel (.xlsx)</span>
               </button>
-            </div>
-          )}
-          {hasActiveFilter && !isClaroEmpty && (
-            <button
-              type="button"
-              onClick={resetAllInternalFilters}
-              className="mt-2 px-3.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg transition-colors inline-flex items-center gap-1.5 cursor-pointer"
-            >
-              <RotateCcw className="w-3.5 h-3.5" />
-              <span>Limpar Todos os Filtros</span>
-            </button>
-          )}
-        </div>
+            ) : hasActiveFilter && !isClaroEmpty ? (
+              <button
+                type="button"
+                onClick={resetAllInternalFilters}
+                className="px-3.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-[8px] transition-colors duration-150 inline-flex items-center gap-1.5 cursor-pointer"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                <span>Limpar Todos os Filtros</span>
+              </button>
+            ) : undefined
+          }
+        />
       );
     }
 
@@ -4164,10 +4230,10 @@ export default function App() {
                 : 'max-h-[72vh]'
             }`}
           >
-            <table className="w-full text-left border-separate border-spacing-0 text-xs">
-              <thead className="sticky top-0 z-30 bg-slate-100 text-slate-600 font-semibold">
+            <table className="ameta-table-zebra w-full text-left border-separate border-spacing-0 text-[13px]">
+              <thead className="sticky top-0 z-30 bg-slate-50/95 backdrop-blur-xs text-[11px] uppercase tracking-wider text-slate-600 font-semibold">
                 <tr>
-                  <th className={`sticky left-0 z-40 w-[44px] min-w-[44px] max-w-[44px] bg-slate-100 ${densityHeaderPad} border-b border-r border-slate-200 font-mono text-center text-slate-500`}>
+                  <th className={`sticky left-0 z-40 w-[44px] min-w-[44px] max-w-[44px] bg-slate-50 ${densityHeaderPad} border-b border-r border-slate-200 font-mono text-center text-slate-500`}>
                     #
                   </th>
 
@@ -4175,14 +4241,14 @@ export default function App() {
                     const isColA = colIdx === 0;
                     const isColB = colIdx === 1 || colHeader.toUpperCase() === 'SITE ID';
 
-                    let stickyHeaderClass = `${densityHeaderPad} border-b border-r border-slate-200 whitespace-nowrap bg-slate-100 min-w-[135px]`;
+                    let stickyHeaderClass = `ameta-col-resizable ${densityHeaderPad} border-b border-r border-slate-200 whitespace-nowrap bg-slate-50 min-w-[135px]`;
 
                     if (isColA) {
-                      stickyHeaderClass = `sticky left-[44px] z-40 w-[120px] min-w-[120px] max-w-[120px] ${densityHeaderPad} border-b border-r border-slate-200 whitespace-nowrap bg-slate-100 overflow-hidden text-ellipsis`;
+                      stickyHeaderClass = `ameta-col-resizable sticky left-[44px] z-40 w-[120px] min-w-[120px] max-w-[120px] ${densityHeaderPad} border-b border-r border-slate-200 whitespace-nowrap bg-slate-50 overflow-hidden text-ellipsis`;
                     } else if (isColB) {
-                      stickyHeaderClass = `${
+                      stickyHeaderClass = `ameta-col-resizable ${
                         hasColA ? 'sticky left-[164px]' : 'sticky left-[44px]'
-                      } z-40 w-[150px] min-w-[150px] max-w-[150px] ${densityHeaderPad} border-b border-r border-slate-300 whitespace-nowrap bg-slate-100 font-bold text-slate-900 overflow-hidden text-ellipsis shadow-[4px_0_6px_-2px_rgba(15,23,42,0.10)]`;
+                      } z-40 w-[150px] min-w-[150px] max-w-[150px] ${densityHeaderPad} border-b border-r border-slate-300 whitespace-nowrap bg-slate-50 font-bold text-slate-900 overflow-hidden text-ellipsis shadow-[4px_0_6px_-2px_rgba(15,23,42,0.08)]`;
                     }
 
                     return (
@@ -4190,7 +4256,7 @@ export default function App() {
                         {renderColumnHeaderWithFilter(
                           colHeader,
                           <>
-                            <span className="px-1 py-0.5 bg-slate-200 text-slate-700 rounded text-[10px] font-mono font-bold mr-1">
+                            <span className="px-1 py-0.5 bg-slate-200/80 text-slate-700 rounded text-[10px] font-mono font-bold mr-1">
                               {colLetter}
                             </span>
                             <span>{colHeader}</span>
@@ -4215,16 +4281,20 @@ export default function App() {
                           <FileSpreadsheet className="w-6 h-6" />
                         </div>
                         <div className="font-bold text-slate-800 text-sm">
-                          {sites.length === 0
-                            ? 'Nenhum site encontrado no Firestore (nokia_sites)'
+                          {allVendorSites.length === 0
+                            ? activeVendor === 'CLARO_TIM'
+                              ? 'Nenhuma planilha da Claro importada. Use Importar para começar.'
+                              : 'Nenhum site encontrado no Firestore (nokia_sites)'
                             : 'Nenhum site corresponde aos filtros selecionados'}
                         </div>
                         <p className="text-xs text-slate-500 leading-relaxed">
-                          {sites.length === 0
-                            ? 'A coleção nokia_sites está vazia no banco ameta-sistema-teste. Utilize o botão abaixo para importar a planilha oficial (.xlsx) ou importe a base inicial no Painel de Admin.'
+                          {allVendorSites.length === 0
+                            ? activeVendor === 'CLARO_TIM'
+                              ? 'A coleção claro_sites está vazia. Utilize o botão abaixo para importar a planilha da Claro (.xlsx).'
+                              : 'A coleção nokia_sites está vazia no banco ameta-sistema-teste. Utilize o botão abaixo para importar a planilha oficial (.xlsx) ou importe a base inicial no Painel de Admin.'
                             : 'Tente alterar ou limpar os filtros de busca para visualizar os sites cadastrados.'}
                         </p>
-                        {sites.length === 0 && (
+                        {allVendorSites.length === 0 && (
                           <div className="pt-2">
                             <button
                               type="button"
@@ -4244,9 +4314,11 @@ export default function App() {
                   <tr
                     key={site.id}
                     onClick={() => setSelectedSiteId(site.id)}
-                    className="group cursor-pointer"
+                    className={`group cursor-pointer transition-colors duration-150 ${
+                      selectedSiteId === site.id ? 'ameta-table-row-selected' : ''
+                    }`}
                   >
-                    <td className={`sticky left-0 z-20 w-[44px] min-w-[44px] max-w-[44px] bg-white group-hover:bg-slate-50 ${densityPad} border-b border-r border-slate-100 text-center font-mono text-slate-400 tabular-nums`}>
+                    <td className={`sticky left-0 z-20 w-[44px] min-w-[44px] max-w-[44px] bg-white ${densityPad} border-b border-r border-slate-100 text-center font-mono text-slate-400 tabular-nums`}>
                       {startIndex + idx + 1}
                     </td>
 
@@ -4274,6 +4346,7 @@ export default function App() {
                       return (
                         <td
                           key={`${colLetter}-${colHeader}`}
+                          title={cellValue ? String(cellValue) : undefined}
                           onClick={(e) => {
                             if (
                               isStatusCol ||
@@ -4462,20 +4535,20 @@ export default function App() {
               : 'max-h-[72vh]'
           }`}
         >
-        <table className="w-full text-left border-separate border-spacing-0 text-xs">
-          <thead className="sticky top-0 z-20 bg-slate-100/90 text-slate-600 font-semibold">
+        <table className="ameta-table-zebra w-full text-left border-separate border-spacing-0 text-[13px]">
+          <thead className="sticky top-0 z-20 bg-slate-50/95 backdrop-blur-xs text-[11px] uppercase tracking-wider text-slate-600 font-semibold">
             <tr className="whitespace-nowrap">
-              <th className={`sticky left-0 z-30 w-[44px] min-w-[44px] max-w-[44px] bg-slate-100 ${densityHeaderPad} border-b border-r border-slate-200 font-mono text-center`}>
+              <th className={`sticky left-0 z-30 w-[44px] min-w-[44px] max-w-[44px] bg-slate-50 ${densityHeaderPad} border-b border-r border-slate-200 font-mono text-center`}>
                 #
               </th>
-              <th className={`sticky left-[44px] z-30 w-[150px] min-w-[150px] max-w-[150px] bg-slate-100 ${densityHeaderPad} border-b border-r border-slate-200 shadow-[4px_0_6px_-2px_rgba(15,23,42,0.06)]`}>
+              <th className={`ameta-col-resizable sticky left-[44px] z-30 w-[150px] min-w-[150px] max-w-[150px] bg-slate-50 ${densityHeaderPad} border-b border-r border-slate-200 shadow-[4px_0_6px_-2px_rgba(15,23,42,0.06)]`}>
                 {renderColumnHeaderWithFilter('FLUID_SITE_ID', 'SITE ID', 'SITE ID')}
               </th>
-              <th className={`${densityHeaderPad} border-b border-slate-200 bg-slate-100`}>
+              <th className={`ameta-col-resizable ${densityHeaderPad} border-b border-slate-200 bg-slate-50`}>
                 {renderColumnHeaderWithFilter('FLUID_END_ID', 'END ID', 'END ID')}
               </th>
               {!isVistoriadorView && (
-                <th className={`${densityHeaderPad} border-b border-slate-200 bg-slate-100`}>
+                <th className={`ameta-col-resizable ${densityHeaderPad} border-b border-slate-200 bg-slate-50`}>
                   {renderColumnHeaderWithFilter(
                     'FLUID_PRIORIDADE',
                     'Função / Prioridade',
@@ -4483,43 +4556,43 @@ export default function App() {
                   )}
                 </th>
               )}
-              <th className={`${densityHeaderPad} border-b border-slate-200 bg-slate-100`}>
+              <th className={`ameta-col-resizable ${densityHeaderPad} border-b border-slate-200 bg-slate-50`}>
                 {renderColumnHeaderWithFilter('FLUID_OC_SITE_PRE', 'Oc Site Pre', 'Oc Site Pre')}
               </th>
               {!isVistoriadorView && (
-                <th className={`${densityHeaderPad} border-b border-slate-200 bg-slate-100`}>
+                <th className={`ameta-col-resizable ${densityHeaderPad} border-b border-slate-200 bg-slate-50`}>
                   {renderColumnHeaderWithFilter('FLUID_SMP', 'SMP', 'SMP')}
                 </th>
               )}
-              <th className={`${densityHeaderPad} border-b border-slate-200 bg-slate-100`}>
+              <th className={`ameta-col-resizable ${densityHeaderPad} border-b border-slate-200 bg-slate-50`}>
                 {renderColumnHeaderWithFilter(
                   'FLUID_UF_MUNICIPIO',
                   isVistoriadorView ? 'UF' : 'UF / Município',
                   isVistoriadorView ? 'UF' : 'UF / Município'
                 )}
               </th>
-              <th className={`${densityHeaderPad} border-b border-slate-200 bg-slate-100`}>
+              <th className={`ameta-col-resizable ${densityHeaderPad} border-b border-slate-200 bg-slate-50`}>
                 {renderColumnHeaderWithFilter(
                   'FLUID_PROJETO_ESCOPO',
                   isVistoriadorView ? 'PROJETO' : 'Projeto / Escopo',
                   isVistoriadorView ? 'PROJETO' : 'Projeto / Escopo'
                 )}
               </th>
-              <th className={`${densityHeaderPad} border-b border-slate-200 bg-slate-100`}>
+              <th className={`ameta-col-resizable ${densityHeaderPad} border-b border-slate-200 bg-slate-50`}>
                 {renderColumnHeaderWithFilter(
                   'FLUID_EQUIPE',
                   isVistoriadorView ? 'EQUIPE' : 'Equipe Executante (Dupla)',
                   isVistoriadorView ? 'EQUIPE' : 'Equipe Executante'
                 )}
               </th>
-              <th className={`${densityHeaderPad} border-b border-slate-200 bg-slate-100`}>
+              <th className={`ameta-col-resizable ${densityHeaderPad} border-b border-slate-200 bg-slate-50`}>
                 {renderColumnHeaderWithFilter('FLUID_SI_EXECUTED', 'SI Executed', 'SI Executed')}
               </th>
-              <th className={`${densityHeaderPad} border-b border-slate-200 bg-slate-100`}>
+              <th className={`ameta-col-resizable ${densityHeaderPad} border-b border-slate-200 bg-slate-50`}>
                 {renderColumnHeaderWithFilter('FLUID_STATUS', 'STATUS', 'Status')}
               </th>
               {!isVistoriadorView && (
-                <th className={`${densityHeaderPad} border-b border-slate-200 bg-slate-100`}>
+                <th className={`ameta-col-resizable ${densityHeaderPad} border-b border-slate-200 bg-slate-50`}>
                   {renderColumnHeaderWithFilter(
                     'FLUID_STATUS_FINANCEIRO',
                     'Status Financeiro',
@@ -4527,13 +4600,13 @@ export default function App() {
                   )}
                 </th>
               )}
-              <th className={`${densityHeaderPad} border-b border-slate-200 bg-slate-100`}>
+              <th className={`ameta-col-resizable ${densityHeaderPad} border-b border-slate-200 bg-slate-50`}>
                 {renderColumnHeaderWithFilter('FLUID_ACESSO', 'Acesso', 'Acesso')}
               </th>
-              <th className={`${densityHeaderPad} border-b border-slate-200 bg-slate-100`}>
+              <th className={`ameta-col-resizable ${densityHeaderPad} border-b border-slate-200 bg-slate-50`}>
                 {renderColumnHeaderWithFilter('FLUID_DATA_ACESSO', 'Data Acesso', 'Data Acesso')}
               </th>
-              <th className={`${densityHeaderPad} border-b border-slate-200 bg-slate-100`}>
+              <th className={`ameta-col-resizable ${densityHeaderPad} border-b border-slate-200 bg-slate-50`}>
                 {renderColumnHeaderWithFilter(
                   'FLUID_COMENTARIOS_ACESSO',
                   'Comentários Acesso',
@@ -4541,7 +4614,7 @@ export default function App() {
                 )}
               </th>
               {!isVistoriadorView && (
-                <th className={`${densityHeaderPad} border-b border-slate-200 bg-slate-100`}>
+                <th className={`ameta-col-resizable ${densityHeaderPad} border-b border-slate-200 bg-slate-50`}>
                   {renderColumnHeaderWithFilter(
                     'FLUID_OBS',
                     'Observações / Comentários',
@@ -4549,7 +4622,7 @@ export default function App() {
                   )}
                 </th>
               )}
-              <th className={`${densityHeaderPad} border-b border-slate-200 bg-slate-100 text-right`}>
+              <th className={`${densityHeaderPad} border-b border-slate-200 bg-slate-50 text-right`}>
                 Ficha
               </th>
             </tr>
@@ -4568,16 +4641,20 @@ export default function App() {
                           <FileSpreadsheet className="w-6 h-6" />
                         </div>
                         <div className="font-bold text-slate-800 text-sm">
-                          {sites.length === 0
-                            ? 'Nenhum site encontrado no Firestore (nokia_sites)'
+                          {allVendorSites.length === 0
+                            ? activeVendor === 'CLARO_TIM'
+                              ? 'Nenhuma planilha da Claro importada. Use Importar para começar.'
+                              : 'Nenhum site encontrado no Firestore (nokia_sites)'
                             : 'Nenhum site corresponde aos filtros selecionados'}
                         </div>
                         <p className="text-xs text-slate-500 leading-relaxed">
-                          {sites.length === 0
-                            ? 'A coleção nokia_sites está vazia no banco ameta-sistema-teste. Utilize o botão abaixo para importar a planilha oficial (.xlsx) ou importe a base inicial no Painel de Admin.'
+                          {allVendorSites.length === 0
+                            ? activeVendor === 'CLARO_TIM'
+                              ? 'A coleção claro_sites está vazia. Utilize o botão abaixo para importar a planilha da Claro (.xlsx).'
+                              : 'A coleção nokia_sites está vazia no banco ameta-sistema-teste. Utilize o botão abaixo para importar a planilha oficial (.xlsx) ou importe a base inicial no Painel de Admin.'
                             : 'Tente alterar ou limpar os filtros de busca para visualizar os sites cadastrados.'}
                         </p>
-                        {sites.length === 0 && (
+                        {allVendorSites.length === 0 && (
                           <div className="pt-2">
                             <button
                               type="button"
@@ -4674,7 +4751,9 @@ export default function App() {
                     )}
                     <tr
                       onClick={() => setSelectedSiteId(site.id)}
-                      className="group cursor-pointer whitespace-nowrap"
+                      className={`group cursor-pointer whitespace-nowrap transition-colors duration-150 ${
+                        selectedSiteId === site.id ? 'ameta-table-row-selected' : ''
+                      }`}
                     >
                   <td className={`sticky left-0 z-20 w-[44px] min-w-[44px] max-w-[44px] bg-white group-hover:bg-slate-50 ${densityPad} border-b border-r border-slate-100 font-mono text-slate-400 text-center tabular-nums`}>
                     {startIndex + idx + 1}
@@ -4892,35 +4971,30 @@ export default function App() {
                   )}
 
                   {/* Coluna Acesso (Status de Acesso) */}
-                  <td className={`${densityPad} border-b border-slate-100 bg-white group-hover:bg-slate-50 text-slate-700 max-w-[160px] truncate`}>
+                  <td
+                    className={`${densityPad} border-b border-slate-100 bg-white text-slate-700 max-w-[160px] truncate`}
+                    title={colAcesso !== '—' ? colAcesso : undefined}
+                  >
                     {colAcesso !== '—' ? (
-                      <span
-                        className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold ${
-                          colAcesso.toLowerCase().includes('liberado') ||
-                          colAcesso.toLowerCase().includes('ok')
-                            ? 'bg-emerald-100 text-emerald-800'
-                            : colAcesso.toLowerCase().includes('sem acesso') ||
-                              colAcesso.toLowerCase().includes('crítico') ||
-                              colAcesso.toLowerCase().includes('rejeit')
-                            ? 'bg-rose-100 text-rose-800'
-                            : 'bg-amber-100 text-amber-900'
-                        }`}
-                      >
-                        {colAcesso}
-                      </span>
+                      <StatusBadge label={colAcesso} maxWidthClass="max-w-[140px]" />
                     ) : (
                       <span className="text-slate-400">—</span>
                     )}
                   </td>
 
                   {/* Data de Acesso */}
-                  <td className={`${densityPad} border-b border-slate-100 bg-white group-hover:bg-slate-50 font-mono text-slate-600 tabular-nums max-w-[120px] truncate`}>
-                    {dataAcesso}
+                  <td
+                    className={`${densityPad} border-b border-slate-100 bg-white font-mono text-slate-600 tabular-nums max-w-[120px] truncate`}
+                    title={dataAcesso !== '—' ? dataAcesso : undefined}
+                  >
+                    {dataAcesso && dataAcesso !== '—'
+                      ? toBrDateDisplay(toIsoDateInput(dataAcesso)) || dataAcesso
+                      : '—'}
                   </td>
 
                   {/* Comentários do Acesso */}
                   <td
-                    className={`${densityPad} border-b border-slate-100 bg-white group-hover:bg-slate-50 text-slate-600 max-w-[240px] truncate`}
+                    className={`${densityPad} border-b border-slate-100 bg-white text-slate-600 max-w-[240px] truncate`}
                     title={comentariosAcesso !== '—' ? comentariosAcesso : undefined}
                   >
                     {comentariosAcesso !== '—' ? (
@@ -4933,12 +5007,15 @@ export default function App() {
                   </td>
 
                   {!isVistoriadorView && (
-                    <td className={`${densityPad} border-b border-slate-100 bg-white group-hover:bg-slate-50 text-slate-500 max-w-[210px] truncate`}>
+                    <td
+                      className={`${densityPad} border-b border-slate-100 bg-white text-slate-500 max-w-[210px] truncate`}
+                      title={obs ? String(obs) : undefined}
+                    >
                       {obs || '—'}
                     </td>
                   )}
-                  <td className={`${densityPad} border-b border-slate-100 bg-white group-hover:bg-slate-50 text-right`}>
-                    <span className="inline-flex items-center gap-1 text-blue-600 font-medium group-hover:translate-x-0.5 transition-transform">
+                  <td className={`${densityPad} border-b border-slate-100 bg-white text-right`}>
+                    <span className="inline-flex items-center gap-1 text-[#223585] font-semibold group-hover:translate-x-0.5 transition-transform duration-150">
                       <span>Abrir</span>
                       <ChevronRight className="w-3.5 h-3.5" />
                     </span>
@@ -5108,7 +5185,7 @@ export default function App() {
     : 'AM';
 
   return (
-    <div className="min-h-screen bg-[#F0F3FB] text-slate-900 flex flex-row">
+    <div className="min-h-screen bg-[#F4F6FA] text-slate-900 flex flex-row">
       {/* Dark Navy Collapsible Sidebar with Smooth Transition */}
       <AmetaSidebar
         collapsed={sidebarCollapsed}
@@ -5144,33 +5221,33 @@ export default function App() {
       {/* Main App Area */}
       <div className="flex-1 min-w-0 flex flex-col min-h-screen">
         {/* Top Official Brand Accent Bar (Ameta Navy #223585 -> Ameta Teal #1E8E8D) */}
-        <div className="h-1 w-full bg-gradient-to-r from-[#223585] via-[#206289] to-[#1E8E8D] shrink-0" />
+        <div className="h-[3px] w-full bg-gradient-to-r from-[#223585] via-[#206289] to-[#1E8E8D] shrink-0" />
 
         {/* =====================================================================
-            1. HIERARQUIA VISUAL E LIMPEZA DO CABEÇALHO (HEADER SEM SOBREPOSIÇÃO)
+            1. HIERARQUIA VISUAL E LIMPEZA DO CABEÇALHO (HEADER FIXO CORPORATIVO)
            ===================================================================== */}
-        <header className="sticky top-0 z-30 bg-white border-b border-slate-200 px-3 sm:px-5 py-2.5 shadow-xs space-y-2.5">
+        <header className="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-slate-200 px-3 sm:px-6 py-2.5 shadow-[0_1px_2px_rgba(15,23,42,0.03)] space-y-2.5">
           {/* Top Row: Logo (mobile) + Vendor Switcher + Breadcrumb + Right Action Buttons */}
-          <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-2.5 sm:gap-3.5 min-w-0">
               <button
                 type="button"
                 onClick={() => setActiveTopTab('sites')}
-                className="md:hidden cursor-pointer text-left shrink-0"
+                className="md:hidden cursor-pointer text-left shrink-0 rounded-[8px]"
               >
                 <AmetaLogo size="sm" theme="light" />
               </button>
 
-              {/* Desktop Vendor Pill Switcher (Level 1: NOKIA / ERICSSON, Level 2: TIM / CLARO when NOKIA is active) */}
+              {/* Desktop Vendor Pill Switcher (Segmentos limpos: NOKIA / ERICSSON + TIM / CLARO) */}
               <div className="flex items-center gap-2">
-                <div className="flex items-center p-0.5 bg-[#F0F3FB] border border-blue-200/70 rounded-lg shrink-0 gap-0.5">
+                <div className="inline-flex items-center p-0.5 bg-slate-100 border border-slate-200 rounded-[8px] shrink-0 gap-0.5">
                   {canAccessNokia && (
                     <button
                       type="button"
                       onClick={() => {
                         if (activeVendor === 'ERICSSON') handleSwitchVendor('NOKIA');
                       }}
-                      className={`px-3 py-1 text-[11px] font-extrabold rounded-md transition-all cursor-pointer ${
+                      className={`px-3 py-1 text-[11px] font-bold rounded-[6px] transition-all duration-150 whitespace-nowrap cursor-pointer ${
                         activeVendor === 'NOKIA' || activeVendor === 'CLARO_TIM'
                           ? 'bg-[#223585] text-white shadow-2xs'
                           : 'text-slate-600 hover:text-[#223585]'
@@ -5183,7 +5260,7 @@ export default function App() {
                     <button
                       type="button"
                       onClick={() => handleSwitchVendor('ERICSSON')}
-                      className={`px-3 py-1 text-[11px] font-extrabold rounded-md transition-all cursor-pointer ${
+                      className={`px-3 py-1 text-[11px] font-bold rounded-[6px] transition-all duration-150 whitespace-nowrap cursor-pointer ${
                         activeVendor === 'ERICSSON'
                           ? 'bg-[#1E8E8D] text-white shadow-2xs'
                           : 'text-slate-600 hover:text-[#1E8E8D]'
@@ -5196,14 +5273,14 @@ export default function App() {
 
                 {/* Level 2: Operator selection for Nokia */}
                 {canAccessNokia && (activeVendor === 'NOKIA' || activeVendor === 'CLARO_TIM') && (
-                  <div className="flex items-center p-0.5 bg-slate-100 border border-slate-200/90 rounded-lg shrink-0 gap-0.5 animate-fadeIn">
+                  <div className="inline-flex items-center p-0.5 bg-slate-100 border border-slate-200 rounded-[8px] shrink-0 gap-0.5 animate-fadeIn">
                     <button
                       type="button"
                       onClick={() => handleSwitchVendor('NOKIA')}
-                      className={`px-2.5 py-1 text-[11px] font-bold rounded-md transition-all cursor-pointer ${
+                      className={`px-2.5 py-1 text-[11px] font-semibold rounded-[6px] transition-all duration-150 whitespace-nowrap cursor-pointer ${
                         activeVendor === 'NOKIA'
-                          ? 'bg-blue-900 text-white shadow-2xs font-extrabold'
-                          : 'text-slate-600 hover:text-blue-900'
+                          ? 'bg-[#1E3A8A] text-white shadow-2xs font-bold'
+                          : 'text-slate-600 hover:text-[#1E3A8A]'
                       }`}
                     >
                       TIM
@@ -5211,9 +5288,9 @@ export default function App() {
                     <button
                       type="button"
                       onClick={() => handleSwitchVendor('CLARO_TIM')}
-                      className={`px-2.5 py-1 text-[11px] font-bold rounded-md transition-all cursor-pointer flex items-center gap-1.5 ${
+                      className={`px-2.5 py-1 text-[11px] font-semibold rounded-[6px] transition-all duration-150 whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${
                         activeVendor === 'CLARO_TIM'
-                          ? 'bg-amber-600 text-white shadow-2xs font-extrabold'
+                          ? 'bg-amber-600 text-white shadow-2xs font-bold'
                           : 'text-slate-700 hover:text-amber-900 hover:bg-amber-50'
                       }`}
                       title="Nokia · Claro"
@@ -5225,16 +5302,16 @@ export default function App() {
               </div>
 
               {/* Breadcrumb / Title of Current View */}
-              <div className="hidden lg:flex items-center gap-2 text-xs text-slate-500 font-medium pl-1 border-l border-slate-200">
-                <span className="text-slate-900 font-bold">
+              <nav aria-label="Breadcrumb" className="hidden lg:flex items-center gap-2 text-xs text-slate-500 font-medium pl-3 border-l border-slate-200">
+                <span className="text-slate-900 font-semibold whitespace-nowrap">
                   {activeVendor === 'CLARO_TIM'
                     ? 'Nokia · Claro'
                     : activeVendor === 'ERICSSON'
                     ? 'Ericsson'
                     : 'Nokia · TIM'}
                 </span>
-                <span>/</span>
-                <span className="text-slate-700">
+                <ChevronRight className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                <span className="text-slate-600 whitespace-nowrap">
                   {resolvedTopTab === 'sites'
                     ? 'Sites (Planilhas)'
                     : resolvedTopTab === 'engenharia'
@@ -5247,12 +5324,12 @@ export default function App() {
                     ? 'Demandar Executores'
                     : resolvedTopTab}
                 </span>
-              </div>
+              </nav>
             </div>
 
           {/* Right: Role Badge + Notification Bell + ADM Dono Button + RA Menu */}
-          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-slate-100 border border-slate-200 text-[10px] sm:text-[11px] font-bold text-slate-700">
+          <div className="flex items-center gap-2 shrink-0">
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-[8px] bg-slate-100 border border-slate-200 text-[11px] font-semibold text-slate-700">
               <ShieldCheck className="w-3.5 h-3.5 text-[#223585] shrink-0" />
               <span className="truncate max-w-[95px] sm:max-w-none">{effectiveRole}</span>
             </span>
@@ -5289,14 +5366,14 @@ export default function App() {
               <button
                 type="button"
                 onClick={() => setOwnerPermissionsModalOpen(true)}
-                className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-[11px] sm:text-xs shadow-sm transition-colors cursor-pointer"
+                className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-[8px] bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 font-semibold text-[11px] sm:text-xs shadow-2xs transition-colors cursor-pointer"
                 title="Painel de Liberação de Novos Usuários e Permissões (ADM Dono)"
               >
-                <ShieldCheck className="w-3.5 h-3.5 shrink-0" />
+                <ShieldCheck className="w-3.5 h-3.5 text-amber-600 shrink-0" />
                 <span className="hidden md:inline">Painel de Liberação</span>
                 <span className="md:hidden">Liberar</span>
                 {pendingReleaseCount > 0 && (
-                  <span className="px-1.5 py-0.5 rounded-full bg-slate-950 text-amber-300 text-[10px] font-mono font-black">
+                  <span className="px-1.5 py-0.5 rounded-full bg-amber-600 text-white text-[10px] font-mono font-bold">
                     {pendingReleaseCount}
                   </span>
                 )}
@@ -6072,12 +6149,12 @@ export default function App() {
         </div>
       )}
 
-      {/* Live Toast */}
+      {/* Top-Right Corporate Toast Notification */}
       {liveToast && (
-        <div className="fixed bottom-16 sm:bottom-5 right-3 left-3 sm:left-auto sm:right-5 z-40 bg-slate-900 text-white px-4 py-3 rounded-xl shadow-lg flex items-center gap-2.5 text-xs">
-          <RefreshCw className="w-4 h-4 text-blue-400 animate-spin shrink-0" />
-          <span>{liveToast}</span>
-        </div>
+        <ToastNotification
+          message={liveToast}
+          onDismiss={() => setLiveToast(null)}
+        />
       )}
 
       {/* =====================================================================
@@ -6160,6 +6237,80 @@ export default function App() {
            ------------------------------------------------------------------- */}
         {(activeVendor === 'NOKIA' || activeVendor === 'CLARO_TIM') && resolvedTopTab === 'sites' && canSeeSitesTab && (
           <>
+            <div className="space-y-3">
+              <div className="flex flex-wrap items-end justify-between gap-3">
+                <div>
+                  <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight leading-tight">
+                    {activeVendor === 'CLARO_TIM'
+                      ? 'Claro — Controle de Sites'
+                      : canSeeFullSpreadsheets
+                      ? 'Nokia TIM — Controle de Sites'
+                      : 'Meus Sites Demandados'}
+                  </h1>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    {activeVendor === 'CLARO_TIM'
+                      ? 'Gestão operacional da planilha Controle Geral Claro e vistorias em campo.'
+                      : canSeeFullSpreadsheets
+                      ? 'Acompanhamento em tempo real da Pasta Controle Geral, demandas e vistorias.'
+                      : 'Sites vinculados diretamente à sua equipe ou usuário.'}
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+                <KpiCard
+                  label="Total de Sites"
+                  value={rawControleGeralPool.length}
+                  sublabel="Controle Geral ativo"
+                  icon={<FolderKanban className="w-4 h-4" />}
+                  tone="navy"
+                  active={chartQuickFilter === 'ALL'}
+                  onClick={() => setChartQuickFilter('ALL')}
+                />
+                <KpiCard
+                  label="Pendentes / A Fazer"
+                  value={rawControleGeralPool.filter(isSiteParaFazer).length}
+                  sublabel="Aguardando execução"
+                  icon={<Clock className="w-4 h-4" />}
+                  tone="warning"
+                  active={chartQuickFilter === 'PARA_FAZER'}
+                  onClick={() =>
+                    setChartQuickFilter((prev) => (prev === 'PARA_FAZER' ? 'ALL' : 'PARA_FAZER'))
+                  }
+                />
+                <KpiCard
+                  label="Em Andamento"
+                  value={
+                    rawControleGeralPool.filter((s) => {
+                      const st = String(s.status || '').toLowerCase();
+                      return st.includes('andamento') || st.includes('solicitado');
+                    }).length
+                  }
+                  sublabel="Em execução ou campo"
+                  icon={<Wrench className="w-4 h-4" />}
+                  tone="info"
+                />
+                <KpiCard
+                  label="Concluídos"
+                  value={countFinalizadas}
+                  sublabel="Vistorias finalizadas"
+                  icon={<CheckCircle2 className="w-4 h-4" />}
+                  tone="success"
+                  active={chartQuickFilter === 'FEITOS'}
+                  onClick={() =>
+                    setChartQuickFilter((prev) => (prev === 'FEITOS' ? 'ALL' : 'FEITOS'))
+                  }
+                />
+                <KpiCard
+                  label="Demandados"
+                  value={rawControleGeralPool.filter((s) => isNokiaSiteActivelyDemanded(s)).length}
+                  sublabel="Com equipe atribuída"
+                  icon={<UserCheck className="w-4 h-4" />}
+                  tone="teal"
+                />
+              </div>
+            </div>
+
             {canSeeFullSpreadsheets && (
               <InteractiveSpreadsheetChart
                 sites={rawControleGeralPool}
@@ -6303,28 +6454,8 @@ export default function App() {
               </div>
             )}
 
-            {/* Banner de aviso e zeramento rápido para Claro Sites */}
-            {activeVendor === 'CLARO_TIM' && isRealGestor && claroSites.length > 0 && (
-              <div className="px-5 py-2.5 bg-amber-50 border-b border-amber-200 flex flex-wrap items-center justify-between gap-3 text-xs text-amber-950">
-                <div className="flex items-center gap-2">
-                  <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
-                  <span>
-                    Planilha <strong>Claro Sites</strong> carregada com <strong>{claroSites.length}</strong> registro(s). Deseja zerar os dados para carregar outra planilha?
-                  </span>
-                </div>
-                <button
-                  type="button"
-                  onClick={handleZerarPlanilhaAtiva}
-                  className="px-3 py-1 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer shadow-xs shrink-0"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                  <span>Zerar Planilha Agora</span>
-                </button>
-              </div>
-            )}
-
             {/* Folder Header + Density & View Controls + Fullscreen Toggle */}
-            <div className="px-5 py-3 bg-white border-b border-slate-200 flex flex-wrap items-center justify-between gap-3 shrink-0">
+            <div className="px-5 py-3.5 bg-white border-b border-slate-200 flex flex-wrap items-center justify-between gap-3 shrink-0">
               <div className="flex flex-wrap items-center gap-3">
                 <button
                   type="button"
@@ -6333,11 +6464,13 @@ export default function App() {
                       setControleGeralOpen((prev) => !prev);
                     }
                   }}
-                  className="flex items-center gap-2.5 text-left cursor-pointer"
+                  className="flex items-center gap-2.5 text-left cursor-pointer group"
                 >
-                  <FolderKanban className="w-4 h-4 text-slate-600" />
+                  <div className="w-8 h-8 rounded-[8px] bg-[#EEF2FF] border border-[#DDE4F6] flex items-center justify-center text-[#223585] shrink-0">
+                    <FolderKanban className="w-4 h-4" />
+                  </div>
                   <div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <span className="text-sm font-bold text-slate-900">
                         {activeVendor === 'CLARO_TIM'
                           ? 'Claro – Sites (Controle Geral)'
@@ -6345,12 +6478,12 @@ export default function App() {
                           ? 'Pasta Controle Geral'
                           : 'Meus Sites Demandados'}
                       </span>
-                      <span className="px-2 py-0.5 bg-[#F3F4F6] border border-slate-200 rounded-md text-xs font-mono text-slate-700 font-semibold tabular-nums">
+                      <span className="px-2.5 py-0.5 bg-[#EEF2FF] border border-[#DDE4F6] rounded-full text-xs font-mono text-[#223585] font-semibold tabular-nums">
                         {filteredControleGeralSites.length} registro
                         {filteredControleGeralSites.length !== 1 ? 's' : ''}
                       </span>
                       {isSpreadsheetFullscreen && (
-                        <span className="px-2 py-0.5 bg-blue-600 text-white rounded-md text-[11px] font-bold">
+                        <span className="px-2 py-0.5 bg-[#223585] text-white rounded-full text-[10px] font-bold tracking-wide">
                           TELA INTEIRA
                         </span>
                       )}
@@ -6358,14 +6491,14 @@ export default function App() {
                   </div>
                   {!isSpreadsheetFullscreen &&
                     (controleGeralOpen ? (
-                      <ChevronUp className="w-4 h-4 text-slate-400 ml-1" />
+                      <ChevronUp className="w-4 h-4 text-slate-400 group-hover:text-slate-700 ml-1 transition-colors" />
                     ) : (
-                      <ChevronDown className="w-4 h-4 text-slate-400 ml-1" />
+                      <ChevronDown className="w-4 h-4 text-slate-400 group-hover:text-slate-700 ml-1 transition-colors" />
                     ))}
                 </button>
 
                 {isSpreadsheetFullscreen && (
-                  <div className="flex items-center p-0.5 bg-[#F3F4F6] border border-slate-200 rounded-lg">
+                  <div className="flex items-center p-0.5 bg-slate-100 border border-slate-200 rounded-[8px]">
                     {(['NOKIA', 'ERICSSON'] as VendorType[]).map((v) => (
                       <button
                         key={v}
@@ -6374,9 +6507,9 @@ export default function App() {
                           setActiveVendor(v);
                           setActiveSheetName(v === 'NOKIA' ? 'Controle Geral' : 'ALL');
                         }}
-                        className={`px-2.5 py-1 text-[11px] font-bold rounded-md transition-colors cursor-pointer ${
+                        className={`px-2.5 py-1 text-[11px] font-bold rounded-[6px] transition-colors duration-150 cursor-pointer ${
                           activeVendor === v
-                            ? 'bg-slate-900 text-white shadow-2xs'
+                            ? 'bg-[#223585] text-white shadow-2xs'
                             : 'text-slate-500 hover:text-slate-800'
                         }`}
                       >
@@ -6391,7 +6524,7 @@ export default function App() {
               <div className="flex flex-wrap items-center gap-2">
                 {/* Density Control (Confortável, Compacto, Muito Compacto) */}
                 <div
-                  className="flex items-center p-0.5 bg-[#F3F4F6] border border-slate-200 rounded-lg"
+                  className="flex items-center p-0.5 bg-slate-100 border border-slate-200 rounded-[8px]"
                   title="Alternância de Layout (Controle de Densidade da Tabela)"
                 >
                   {(
@@ -6405,7 +6538,7 @@ export default function App() {
                       key={d.id}
                       type="button"
                       onClick={() => setTableDensity(d.id)}
-                      className={`px-2 py-1 text-[11px] font-medium rounded-md transition-colors cursor-pointer ${
+                      className={`px-2.5 py-1 text-[11px] font-medium rounded-[6px] transition-colors duration-150 cursor-pointer ${
                         tableDensity === d.id
                           ? 'bg-white text-slate-900 font-semibold shadow-2xs border border-slate-200/70'
                           : 'text-slate-500 hover:text-slate-800'
@@ -6417,11 +6550,11 @@ export default function App() {
                 </div>
 
                 {/* View Mode Switcher */}
-                <div className="flex items-center p-0.5 bg-[#F3F4F6] border border-slate-200 rounded-lg">
+                <div className="flex items-center p-0.5 bg-slate-100 border border-slate-200 rounded-[8px]">
                   <button
                     type="button"
                     onClick={() => setFolderViewMode('fluid')}
-                    className={`px-2.5 py-1 text-[11px] font-medium rounded-md flex items-center gap-1.5 transition-colors cursor-pointer ${
+                    className={`px-2.5 py-1 text-[11px] font-medium rounded-[6px] flex items-center gap-1.5 transition-colors duration-150 cursor-pointer ${
                       folderViewMode === 'fluid'
                         ? 'bg-white text-slate-900 font-semibold shadow-2xs border border-slate-200/70'
                         : 'text-slate-500 hover:text-slate-800'
@@ -6433,7 +6566,7 @@ export default function App() {
                   <button
                     type="button"
                     onClick={() => setFolderViewMode('grid')}
-                    className={`px-2.5 py-1 text-[11px] font-medium rounded-md flex items-center gap-1.5 transition-colors cursor-pointer ${
+                    className={`px-2.5 py-1 text-[11px] font-medium rounded-[6px] flex items-center gap-1.5 transition-colors duration-150 cursor-pointer ${
                       folderViewMode === 'grid'
                         ? 'bg-white text-slate-900 font-semibold shadow-2xs border border-slate-200/70'
                         : 'text-slate-500 hover:text-slate-800'
@@ -6444,7 +6577,7 @@ export default function App() {
                   </button>
                 </div>
 
-                {/* Fullscreen Spreadsheet View Toggle ("visualizar a planilha em tela inteira") */}
+                {/* Fullscreen Spreadsheet View Toggle */}
                 <button
                   type="button"
                   onClick={() => {
@@ -6459,10 +6592,10 @@ export default function App() {
                       ? 'Sair do modo Tela Inteira (ou pressione ESC)'
                       : 'Expandir a planilha para Tela Inteira'
                   }
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 border transition-colors cursor-pointer ${
+                  className={`px-3 py-1.5 rounded-[8px] text-xs font-semibold flex items-center gap-1.5 border transition-colors duration-150 cursor-pointer ${
                     isSpreadsheetFullscreen
-                      ? 'bg-blue-600 hover:bg-blue-700 text-white border-blue-600 shadow-2xs'
-                      : 'bg-slate-900 hover:bg-slate-800 text-white border-slate-900 shadow-2xs'
+                      ? 'bg-[#223585] hover:bg-[#1B2A6B] text-white border-[#223585] shadow-2xs'
+                      : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200 shadow-2xs'
                   }`}
                 >
                   {isSpreadsheetFullscreen ? (
@@ -6488,15 +6621,12 @@ export default function App() {
               >
                 {/* ===============================================================
                     2. FILTROS E PESQUISA EM PADRÃO "CONTROL BAR"
-                    - Barra de Busca Unificada (aceita palavras-chave ou múltiplos códigos colados: SN-OI65J2 SN-OI65J4)
-                    - Botão "+ Adicionar Filtro" com sistema de Chips editáveis ([ Status: Finalizada ✕ ] [ UF: DF ✕ ])
-                    - Aba escondida "Demanda por Equipe / Dupla"
                    =============================================================== */}
-                <div className="px-5 py-3 bg-[#F3F4F6]/80 border-b border-slate-200 space-y-2.5">
+                <div className="px-5 py-3 bg-slate-50/90 border-b border-slate-200 space-y-2.5">
                   <div className="flex flex-wrap items-center gap-2">
                     {/* Unified Smart Search Bar */}
                     <div className="relative flex-1 min-w-full sm:min-w-[280px]">
-                      <div className="flex items-center bg-white border border-slate-200 rounded-lg px-3 py-1.5 focus-within:border-blue-600 transition-colors shadow-2xs">
+                      <div className="flex items-center bg-white border border-slate-200 rounded-[8px] px-3 py-1.5 focus-within:border-[#223585] focus-within:ring-2 focus-within:ring-[#223585]/15 transition-all duration-150 shadow-2xs">
                         <Search className="w-4 h-4 text-slate-400 mr-2 shrink-0" />
                         <input
                           type="text"
@@ -6592,23 +6722,6 @@ export default function App() {
                       >
                         <Upload className="w-3.5 h-3.5" />
                         <span>{activeVendor === 'CLARO_TIM' ? 'Importar / Colar' : 'Carregar planilha'}</span>
-                      </button>
-                    )}
-
-                    {/* "Zerar Planilha" button for Gestores */}
-                    {isRealGestor && (
-                      <button
-                        type="button"
-                        onClick={handleZerarPlanilhaAtiva}
-                        title={
-                          activeVendor === 'CLARO_TIM'
-                            ? 'Zerar Planilha Claro Sites'
-                            : 'Zerar Planilha Nokia Sites'
-                        }
-                        className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 text-xs font-semibold rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer shadow-2xs shrink-0"
-                      >
-                        <Trash2 className="w-3.5 h-3.5 text-rose-600" />
-                        <span>{activeVendor === 'CLARO_TIM' ? 'Zerar Claro Sites' : 'Zerar Planilha'}</span>
                       </button>
                     )}
 
@@ -7106,8 +7219,24 @@ export default function App() {
                         setSites((prev) => {
                           const removeSet = new Set(idsRemovidos);
                           const filtered = prev.filter((s) => !removeSet.has(s.id));
-                          return [...novosSites, ...filtered];
+                          const validNokia = novosSites.filter(
+                            (s) => Boolean(s && s.vendor && s.vendor !== 'CLARO_TIM')
+                          );
+                          return [...validNokia, ...filtered];
                         });
+                      }}
+                      onClaroMovedFromNokia={(novosClaroSites, idsRemovidosNokia) => {
+                        const removeSet = new Set(idsRemovidosNokia);
+                        setSites((prev) => prev.filter((s) => !removeSet.has(s.id)));
+                        if (novosClaroSites.length > 0) {
+                          setClaroSites((prev) => {
+                            const existingIds = new Set(prev.map((s) => s.id));
+                            return [
+                              ...prev,
+                              ...novosClaroSites.filter((s) => !existingIds.has(s.id)),
+                            ];
+                          });
+                        }
                       }}
                     />
                   </div>
@@ -7169,10 +7298,10 @@ export default function App() {
                 <div
                   style={{ top: `${top}px`, left: `${left}px` }}
                   onClick={(e) => e.stopPropagation()}
-                  className="fixed w-72 bg-white border border-slate-200 rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[360px]"
+                  className="ameta-modal-panel fixed w-72 bg-white border border-slate-200 rounded-[12px] shadow-2xl overflow-hidden flex flex-col max-h-[360px]"
                 >
                   {/* Popover Header */}
-                  <div className="px-3.5 py-2.5 bg-slate-900 text-white flex items-center justify-between gap-2">
+                  <div className="px-3.5 py-2.5 bg-[#0B1530] text-white flex items-center justify-between gap-2">
                     <div className="min-w-0">
                       <div className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">
                         Filtrar Coluna
@@ -7184,7 +7313,7 @@ export default function App() {
                         <button
                           type="button"
                           onClick={() => clearSingleColumnFilter(colKey)}
-                          className="px-2 py-0.5 bg-blue-600 hover:bg-blue-500 text-white rounded text-[10px] font-semibold cursor-pointer"
+                          className="px-2 py-0.5 bg-[#223585] hover:bg-[#1B2A6B] text-white rounded-[6px] text-[10px] font-semibold cursor-pointer tabular-nums"
                         >
                           Limpar ({selectedVals.length})
                         </button>
@@ -7192,7 +7321,7 @@ export default function App() {
                       <button
                         type="button"
                         onClick={() => setOpenColFilterMenu(null)}
-                        className="p-1 text-slate-400 hover:text-white rounded cursor-pointer"
+                        className="p-1 text-slate-400 hover:text-white rounded-[6px] cursor-pointer transition-colors"
                       >
                         <X className="w-3.5 h-3.5" />
                       </button>
@@ -7200,7 +7329,7 @@ export default function App() {
                   </div>
 
                   {/* Search inside Column Values */}
-                  <div className="p-2.5 bg-slate-50 border-b border-slate-200 space-y-2">
+                  <div className="p-2.5 bg-[#F4F6FA] border-b border-slate-200 space-y-2">
                     <div className="relative">
                       <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2" />
                       <input
@@ -7209,7 +7338,7 @@ export default function App() {
                         value={colMenuSearchText}
                         onChange={(e) => setColMenuSearchText(e.target.value)}
                         placeholder={`Buscar em ${colLabel}...`}
-                        className="w-full pl-8 pr-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-600"
+                        className="w-full pl-8 pr-2.5 py-1.5 bg-white border border-slate-200 rounded-[8px] text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-[#223585] focus:ring-2 focus:ring-[#223585]/15"
                       />
                     </div>
 
@@ -7223,7 +7352,7 @@ export default function App() {
                             [colKey]: visibleValues,
                           }));
                         }}
-                        className="text-blue-600 hover:underline font-semibold cursor-pointer"
+                        className="text-[#223585] hover:underline font-semibold cursor-pointer tabular-nums"
                       >
                         Marcar visíveis ({sortedEntries.length})
                       </button>
@@ -7252,9 +7381,9 @@ export default function App() {
                                 key={ufCode}
                                 type="button"
                                 onClick={() => toggleColumnFilterValue(colKey, ufToken)}
-                                className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold border transition-colors cursor-pointer ${
+                                className={`px-2 py-0.5 rounded-[6px] text-[10px] font-mono font-bold border transition-colors cursor-pointer tabular-nums ${
                                   active
-                                    ? 'bg-blue-600 border-blue-600 text-white'
+                                    ? 'bg-[#223585] border-[#223585] text-white'
                                     : 'bg-white hover:bg-slate-100 border-slate-200 text-slate-700'
                                 }`}
                               >
@@ -7274,8 +7403,8 @@ export default function App() {
                       return (
                         <label
                           key={val}
-                          className={`px-2.5 py-1.5 rounded-lg flex items-center justify-between gap-2 text-xs cursor-pointer transition-colors ${
-                            isChecked ? 'bg-blue-50/90 text-blue-900 font-semibold' : 'hover:bg-slate-50 text-slate-700'
+                          className={`px-2.5 py-1.5 rounded-[8px] flex items-center justify-between gap-2 text-xs cursor-pointer transition-colors ${
+                            isChecked ? 'bg-[#EEF2FF] text-[#223585] font-semibold' : 'hover:bg-slate-50 text-slate-700'
                           }`}
                         >
                           <div className="flex items-center gap-2 min-w-0">
@@ -7283,7 +7412,7 @@ export default function App() {
                               type="checkbox"
                               checked={isChecked}
                               onChange={() => toggleColumnFilterValue(colKey, val)}
-                              className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                              className="rounded border-slate-300 text-[#223585] focus:ring-[#223585] cursor-pointer"
                             />
                             <span className="truncate" title={val}>
                               {val}
@@ -7403,7 +7532,7 @@ export default function App() {
               {/* ABA 0 DO RA: DUPLAS & DEMANDA (SISTEMA IGUAL EM NOKIA E EM ERICSSON, MUDANDO APENAS AS INFORMAÇÕES DA PLATAFORMA ATIVA) */}
               {resolvedTopTab === 'duplas' && (
                 <DuplasInteractiveView
-                  sites={sites}
+                  sites={activeVendor === 'CLARO_TIM' ? claroSites : sites}
                   ericssonRows={ericssonRows}
                   users={users}
                   ericssonUsers={ericssonUsers}
@@ -7513,7 +7642,8 @@ export default function App() {
                     const nowIso = new Date().toISOString();
 
                     const previousEricssonRows = ericssonRows;
-                    const previousSites = sites;
+                    const previousSites = vendor === 'CLARO_TIM' ? claroSites : sites;
+                    const setTargetSites = vendor === 'CLARO_TIM' ? setClaroSites : setSites;
                     const previousTssrRows = tssrRows;
                     const previousEricssonEngRows = ericssonEngineeringRows;
 
@@ -7541,9 +7671,8 @@ export default function App() {
                       );
                     } else {
                       const idsSet = new Set(siteIds.map((id) => String(id).trim().toUpperCase()));
-                      setSites((prev) =>
+                      setTargetSites((prev) =>
                         prev.map((s) => {
-                          if (s.vendor !== vendor) return s;
                           const sId = String(s.siteId || s.id || '').trim().toUpperCase();
                           const docId = String(s.id || '').trim().toUpperCase();
                           if (!idsSet.has(sId) && !idsSet.has(docId)) return s;
@@ -7575,7 +7704,7 @@ export default function App() {
                         linkedEmails: cleanEmails,
                         vendor,
                         demandDate: targetDate,
-                        currentSites: sites,
+                        currentSites: previousSites,
                         currentTssrRows: tssrRows,
                         currentEricssonEngRows: ericssonEngineeringRows,
                         currentEricssonRows: ericssonRows,
@@ -7584,7 +7713,7 @@ export default function App() {
                         allowTransfer,
                         targetScope: 'equipe',
                       });
-                      setSites(res.updatedSites);
+                      setTargetSites(res.updatedSites);
                       setTssrRows(res.updatedTssrRows);
                       setEricssonEngineeringRows(res.updatedEricssonEngRows);
                       if (res.updatedEricssonRows && res.updatedEricssonRows.length > 0) {
@@ -7592,7 +7721,7 @@ export default function App() {
                       }
                       showToast(
                         `${res.count} site(s) ${
-                          vendor === 'ERICSSON' ? 'Ericsson' : 'TIM/Nokia'
+                          vendor === 'ERICSSON' ? 'Ericsson' : vendor === 'CLARO_TIM' ? 'Claro' : 'TIM/Nokia'
                         } enviados para a dupla "${duplaName}"!`
                       );
                       if (res.sitesWithoutEmailCount && res.sitesWithoutEmailCount > 0) {
@@ -7606,7 +7735,7 @@ export default function App() {
                       if (vendor === 'ERICSSON') {
                         setEricssonRows(previousEricssonRows);
                       }
-                      setSites(previousSites);
+                      setTargetSites(previousSites);
                       setTssrRows(previousTssrRows);
                       setEricssonEngineeringRows(previousEricssonEngRows);
                       showToast(getFirebaseErrorMessage(err));
@@ -7616,7 +7745,8 @@ export default function App() {
                   onUnassignSitesFromDupla={async (siteIds, duplaName, targetVendor) => {
                     const vendor = targetVendor || activeVendor;
                     const previousEricssonRows = ericssonRows;
-                    const previousSites = sites;
+                    const previousSites = vendor === 'CLARO_TIM' ? claroSites : sites;
+                    const setTargetSites = vendor === 'CLARO_TIM' ? setClaroSites : setSites;
                     const previousTssrRows = tssrRows;
                     const previousEricssonEngRows = ericssonEngineeringRows;
                     const nowIso = new Date().toISOString();
@@ -7649,9 +7779,8 @@ export default function App() {
                       );
                     } else {
                       const idsSet = new Set(siteIds.map((id) => String(id).trim().toUpperCase()));
-                      setSites((prev) =>
+                      setTargetSites((prev) =>
                         prev.map((s) => {
-                          if (s.vendor !== vendor) return s;
                           const sId = String(s.siteId || s.id || '').trim().toUpperCase();
                           const docId = String(s.id || '').trim().toUpperCase();
                           if (!idsSet.has(sId) && !idsSet.has(docId)) return s;
@@ -7682,13 +7811,13 @@ export default function App() {
                       const res = await demandaSharedService.removerDemanda({
                         siteTokens: siteIds,
                         vendor,
-                        currentSites: sites,
+                        currentSites: previousSites,
                         currentTssrRows: tssrRows,
                         currentEricssonEngRows: ericssonEngineeringRows,
                         currentEricssonRows: ericssonRows,
                         targetScope: 'equipe',
                       });
-                      setSites(res.updatedSites);
+                      setTargetSites(res.updatedSites);
                       setTssrRows(res.updatedTssrRows);
                       setEricssonEngineeringRows(res.updatedEricssonEngRows);
                       if (res.updatedEricssonRows && res.updatedEricssonRows.length > 0) {
@@ -7696,14 +7825,14 @@ export default function App() {
                       }
                       showToast(
                         `Site ${
-                          vendor === 'ERICSSON' ? 'Ericsson' : 'TIM/Nokia'
+                          vendor === 'ERICSSON' ? 'Ericsson' : vendor === 'CLARO_TIM' ? 'Claro' : 'TIM/Nokia'
                         } removido da demanda de "${duplaName}".`
                       );
                     } catch (err: any) {
                       if (vendor === 'ERICSSON') {
                         setEricssonRows(previousEricssonRows);
                       }
-                      setSites(previousSites);
+                      setTargetSites(previousSites);
                       setTssrRows(previousTssrRows);
                       setEricssonEngineeringRows(previousEricssonEngRows);
                       showToast(getFirebaseErrorMessage(err));
@@ -7714,7 +7843,8 @@ export default function App() {
                     const vendor = targetVendor || activeVendor;
                     const cleanDupla = duplaName.trim();
                     const previousEricssonRows = ericssonRows;
-                    const previousSites = sites;
+                    const previousSites = vendor === 'CLARO_TIM' ? claroSites : sites;
+                    const setTargetSites = vendor === 'CLARO_TIM' ? setClaroSites : setSites;
                     const previousTssrRows = tssrRows;
                     const previousEricssonEngRows = ericssonEngineeringRows;
                     const nowIso = new Date().toISOString();
@@ -7759,9 +7889,8 @@ export default function App() {
                         siteIdsToClear && siteIdsToClear.length > 0
                           ? new Set(siteIdsToClear.map((id) => String(id).trim().toUpperCase()))
                           : null;
-                      setSites((prev) =>
+                      setTargetSites((prev) =>
                         prev.map((s) => {
-                          if (s.vendor !== vendor) return s;
                           const sId = String(s.siteId || s.id || '').trim().toUpperCase();
                           const docId = String(s.id || '').trim().toUpperCase();
                           const match = idsSet
@@ -7798,14 +7927,14 @@ export default function App() {
                       const res = await demandaSharedService.limparTodasDemandas({
                         responsibleName: cleanDupla,
                         vendor,
-                        currentSites: sites,
+                        currentSites: previousSites,
                         currentTssrRows: tssrRows,
                         currentEricssonEngRows: ericssonEngineeringRows,
                         currentEricssonRows: ericssonRows,
                         siteTokensToClear: siteIdsToClear,
                         targetScope: 'equipe',
                       });
-                      setSites(res.updatedSites);
+                      setTargetSites(res.updatedSites);
                       setTssrRows(res.updatedTssrRows);
                       setEricssonEngineeringRows(res.updatedEricssonEngRows);
                       if (res.updatedEricssonRows && res.updatedEricssonRows.length > 0) {
@@ -7813,14 +7942,14 @@ export default function App() {
                       }
                       showToast(
                         `Todos os sites ${
-                          vendor === 'ERICSSON' ? 'Ericsson' : 'TIM/Nokia'
+                          vendor === 'ERICSSON' ? 'Ericsson' : vendor === 'CLARO_TIM' ? 'Claro' : 'TIM/Nokia'
                         } de "${duplaName}" foram desvinculados.`
                       );
                     } catch (err: any) {
                       if (vendor === 'ERICSSON') {
                         setEricssonRows(previousEricssonRows);
                       }
-                      setSites(previousSites);
+                      setTargetSites(previousSites);
                       setTssrRows(previousTssrRows);
                       setEricssonEngineeringRows(previousEricssonEngRows);
                       showToast(getFirebaseErrorMessage(err));
@@ -7953,8 +8082,24 @@ export default function App() {
                     setSites((prev) => {
                       const removeSet = new Set(idsRemovidos);
                       const filtered = prev.filter((s) => !removeSet.has(s.id));
-                      return [...novosSites, ...filtered];
+                      const validNokia = novosSites.filter(
+                        (s) => Boolean(s && s.vendor && s.vendor !== 'CLARO_TIM')
+                      );
+                      return [...validNokia, ...filtered];
                     });
+                  }}
+                  onClaroMovedFromNokia={(novosClaroSites, idsRemovidosNokia) => {
+                    const removeSet = new Set(idsRemovidosNokia);
+                    setSites((prev) => prev.filter((s) => !removeSet.has(s.id)));
+                    if (novosClaroSites.length > 0) {
+                      setClaroSites((prev) => {
+                        const existingIds = new Set(prev.map((s) => s.id));
+                        return [
+                          ...prev,
+                          ...novosClaroSites.filter((s) => !existingIds.has(s.id)),
+                        ];
+                      });
+                    }
                   }}
                 />
               )}
@@ -7987,7 +8132,11 @@ export default function App() {
                   activeSheetName={activeSheetName === 'ALL' ? 'Controle Geral' : activeSheetName}
                   sheets={sheets}
                   initialPastedText=""
-                  existingSites={sites}
+                  existingSites={activeVendor === 'CLARO_TIM' ? claroSites : sites}
+                  isFixedDestination={activeVendor === 'NOKIA' || activeVendor === 'CLARO_TIM'}
+                  fixedDestinationTitle={activeVendor === 'CLARO_TIM' ? 'Claro – Sites' : 'Nokia – Sites (Vistoria)'}
+                  fixedDestinationVendor={activeVendor === 'CLARO_TIM' ? 'CLARO_TIM' : 'NOKIA'}
+                  fixedDestinationType={activeVendor === 'CLARO_TIM' ? 'CLARO_SITES' : 'NOKIA_SITES'}
                   onClose={() => setActiveTopTab('sites')}
                   onBulkImport={async (params) => {
                     const res = await handleBulkImport(params);
@@ -8007,7 +8156,11 @@ export default function App() {
                   activeSheetName={activeSheetName === 'ALL' ? 'Controle Geral' : activeSheetName}
                   sheets={sheets}
                   initialPastedText={pastedShortcutText}
-                  existingSites={sites}
+                  existingSites={activeVendor === 'CLARO_TIM' ? claroSites : sites}
+                  isFixedDestination={activeVendor === 'NOKIA' || activeVendor === 'CLARO_TIM'}
+                  fixedDestinationTitle={activeVendor === 'CLARO_TIM' ? 'Claro – Sites' : 'Nokia – Sites (Vistoria)'}
+                  fixedDestinationVendor={activeVendor === 'CLARO_TIM' ? 'CLARO_TIM' : 'NOKIA'}
+                  fixedDestinationType={activeVendor === 'CLARO_TIM' ? 'CLARO_SITES' : 'NOKIA_SITES'}
                   onClose={() => setActiveTopTab('sites')}
                   onBulkImport={async (params) => {
                     const res = await handleBulkImport(params);
@@ -8019,12 +8172,12 @@ export default function App() {
 
               {/* ABA 5 DO RA: EXPORTAR PLANILHA (.XLSX / .CSV) */}
               {resolvedTopTab === 'exportar' && (
-                <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-2xs space-y-4">
+                <div className="bg-white border border-slate-200 rounded-[12px] p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04)] space-y-4">
                   <div>
                     <h3 className="text-sm font-bold text-slate-900">
                       Exportar Planilha ({activeVendor})
                     </h3>
-                    <p className="text-xs text-slate-500 mt-0.5">
+                    <p className="text-xs text-slate-500 mt-0.5 tabular-nums">
                       Escolha o formato para baixar os dados da planilha Controle Geral ({orderedSheetColumns.length} colunas).
                     </p>
                   </div>
@@ -8040,13 +8193,13 @@ export default function App() {
                           orderedSheetColumns
                         )
                       }
-                      className="p-4 rounded-xl bg-emerald-50 hover:bg-emerald-100/80 border border-emerald-200 text-left flex items-center justify-between cursor-pointer transition-colors"
+                      className="p-4 rounded-[10px] bg-emerald-50 hover:bg-emerald-100/80 border border-emerald-200 text-left flex items-center justify-between cursor-pointer transition-colors"
                     >
                       <div>
                         <div className="text-xs font-bold text-emerald-950">
                           Baixar Planilha Excel (.XLSX)
                         </div>
-                        <div className="text-[11px] text-emerald-700 mt-0.5">
+                        <div className="text-[11px] text-emerald-700 mt-0.5 tabular-nums">
                           {filteredControleGeralSites.length} site(s) · Formato Excel original
                         </div>
                       </div>
@@ -8062,13 +8215,13 @@ export default function App() {
                           orderedSheetColumns
                         )
                       }
-                      className="p-4 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-left flex items-center justify-between cursor-pointer transition-colors"
+                      className="p-4 rounded-[10px] bg-[#F8FAFC] hover:bg-slate-100 border border-slate-200 text-left flex items-center justify-between cursor-pointer transition-colors"
                     >
                       <div>
                         <div className="text-xs font-bold text-slate-900">
                           Baixar Arquivo CSV (.CSV)
                         </div>
-                        <div className="text-[11px] text-slate-500 mt-0.5">
+                        <div className="text-[11px] text-slate-500 mt-0.5 tabular-nums">
                           {filteredControleGeralSites.length} site(s) · Separado por ponto e vírgula
                         </div>
                       </div>
@@ -8080,7 +8233,7 @@ export default function App() {
 
               {/* ABA 6 DO RA: SIMULAR VISÃO DE PERFIL / DUPLA ("VER COMO APARECE PARA ELES") */}
               {resolvedTopTab === 'simular' && (
-                <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-2xs space-y-4">
+                <div className="bg-white border border-slate-200 rounded-[12px] p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04)] space-y-4">
                   <div>
                     <h3 className="text-sm font-bold text-slate-900">
                       Simular Visão de Perfil / Dupla (Ver como aparece para eles)
@@ -8104,7 +8257,7 @@ export default function App() {
                             setActiveTopTab('sites');
                             showToast(`Visualizando como "${u.name}" (${u.email})`);
                           }}
-                          className="p-3.5 rounded-xl bg-[#F3F4F6] hover:bg-blue-50 border border-slate-200 hover:border-blue-300 text-left flex items-center justify-between gap-2 cursor-pointer transition-colors"
+                          className="p-3.5 rounded-[10px] bg-[#F4F6FA] hover:bg-[#EEF2FF] border border-slate-200 hover:border-[#223585]/35 text-left flex items-center justify-between gap-2 cursor-pointer transition-colors"
                         >
                           <div className="min-w-0">
                             <div className="text-xs font-bold text-slate-900 truncate">
@@ -8114,12 +8267,12 @@ export default function App() {
                               {u.email}
                             </div>
                             {u.equipe && (
-                              <div className="text-[10px] text-blue-700 font-semibold mt-0.5 truncate">
+                              <div className="text-[10px] text-[#223585] font-semibold mt-0.5 truncate">
                                 Dupla: {u.equipe}
                               </div>
                             )}
                           </div>
-                          <span className="px-2 py-1 bg-white border border-slate-200 rounded-lg text-[11px] font-mono font-bold text-slate-700 shrink-0">
+                          <span className="px-2 py-1 bg-white border border-slate-200 rounded-[6px] text-[11px] font-mono font-bold text-slate-700 shrink-0 tabular-nums">
                             {countSites} sites
                           </span>
                         </button>
@@ -8169,7 +8322,7 @@ export default function App() {
       {/* Modal para Sempre Editar as Duplas da Equipe Executante */}
       {isEditDuplasModalOpen && (
         <div
-          className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-[1px] flex items-center justify-center p-4"
+          className="ameta-modal-backdrop fixed inset-0 z-50 bg-[#0B1530]/45 backdrop-blur-[2px] flex items-center justify-center p-4"
           onClick={() => {
             setIsEditDuplasModalOpen(false);
             setEditingDuplaTarget(null);
@@ -8177,11 +8330,11 @@ export default function App() {
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-lg bg-white border border-slate-200 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh]"
+            className="ameta-modal-panel w-full max-w-lg bg-white border border-slate-200 rounded-[12px] shadow-2xl overflow-hidden flex flex-col max-h-[85vh]"
           >
-            <div className="px-5 py-3.5 bg-slate-900 text-white flex items-center justify-between">
+            <div className="px-5 py-3.5 bg-[#0B1530] text-white flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <Users className="w-4 h-4 text-blue-400" />
+                <Users className="w-4 h-4 text-[#1E8E8D]" />
                 <div>
                   <h3 className="text-xs font-bold">
                     Gerenciar e Editar Duplas (Equipe Executante)
@@ -8197,13 +8350,13 @@ export default function App() {
                   setIsEditDuplasModalOpen(false);
                   setEditingDuplaTarget(null);
                 }}
-                className="p-1 text-slate-400 hover:text-white rounded-lg cursor-pointer"
+                className="p-1 text-slate-400 hover:text-white rounded-[8px] cursor-pointer transition-colors"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <div className="p-4 bg-[#F3F4F6] border-b border-slate-200 flex items-center gap-2">
+            <div className="p-4 bg-[#F4F6FA] border-b border-slate-200 flex items-center gap-2">
               <input
                 type="text"
                 value={newDuplaInput}
@@ -8215,12 +8368,12 @@ export default function App() {
                   }
                 }}
                 placeholder="Nova dupla (ex: Carlos / Eduardo ou Magno / Mateus)..."
-                className="flex-1 px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-600"
+                className="flex-1 px-3 py-2 bg-white border border-slate-200 rounded-[8px] text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-[#223585] focus:ring-2 focus:ring-[#223585]/15"
               />
               <button
                 type="button"
                 onClick={handleAddDupla}
-                className="px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
+                className="px-3.5 py-2 bg-[#223585] hover:bg-[#1B2A6B] text-white text-xs font-semibold rounded-[8px] flex items-center gap-1.5 cursor-pointer whitespace-nowrap transition-colors"
               >
                 <Plus className="w-3.5 h-3.5" />
                 <span>Adicionar Dupla</span>
@@ -8237,7 +8390,7 @@ export default function App() {
                 return (
                   <div
                     key={dupla}
-                    className="px-3 py-2 rounded-lg hover:bg-slate-50 flex items-center justify-between gap-2"
+                    className="px-3 py-2 rounded-[8px] hover:bg-slate-50 flex items-center justify-between gap-2 transition-colors"
                   >
                     {isEditingThis ? (
                       <div className="flex items-center gap-2 flex-1">
@@ -8254,19 +8407,19 @@ export default function App() {
                               setEditingDuplaTarget(null);
                             }
                           }}
-                          className="flex-1 px-2.5 py-1 bg-white border border-blue-600 rounded-md text-xs font-semibold text-slate-900 focus:outline-none"
+                          className="flex-1 px-2.5 py-1 bg-white border border-[#223585] rounded-[6px] text-xs font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#223585]/15"
                         />
                         <button
                           type="button"
                           onClick={() => handleSaveEditDupla(dupla)}
-                          className="px-2.5 py-1 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-md cursor-pointer"
+                          className="px-2.5 py-1 bg-[#223585] hover:bg-[#1B2A6B] text-white text-xs font-semibold rounded-[6px] cursor-pointer transition-colors"
                         >
                           Salvar
                         </button>
                         <button
                           type="button"
                           onClick={() => setEditingDuplaTarget(null)}
-                          className="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-medium rounded-md cursor-pointer"
+                          className="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-medium rounded-[6px] cursor-pointer transition-colors"
                         >
                           Cancelar
                         </button>
@@ -8278,7 +8431,7 @@ export default function App() {
                           <span className="text-xs font-medium text-slate-800 truncate">
                             {dupla}
                           </span>
-                          <span className="px-1.5 py-0.5 bg-[#F3F4F6] border border-slate-200 rounded text-[10px] font-mono text-slate-500">
+                          <span className="px-1.5 py-0.5 bg-[#F4F6FA] border border-slate-200 rounded-[6px] text-[10px] font-mono text-slate-500 tabular-nums">
                             {countSites} site{countSites !== 1 ? 's' : ''}
                           </span>
                         </div>
@@ -8289,7 +8442,7 @@ export default function App() {
                               setEditingDuplaTarget(dupla);
                               setEditingDuplaValue(dupla);
                             }}
-                            className="px-2 py-1 text-[11px] font-medium text-slate-600 hover:text-blue-600 hover:bg-blue-50 rounded-md flex items-center gap-1 cursor-pointer"
+                            className="px-2 py-1 text-[11px] font-medium text-slate-600 hover:text-[#223585] hover:bg-[#EEF2FF] rounded-[6px] flex items-center gap-1 cursor-pointer transition-colors"
                             title="Editar nome da dupla"
                           >
                             <Edit3 className="w-3 h-3" />
@@ -8298,7 +8451,7 @@ export default function App() {
                           <button
                             type="button"
                             onClick={() => handleDeleteDupla(dupla)}
-                            className="p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-md cursor-pointer"
+                            className="p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-[6px] cursor-pointer transition-colors"
                             title="Remover dupla da lista"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
@@ -8311,8 +8464,8 @@ export default function App() {
               })}
             </div>
 
-            <div className="px-5 py-3 bg-[#F3F4F6] border-t border-slate-200 flex items-center justify-between text-xs">
-              <span className="text-slate-500">
+            <div className="px-5 py-3 bg-[#F4F6FA] border-t border-slate-200 flex items-center justify-between text-xs">
+              <span className="text-slate-500 tabular-nums">
                 Total: <strong>{equipesDuplas.length} duplas</strong> disponíveis
               </span>
               <button
@@ -8321,7 +8474,7 @@ export default function App() {
                   setIsEditDuplasModalOpen(false);
                   setEditingDuplaTarget(null);
                 }}
-                className="px-4 py-1.5 bg-slate-900 hover:bg-slate-800 text-white font-semibold rounded-lg cursor-pointer"
+                className="px-4 py-1.5 bg-[#0B1530] hover:bg-[#17254E] text-white font-semibold rounded-[8px] cursor-pointer transition-colors"
               >
                 Concluir
               </button>
@@ -8337,9 +8490,9 @@ export default function App() {
         activeVendor={activeVendor}
         activeSheetName={activeSheetName === 'ALL' ? 'Controle Geral' : activeSheetName}
         sheets={sheets}
-        existingSites={sites}
+        existingSites={activeVendor === 'CLARO_TIM' ? claroSites : sites}
         initialPastedText={pastedShortcutText}
-        isFixedDestination={(activeVendor === 'NOKIA' || activeVendor === 'CLARO_TIM') && resolvedTopTab === 'sites'}
+        isFixedDestination={activeVendor === 'NOKIA' || activeVendor === 'CLARO_TIM'}
         fixedDestinationTitle={activeVendor === 'CLARO_TIM' ? 'Claro – Sites' : 'Nokia – Sites (Vistoria)'}
         fixedDestinationVendor={activeVendor === 'CLARO_TIM' ? 'CLARO_TIM' : 'NOKIA'}
         fixedDestinationType={activeVendor === 'CLARO_TIM' ? 'CLARO_SITES' : 'NOKIA_SITES'}
