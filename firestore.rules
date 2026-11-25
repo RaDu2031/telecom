@@ -187,13 +187,44 @@ service cloud.firestore {
     match /ericsson_reprovacoes/{docId} {
       allow read, write, delete: if isSignedIn() && (canAccessEricsson() || isCoordinatorOrAdmin() || isAdmin());
     }
+    function isExecutorOwnVivoRow() {
+      let emailLower = request.auth.token.email != null ? request.auth.token.email.lower() : '';
+      let userName = userExists() ? getUserData().get('name', '').lower() : '';
+      return (
+        request.auth.uid in resource.data.get('responsaveisUids', []) ||
+        (emailLower != '' && emailLower in resource.data.get('responsaveisEmails', [])) ||
+        (userName != '' && resource.data.get('executor', '').lower() == userName)
+      );
+    }
+
     match /ericsson_vivo/{docId} {
       allow read: if isSignedIn() && (canAccessEricsson() || isCoordinatorOrAdmin() || isAdmin());
-      allow create, update, delete: if isSignedIn() && (isCoordinatorOrAdmin() || isAdmin() || canAccessEricsson());
+      allow create: if isSignedIn() && (isCoordinatorOrAdmin() || isAdmin());
+      allow update: if isSignedIn() && (
+        isCoordinatorOrAdmin() ||
+        isAdmin() ||
+        (
+          canAccessEricsson() &&
+          isExecutorOwnVivoRow() &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'status',
+            'comentarioStatus',
+            'fields',
+            'history',
+            'updatedAt',
+            'updatedBy'
+          ]) &&
+          request.resource.data.get('fields', {}).diff(resource.data.get('fields', {})).affectedKeys().hasOnly([
+            'Status',
+            'Comentário STATUS'
+          ])
+        )
+      );
+      allow delete: if isSignedIn() && (isCoordinatorOrAdmin() || isAdmin());
     }
     match /ericsson_vivo_meta/{docId} {
       allow read: if isSignedIn();
-      allow write, delete: if isSignedIn() && (isCoordinatorOrAdmin() || isAdmin() || canAccessEricsson());
+      allow write, delete: if isSignedIn() && (isCoordinatorOrAdmin() || isAdmin());
     }
 
     // Shared collections (Notifications and Duplas config)

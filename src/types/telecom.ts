@@ -1619,6 +1619,8 @@ export const VIVO_SUMMARY_COLUMNS: string[] = [
   'Prioridade',
   'Demanda',
   'Planejado',
+  'REPLAN',
+  'DATA REPLAN',
   'Entregue',
   'SLA DOC',
   'Entregue Week',
@@ -1626,6 +1628,15 @@ export const VIVO_SUMMARY_COLUMNS: string[] = [
   'FATURAMENTO',
   'Comentário STATUS',
 ];
+
+export interface VivoHistoryEntry {
+  campo: string;
+  antes: string;
+  depois: string;
+  quem: string;
+  quando: string;
+  acao?: 'criacao' | 'edicao' | 'demanda' | 'remocao_demanda';
+}
 
 export interface VivoActivityRow {
   id: string;
@@ -1652,6 +1663,12 @@ export interface VivoActivityRow {
   rowNumberInFile?: number;
   importCode?: string;
   createdAt?: string;
+  createdBy?: string;
+  createdByEmail?: string;
+  responsavelDemand?: string;
+  responsaveisUids?: string[];
+  responsaveisEmails?: string[];
+  history?: VivoHistoryEntry[];
   updatedAt: string;
   updatedBy?: string;
 }

@@ -526,6 +526,48 @@ export interface IDataService {
   ): Promise<{ totalGravados: number; lotesExecutados: number }>;
   salvarVivoAtividade(row: VivoActivityRow): Promise<void>;
   excluirVivoAtividade(rowId: string): Promise<void>;
+  criarVivoRegistrosEmLote(
+    rows: VivoActivityRow[],
+    options?: {
+      executorUser?: { id?: string; name: string; email?: string } | null;
+      actorName?: string;
+      actorEmail?: string;
+      onProgress?: (info: { gravados: number; total: number; lote: number; totalLotes: number }) => void;
+    }
+  ): Promise<{ totalGravados: number; acionamentosCriados: number }>;
+  atualizarCamposVivoAtividade(
+    rowId: string,
+    patch: Record<string, any>,
+    demandSync?: {
+      action: 'assign' | 'remove';
+      siteName: string;
+      tipoDoc?: string;
+      dataDemanda?: string;
+      executorName?: string;
+      executorEmail?: string;
+      actorName?: string;
+      actorEmail?: string;
+    }
+  ): Promise<void>;
+  atualizarCampoVivoEmLote(
+    updates: Array<{
+      id: string;
+      patch: Record<string, any>;
+      siteName?: string;
+      tipoDoc?: string;
+      dataDemanda?: string;
+    }>,
+    options?: {
+      demandSync?: {
+        action: 'assign' | 'remove';
+        executorName?: string;
+        executorEmail?: string;
+        actorName?: string;
+        actorEmail?: string;
+      };
+      onProgress?: (info: { gravados: number; total: number }) => void;
+    }
+  ): Promise<{ totalAtualizados: number }>;
   salvarPastaNokia(folder: EngineeringFolder): Promise<void>;
   excluirPastaNokia(folderId: string): Promise<void>;
   salvarArquivoNokia(
@@ -5202,6 +5244,291 @@ class FirebaseDataService implements IDataService {
   async excluirVivoAtividade(rowId: string): Promise<void> {
     if (!rowId) return;
     await deleteDoc(doc(db, FIRESTORE_COLLECTIONS.ERICSSON_VIVO, rowId));
+  }
+
+  async criarVivoRegistrosEmLote(
+    rows: VivoActivityRow[],
+    options?: {
+      executorUser?: { id?: string; name: string; email?: string } | null;
+      actorName?: string;
+      actorEmail?: string;
+      onProgress?: (info: { gravados: number; total: number; lote: number; totalLotes: number }) => void;
+    }
+  ): Promise<{ totalGravados: number; acionamentosCriados: number }> {
+    const cleanRows = (rows || []).filter((r) => r && r.id);
+    if (cleanRows.length === 0) {
+      return { totalGravados: 0, acionamentosCriados: 0 };
+    }
+
+    const chunkSize = 250;
+    const totalLotes = Math.max(1, Math.ceil(cleanRows.length / chunkSize));
+    let totalGravados = 0;
+
+    for (let i = 0; i < cleanRows.length; i += chunkSize) {
+      const chunk = cleanRows.slice(i, i + chunkSize);
+      const batch = writeBatch(db);
+      for (const row of chunk) {
+        const sanitized = sanitizeFirestoreData<VivoActivityRow>({
+          ...row,
+          vendor: 'ERICSSON_VIVO',
+          updatedAt: row.updatedAt || new Date().toISOString(),
+        });
+        batch.set(doc(db, FIRESTORE_COLLECTIONS.ERICSSON_VIVO, row.id), sanitized);
+      }
+      await batch.commit();
+      totalGravados += chunk.length;
+      if (options?.onProgress) {
+        options.onProgress({
+          gravados: totalGravados,
+          total: cleanRows.length,
+          lote: Math.floor(i / chunkSize) + 1,
+          totalLotes,
+        });
+      }
+    }
+
+    // If Executor was chosen, create demandas & acionamentos matching "Demandar executor"
+    let acionamentosCriados = 0;
+    const execName = (options?.executorUser?.name || '').trim();
+    if (execName) {
+      const nowIso = new Date().toISOString();
+      const linkedEmails = options?.executorUser?.email
+        ? [options.executorUser.email.trim().toLowerCase()]
+        : [];
+      const destinatariosEmails = await this.resolverDestinatariosEmails({
+        responsibleName: execName,
+        linkedEmails,
+        vendor: 'ERICSSON',
+        tipoDestinatario: 'EXECUTOR',
+      });
+
+      for (const row of cleanRows) {
+        const canonSite = String(row.siteName || row.id).trim().toUpperCase();
+        const targetAcId = buildAcionamentoId('ERICSSON', canonSite, 'EXECUTOR', row.id);
+        await this.salvarOuAtualizarAcionamento({
+          id: targetAcId,
+          siteId: canonSite,
+          registroId: row.id,
+          rowNumberInFile: row.rowNumberInFile,
+          vendor: 'ERICSSON',
+          tipoDestinatario: 'EXECUTOR',
+          equipe: execName,
+          destinatariosEmails,
+          demandadoPorNome: options?.actorName || 'Coordenação Vivo',
+          demandadoPorEmail: options?.actorEmail || '',
+          demandadoEm: nowIso,
+          dataDemanda: row.demanda || new Date().toLocaleDateString('pt-BR'),
+          observacao: `Atividades Vivo · ${row.tipoDoc || 'Documentação'}`,
+        });
+        acionamentosCriados++;
+      }
+
+      const notifRef = doc(collection(db, FIRESTORE_COLLECTIONS.NOTIFICACOES));
+      await setDoc(
+        notifRef,
+        sanitizeFirestoreData({
+          id: notifRef.id,
+          title: `Nova Demanda Vivo: ${cleanRows.length} atividade(s)`,
+          message: `${cleanRows.length} atividade(s) Vivo atribuída(s) ao executor "${execName}".`,
+          type: 'SITE_DEMANDADO_EXECUTOR',
+          vendor: 'ERICSSON',
+          read: false,
+          readByEmails: [],
+          createdAt: nowIso,
+          targetRoles: ['Executor', 'Coordenador Engenharia', 'Coordenador Geral', 'ADM'],
+          targetEquipes: [execName],
+          targetEmails: destinatariosEmails,
+          actorEmail: options?.actorEmail || '',
+          actorName: options?.actorName || 'Coordenação Vivo',
+        })
+      );
+    }
+
+    return { totalGravados, acionamentosCriados };
+  }
+
+  async atualizarCamposVivoAtividade(
+    rowId: string,
+    patch: Record<string, any>,
+    demandSync?: {
+      action: 'assign' | 'remove';
+      siteName: string;
+      tipoDoc?: string;
+      dataDemanda?: string;
+      executorName?: string;
+      executorEmail?: string;
+      actorName?: string;
+      actorEmail?: string;
+    }
+  ): Promise<void> {
+    if (!rowId) return;
+    const sanitizedPatch = sanitizeFirestoreData(patch);
+    await updateDoc(doc(db, FIRESTORE_COLLECTIONS.ERICSSON_VIVO, rowId), sanitizedPatch);
+
+    if (demandSync) {
+      const canonSite = String(demandSync.siteName || rowId).trim().toUpperCase();
+      const targetAcId = buildAcionamentoId('ERICSSON', canonSite, 'EXECUTOR', rowId);
+
+      if (demandSync.action === 'assign' && demandSync.executorName) {
+        const nowIso = new Date().toISOString();
+        const linkedEmails = demandSync.executorEmail
+          ? [demandSync.executorEmail.trim().toLowerCase()]
+          : [];
+        const destinatariosEmails = await this.resolverDestinatariosEmails({
+          responsibleName: demandSync.executorName,
+          linkedEmails,
+          vendor: 'ERICSSON',
+          tipoDestinatario: 'EXECUTOR',
+        });
+        await this.salvarOuAtualizarAcionamento({
+          id: targetAcId,
+          siteId: canonSite,
+          registroId: rowId,
+          vendor: 'ERICSSON',
+          tipoDestinatario: 'EXECUTOR',
+          equipe: demandSync.executorName,
+          destinatariosEmails,
+          demandadoPorNome: demandSync.actorName || 'Coordenação Vivo',
+          demandadoPorEmail: demandSync.actorEmail || '',
+          demandadoEm: nowIso,
+          dataDemanda: demandSync.dataDemanda || new Date().toLocaleDateString('pt-BR'),
+          observacao: `Atividades Vivo · ${demandSync.tipoDoc || 'Documentação'}`,
+        });
+
+        const notifRef = doc(collection(db, FIRESTORE_COLLECTIONS.NOTIFICACOES));
+        await setDoc(
+          notifRef,
+          sanitizeFirestoreData({
+            id: notifRef.id,
+            title: `Nova Demanda Vivo: ${canonSite}`,
+            message: `Atividade Vivo ${canonSite} (${demandSync.tipoDoc || 'Doc'}) atribuída a "${demandSync.executorName}".`,
+            type: 'SITE_DEMANDADO_EXECUTOR',
+            vendor: 'ERICSSON',
+            read: false,
+            readByEmails: [],
+            createdAt: nowIso,
+            targetRoles: ['Executor', 'Coordenador Engenharia', 'Coordenador Geral', 'ADM'],
+            targetEquipes: [demandSync.executorName],
+            targetEmails: destinatariosEmails,
+            actorEmail: demandSync.actorEmail || '',
+            actorName: demandSync.actorName || 'Coordenação Vivo',
+          })
+        );
+      } else if (demandSync.action === 'remove') {
+        await this.cancelarAcionamento(targetAcId, {
+          motivo: 'Executor removido na aba Atividades Vivo',
+          nome: demandSync.actorName || 'Coordenação Vivo',
+          email: demandSync.actorEmail || '',
+        });
+      }
+    }
+  }
+
+  async atualizarCampoVivoEmLote(
+    updates: Array<{
+      id: string;
+      patch: Record<string, any>;
+      siteName?: string;
+      tipoDoc?: string;
+      dataDemanda?: string;
+    }>,
+    options?: {
+      demandSync?: {
+        action: 'assign' | 'remove';
+        executorName?: string;
+        executorEmail?: string;
+        actorName?: string;
+        actorEmail?: string;
+      };
+      onProgress?: (info: { gravados: number; total: number }) => void;
+    }
+  ): Promise<{ totalAtualizados: number }> {
+    const validUpdates = (updates || []).filter((u) => u && u.id && u.patch);
+    if (validUpdates.length === 0) {
+      return { totalAtualizados: 0 };
+    }
+
+    const chunkSize = 250;
+    let totalAtualizados = 0;
+
+    for (let i = 0; i < validUpdates.length; i += chunkSize) {
+      const chunk = validUpdates.slice(i, i + chunkSize);
+      const batch = writeBatch(db);
+      for (const item of chunk) {
+        const ref = doc(db, FIRESTORE_COLLECTIONS.ERICSSON_VIVO, item.id);
+        batch.update(ref, sanitizeFirestoreData(item.patch));
+      }
+      await batch.commit();
+      totalAtualizados += chunk.length;
+      if (options?.onProgress) {
+        options.onProgress({ gravados: totalAtualizados, total: validUpdates.length });
+      }
+    }
+
+    if (options?.demandSync) {
+      const ds = options.demandSync;
+      const nowIso = new Date().toISOString();
+      if (ds.action === 'assign' && ds.executorName) {
+        const linkedEmails = ds.executorEmail ? [ds.executorEmail.trim().toLowerCase()] : [];
+        const destinatariosEmails = await this.resolverDestinatariosEmails({
+          responsibleName: ds.executorName,
+          linkedEmails,
+          vendor: 'ERICSSON',
+          tipoDestinatario: 'EXECUTOR',
+        });
+
+        for (const item of validUpdates) {
+          const canonSite = String(item.siteName || item.id).trim().toUpperCase();
+          const targetAcId = buildAcionamentoId('ERICSSON', canonSite, 'EXECUTOR', item.id);
+          await this.salvarOuAtualizarAcionamento({
+            id: targetAcId,
+            siteId: canonSite,
+            registroId: item.id,
+            vendor: 'ERICSSON',
+            tipoDestinatario: 'EXECUTOR',
+            equipe: ds.executorName,
+            destinatariosEmails,
+            demandadoPorNome: ds.actorName || 'Coordenação Vivo',
+            demandadoPorEmail: ds.actorEmail || '',
+            demandadoEm: nowIso,
+            dataDemanda: item.dataDemanda || new Date().toLocaleDateString('pt-BR'),
+            observacao: `Atividades Vivo · ${item.tipoDoc || 'Documentação'}`,
+          });
+        }
+
+        const notifRef = doc(collection(db, FIRESTORE_COLLECTIONS.NOTIFICACOES));
+        await setDoc(
+          notifRef,
+          sanitizeFirestoreData({
+            id: notifRef.id,
+            title: `Nova Demanda Vivo: ${validUpdates.length} atividade(s)`,
+            message: `${validUpdates.length} atividade(s) Vivo atribuída(s) ao executor "${ds.executorName}".`,
+            type: 'SITE_DEMANDADO_EXECUTOR',
+            vendor: 'ERICSSON',
+            read: false,
+            readByEmails: [],
+            createdAt: nowIso,
+            targetRoles: ['Executor', 'Coordenador Engenharia', 'Coordenador Geral', 'ADM'],
+            targetEquipes: [ds.executorName],
+            targetEmails: destinatariosEmails,
+            actorEmail: ds.actorEmail || '',
+            actorName: ds.actorName || 'Coordenação Vivo',
+          })
+        );
+      } else if (ds.action === 'remove') {
+        for (const item of validUpdates) {
+          const canonSite = String(item.siteName || item.id).trim().toUpperCase();
+          const targetAcId = buildAcionamentoId('ERICSSON', canonSite, 'EXECUTOR', item.id);
+          await this.cancelarAcionamento(targetAcId, {
+            motivo: 'Executor removido em lote na aba Atividades Vivo',
+            nome: ds.actorName || 'Coordenação Vivo',
+            email: ds.actorEmail || '',
+          });
+        }
+      }
+    }
+
+    return { totalAtualizados };
   }
 }
 

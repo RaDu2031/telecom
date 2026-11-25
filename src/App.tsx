@@ -6322,6 +6322,7 @@ export default function App() {
             effectiveRole={effectiveRole}
             firestoreRows={vivoRows}
             sheetMeta={vivoMeta}
+            users={[...users, ...ericssonUsers]}
             onShowToast={showToast}
           />
         ) : activeVendor === 'CLARO_TIM' && resolvedTopTab === 'engenharia' && canSeeEngenhariaTab ? (

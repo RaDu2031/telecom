@@ -103,8 +103,24 @@
         "regional": { "type": "string" },
         "tipoDoc": { "type": "string" },
         "status": { "type": "string" },
+        "prioridade": { "type": "string" },
+        "demanda": { "type": "string" },
+        "planejado": { "type": "string" },
+        "replan": { "type": "string" },
+        "dataReplan": { "type": "string" },
+        "entregue": { "type": "string" },
         "executor": { "type": "string" },
-        "faturamento": { "type": "string" }
+        "comentarioStatus": { "type": "string" },
+        "faturamento": { "type": "string" },
+        "createdBy": { "type": "string" },
+        "createdByEmail": { "type": "string" },
+        "responsavelDemand": { "type": "string" },
+        "responsaveisUids": { "type": "array" },
+        "responsaveisEmails": { "type": "array" },
+        "history": { "type": "array" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" },
+        "updatedBy": { "type": "string" }
       },
       "required": ["id", "vendor"]
     }
