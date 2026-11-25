@@ -58,6 +58,7 @@ export const AmetaSidebar: React.FC<AmetaSidebarProps> = React.memo(({
   const isDuplasActive = activeTab === 'duplas';
   const isExecutoresActive = activeTab === 'executores';
   const isClaroActive = activeVendor === 'CLARO_TIM';
+  const isVivoActive = activeVendor === 'ERICSSON_VIVO';
 
   return (
     <aside
@@ -122,21 +123,23 @@ export const AmetaSidebar: React.FC<AmetaSidebarProps> = React.memo(({
                 />
               </div>
               {!collapsed && (
-                <span className="truncate">Sites (Planilhas)</span>
+                <span className="truncate">{isVivoActive ? 'Atividades Vivo' : 'Sites (Planilhas)'}</span>
               )}
             </div>
 
             {!collapsed && (
               <div className="flex items-center gap-1 shrink-0 ml-1.5">
-                <span
-                  className={`text-[11px] font-mono tabular-nums px-1.5 py-0.5 rounded-[6px] font-semibold ${
-                    isSitesActive
-                      ? 'bg-white/15 text-white'
-                      : 'text-slate-300/80 bg-white/[0.06]'
-                  }`}
-                >
-                  {sitesCount}
-                </span>
+                {(!isVivoActive || sitesCount > 0) && (
+                  <span
+                    className={`text-[11px] font-mono tabular-nums px-1.5 py-0.5 rounded-[6px] font-semibold ${
+                      isSitesActive
+                        ? 'bg-white/15 text-white'
+                        : 'text-slate-300/80 bg-white/[0.06]'
+                    }`}
+                  >
+                    {sitesCount}
+                  </span>
+                )}
                 {novosSitesCount > 0 && (
                   <span className="px-1.5 py-0.5 bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[10px] font-semibold rounded-[6px] tabular-nums">
                     +{novosSitesCount}
@@ -147,8 +150,8 @@ export const AmetaSidebar: React.FC<AmetaSidebarProps> = React.memo(({
           </button>
         )}
 
-        {/* 2. Engenharia */}
-        {canSeeEngenhariaTab && (
+        {/* 2. Engenharia (oculto quando Ericsson Vivo está ativo) */}
+        {canSeeEngenhariaTab && !isVivoActive && (
           <button
             type="button"
             onClick={() => onSelectTab('engenharia')}
@@ -196,14 +199,14 @@ export const AmetaSidebar: React.FC<AmetaSidebarProps> = React.memo(({
           </button>
         )}
 
-        {!collapsed && (canSeeDuplasTab || canAccessDemandaExecutores || canSeeAcionamento) && (
+        {!collapsed && ((!isVivoActive && (canSeeDuplasTab || canAccessDemandaExecutores)) || canSeeAcionamento) && (
           <div className="text-[10px] font-semibold text-slate-400/80 tracking-[0.08em] uppercase px-3 pt-4 pb-1.5">
             Operação & Campo
           </div>
         )}
 
         {/* 3. Duplas & Demanda */}
-        {canSeeDuplasTab && (
+        {canSeeDuplasTab && !isVivoActive && (
           <button
             type="button"
             onClick={() => onSelectTab('duplas')}
@@ -251,8 +254,8 @@ export const AmetaSidebar: React.FC<AmetaSidebarProps> = React.memo(({
           </button>
         )}
 
-        {/* 4. Demandar Executores (Desativado se CLARO) */}
-        {canAccessDemandaExecutores && (
+        {/* 4. Demandar Executores (Desativado se CLARO ou VIVO) */}
+        {canAccessDemandaExecutores && !isVivoActive && (
           <button
             type="button"
             disabled={isClaroActive}

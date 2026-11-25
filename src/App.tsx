@@ -66,6 +66,8 @@ import {
   ClaroSiteRow,
   ClaroEngenhariaRow,
   ClaroSheetMeta,
+  VivoActivityRow,
+  VivoSheetMeta,
   EricssonEngineeringRow,
   DEFAULT_ERICSSON_COLABORADORES,
   CONTROLE_GERAL_COLUMNS,
@@ -94,9 +96,15 @@ import { AuthGate } from './components/AuthGate';
 import { AmetaLogo } from './components/AmetaLogo';
 import { AmetaSidebar, SidebarTabId } from './components/AmetaSidebar';
 import { ClaroTimMaintenanceView } from './components/ClaroTimMaintenanceView';
+import { VivoActivitiesTab } from './components/VivoActivitiesTab';
 import { SiteDetailDrawer } from './components/SiteDetailDrawer';
 import { BulkPasteModal } from './components/BulkPasteModal';
 import { NewSiteModal } from './components/NewSiteModal';
+import { QuickAcionamentoModal } from './components/QuickAcionamentoModal';
+import {
+  QuickAcionamentoDraft,
+  buildNokiaOrClaroSiteRecord,
+} from './utils/quickAcionamentoUtils';
 import { EngineeringControlTab } from './components/EngineeringControlTab';
 import { EricssonSitesTab } from './components/EricssonSitesTab';
 import { EricssonVistoriaTab } from './components/EricssonVistoriaTab';
@@ -350,6 +358,8 @@ export default function App() {
     } catch {}
     return {};
   });
+  const [vivoRows, setVivoRows] = useState<VivoActivityRow[]>([]);
+  const [vivoMeta, setVivoMeta] = useState<VivoSheetMeta | null>(null);
   const [serverEricssonExecutorEmailsMap, setServerEricssonExecutorEmailsMap] = useState<Record<string, string[]>>({});
   const [serverEricssonDuplaEmailsMap, setServerEricssonDuplaEmailsMap] = useState<Record<string, string[]>>({});
   const [notifications, setNotifications] = useState<AmetaNotification[]>([]);
@@ -728,6 +738,12 @@ export default function App() {
           localStorage.setItem('ameta_cached_claro_meta', JSON.stringify(meta));
         } catch {}
       },
+      onEricssonVivo: (fetched) => {
+        setVivoRows(fetched);
+      },
+      onEricssonVivoMeta: (meta) => {
+        setVivoMeta(meta);
+      },
       onUsuarios: (fetched) => {
         if (fetched.length > 0) {
           setUsers(fetched);
@@ -894,7 +910,9 @@ export default function App() {
   const handleSwitchVendor = async (vendor: VendorType) => {
     setActiveVendor(vendor);
     setActiveSheetName(vendor === 'NOKIA' || vendor === 'CLARO_TIM' ? 'Controle Geral' : 'ALL');
-    if (
+    if (vendor === 'ERICSSON_VIVO') {
+      setActiveTopTab('sites');
+    } else if (
       (vendor === 'ERICSSON' || vendor === 'CLARO_TIM') &&
       (activeTopTab === 'novo_site' ||
         activeTopTab === 'importar' ||
@@ -904,7 +922,7 @@ export default function App() {
       setActiveTopTab(effectiveRole === 'Executor' ? 'engenharia' : 'sites');
     }
     resetAllInternalFilters();
-    if (user && vendor !== 'CLARO_TIM') {
+    if (user && vendor !== 'CLARO_TIM' && vendor !== 'ERICSSON_VIVO') {
       try {
         const uid = user.uid || user.id;
         if (uid) {
@@ -1473,9 +1491,14 @@ export default function App() {
   // Automatically enforce platform scope when user/simulated user is bound to NOKIA or ERICSSON
   useEffect(() => {
     if (!activeTargetUser) return;
-    if (!canAccessNokia && canAccessEricsson && activeVendor !== 'ERICSSON') {
+    if (!canAccessNokia && canAccessEricsson && activeVendor !== 'ERICSSON' && activeVendor !== 'ERICSSON_VIVO') {
       setActiveVendor('ERICSSON');
-    } else if (!canAccessEricsson && canAccessNokia && activeVendor !== 'NOKIA' && activeVendor !== 'CLARO_TIM') {
+    } else if (
+      !canAccessEricsson &&
+      canAccessNokia &&
+      activeVendor !== 'NOKIA' &&
+      activeVendor !== 'CLARO_TIM'
+    ) {
       setActiveVendor('NOKIA');
     }
   }, [activeTargetUser, canAccessNokia, canAccessEricsson, activeVendor]);
@@ -3677,6 +3700,53 @@ export default function App() {
     }
   };
 
+  const handleCreateQuickSiteAcionamentos = async (drafts: QuickAcionamentoDraft[]) => {
+    const targetVendor: 'NOKIA' | 'CLARO_TIM' =
+      activeVendor === 'CLARO_TIM' ? 'CLARO_TIM' : 'NOKIA';
+    const updatedBy = (user?.email || '').trim() || 'usuario@ametaservicos.com.br';
+    const createdSites = drafts.map((draft, idx) =>
+      buildNokiaOrClaroSiteRecord(draft, targetVendor, updatedBy, idx)
+    );
+
+    if (targetVendor === 'CLARO_TIM') {
+      setClaroSites((prev) => [...createdSites, ...prev]);
+    } else {
+      setSites((prev) => [...createdSites, ...prev]);
+    }
+
+    let firestoreErrors = 0;
+    const persistAll = Promise.allSettled(
+      createdSites.map((siteRec) => dataService.salvarSiteNokia(siteRec))
+    ).then((results) => {
+      for (const r of results) {
+        if (r.status === 'rejected') {
+          firestoreErrors += 1;
+          console.error('Erro ao salvar acionamento no Firestore:', r.reason);
+        }
+      }
+    });
+
+    await Promise.race([
+      persistAll,
+      new Promise<void>((resolve) => window.setTimeout(resolve, 1200)),
+    ]);
+
+    const destinoNome = targetVendor === 'CLARO_TIM' ? 'Nokia Claro' : 'Nokia TIM';
+    if (firestoreErrors > 0) {
+      showToast(
+        createdSites.length === 1
+          ? `Acionamento ${createdSites[0].siteId} adicionado em ${destinoNome}!`
+          : `${createdSites.length} acionamentos adicionados em ${destinoNome}!`
+      );
+    } else {
+      showToast(
+        createdSites.length === 1
+          ? `Acionamento ${createdSites[0].siteId} adicionado em ${destinoNome}!`
+          : `${createdSites.length} acionamentos adicionados em ${destinoNome}!`
+      );
+    }
+  };
+
   const handleBulkAssignSitesResponsible = async (
     rawInput: string,
     targetResponsible: string,
@@ -5197,6 +5267,8 @@ export default function App() {
         sitesCount={
           activeVendor === 'ERICSSON'
             ? ericssonSiteCounters.totalSites
+            : activeVendor === 'ERICSSON_VIVO'
+            ? vivoRows.length
             : filteredControleGeralSites.length
         }
         novosSitesCount={activeVendor === 'NOKIA' || activeVendor === 'CLARO_TIM' ? countNovos : 0}
@@ -5205,6 +5277,8 @@ export default function App() {
             ? ericssonEngineeringRows.length
             : activeVendor === 'CLARO_TIM'
             ? claroEngenharia.length
+            : activeVendor === 'ERICSSON_VIVO'
+            ? 0
             : tssrRows.length
         }
         duplasCount={equipesDuplas.length}
@@ -5238,14 +5312,16 @@ export default function App() {
                 <AmetaLogo size="sm" theme="light" />
               </button>
 
-              {/* Desktop Vendor Pill Switcher (Segmentos limpos: NOKIA / ERICSSON + TIM / CLARO) */}
+              {/* Desktop Vendor Pill Switcher (NOKIA: TIM / CLARO | ERICSSON: CLARO / VIVO) */}
               <div className="flex items-center gap-2">
                 <div className="inline-flex items-center p-0.5 bg-slate-100 border border-slate-200 rounded-[8px] shrink-0 gap-0.5">
                   {canAccessNokia && (
                     <button
                       type="button"
                       onClick={() => {
-                        if (activeVendor === 'ERICSSON') handleSwitchVendor('NOKIA');
+                        if (activeVendor === 'ERICSSON' || activeVendor === 'ERICSSON_VIVO') {
+                          handleSwitchVendor('NOKIA');
+                        }
                       }}
                       className={`px-3 py-1 text-[11px] font-bold rounded-[6px] transition-all duration-150 whitespace-nowrap cursor-pointer ${
                         activeVendor === 'NOKIA' || activeVendor === 'CLARO_TIM'
@@ -5259,9 +5335,13 @@ export default function App() {
                   {canAccessEricsson && (
                     <button
                       type="button"
-                      onClick={() => handleSwitchVendor('ERICSSON')}
+                      onClick={() => {
+                        if (activeVendor !== 'ERICSSON' && activeVendor !== 'ERICSSON_VIVO') {
+                          handleSwitchVendor('ERICSSON');
+                        }
+                      }}
                       className={`px-3 py-1 text-[11px] font-bold rounded-[6px] transition-all duration-150 whitespace-nowrap cursor-pointer ${
-                        activeVendor === 'ERICSSON'
+                        activeVendor === 'ERICSSON' || activeVendor === 'ERICSSON_VIVO'
                           ? 'bg-[#1E8E8D] text-white shadow-2xs'
                           : 'text-slate-600 hover:text-[#1E8E8D]'
                       }`}
@@ -5271,7 +5351,7 @@ export default function App() {
                   )}
                 </div>
 
-                {/* Level 2: Operator selection for Nokia */}
+                {/* Level 2: Operator selection for Nokia (TIM | CLARO) */}
                 {canAccessNokia && (activeVendor === 'NOKIA' || activeVendor === 'CLARO_TIM') && (
                   <div className="inline-flex items-center p-0.5 bg-slate-100 border border-slate-200 rounded-[8px] shrink-0 gap-0.5 animate-fadeIn">
                     <button
@@ -5299,20 +5379,55 @@ export default function App() {
                     </button>
                   </div>
                 )}
+
+                {/* Level 2: Operator selection for Ericsson (CLARO | VIVO) */}
+                {canAccessEricsson &&
+                  (activeVendor === 'ERICSSON' || activeVendor === 'ERICSSON_VIVO') && (
+                    <div className="inline-flex items-center p-0.5 bg-slate-100 border border-slate-200 rounded-[8px] shrink-0 gap-0.5 animate-fadeIn">
+                      <button
+                        type="button"
+                        onClick={() => handleSwitchVendor('ERICSSON')}
+                        className={`px-2.5 py-1 text-[11px] font-semibold rounded-[6px] transition-all duration-150 whitespace-nowrap cursor-pointer ${
+                          activeVendor === 'ERICSSON'
+                            ? 'bg-[#1E8E8D] text-white shadow-2xs font-bold'
+                            : 'text-slate-600 hover:text-[#1E8E8D]'
+                        }`}
+                        title="Ericsson · Claro"
+                      >
+                        CLARO
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleSwitchVendor('ERICSSON_VIVO')}
+                        className={`px-2.5 py-1 text-[11px] font-semibold rounded-[6px] transition-all duration-150 whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${
+                          activeVendor === 'ERICSSON_VIVO'
+                            ? 'bg-[#660099] text-white shadow-2xs font-bold'
+                            : 'text-slate-700 hover:text-[#660099] hover:bg-purple-50'
+                        }`}
+                        title="Ericsson · Vivo — Planilha & Dashboard de Atividades"
+                      >
+                        <span>VIVO</span>
+                      </button>
+                    </div>
+                  )}
               </div>
 
               {/* Breadcrumb / Title of Current View */}
               <nav aria-label="Breadcrumb" className="hidden lg:flex items-center gap-2 text-xs text-slate-500 font-medium pl-3 border-l border-slate-200">
                 <span className="text-slate-900 font-semibold whitespace-nowrap">
-                  {activeVendor === 'CLARO_TIM'
-                    ? 'Nokia · Claro'
+                  {activeVendor === 'ERICSSON_VIVO'
+                    ? 'Ericsson · Vivo'
                     : activeVendor === 'ERICSSON'
-                    ? 'Ericsson'
+                    ? 'Ericsson · Claro'
+                    : activeVendor === 'CLARO_TIM'
+                    ? 'Nokia · Claro'
                     : 'Nokia · TIM'}
                 </span>
                 <ChevronRight className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                 <span className="text-slate-600 whitespace-nowrap">
-                  {resolvedTopTab === 'sites'
+                  {activeVendor === 'ERICSSON_VIVO'
+                    ? 'Atividades & Dashboard'
+                    : resolvedTopTab === 'sites'
                     ? 'Sites (Planilhas)'
                     : resolvedTopTab === 'engenharia'
                     ? 'Engenharia'
@@ -5767,7 +5882,9 @@ export default function App() {
               <button
                 type="button"
                 onClick={() => {
-                  if (activeVendor === 'ERICSSON') handleSwitchVendor('NOKIA');
+                  if (activeVendor === 'ERICSSON' || activeVendor === 'ERICSSON_VIVO') {
+                    handleSwitchVendor('NOKIA');
+                  }
                 }}
                 className={`py-2 px-1 rounded-xl text-[11px] font-black uppercase tracking-wide flex items-center justify-center gap-1 border-2 transition-all cursor-pointer ${
                   activeVendor === 'NOKIA' || activeVendor === 'CLARO_TIM'
@@ -5782,9 +5899,13 @@ export default function App() {
             {canAccessEricsson && (
               <button
                 type="button"
-                onClick={() => handleSwitchVendor('ERICSSON')}
+                onClick={() => {
+                  if (activeVendor !== 'ERICSSON' && activeVendor !== 'ERICSSON_VIVO') {
+                    handleSwitchVendor('ERICSSON');
+                  }
+                }}
                 className={`py-2 px-1 rounded-xl text-[11px] font-black uppercase tracking-wide flex items-center justify-center gap-1 border-2 transition-all cursor-pointer ${
-                  activeVendor === 'ERICSSON'
+                  activeVendor === 'ERICSSON' || activeVendor === 'ERICSSON_VIVO'
                     ? 'bg-[#1E8E8D] border-[#1E8E8D] text-white shadow-sm'
                     : 'bg-slate-50 border-slate-200 text-slate-700 hover:border-[#1E8E8D]'
                 }`}
@@ -5794,7 +5915,7 @@ export default function App() {
             )}
           </div>
 
-          {/* Level 2 Operadoras para Nokia no Mobile */}
+          {/* Level 2 Operadoras para Nokia no Mobile (TIM | CLARO) */}
           {canAccessNokia && (activeVendor === 'NOKIA' || activeVendor === 'CLARO_TIM') && (
             <div className="grid grid-cols-2 gap-1.5 p-1 bg-slate-100 rounded-xl border border-slate-200/90">
               <button
@@ -5822,6 +5943,36 @@ export default function App() {
               </button>
             </div>
           )}
+
+          {/* Level 2 Operadoras para Ericsson no Mobile (CLARO | VIVO) */}
+          {canAccessEricsson &&
+            (activeVendor === 'ERICSSON' || activeVendor === 'ERICSSON_VIVO') && (
+              <div className="grid grid-cols-2 gap-1.5 p-1 bg-slate-100 rounded-xl border border-slate-200/90">
+                <button
+                  type="button"
+                  onClick={() => handleSwitchVendor('ERICSSON')}
+                  className={`py-1.5 px-1 rounded-lg text-[11px] font-bold flex items-center justify-center gap-1 transition-all cursor-pointer ${
+                    activeVendor === 'ERICSSON'
+                      ? 'bg-[#1E8E8D] text-white shadow-2xs font-extrabold'
+                      : 'text-slate-700 hover:bg-teal-50'
+                  }`}
+                >
+                  <span>CLARO</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleSwitchVendor('ERICSSON_VIVO')}
+                  className={`py-1.5 px-1 rounded-lg text-[11px] font-bold flex items-center justify-center gap-1 transition-all cursor-pointer ${
+                    activeVendor === 'ERICSSON_VIVO'
+                      ? 'bg-[#660099] text-white shadow-2xs font-extrabold'
+                      : 'text-slate-700 hover:bg-purple-100'
+                  }`}
+                >
+                  <span>VIVO</span>
+                </button>
+              </div>
+            )}
 
           {/* 2. Grade de Opções Principais Bem Aparentes (2 colunas, botões grandes) */}
           <div className="grid grid-cols-2 gap-2">
@@ -6165,7 +6316,15 @@ export default function App() {
           resolvedTopTab === 'engenharia' ? 'max-w-full' : 'max-w-[1800px]'
         }`}
       >
-        {activeVendor === 'CLARO_TIM' && resolvedTopTab === 'engenharia' && canSeeEngenhariaTab ? (
+        {activeVendor === 'ERICSSON_VIVO' ? (
+          <VivoActivitiesTab
+            user={activeTargetUser || user}
+            effectiveRole={effectiveRole}
+            firestoreRows={vivoRows}
+            sheetMeta={vivoMeta}
+            onShowToast={showToast}
+          />
+        ) : activeVendor === 'CLARO_TIM' && resolvedTopTab === 'engenharia' && canSeeEngenhariaTab ? (
           <ClaroTimMaintenanceView
             activeArea="engenharia"
             onSelectArea={(area) => setActiveTopTab(area)}
@@ -6705,24 +6864,44 @@ export default function App() {
                         )}
                     </div>
 
-                    {/* "Carregar planilha" button for Nokia / Claro Sites */}
+                    {/* "+ Novo Acionamento" & "Carregar planilha" buttons for Nokia / Claro Sites */}
                     {isRealGestor && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setBulkInitialTab('excel');
-                          setBulkModalOpen(true);
-                        }}
-                        title={
-                          activeVendor === 'CLARO_TIM'
-                            ? 'Destino: Claro – Sites'
-                            : 'Destino: Nokia – Sites (Vistoria)'
-                        }
-                        className="px-3 py-1.5 bg-[#223585] hover:bg-[#1a2a6c] text-white text-xs font-bold rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer shadow-2xs shrink-0"
-                      >
-                        <Upload className="w-3.5 h-3.5" />
-                        <span>{activeVendor === 'CLARO_TIM' ? 'Importar / Colar' : 'Carregar planilha'}</span>
-                      </button>
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => setNewSiteModalOpen(true)}
+                          title={
+                            activeVendor === 'CLARO_TIM'
+                              ? 'Adicionar novo acionamento em Nokia · Claro'
+                              : 'Adicionar novo acionamento em Nokia · TIM'
+                          }
+                          className={`px-3 py-1.5 text-white text-xs font-bold rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer shadow-2xs shrink-0 whitespace-nowrap ${
+                            activeVendor === 'CLARO_TIM'
+                              ? 'bg-[#DC2626] hover:bg-[#B91C1C]'
+                              : 'bg-[#1E8E8D] hover:bg-[#177372]'
+                          }`}
+                        >
+                          <Plus className="w-3.5 h-3.5" />
+                          <span>Novo Acionamento</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setBulkInitialTab('excel');
+                            setBulkModalOpen(true);
+                          }}
+                          title={
+                            activeVendor === 'CLARO_TIM'
+                              ? 'Destino: Claro – Sites'
+                              : 'Destino: Nokia – Sites (Vistoria)'
+                          }
+                          className="px-3 py-1.5 bg-[#223585] hover:bg-[#1a2a6c] text-white text-xs font-bold rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer shadow-2xs shrink-0 whitespace-nowrap"
+                        >
+                          <Upload className="w-3.5 h-3.5" />
+                          <span>{activeVendor === 'CLARO_TIM' ? 'Importar / Colar' : 'Carregar planilha'}</span>
+                        </button>
+                      </>
                     )}
 
                     {/* "+ Adicionar Filtro" Popover Trigger */}
@@ -8503,16 +8682,13 @@ export default function App() {
         onBulkImport={handleBulkImport}
       />
 
-      {/* Single New Site Modal */}
-      <NewSiteModal
+      {/* Unified Quick Acionamento Modal (Nokia TIM & Nokia Claro — 1 ou Vários de uma vez) */}
+      <QuickAcionamentoModal
         isOpen={newSiteModalOpen}
-        activeVendor={activeVendor}
-        activeSheetName={activeSheetName === 'ALL' ? 'Controle Geral' : activeSheetName}
-        sheets={sheets}
-        users={users}
-        currentUser={user}
+        target={activeVendor === 'CLARO_TIM' ? 'CLARO_SITES' : 'NOKIA_SITES'}
+        suggestedExecutors={nokiaEquipesDuplas}
         onClose={() => setNewSiteModalOpen(false)}
-        onCreateSite={handleCreateSite}
+        onSubmitDrafts={handleCreateQuickSiteAcionamentos}
       />
 
       {/* Exclusive ADM Dono Permissions & Role Release Modal */}

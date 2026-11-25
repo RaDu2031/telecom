@@ -91,6 +91,22 @@
         "atualizadoEm": { "type": "string" }
       },
       "required": ["id", "protocolo", "origem", "vendor", "siteId", "tipoDestinatario", "equipe", "status"]
+    },
+    "VivoActivity": {
+      "title": "VivoActivity",
+      "description": "Registro de atividade da planilha Vivo (Documentação & Planejamento) sob o cliente Ericsson",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "vendor": { "type": "string" },
+        "siteName": { "type": "string" },
+        "regional": { "type": "string" },
+        "tipoDoc": { "type": "string" },
+        "status": { "type": "string" },
+        "executor": { "type": "string" },
+        "faturamento": { "type": "string" }
+      },
+      "required": ["id", "vendor"]
     }
   },
   "firestore": {
@@ -125,6 +141,14 @@
     "/ericsson_arquivos/{fileId}": {
       "schema": { "$ref": "#/entities/EngineeringFile" },
       "description": "Arquivos de engenharia Ericsson"
+    },
+    "/ericsson_vivo/{docId}": {
+      "schema": { "$ref": "#/entities/VivoActivity" },
+      "description": "Planilha de atividades Vivo (Documentação & Planejamento) isolada sob o cliente Ericsson"
+    },
+    "/ericsson_vivo_meta/{docId}": {
+      "schema": { "$ref": "#/entities/VivoActivity" },
+      "description": "Metadados de sincronização da planilha Vivo sob o cliente Ericsson"
     }
   }
 }

@@ -68,6 +68,11 @@ import {
   matchesDuplaName,
 } from '../utils/spreadsheetUtils';
 import { dataService } from '../services/dataService';
+import { QuickAcionamentoModal } from './QuickAcionamentoModal';
+import {
+  QuickAcionamentoDraft,
+  buildEricssonSiteRecord,
+} from '../utils/quickAcionamentoUtils';
 import { showToast } from '../utils/toast';
 import { AcionamentoStatusBadge } from './AcionamentoStatusBadge';
 
@@ -1041,6 +1046,21 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
     }
   };
 
+  const handleCreateQuickEricssonSites = async (drafts: QuickAcionamentoDraft[]) => {
+    const createdRows = drafts.map((draft, idx) => buildEricssonSiteRecord(draft, idx));
+    onUpdated(
+      [...createdRows, ...rows],
+      sheetMeta,
+      createdRows.length === 1
+        ? `Acionamento Ericsson ${createdRows[0].siteName} adicionado!`
+        : `${createdRows.length} acionamentos Ericsson adicionados!`
+    );
+    await Promise.race([
+      Promise.allSettled(createdRows.map((row) => dataService.salvarSiteEricsson(row))),
+      new Promise<void>((resolve) => window.setTimeout(resolve, 1200)),
+    ]);
+  };
+
   // Save edited row fields
   const handleSaveRowEdit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1494,10 +1514,10 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
                   <button
                     type="button"
                     onClick={() => setCreateModalOpen(true)}
-                    className="justify-center px-3 py-2 bg-[#223585] hover:bg-[#192869] text-white text-xs font-semibold rounded-[8px] transition-colors flex items-center gap-1.5 shadow-2xs cursor-pointer"
+                    className="justify-center px-3 py-2 bg-[#223585] hover:bg-[#192869] text-white text-xs font-semibold rounded-[8px] transition-colors flex items-center gap-1.5 shadow-2xs cursor-pointer whitespace-nowrap"
                   >
                     <Plus className="w-3.5 h-3.5 shrink-0" />
-                    <span className="truncate">+ Nova Linha</span>
+                    <span className="truncate">Novo Acionamento</span>
                   </button>
                 </div>
               </>
@@ -2773,202 +2793,16 @@ export const EricssonSitesTab: React.FC<EricssonSitesTabProps> = ({
       )}
 
       {/* =====================================================================
-          MODAL: CREATE NEW ERICSSON ROW (PAIR OF SITES)
+          MODAL: NOVO ACIONAMENTO ERICSSON CLARO (1 OU VÁRIOS DE UMA VEZ)
          ===================================================================== */}
-      {createModalOpen && (
-        <div
-          className="ameta-modal-backdrop fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#0B1530]/45 backdrop-blur-[2px]"
-          onClick={() => setCreateModalOpen(false)}
-        >
-          <div
-            className="ameta-modal-panel w-full max-w-xl bg-white border border-slate-200 rounded-[12px] overflow-hidden"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="px-5 py-4 flex items-center justify-between bg-[#0B1530] text-white">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-[8px] bg-white/10 flex items-center justify-center shrink-0">
-                  <Plus className="w-4 h-4 text-[#6EE7E5]" />
-                </div>
-                <h3 className="text-sm font-bold text-white">
-                  Nova Linha na Planilha Ericsson (Par de Torres A ↔ B)
-                </h3>
-              </div>
-              <button
-                type="button"
-                onClick={() => setCreateModalOpen(false)}
-                className="p-1.5 text-slate-300 hover:text-white hover:bg-white/10 rounded-[8px] transition-colors cursor-pointer"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <form onSubmit={handleCreateRow} className="p-5 space-y-4 text-xs">
-              <div className="grid grid-cols-3 gap-3">
-                <div>
-                  <label className="block text-slate-600 font-semibold mb-1">01.00. Chaves</label>
-                  <input
-                    type="text"
-                    value={newChaves}
-                    onChange={(e) => setNewChaves(e.target.value)}
-                    placeholder="Ex: RRJ-5997238"
-                    className="w-full px-3 py-2 bg-[#F8FAFC] border border-slate-200 rounded-[8px] text-slate-900 font-mono focus:outline-none focus:bg-white focus:border-[#223585]"
-                  />
-                </div>
-                <div>
-                  <label className="block text-slate-600 font-semibold mb-1">00.03.State</label>
-                  <input
-                    type="text"
-                    value={newState}
-                    onChange={(e) => setNewState(e.target.value.toUpperCase())}
-                    placeholder="SP"
-                    className="w-full px-3 py-2 bg-[#F8FAFC] border border-slate-200 rounded-[8px] text-slate-900 font-mono focus:outline-none focus:bg-white focus:border-[#223585]"
-                  />
-                </div>
-                <div>
-                  <label className="block text-slate-600 font-semibold mb-1">Meta</label>
-                  <input
-                    type="text"
-                    value={newMeta}
-                    onChange={(e) => setNewMeta(e.target.value)}
-                    placeholder="Ex: Em andamento"
-                    className="w-full px-3 py-2 bg-[#F8FAFC] border border-slate-200 rounded-[8px] text-slate-900 focus:outline-none focus:bg-white focus:border-[#223585]"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="p-3.5 rounded-[12px] bg-[#EEF2FF]/60 border border-[#DDE4F6] space-y-2.5">
-                  <div className="font-bold text-[#223585] uppercase text-[11px]">
-                    Torre 1 — Site A
-                  </div>
-                  <div>
-                    <label className="block text-slate-600 mb-1">01.21.Site ID A *</label>
-                    <input
-                      type="text"
-                      required={!newSiteIdB.trim()}
-                      value={newSiteIdA}
-                      onChange={(e) => setNewSiteIdA(e.target.value.toUpperCase())}
-                      placeholder="Ex: ESCIT33"
-                      className="w-full px-2.5 py-1.5 bg-white border border-slate-200 rounded-[8px] text-slate-900 font-mono font-bold focus:outline-none focus:border-[#223585]"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-slate-600 mb-1">ID Detentora A</label>
-                    <input
-                      type="text"
-                      value={newDetentoraA}
-                      onChange={(e) => setNewDetentoraA(e.target.value)}
-                      className="w-full px-2.5 py-1.5 bg-white border border-slate-200 rounded-[8px] text-slate-900 focus:outline-none focus:border-[#223585]"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-slate-600 mb-1">Status A</label>
-                    <input
-                      type="text"
-                      value={newStatusA}
-                      onChange={(e) => setNewStatusA(e.target.value)}
-                      className="w-full px-2.5 py-1.5 bg-white border border-slate-200 rounded-[8px] text-slate-900 focus:outline-none focus:border-[#223585]"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-slate-600 mb-1">CIDADE A</label>
-                    <input
-                      type="text"
-                      value={newCidadeA}
-                      onChange={(e) => setNewCidadeA(e.target.value)}
-                      className="w-full px-2.5 py-1.5 bg-white border border-slate-200 rounded-[8px] text-slate-900 focus:outline-none focus:border-[#223585]"
-                    />
-                  </div>
-                </div>
-
-                <div className="p-3.5 rounded-[12px] bg-[#EEFAFA]/70 border border-[#AAE5E5] space-y-2.5">
-                  <div className="font-bold text-[#1E8E8D] uppercase text-[11px]">
-                    Torre 2 — Site B
-                  </div>
-                  <div>
-                    <label className="block text-slate-600 mb-1">01.21.Site ID B *</label>
-                    <input
-                      type="text"
-                      required={!newSiteIdA.trim()}
-                      value={newSiteIdB}
-                      onChange={(e) => setNewSiteIdB(e.target.value.toUpperCase())}
-                      placeholder="Ex: ESCIT81"
-                      className="w-full px-2.5 py-1.5 bg-white border border-slate-200 rounded-[8px] text-slate-900 font-mono font-bold focus:outline-none focus:border-[#1E8E8D]"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-slate-600 mb-1">ID Detentora B</label>
-                    <input
-                      type="text"
-                      value={newDetentoraB}
-                      onChange={(e) => setNewDetentoraB(e.target.value)}
-                      className="w-full px-2.5 py-1.5 bg-white border border-slate-200 rounded-[8px] text-slate-900 focus:outline-none focus:border-[#1E8E8D]"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-slate-600 mb-1">Status B</label>
-                    <input
-                      type="text"
-                      value={newStatusB}
-                      onChange={(e) => setNewStatusB(e.target.value)}
-                      className="w-full px-2.5 py-1.5 bg-white border border-slate-200 rounded-[8px] text-slate-900 focus:outline-none focus:border-[#1E8E8D]"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-slate-600 mb-1">CIDADE B</label>
-                    <input
-                      type="text"
-                      value={newCidadeB}
-                      onChange={(e) => setNewCidadeB(e.target.value)}
-                      className="w-full px-2.5 py-1.5 bg-white border border-slate-200 rounded-[8px] text-slate-900 focus:outline-none focus:border-[#1E8E8D]"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-slate-600 font-semibold mb-1">EQUIPE</label>
-                  <input
-                    type="text"
-                    value={newEquipe}
-                    onChange={(e) => setNewEquipe(e.target.value)}
-                    placeholder="Ex: Equipe 6"
-                    className="w-full px-3 py-2 bg-[#F8FAFC] border border-slate-200 rounded-[8px] text-slate-900 focus:outline-none focus:bg-white focus:border-[#223585]"
-                  />
-                </div>
-                <div>
-                  <label className="block text-slate-600 font-semibold mb-1">Serviço</label>
-                  <input
-                    type="text"
-                    value={newServico}
-                    onChange={(e) => setNewServico(e.target.value)}
-                    placeholder="LOS A / LOS e Vistoria B"
-                    className="w-full px-3 py-2 bg-[#F8FAFC] border border-slate-200 rounded-[8px] text-slate-900 focus:outline-none focus:bg-white focus:border-[#223585]"
-                  />
-                </div>
-              </div>
-
-              <div className="pt-2 flex items-center justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => setCreateModalOpen(false)}
-                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-[8px] cursor-pointer"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  disabled={creatingRow}
-                  className="px-4 py-2 bg-[#223585] hover:bg-[#1B2A6B] text-white font-bold rounded-[8px] cursor-pointer shadow-xs"
-                >
-                  {creatingRow ? 'Criando...' : 'Criar Linha na Planilha'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      <QuickAcionamentoModal
+        isOpen={createModalOpen}
+        target="ERICSSON_SITES"
+        suggestedExecutors={distinctEquipes}
+        suggestedRegionals={distinctStates}
+        onClose={() => setCreateModalOpen(false)}
+        onSubmitDrafts={handleCreateQuickEricssonSites}
+      />
 
       {/* =====================================================================
           ROW DETAILS & EDIT DRAWER (SLIDE-OVER)

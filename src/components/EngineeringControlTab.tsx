@@ -53,6 +53,11 @@ import {
 } from '../types/telecom';
 import { dataService } from '../services/dataService';
 import { isTssrRowAssignedToResponsible } from '../services/demandaSharedService';
+import { QuickAcionamentoModal } from './QuickAcionamentoModal';
+import {
+  QuickAcionamentoDraft,
+  buildNokiaTssrRecord,
+} from '../utils/quickAcionamentoUtils';
 import {
   parseTssrWorkbookBuffer,
   getTssrColumnValue,
@@ -706,6 +711,23 @@ export const EngineeringControlTab: React.FC<EngineeringControlTabProps> = ({
     }
   };
 
+  const handleCreateQuickTssrAcionamentos = async (drafts: QuickAcionamentoDraft[]) => {
+    const createdRows = drafts.map((draft, idx) =>
+      buildNokiaTssrRecord(draft, activeSubTab, idx)
+    );
+    onTssrUpdated(
+      [...createdRows, ...tssrRows],
+      tssrSheets,
+      createdRows.length === 1
+        ? `Acionamento ${createdRows[0].siteId} adicionado em ${activeSubTab}!`
+        : `${createdRows.length} acionamentos adicionados em ${activeSubTab}!`
+    );
+    await Promise.race([
+      Promise.allSettled(createdRows.map((row) => dataService.salvarTssrNokia(row))),
+      new Promise<void>((resolve) => window.setTimeout(resolve, 1200)),
+    ]);
+  };
+
   // Handle saving original columns in the slide-over drawer
   const handleSaveDrawerRow = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -889,14 +911,14 @@ export const EngineeringControlTab: React.FC<EngineeringControlTabProps> = ({
               <span>Gráficos</span>
             </button>
 
-            {isAdmin && (
+            {(isAdmin || isRealGestor) && (
               <button
                 type="button"
                 onClick={() => setIsNewRowModalOpen(true)}
-                className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-semibold rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer"
+                className="px-3 py-1.5 bg-[#1E8E8D] hover:bg-[#177372] text-white text-xs font-semibold rounded-lg transition-colors flex items-center gap-1.5 shadow-2xs cursor-pointer whitespace-nowrap"
               >
-                <Plus className="w-3.5 h-3.5 text-blue-600" />
-                <span>+ Nova Linha</span>
+                <Plus className="w-3.5 h-3.5" />
+                <span>Novo Acionamento</span>
               </button>
             )}
 
@@ -1424,17 +1446,28 @@ export const EngineeringControlTab: React.FC<EngineeringControlTabProps> = ({
                   </div>
                 </div>
 
-                {/* "Carregar planilha" button for Nokia Engenharia */}
-                {isRealGestor && (
-                  <button
-                    type="button"
-                    onClick={() => setIsImportModalOpen(true)}
-                    title="Destino: Nokia – Engenharia"
-                    className="px-3 py-1.5 bg-[#223585] hover:bg-[#1a2a6c] text-white text-xs font-bold rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer shadow-2xs shrink-0"
-                  >
-                    <Upload className="w-3.5 h-3.5" />
-                    <span>Carregar planilha</span>
-                  </button>
+                {/* "+ Novo Acionamento" & "Carregar planilha" buttons for Nokia Engenharia */}
+                {(isRealGestor || isAdmin) && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => setIsNewRowModalOpen(true)}
+                      title="Adicionar novo acionamento em Nokia – Engenharia"
+                      className="px-3 py-1.5 bg-[#1E8E8D] hover:bg-[#177372] text-white text-xs font-bold rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer shadow-2xs shrink-0 whitespace-nowrap"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>Novo Acionamento</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setIsImportModalOpen(true)}
+                      title="Destino: Nokia – Engenharia"
+                      className="px-3 py-1.5 bg-[#223585] hover:bg-[#1a2a6c] text-white text-xs font-bold rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer shadow-2xs shrink-0 whitespace-nowrap"
+                    >
+                      <Upload className="w-3.5 h-3.5" />
+                      <span>Carregar planilha</span>
+                    </button>
+                  </>
                 )}
 
                 {/* "+ Adicionar Filtro" Popover */}
@@ -2327,170 +2360,16 @@ export const EngineeringControlTab: React.FC<EngineeringControlTabProps> = ({
       )}
 
       {/* =====================================================================
-          MODAL: + NOVA LINHA NA ABA TSSR TIM NOKIA
+          MODAL: NOVO ACIONAMENTO NA ABA TSSR TIM NOKIA
          ===================================================================== */}
-      {isNewRowModalOpen && (
-        <div
-          className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-[2px] flex items-center justify-center p-4"
-          onClick={() => setIsNewRowModalOpen(false)}
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-md bg-white border border-slate-200 rounded-2xl shadow-xl overflow-hidden"
-          >
-            <div className="px-5 py-4 border-b border-slate-200 flex items-center justify-between">
-              <h3 className="text-sm font-bold text-slate-900">
-                Nova Linha em {activeSubTab}
-              </h3>
-              <button
-                type="button"
-                onClick={() => setIsNewRowModalOpen(false)}
-                className="p-1 text-slate-400 hover:text-slate-700 rounded-lg cursor-pointer"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <form onSubmit={handleCreateRowSubmit} className="p-5 space-y-3 text-xs">
-              {newRowError && (
-                <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 flex items-center gap-2">
-                  <AlertCircle className="w-4 h-4 shrink-0" />
-                  <span>{newRowError}</span>
-                </div>
-              )}
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-semibold text-slate-700 mb-1">
-                    Site Id (Sigla) *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={newRowSiteId}
-                    onChange={(e) => setNewRowSiteId(e.target.value.toUpperCase())}
-                    placeholder="Ex: SN-OI65J2"
-                    className="w-full px-3 py-2 border border-slate-200 rounded-lg font-mono font-bold"
-                  />
-                </div>
-                <div>
-                  <label className="block font-semibold text-slate-700 mb-1">
-                    Oc Site Pre
-                  </label>
-                  <input
-                    type="text"
-                    value={newRowOcSitePre}
-                    onChange={(e) => setNewRowOcSitePre(e.target.value)}
-                    placeholder="Ex: 1360413"
-                    className="w-full px-3 py-2 border border-slate-200 rounded-lg font-mono"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-3 gap-2">
-                <div>
-                  <label className="block font-semibold text-slate-700 mb-1">
-                    Enderecoid
-                  </label>
-                  <input
-                    type="text"
-                    value={newRowEnderecoId}
-                    onChange={(e) => setNewRowEnderecoId(e.target.value)}
-                    placeholder="DFBSA_1601"
-                    className="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg"
-                  />
-                </div>
-                <div>
-                  <label className="block font-semibold text-slate-700 mb-1">UF</label>
-                  <input
-                    type="text"
-                    maxLength={2}
-                    value={newRowUf}
-                    onChange={(e) => setNewRowUf(e.target.value.toUpperCase())}
-                    placeholder="DF"
-                    className="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg font-mono"
-                  />
-                </div>
-                <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Reg</label>
-                  <input
-                    type="text"
-                    value={newRowReg}
-                    onChange={(e) => setNewRowReg(e.target.value.toUpperCase())}
-                    placeholder="TCO"
-                    className="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg font-mono"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Cidade</label>
-                  <input
-                    type="text"
-                    value={newRowCidade}
-                    onChange={(e) => setNewRowCidade(e.target.value)}
-                    placeholder="Brasília"
-                    className="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg"
-                  />
-                </div>
-                <div>
-                  <label className="block font-semibold text-slate-700 mb-1">PROJETO</label>
-                  <input
-                    type="text"
-                    value={newRowProjeto}
-                    onChange={(e) => setNewRowProjeto(e.target.value)}
-                    placeholder="Swap - G3"
-                    className="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="block font-semibold text-slate-700 mb-1">
-                    STATUS Engenharia
-                  </label>
-                  <input
-                    type="text"
-                    value={newRowStatusEng}
-                    onChange={(e) => setNewRowStatusEng(e.target.value)}
-                    className="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg"
-                  />
-                </div>
-                <div>
-                  <label className="block font-semibold text-slate-700 mb-1">
-                    Executor
-                  </label>
-                  <input
-                    type="text"
-                    value={newRowExecutor}
-                    onChange={(e) => setNewRowExecutor(e.target.value)}
-                    className="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg"
-                  />
-                </div>
-              </div>
-
-              <div className="pt-2 flex justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => setIsNewRowModalOpen(false)}
-                  className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-lg cursor-pointer"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  disabled={creatingRow}
-                  className="px-4 py-2 bg-[#223585] hover:bg-[#1b2a6b] text-white font-semibold rounded-lg cursor-pointer"
-                >
-                  {creatingRow ? 'Criando...' : 'Criar Linha'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      <QuickAcionamentoModal
+        isOpen={isNewRowModalOpen}
+        target="NOKIA_ENGENHARIA"
+        subtitle={activeSubTab}
+        suggestedExecutors={users.map((u) => u.name)}
+        onClose={() => setIsNewRowModalOpen(false)}
+        onSubmitDrafts={handleCreateQuickTssrAcionamentos}
+      />
 
       {/* =====================================================================
           SLIDE-OVER DRAWER FOR TSSR ROW DETAILS

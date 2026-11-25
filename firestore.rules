@@ -187,6 +187,14 @@ service cloud.firestore {
     match /ericsson_reprovacoes/{docId} {
       allow read, write, delete: if isSignedIn() && (canAccessEricsson() || isCoordinatorOrAdmin() || isAdmin());
     }
+    match /ericsson_vivo/{docId} {
+      allow read: if isSignedIn() && (canAccessEricsson() || isCoordinatorOrAdmin() || isAdmin());
+      allow create, update, delete: if isSignedIn() && (isCoordinatorOrAdmin() || isAdmin() || canAccessEricsson());
+    }
+    match /ericsson_vivo_meta/{docId} {
+      allow read: if isSignedIn();
+      allow write, delete: if isSignedIn() && (isCoordinatorOrAdmin() || isAdmin() || canAccessEricsson());
+    }
 
     // Shared collections (Notifications and Duplas config)
     match /notificacoes/{docId} {

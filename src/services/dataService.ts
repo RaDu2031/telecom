@@ -48,6 +48,8 @@ import {
   ClaroSiteRow,
   ClaroEngenhariaRow,
   ClaroSheetMeta,
+  VivoActivityRow,
+  VivoSheetMeta,
 } from '../types/telecom';
 import { hashString, createSaltedHash } from '../utils/authUtils';
 import {
@@ -106,6 +108,8 @@ export const FIRESTORE_COLLECTIONS = {
   CLARO_SITES: 'claro_sites',
   CLARO_ENGENHARIA: 'claro_engenharia',
   CLARO_META: 'claro_meta',
+  ERICSSON_VIVO: 'ericsson_vivo',
+  ERICSSON_VIVO_META: 'ericsson_vivo_meta',
 } as const;
 
 export function sanitizeFirestoreData<T>(data: T): T {
@@ -510,6 +514,18 @@ export interface IDataService {
   excluirClaroSiteRow(rowId: string): Promise<void>;
   salvarClaroEngenhariaRow(row: ClaroEngenhariaRow): Promise<void>;
   excluirClaroEngenhariaRow(rowId: string): Promise<void>;
+  importarVivoAtividadesEmLote(
+    rows: VivoActivityRow[],
+    options?: {
+      fileName?: string;
+      columns?: string[];
+      baseLoaded?: boolean;
+      skipHistory?: boolean;
+      onProgress?: (info: { gravados: number; total: number; lote: number; totalLotes: number }) => void;
+    }
+  ): Promise<{ totalGravados: number; lotesExecutados: number }>;
+  salvarVivoAtividade(row: VivoActivityRow): Promise<void>;
+  excluirVivoAtividade(rowId: string): Promise<void>;
   salvarPastaNokia(folder: EngineeringFolder): Promise<void>;
   excluirPastaNokia(folderId: string): Promise<void>;
   salvarArquivoNokia(
@@ -544,7 +560,7 @@ export interface IDataService {
     siteTokens: string[];
     responsibleName: string;
     linkedEmails?: string[];
-    vendor: 'NOKIA' | 'ERICSSON' | 'CLARO_TIM';
+    vendor: VendorType;
     actorEmail?: string;
     actorName?: string;
     allowTransfer?: boolean;
@@ -557,50 +573,50 @@ export interface IDataService {
   ): Promise<string[]>;
   desvincularDemandaSites(params: {
     siteTokens: string[];
-    vendor: 'NOKIA' | 'ERICSSON' | 'CLARO_TIM';
+    vendor: VendorType;
     targetScope?: 'equipe' | 'executor';
   }): Promise<{ updatedCount: number }>;
   limparTodosSitesDemanda(params: {
     responsibleName: string;
     siteTokens?: string[];
-    vendor: 'NOKIA' | 'ERICSSON' | 'CLARO_TIM';
+    vendor: VendorType;
     targetScope?: 'equipe' | 'executor';
   }): Promise<{ updatedCount: number }>;
   renomearEquipeDupla(params: {
     oldName: string;
     newName: string;
-    vendor?: 'NOKIA' | 'ERICSSON' | 'CLARO_TIM';
+    vendor?: VendorType;
   }): Promise<void>;
   vincularEmailsDupla(params: {
     duplaName: string;
     emails: string[];
-    vendor?: 'NOKIA' | 'ERICSSON' | 'CLARO_TIM';
+    vendor?: VendorType;
   }): Promise<void>;
   desvincularEmailsDupla(params: {
     duplaName: string;
-    vendor?: 'NOKIA' | 'ERICSSON' | 'CLARO_TIM';
+    vendor?: VendorType;
   }): Promise<void>;
   renomearEmailsDupla(params: {
     oldName: string;
     newName: string;
-    vendor?: 'NOKIA' | 'ERICSSON' | 'CLARO_TIM';
+    vendor?: VendorType;
   }): Promise<void>;
   renomearExecutorEngenharia(params: {
     oldName: string;
     newName: string;
-    vendor: 'NOKIA' | 'ERICSSON' | 'CLARO_TIM';
+    vendor: VendorType;
   }): Promise<{ updatedCount: number }>;
   adicionarEquipeExcluida(params: {
     duplaName: string;
-    vendor: 'NOKIA' | 'ERICSSON' | 'CLARO_TIM';
+    vendor: VendorType;
   }): Promise<void>;
   removerEquipeExcluida(params: {
     duplaName: string;
-    vendor: 'NOKIA' | 'ERICSSON' | 'CLARO_TIM';
+    vendor: VendorType;
   }): Promise<void>;
   limparTodasLinhasEquipeDupla(params: {
     duplaName: string;
-    vendor: 'NOKIA' | 'ERICSSON' | 'CLARO_TIM';
+    vendor: VendorType;
     siteIds?: string[];
   }): Promise<{ updatedCount: number }>;
   importarDadosIniciais(onProgress?: (msg: string) => void): Promise<{
@@ -674,6 +690,8 @@ export interface IDataService {
       onClaroSites?: (rows: TelecomSite[]) => void;
       onClaroEngenharia?: (rows: ClaroEngenhariaRow[]) => void;
       onClaroMeta?: (meta: { sites?: ClaroSheetMeta; engenharia?: ClaroSheetMeta }) => void;
+      onEricssonVivo?: (rows: VivoActivityRow[]) => void;
+      onEricssonVivoMeta?: (meta: VivoSheetMeta | null) => void;
     }
   ): Unsubscribe;
   salvarOuAtualizarAcionamento(
@@ -702,7 +720,7 @@ export interface IDataService {
   resolverDestinatariosEmails(params: {
     responsibleName: string;
     linkedEmails?: string[];
-    vendor?: 'NOKIA' | 'ERICSSON' | 'CLARO_TIM';
+    vendor?: VendorType;
     tipoDestinatario: 'VISTORIA' | 'EXECUTOR';
   }): Promise<string[]>;
 }
@@ -2705,7 +2723,7 @@ class FirebaseDataService implements IDataService {
     siteTokens: string[];
     responsibleName: string;
     linkedEmails?: string[];
-    vendor: 'NOKIA' | 'ERICSSON' | 'CLARO_TIM';
+    vendor: VendorType;
     actorEmail?: string;
     actorName?: string;
     allowTransfer?: boolean;
@@ -3229,7 +3247,7 @@ class FirebaseDataService implements IDataService {
 
   async desvincularDemandaSites(params: {
     siteTokens: string[];
-    vendor: 'NOKIA' | 'ERICSSON' | 'CLARO_TIM';
+    vendor: VendorType;
     targetScope?: 'equipe' | 'executor';
   }): Promise<{ updatedCount: number }> {
     const nowIso = new Date().toISOString();
@@ -3423,7 +3441,7 @@ class FirebaseDataService implements IDataService {
   async limparTodosSitesDemanda(params: {
     responsibleName: string;
     siteTokens?: string[];
-    vendor: 'NOKIA' | 'ERICSSON' | 'CLARO_TIM';
+    vendor: VendorType;
     targetScope?: 'equipe' | 'executor';
   }): Promise<{ updatedCount: number }> {
     const isExecutor = params.targetScope === 'executor';
@@ -3618,7 +3636,7 @@ class FirebaseDataService implements IDataService {
   async renomearEquipeDupla(params: {
     oldName: string;
     newName: string;
-    vendor?: 'NOKIA' | 'ERICSSON' | 'CLARO_TIM';
+    vendor?: VendorType;
   }): Promise<void> {
     const vendors = params.vendor ? [params.vendor] : (['NOKIA', 'ERICSSON', 'CLARO_TIM'] as const);
     for (const v of vendors) {
@@ -3662,7 +3680,7 @@ class FirebaseDataService implements IDataService {
   async vincularEmailsDupla(params: {
     duplaName: string;
     emails: string[];
-    vendor?: 'NOKIA' | 'ERICSSON' | 'CLARO_TIM';
+    vendor?: VendorType;
   }): Promise<void> {
     const isEricsson = params.vendor === 'ERICSSON';
     const fieldName = isEricsson ? 'ericssonDuplaEmailsMap' : 'duplaEmailsMap';
@@ -3676,7 +3694,7 @@ class FirebaseDataService implements IDataService {
 
   async desvincularEmailsDupla(params: {
     duplaName: string;
-    vendor?: 'NOKIA' | 'ERICSSON' | 'CLARO_TIM';
+    vendor?: VendorType;
   }): Promise<void> {
     const isEricsson = params.vendor === 'ERICSSON';
     const fieldName = isEricsson ? 'ericssonDuplaEmailsMap' : 'duplaEmailsMap';
@@ -3715,7 +3733,7 @@ class FirebaseDataService implements IDataService {
 
   async adicionarEquipeExcluida(params: {
     duplaName: string;
-    vendor: 'NOKIA' | 'ERICSSON' | 'CLARO_TIM';
+    vendor: VendorType;
   }): Promise<void> {
     const isEricsson = params.vendor === 'ERICSSON';
     const fieldName = isEricsson ? 'excludedDuplasEricsson' : 'excludedDuplasNokia';
@@ -3732,7 +3750,7 @@ class FirebaseDataService implements IDataService {
 
   async removerEquipeExcluida(params: {
     duplaName: string;
-    vendor: 'NOKIA' | 'ERICSSON' | 'CLARO_TIM';
+    vendor: VendorType;
   }): Promise<void> {
     const isEricsson = params.vendor === 'ERICSSON';
     const fieldName = isEricsson ? 'excludedDuplasEricsson' : 'excludedDuplasNokia';
@@ -3746,7 +3764,7 @@ class FirebaseDataService implements IDataService {
 
   async limparTodasLinhasEquipeDupla(params: {
     duplaName: string;
-    vendor: 'NOKIA' | 'ERICSSON' | 'CLARO_TIM';
+    vendor: VendorType;
     siteIds?: string[];
   }): Promise<{ updatedCount: number }> {
     const isEricsson = params.vendor === 'ERICSSON';
@@ -4060,6 +4078,8 @@ class FirebaseDataService implements IDataService {
       onClaroSites?: (rows: TelecomSite[]) => void;
       onClaroEngenharia?: (rows: ClaroEngenhariaRow[]) => void;
       onClaroMeta?: (metaMap: { sites?: ClaroSheetMeta; engenharia?: ClaroSheetMeta }) => void;
+      onEricssonVivo?: (rows: VivoActivityRow[]) => void;
+      onEricssonVivoMeta?: (meta: VivoSheetMeta | null) => void;
       onUsuarios?: (users: AmetaUser[]) => void;
       onDuplasConfig?: (config: {
         duplaEmailsMap?: Record<string, string[]>;
@@ -4281,6 +4301,46 @@ class FirebaseDataService implements IDataService {
         )
       );
     }
+    if (callbacks.onEricssonVivo) {
+      unsubs.push(
+        onSnapshot(
+          collection(db, FIRESTORE_COLLECTIONS.ERICSSON_VIVO),
+          (snap) => {
+            const list = snap.docs.map((d) => {
+              const raw = d.data() as Record<string, any>;
+              return {
+                ...raw,
+                id: d.id,
+                vendor: 'ERICSSON_VIVO' as const,
+                fields: (raw.fields || {}) as Record<string, string>,
+              } as VivoActivityRow;
+            });
+            callbacks.onEricssonVivo!(list);
+          },
+          (err: any) => {
+            console.error('Ericsson Vivo snapshot error:', err);
+            if (err?.code === 'permission-denied') {
+              notificarPermissaoNegadaUmaVez('ericsson_vivo');
+            }
+          }
+        )
+      );
+    }
+    if (callbacks.onEricssonVivoMeta) {
+      unsubs.push(
+        onSnapshot(
+          doc(db, FIRESTORE_COLLECTIONS.ERICSSON_VIVO_META, 'default'),
+          (snap) => {
+            if (snap.exists()) {
+              callbacks.onEricssonVivoMeta!({ id: 'default', ...snap.data() } as VivoSheetMeta);
+            } else {
+              callbacks.onEricssonVivoMeta!(null);
+            }
+          },
+          (err) => console.error('Ericsson Vivo meta snapshot error:', err)
+        )
+      );
+    }
     if (callbacks.onUsuarios) {
       const isCoordOrAdmin =
         user.role === 'ADM' ||
@@ -4352,7 +4412,7 @@ class FirebaseDataService implements IDataService {
   async resolverDestinatariosEmails(params: {
     responsibleName: string;
     linkedEmails?: string[];
-    vendor?: 'NOKIA' | 'ERICSSON' | 'CLARO_TIM';
+    vendor?: VendorType;
     tipoDestinatario: 'VISTORIA' | 'EXECUTOR';
   }): Promise<string[]> {
     const candidateEmails = new Set<string>();
@@ -5049,6 +5109,99 @@ class FirebaseDataService implements IDataService {
       novosClaroSites,
       idsRemovidosNokia,
     };
+  }
+
+  async importarVivoAtividadesEmLote(
+    rows: VivoActivityRow[],
+    options?: {
+      fileName?: string;
+      columns?: string[];
+      baseLoaded?: boolean;
+      skipHistory?: boolean;
+      onProgress?: (info: { gravados: number; total: number; lote: number; totalLotes: number }) => void;
+    }
+  ): Promise<{ totalGravados: number; lotesExecutados: number }> {
+    const cleanRows = (rows || []).filter((r) => r && r.id);
+    const chunkSize = 250;
+    const totalLotes = Math.max(1, Math.ceil(cleanRows.length / chunkSize));
+    let totalGravados = 0;
+
+    for (let i = 0; i < cleanRows.length; i += chunkSize) {
+      const chunk = cleanRows.slice(i, i + chunkSize);
+      const batch = writeBatch(db);
+      for (const row of chunk) {
+        const sanitized = sanitizeFirestoreData<VivoActivityRow>({
+          ...row,
+          vendor: 'ERICSSON_VIVO',
+          updatedAt: row.updatedAt || new Date().toISOString(),
+        });
+        batch.set(doc(db, FIRESTORE_COLLECTIONS.ERICSSON_VIVO, row.id), sanitized, { merge: true });
+      }
+      await batch.commit();
+      totalGravados += chunk.length;
+      if (options?.onProgress) {
+        options.onProgress({
+          gravados: totalGravados,
+          total: cleanRows.length,
+          lote: Math.floor(i / chunkSize) + 1,
+          totalLotes,
+        });
+      }
+    }
+
+    const nowIso = new Date().toISOString();
+    try {
+      await setDoc(
+        doc(db, FIRESTORE_COLLECTIONS.ERICSSON_VIVO_META, 'default'),
+        sanitizeFirestoreData<VivoSheetMeta>({
+          id: 'default',
+          columns: options?.columns || [],
+          sourceFileName: options?.fileName || cleanRows[0]?.fileName || 'AMETA_VIVO_REPORT.csv',
+          lastSyncAt: nowIso,
+          totalRows: totalGravados,
+          baseLoaded: options?.baseLoaded ?? true,
+        }),
+        { merge: true }
+      );
+    } catch (metaErr) {
+      console.warn('Falha ao atualizar metadados Vivo:', metaErr);
+    }
+
+    if (!options?.skipHistory && cleanRows.length > 0) {
+      try {
+        const impCode = cleanRows[0]?.importCode || `VIVO_${Date.now().toString(36).toUpperCase()}`;
+        await this.registrarHistoricoImportacao({
+          id: `imp_${impCode}_${Date.now()}`,
+          fileName: options?.fileName || cleanRows[0]?.fileName || 'Planilha Vivo',
+          target: 'ERICSSON_VIVO',
+          sheetName: 'Vivo Documentação',
+          importCode: impCode,
+          importedAt: nowIso,
+          totalLidas: cleanRows.length,
+          totalAdicionadas: totalGravados,
+          totalIgnoradas: 0,
+        });
+      } catch (histErr) {
+        console.warn('Falha ao registrar histórico Vivo:', histErr);
+      }
+    }
+
+    return { totalGravados, lotesExecutados: totalLotes };
+  }
+
+  async salvarVivoAtividade(row: VivoActivityRow): Promise<void> {
+    if (!row || !row.id) return;
+    const sanitized = sanitizeFirestoreData<VivoActivityRow>({
+      ...row,
+      vendor: 'ERICSSON_VIVO',
+      updatedAt: new Date().toISOString(),
+    });
+    await setDoc(doc(db, FIRESTORE_COLLECTIONS.ERICSSON_VIVO, row.id), sanitized, { merge: true });
+  }
+
+  async excluirVivoAtividade(rowId: string): Promise<void> {
+    if (!rowId) return;
+    await deleteDoc(doc(db, FIRESTORE_COLLECTIONS.ERICSSON_VIVO, rowId));
   }
 }
 

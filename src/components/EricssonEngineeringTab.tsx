@@ -57,6 +57,11 @@ import {
   normalizeEricssonRealStatus,
   isEricssonRowReproved,
 } from '../utils/ericssonSpreadsheetUtils';
+import { QuickAcionamentoModal } from './QuickAcionamentoModal';
+import {
+  QuickAcionamentoDraft,
+  buildEricssonEngenhariaRecord,
+} from '../utils/quickAcionamentoUtils';
 
 /**
  * Ensures columns strictly follow the canonical 51-column sequence from the OneDrive spreadsheet.
@@ -1026,6 +1031,22 @@ export const EricssonEngineeringTab: React.FC<EricssonEngineeringTabProps> = ({
     }
   };
 
+  const handleCreateQuickEricssonEng = async (drafts: QuickAcionamentoDraft[]) => {
+    const createdRows = drafts.map((draft, idx) => buildEricssonEngenhariaRecord(draft, idx));
+    setRows((prev) => [...createdRows, ...prev]);
+    showToast(
+      createdRows.length === 1
+        ? `Acionamento ${createdRows[0].intervencaoClaro} adicionado na Engenharia Ericsson!`
+        : `${createdRows.length} acionamentos adicionados na Engenharia Ericsson!`
+    );
+    await Promise.race([
+      Promise.allSettled(
+        createdRows.map((row) => dataService.salvarEricssonEngenhariaRow(row))
+      ),
+      new Promise<void>((resolve) => window.setTimeout(resolve, 1200)),
+    ]);
+  };
+
   const handleDeleteRow = async (id: string) => {
     const ok = await confirmar('Tem certeza que deseja excluir esta linha da Engenharia Ericsson?', {
       title: 'Excluir Linha da Engenharia',
@@ -1101,10 +1122,10 @@ export const EricssonEngineeringTab: React.FC<EricssonEngineeringTabProps> = ({
               <button
                 type="button"
                 onClick={handleOpenNewRowModal}
-                className="px-3 py-2 bg-[#F8FAFC] hover:bg-slate-100 text-slate-800 text-xs font-semibold rounded-[8px] transition-all flex items-center gap-1.5 cursor-pointer border border-slate-200"
+                className="px-3.5 py-2 bg-[#1E8E8D] hover:bg-[#177170] text-white text-xs font-semibold rounded-[8px] transition-all flex items-center gap-1.5 cursor-pointer shadow-xs whitespace-nowrap"
               >
-                <Plus className="w-3.5 h-3.5 text-[#1E8E8D]" />
-                <span>+ Nova Linha</span>
+                <Plus className="w-3.5 h-3.5" />
+                <span>Novo Acionamento</span>
               </button>
             )}
 
@@ -1813,19 +1834,34 @@ export const EricssonEngineeringTab: React.FC<EricssonEngineeringTabProps> = ({
       </div>
 
       {/* =====================================================================
-          6. MODAL: NOVA LINHA / EDITAR LINHA
+          6A. MODAL: NOVO ACIONAMENTO RÁPIDO (1 OU VÁRIOS DE UMA VEZ)
          ===================================================================== */}
-      {(isNewRowModalOpen || editingRow) && (
+      <QuickAcionamentoModal
+        isOpen={isNewRowModalOpen}
+        target="ERICSSON_ENGENHARIA"
+        suggestedExecutors={Array.from(
+          new Set(rows.map((r) => (r.executor || '').trim()).filter(Boolean))
+        )}
+        suggestedRegionals={Array.from(
+          new Set(rows.map((r) => (r.regional || '').trim()).filter(Boolean))
+        )}
+        onClose={() => setIsNewRowModalOpen(false)}
+        onSubmitDrafts={handleCreateQuickEricssonEng}
+      />
+
+      {/* =====================================================================
+          6B. MODAL: EDITAR LINHA EXISTENTE
+         ===================================================================== */}
+      {editingRow && (
         <div className="ameta-modal-backdrop fixed inset-0 z-50 bg-[#0B1530]/45 backdrop-blur-[2px] flex items-center justify-center p-4 overflow-y-auto">
           <div className="ameta-modal-panel bg-white rounded-[12px] max-w-xl w-full overflow-hidden border border-slate-200 my-8">
             <div className="px-5 py-3.5 bg-[#0B1530] text-white flex items-center justify-between">
               <h3 className="text-sm font-bold">
-                {editingRow ? 'Editar Linha da Engenharia Ericsson' : '+ Nova Linha (Engenharia Ericsson)'}
+                Editar Linha da Engenharia Ericsson
               </h3>
               <button
                 type="button"
                 onClick={() => {
-                  setIsNewRowModalOpen(false);
                   setEditingRow(null);
                 }}
                 className="p-1 text-slate-300 hover:text-white hover:bg-white/10 rounded-[6px] cursor-pointer transition-colors"

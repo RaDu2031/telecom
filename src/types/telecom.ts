@@ -1,4 +1,4 @@
-export type VendorType = 'NOKIA' | 'ERICSSON' | 'CLARO_TIM';
+export type VendorType = 'NOKIA' | 'ERICSSON' | 'CLARO_TIM' | 'ERICSSON_VIVO';
 
 export const DEFAULT_ONEDRIVE_TSSR_URL = 'https://onedrive.live.com/:x:/g/personal/d82e752e01e5afdd/IQDgA-L4WLPYSbYY7rdSiedCAY39Y72Mn2s6Vn9Ijm0Tq-k?rtime=i_gLDa-r3kg&redeem=aHR0cHM6Ly8xZHJ2Lm1zL3gvYy9kODJlNzUyZTAxZTVhZmRkL0lRRGdBLUw0V0xQWVNiWVk3cmRTaWVkQ0FZMzlZNzJNbjJzNlZuOUlqbTBUcS1rP2U9WEV0d0F4';
 export const DEFAULT_ERICSSON_ENG_ONEDRIVE_URL = 'https://onedrive.live.com/:x:/g/personal/d82e752e01e5afdd/IQBkdW7amR5BQLwUz3WVNtySAWRS0ZetSRS24kMBQIjwE4E?rtime=bHml02143kg&redeem=aHR0cHM6Ly8xZHJ2Lm1zL3gvYy9kODJlNzUyZTAxZTVhZmRkL0lRQmtkVzdhbVI1QlFMd1V6M1dWTnR5U0FXUlMwWmV0U1JTMjRrTUJRSWp3RTRFP2U9cjhQT3B5';
@@ -253,7 +253,8 @@ export interface ImportHistoryEntry {
     | 'ERICSSON_SITES'
     | 'ERICSSON_ENGENHARIA'
     | 'CLARO_SITES'
-    | 'CLARO_ENGENHARIA';
+    | 'CLARO_ENGENHARIA'
+    | 'ERICSSON_VIVO';
   sheetName?: string;
   importCode: string;
   importedAt: string;
@@ -281,7 +282,7 @@ export type UserRole =
   | 'Executor'
   | 'Vistoriador';
 
-export type AssignedPlatformScope = 'NOKIA' | 'ERICSSON' | 'BOTH' | 'AMBAS' | 'CLARO_TIM';
+export type AssignedPlatformScope = 'NOKIA' | 'ERICSSON' | 'BOTH' | 'AMBAS' | 'CLARO_TIM' | 'ERICSSON_VIVO';
 
 export type UserSituacao = 'dono' | 'aguardando' | 'ativo' | 'bloqueado' | 'recusado';
 
@@ -363,6 +364,7 @@ export function canUserAccessVendor(
   if (isUserAguardando(user)) return false;
   const scope = user.plataforma === 'AMBAS' ? 'BOTH' : user.plataforma || user.assignedPlatform || user.preferredVendor || 'NOKIA';
   if (scope === 'BOTH') return true;
+  if (vendor === 'ERICSSON_VIVO') return scope === 'ERICSSON';
   return scope === vendor;
 }
 
@@ -1555,5 +1557,113 @@ export interface ClaroSheetMeta {
   lastSyncAt: string;
   totalRows?: number;
 }
+
+// ============================================================================
+// ERICSSON VIVO — PLANILHA DOCUMENTAÇÃO & PLANEJAMENTO (46 COLUNAS EXATAS)
+// ============================================================================
+export const VIVO_DOC_COLUMNS: string[] = [
+  'Resumo',
+  '00.02.Site Name',
+  'ID Register',
+  'Regional',
+  'Tipo doc',
+  'Status',
+  'Comentário STATUS',
+  'Prioridade',
+  'Demanda',
+  'Planejado',
+  'REPLAN',
+  'DATA REPLAN',
+  'Entregue',
+  'Ericsson United',
+  'EXECUTOR',
+  'SLA DOC',
+  'Entregue Week',
+  'Entregue Week Ameta',
+  'Double Check',
+  'WR Revisar',
+  'Executor WR',
+  'Descrição',
+  'Motivo',
+  'Ofensor',
+  'WR REV. PLAN',
+  'WR ENTREGUE',
+  'SLA WR',
+  'PIRF REVISAR',
+  'EXECUTOR PIRF',
+  'MOTIVO DE REVISÃO DO PIRF',
+  'PIRF REV. PLAN',
+  'PIRF ENTREGUE',
+  'SLA PIRF',
+  'PPI REVISAR',
+  'EXECUTOR PPI',
+  'MOTIVO DE REVISÃO DO PPI',
+  'PPI REV. PLAN',
+  'PPI ENTREGUE',
+  'SLA PPI',
+  'RF SHEET REVISAR',
+  'EXECUTOR RF SHEET',
+  'MOTIVO DE REVISÃO DO RF SHEET',
+  'RF SHEET REV. PLAN',
+  'RF SHEET ENTREGUE',
+  'SLA RF SHEET',
+  'FATURAMENTO',
+];
+
+export const VIVO_SUMMARY_COLUMNS: string[] = [
+  '00.02.Site Name',
+  'Regional',
+  'Tipo doc',
+  'Status',
+  'EXECUTOR',
+  'Prioridade',
+  'Demanda',
+  'Planejado',
+  'Entregue',
+  'SLA DOC',
+  'Entregue Week',
+  'Ofensor',
+  'FATURAMENTO',
+  'Comentário STATUS',
+];
+
+export interface VivoActivityRow {
+  id: string;
+  vendor: 'ERICSSON_VIVO';
+  siteName: string;
+  idRegister: string;
+  regional: string;
+  tipoDoc: string; // Normalized label e.g. 'RF Sheet Vivo', 'PPI Vivo', 'PDI Vivo', 'War Room Vivo', 'PIRF Vivo', 'BoQ Vivo'
+  status: string;
+  comentarioStatus: string;
+  prioridade: string;
+  demanda: string;
+  planejado: string;
+  replan: string;
+  dataReplan: string;
+  entregue: string;
+  executor: string;
+  slaDoc: string;
+  entregueWeek: string;
+  ofensor: string;
+  faturamento: string;
+  fields: Record<string, string>; // All 46 original columns preserved verbatim
+  fileName?: string;
+  rowNumberInFile?: number;
+  importCode?: string;
+  createdAt?: string;
+  updatedAt: string;
+  updatedBy?: string;
+}
+
+export interface VivoSheetMeta {
+  id: 'default';
+  columns: string[];
+  sourceFileName?: string;
+  lastSyncAt: string;
+  totalRows?: number;
+  baseLoaded?: boolean;
+}
+
 
 
